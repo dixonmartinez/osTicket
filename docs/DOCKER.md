@@ -348,6 +348,17 @@ git status --porcelain                # debe quedar vacío
 No hace falta `git add --renormalize .`: no hay nada que renormalizar, el
 contenido del repositorio es el correcto.
 
+Cuidado con el caso contrario: los archivos con `text eol=lf` (`.sh`, `.conf`,
+`.sql`, `.json`, `.yaml`, `.ini`, `Makefile`) pueden estar en CRLF **en el
+disco** sin que `git status` lo diga, porque git normaliza al comparar. Eso
+rompe cosas silenciosas, como la firma del esquema del instalador. Para
+detectarlos y reescribirlos:
+
+```bash
+git ls-files --eol | awk -F'\t' '$1 ~ /w\/crlf/ {print $2}'
+git ls-files --eol | awk -F'\t' '$1 ~ /w\/crlf/ {print $2}' | xargs -r git checkout --
+```
+
 **El instalador devuelve «HTTP ERROR 500» al pulsar *Continue*.**
 La página se queda sin cuerpo porque PHP tiene `display_errors` desactivado.
 Hay dos formas de ver el error real:
@@ -432,6 +443,22 @@ Causas conocidas:
 * `Unable to set php_admin_value[...]`: una directiva `php_admin_*` que la
   extensión no conoce. Por eso `xdebug.*` sólo se declara si Xdebug está
   cargado.
+
+**`core: Unknown or invalid schema signature (… .. …)` al instalar.**
+El instalador compara el md5 de `setup/inc/streams/core/install-mysql.sql`
+con la firma de `include/upgrader/streams/core.sig`, que se calculó sobre LF.
+Si tu copia del `.sql` tiene finales de línea Windows (checkout antiguo en
+Windows con `core.autocrlf=true`), el md5 cambia y la instalación aborta.
+Ya está tolerado —el instalador normaliza CRLF antes de comparar la firma y
+antes de ejecutar el SQL—, así que basta con actualizar el repositorio.
+
+Para ver cómo está el archivo y arreglarlo en la copia de trabajo:
+
+```bash
+git ls-files --eol setup/inc/streams/core/install-mysql.sql   # w/crlf = CRLF
+git config core.autocrlf false
+git checkout -- setup/inc/streams/core/install-mysql.sql
+```
 
 **«Unable to connect to MySQL server: No such file or directory» al instalar.**
 El host puesto es `localhost` o `127.0.0.1`. Dentro del contenedor eso apunta

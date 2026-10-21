@@ -41,6 +41,10 @@ class SetupWizard {
         if(!file_exists($file) || !($schema=file_get_contents($file)))
             return $this->abort(sprintf(__('Error accessing SQL file %s'),basename($file)), $debug);
 
+        // Un checkout de Windows puede dejar el .sql en CRLF; MySQL lo
+        // tolera casi siempre, pero se normaliza para no depender de ello.
+        $schema = str_replace("\r\n", "\n", $schema);
+
         return $this->load_sql($schema, $prefix, $abort, $debug);
     }
 

@@ -161,7 +161,12 @@ class Installer extends SetupWizard {
                 elseif (
                         // TODO: Make the hash algo configurable in the streams
                         //       configuration ( core : md5 )
-                        !($hash = md5(fread($fp2, filesize($schemaFile))))
+                        // La firma se calculó sobre LF. Un checkout de
+                        // Windows (core.autocrlf, o una copia anterior a
+                        // .gitattributes) deja el archivo en CRLF y el md5 no
+                        // coincidía: "Unknown or invalid schema signature".
+                        !($hash = md5(str_replace("\r\n", "\n",
+                                    fread($fp2, filesize($schemaFile)))))
                         || strcasecmp($signature, $hash))
                     $this->errors['err'] = sprintf(
                         __('%s: Unknown or invalid schema signature (%s .. %s)'),
