@@ -87,9 +87,27 @@ docker compose exec php rm -rf /var/www/html/setup
 
 ## 3. Depurar con Xdebug desde VS Code
 
-Hay dos formas, y las dos funcionan sin instalar PHP en el host.
+**El Dev Container es opcional.** Hay dos formas de trabajar y las dos permiten
+depurar sin instalar PHP en el host. Elige según dónde viva el proyecto:
 
-### 3.1 Dev Container (recomendado)
+| | Ventana normal | Dev Container |
+|---|---|---|
+| Dónde corre VS Code | En tu sistema (Windows/macOS/Linux) | Dentro del contenedor `php` |
+| Dónde corren las extensiones | En tu sistema | En el contenedor |
+| Dónde escucha Xdebug (9003) | En tu sistema | En el contenedor |
+| Hace falta PHP instalado | No | No |
+| Intelephense indexa leyendo | Disco local (rápido) | El bind mount del proyecto |
+| Terminal integrada | Tu shell | Shell del contenedor |
+| Reproducibilidad del equipo | Depende de tus extensiones | Idéntica para todos |
+
+**Regla práctica:** si el proyecto está en el disco de Windows (`/mnt/c`,
+`/mnt/d`) y abres VS Code desde Windows, **usa la ventana normal**: el editor
+lee por NTFS directamente y el indexado de Intelephense va mucho más rápido que
+a través del bind mount. Si el proyecto vive en el sistema de archivos de Linux
+(`~/osTicket`), el Dev Container es la mejor opción porque el servidor de VS
+Code queda junto a los archivos.
+
+### 3.1 Dev Container
 
 1. Abre la carpeta del proyecto en VS Code.
 2. Acepta el aviso **“Reopen in Container”** (o `F1` →
@@ -109,8 +127,14 @@ arrancar, así que no hay archivos extra que montar.
 ### 3.2 Ventana normal de VS Code (sin devcontainer)
 
 1. `make docker-up` (o `docker compose up -d`).
-2. `F5` → **“Xdebug: osTicket (Docker)”**.
-3. Navega a la aplicación.
+2. Instala solo estas extensiones (VS Code las propone al abrir la carpeta):
+   `xdebug.php-debug` e `bmewburn.vscode-intelephense-client`.
+3. `F5` → **“Xdebug: osTicket (Docker)”**.
+4. Navega a la aplicación.
+
+El *path mapping* funciona igual porque `${workspaceFolder}` se resuelve a la
+ruta de Windows (`D:\PHPDeveloper\osTicket`) y Xdebug envía
+`/var/www/html/...`.
 
 Aquí Xdebug sale del contenedor hacia el host por `host.docker.internal:9003`;
 en Linux eso funciona gracias a `extra_hosts: host.docker.internal:host-gateway`
@@ -119,10 +143,16 @@ el puerto 9003 esté permitido en la interfaz de Docker.
 
 ### 3.3 Depurar scripts de consola
 
-Abre el archivo (por ejemplo `tools/security/php-cve-check.php`), selecciona
-**“Xdebug: script CLI (manage.php / tools)”** y pulsa `F5`. La tarea
-*Docker: shell en php* te deja ejecutarlo a mano con
-`php tools/security/php-cve-check.php`.
+Abre el archivo (por ejemplo `tools/security/php-cve-check.php`) y pulsa `F5`
+eligiendo la variante que corresponda a cómo abriste el proyecto:
+
+| Configuración | Cuándo |
+|---|---|
+| **Xdebug: script CLI (dentro del contenedor)** | Dev Container. Usa el `php` del contenedor |
+| **Xdebug: script CLI (desde el host, vía Docker)** | Ventana normal, sin PHP instalado: ejecuta `docker compose exec php php …` |
+
+Para lanzarlo sin depurador, la tarea *Docker: shell en php* o
+`docker compose exec php php tools/security/php-cve-check.php`.
 
 ### 3.4 Ajustes de Xdebug
 
@@ -135,6 +165,12 @@ Abre el archivo (por ejemplo `tools/security/php-cve-check.php`), selecciona
 | `PHP_IDE_CONFIG` | `serverName=osticket.local` | Nombre de servidor para configuraciones con *path mapping* |
 
 Los valores están en `.env` y en `docker/php/conf.d/90-xdebug.ini`.
+
+> `.vscode/settings.json` desactiva `php.validate` a propósito: no hay PHP en
+> el host. La validación la hace Intelephense y la ejecución va por Docker. Con
+> Dev Containers, `.devcontainer/devcontainer.json` lo reactiva apuntando a
+> `/usr/local/bin/php`.
+
 El *path mapping* ya está resuelto en `.vscode/launch.json`:
 `/var/www/html` → `${workspaceFolder}`.
 
@@ -155,8 +191,9 @@ El *path mapping* ya está resuelto en `.vscode/launch.json`:
 | Calidad: pruebas del proyecto | `setup/test/run-tests.php` |
 | Datos: crear base de datos si falta | `docker/php/setup-db.php` |
 
-`.vscode/launch.json`: cuatro configuraciones (web, web esperando conexión,
-script CLI y suite de pruebas).
+`.vscode/launch.json`: cinco configuraciones — web, web esperando conexión,
+script CLI dentro del contenedor, script CLI desde el host vía `docker compose`
+y la suite de pruebas.
 
 `.vscode/http/osticket.http`: ejemplos listos para la extensión *REST Client*
 (crear ticket por JSON y XML, consultar configuración pública, ver Mailpit).

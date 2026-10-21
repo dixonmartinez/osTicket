@@ -2,8 +2,10 @@
   // ---------------------------------------------------------------------
   // Lanzadores de depuración de osTicket
   //
-  // Requisito: el entorno Docker debe estar arriba (make docker-up) o el
-  // proyecto abierto con "Dev Containers: Reopen in Container".
+  // Requisito: el entorno Docker debe estar arriba (make docker-up).
+  // El Dev Container es OPCIONAL: los mismos lanzadores funcionan con una
+  // ventana normal de VS Code, porque Xdebug sale del contenedor hacia
+  // host.docker.internal:9003. Ver docs/DOCKER.md § 3.
   //
   //   F5 → "Xdebug: osTicket (Docker)"   y navega a http://localhost:8080
   //   F5 → "Xdebug: depurar script CLI"  para manage.php / tools/*
@@ -53,7 +55,9 @@
       ]
     },
     {
-      "name": "Xdebug: script CLI (manage.php / tools)",
+      // Sólo útil dentro del contenedor (Dev Containers), donde existe el
+      // binario /usr/local/bin/php. En Windows sin PHP usa la variante Docker.
+      "name": "Xdebug: script CLI (dentro del contenedor)",
       "type": "php",
       "request": "launch",
       "program": "${file}",
@@ -66,6 +70,27 @@
       "runtimeArgs": ["-dxdebug.start_with_request=yes"],
       "env": {
         "XDEBUG_MODE": "debug,develop"
+      },
+      "console": "internalConsole"
+    },
+    {
+      // Funciona desde Windows/macOS/Linux sin PHP instalado: el script se
+      // ejecuta dentro del contenedor con `docker compose exec`.
+      "name": "Xdebug: script CLI (desde el host, vía Docker)",
+      "type": "php",
+      "request": "launch",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": [
+        "compose", "exec", "-T", "php",
+        "php",
+        "-dxdebug.start_with_request=yes",
+        "-dxdebug.client_host=host.docker.internal",
+        "/var/www/html/${relativeFile}"
+      ],
+      "port": 9003,
+      "hostname": "0.0.0.0",
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}"
       },
       "console": "internalConsole"
     },
