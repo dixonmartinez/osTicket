@@ -40,7 +40,6 @@
         "EditorConfig.EditorConfig",
         "redhat.vscode-yaml",
         "esbenp.prettier-vscode",
-        "ms-azuretools.vscode-docker",
         "humao.rest-client"
       ],
       "settings": {

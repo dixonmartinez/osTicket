@@ -158,6 +158,49 @@ script CLI y suite de pruebas).
 `.vscode/http/osticket.http`: ejemplos listos para la extensión *REST Client*
 (crear ticket por JSON y XML, consultar configuración pública, ver Mailpit).
 
+## 4.1 Extensiones de VS Code
+
+El repositorio ya las declara en `.vscode/extensions.json`: al abrir la carpeta,
+VS Code muestra un aviso con **“Install all”**. Las del Dev Container se
+instalan solas al hacer *Reopen in Container*.
+
+### Imprescindibles
+
+| Extensión | ID | Para qué |
+|---|---|---|
+| PHP Debug | `xdebug.php-debug` | **Necesaria** para los lanzadores de `launch.json`. Sin ella, `F5` no existe |
+| Intelephense | `bmewburn.vscode-intelephense-client` | Autocompletado, ir a la definición, errores de tipo. Los directorios de terceros ya están excluidos en `.vscode/settings.json` |
+| EditorConfig | `EditorConfig.EditorConfig` | Respeta `.editorconfig` (tabs, fin de línea, charset) |
+
+### Muy recomendables
+
+| Extensión | ID | Para qué |
+|---|---|---|
+| Docker | `ms-azuretools.vscode-docker` | Ver contenedores, logs y abrir shell desde la barra lateral. **Solo en el host**, no dentro del contenedor |
+| SQLTools + driver MySQL | `mtxr.sqltools` + `mtxr.sqltools-driver-mysql` | Consultar la base. La conexión `osTicket (dev)` ya está configurada en `.vscode/settings.json` |
+| YAML | `redhat.vscode-yaml` | Valida `compose.yaml` mientras lo editas |
+| REST Client | `humao.rest-client` | Ejecuta `.vscode/http/osticket.http` (crear tickets por API) |
+| Prettier | `esbenp.prettier-vscode` | Formatea YAML, JSON y Markdown. **No PHP**: no se incluye `@prettier/plugin-php` |
+
+### Opcionales según lo que hagas
+
+| Extensión | ID | Cuándo |
+|---|---|---|
+| Composer | `neilbreatnham.composer` | Si editas `composer.json`. Innecesaria dentro del contenedor |
+| Markdown All in One | `yzhang.markdown-all-in-one` | Si mantienes la documentación de `docs/` |
+| Code Spell Checker | `streetsidesoftware.code-spell-checker` | Erratas en comentarios y guías (añade el diccionario español) |
+| GitLens | `eamodio.gitlens` | Ver quién cambió cada línea del núcleo |
+| SonarLint | `sonarsource.sonarlint-vscode` | Reglas estáticas adicionales para PHP |
+
+### Lo que **no** conviene instalar
+
+| Extensión | Motivo |
+|---|---|
+| `felixfbecker.php-debug` | Deprecada; su sustituta es `xdebug.php-debug`. Está en `unwantedRecommendations` |
+| `felixfbecker.php-intellisense` | Deprecada y en conflicto con Intelephense |
+| DEVSENSE *PHP Tools* junto a Intelephense | Dos servidores de lenguaje PHP sobre el mismo proyecto: autocompletado duplicado y errores fantasma. Elige uno |
+| Cualquier formateador de PHP | El proyecto no fija estilo automático en PHP; `phpcs.xml.dist` es la referencia y se ejecuta en el contenedor (`make docker-qa`) |
+
 ## 5. Comandos del día a día
 
 ```bash
