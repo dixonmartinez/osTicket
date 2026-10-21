@@ -241,6 +241,17 @@ Antes de exponerlo a Internet:
 
 ## 8. Problemas frecuentes
 
+**En Windows: `exec /usr/local/bin/osticket-entrypoint: no such file or directory`.**
+El script llegó con finales de línea CRLF. El repositorio incluye
+`.gitattributes` con `*.sh eol=lf`; si clonaste antes de que existiera,
+normaliza:
+
+```bash
+git rm --cached -r . >/dev/null && git reset --hard
+# o, sin re-clonar:
+sed -i 's/\r$//' docker/php/docker-entrypoint.sh
+```
+
 **El contenedor `php` reinicia en bucle.**
 Mira `docker compose logs php`. Las causas habituales son: una `PHP_VERSION`
 sin parche (el entrypoint aborta a propósito), la base de datos que aún no

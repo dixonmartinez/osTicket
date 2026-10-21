@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# Normalización de finales de línea
+#
+# Crítico en Windows: los scripts .sh con CRLF fallan dentro del contenedor
+# ("/bin/sh^M: bad interpreter"). Aquí se fuerza LF en todo lo que se ejecuta
+# o se lee dentro de Docker.
+# ---------------------------------------------------------------------------
+
+* text=auto eol=lf
+
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.conf          text eol=lf
+*.ini           text eol=lf
+*.sql           text eol=lf
+*.php           text eol=lf
+*.css           text eol=lf
+*.js            text eol=lf
+*.json          text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+Makefile        text eol=lf
+.editorconfig   text eol=lf
+
+# Excepción histórica del proyecto: este archivo ya usa CRLF y se mantiene
+# así para no alterar su contenido byte a byte.
+include/PasswordHash.php text eol=crlf
+
+# Binarios: nunca normalizar
+*.png           binary
+*.jpg           binary
+*.gif           binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary
+*.pdf           binary
+*.zip           binary
+*.phar          binary
