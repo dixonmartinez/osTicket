@@ -53,13 +53,13 @@ clean: ## Elimina artefactos temporales de desarrollo
 	@rm -rf $(ROOT)/vendor/.phpunit.result.cache
 	@find $(ROOT)/tools -name '*.tmp' -delete 2>/dev/null || true
 
-perms: ## Verifica los permisos recomendados de ost-config.php
+perms: ## Verifica y corrige los permisos de ost-config.php
 	@if [ -f "$(ROOT)/include/ost-config.php" ]; then \
-		stat -c '%a %n' "$(ROOT)/include/ost-config.php"; \
 		mode=$$(stat -c '%a' "$(ROOT)/include/ost-config.php"); \
 		case "$$mode" in \
-			644|640|600) echo "✓ Permisos correctos";; \
-			*) echo "⚠ Se recomienda: chmod 640 include/ost-config.php";; \
+			640|600) echo "✓ include/ost-config.php con permisos correctos ($$mode)";; \
+			*) echo "→ Ajustando include/ost-config.php: $$mode → 640"; \
+			   chmod 640 "$(ROOT)/include/ost-config.php";; \
 		esac; \
 	else \
 		echo "Aún no existe include/ost-config.php (instalación pendiente)"; \

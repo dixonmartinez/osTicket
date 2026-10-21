@@ -80,6 +80,10 @@ La primera vez hay que crear las tablas. Dos caminos:
    * Contraseña: `osticket` (o la que hayas puesto en `.env`)
 3. Crea el administrador y termina.
 
+El asistente pedirá quitar el permiso de escritura de `include/ost-config.php`.
+El contenedor ya lo crea en `0640`: compruébalo (y corrígelo si hace falta) con
+`make perms`.
+
 > `localhost` dentro del contenedor `php` es el propio contenedor: no hay
 > ningún MySQL escuchando ahí y la conexión falla con «No such file or
 > directory». La base vive en el servicio `db` de la red de compose.
