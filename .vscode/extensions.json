@@ -1,0 +1,15 @@
+{
+    "recommendations": [
+        "xdebug.php-debug",
+        "bmewburn.vscode-intelephense-client",
+        "neilbreatnham.composer",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-mysql",
+        "EditorConfig.EditorConfig",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "humao.rest-client",
+        "esbenp.prettier-vscode"
+    ],
+    "unwantedRecommendations": ["felixfbecker.php-debug"]
+}

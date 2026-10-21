@@ -1,0 +1,15 @@
+# PHPStan — adopción incremental.
+#
+# Sólo se analizan las rutas listadas. A medida que un módulo se limpia, se
+# añade su ruta aquí y se sube el nivel. Ejecuta:
+#
+#   composer install
+#   vendor/bin/phpstan analyse
+#
+parameters:
+    level: 5
+    paths:
+        - tools
+    excludePaths:
+        - tools/audit/scan.php
+    treatPhpDocTypesAsCertain: false

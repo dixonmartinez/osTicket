@@ -1,0 +1,87 @@
+{
+  // ---------------------------------------------------------------------
+  // Lanzadores de depuración de osTicket
+  //
+  // Requisito: el entorno Docker debe estar arriba (make docker-up) o el
+  // proyecto abierto con "Dev Containers: Reopen in Container".
+  //
+  //   F5 → "Xdebug: osTicket (Docker)"   y navega a http://localhost:8080
+  //   F5 → "Xdebug: depurar script CLI"  para manage.php / tools/*
+  //
+  // El puerto 9003 debe estar libre en el host.
+  // ---------------------------------------------------------------------
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Xdebug: osTicket (Docker)",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "hostname": "0.0.0.0",
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}"
+      },
+      "xdebugSettings": {
+        "max_data": 2048,
+        "max_children": 128,
+        "max_depth": 4
+      },
+      "ignore": [
+        "**/include/mpdf/**",
+        "**/include/laminas-mail/**",
+        "**/include/pear/**",
+        "**/include/fpdf/**",
+        "**/vendor/**"
+      ],
+      "log": false
+    },
+    {
+      "name": "Xdebug: osTicket (Docker, esperar conexión)",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "hostname": "0.0.0.0",
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}"
+      },
+      "ignore": [
+        "**/include/mpdf/**",
+        "**/include/laminas-mail/**",
+        "**/include/pear/**",
+        "**/include/fpdf/**",
+        "**/vendor/**"
+      ]
+    },
+    {
+      "name": "Xdebug: script CLI (manage.php / tools)",
+      "type": "php",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "port": 9003,
+      "hostname": "0.0.0.0",
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}"
+      },
+      "runtimeArgs": ["-dxdebug.start_with_request=yes"],
+      "env": {
+        "XDEBUG_MODE": "debug,develop"
+      },
+      "console": "internalConsole"
+    },
+    {
+      "name": "Xdebug: pruebas del proyecto (setup/test)",
+      "type": "php",
+      "request": "launch",
+      "program": "${workspaceFolder}/setup/test/run-tests.php",
+      "cwd": "${workspaceFolder}",
+      "port": 9003,
+      "hostname": "0.0.0.0",
+      "pathMappings": {
+        "/var/www/html": "${workspaceFolder}"
+      },
+      "console": "internalConsole"
+    }
+  ],
+  "compounds": []
+}

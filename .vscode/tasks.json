@@ -1,0 +1,101 @@
+{
+  // ---------------------------------------------------------------------
+  // Tareas de VS Code: Ctrl+Shift+B abre la lista de tareas.
+  //
+  // Todas ejecutan Docker en el host, así que funcionan con el proyecto
+  // abierto de forma normal o dentro del Dev Container.
+  // ---------------------------------------------------------------------
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker: up (dev)",
+      "type": "shell",
+      "command": "docker compose up -d --build && docker compose ps",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "detail": "Arranca nginx + PHP-FPM + MariaDB + Mailpit"
+    },
+    {
+      "label": "Docker: down",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: reset (borra datos)",
+      "type": "shell",
+      "command": "docker compose down -v --remove-orphans",
+      "problemMatcher": [],
+      "detail": "Elimina el volumen de la base de datos. No se puede deshacer."
+    },
+    {
+      "label": "Docker: logs (nginx + php)",
+      "type": "shell",
+      "command": "docker compose logs -f --tail=100 nginx php",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Docker: shell en php",
+      "type": "shell",
+      "command": "docker compose exec php sh",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true }
+    },
+    {
+      "label": "Docker: shell en db (mariadb)",
+      "type": "shell",
+      "command": "docker compose exec db mariadb -uosticket -posticket osticket",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true }
+    },
+    {
+      "label": "Seguridad: comprobar php2shell",
+      "type": "shell",
+      "command": "docker compose exec php php tools/security/php-cve-check.php",
+      "problemMatcher": []
+    },
+    {
+      "label": "Calidad: make ci (lint + audit + security)",
+      "type": "shell",
+      "command": "docker compose run --rm tools make ci",
+      "problemMatcher": ["$tsc"],
+      "group": "test"
+    },
+    {
+      "label": "Calidad: lint",
+      "type": "shell",
+      "command": "docker compose run --rm tools make lint",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Calidad: auditoría de seguridad",
+      "type": "shell",
+      "command": "docker compose run --rm tools make audit",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Calidad: pruebas del proyecto",
+      "type": "shell",
+      "command": "docker compose run --rm tools php setup/test/run-tests.php",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Datos: crear base de datos si falta",
+      "type": "shell",
+      "command": "docker compose exec php php docker/php/setup-db.php",
+      "problemMatcher": []
+    },
+    {
+      "label": "Datos: abrir instalador",
+      "type": "shell",
+      "command": "open http://localhost:8080/setup/ || xdg-open http://localhost:8080/setup/ || echo 'Abre http://localhost:8080/setup/'",
+      "problemMatcher": []
+    }
+  ]
+}

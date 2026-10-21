@@ -1,0 +1,51 @@
+// ---------------------------------------------------------------------------
+// Pruebas rápidas de la API con la extensión "REST Client" (humao.rest-client).
+//
+//   1. Copia tu clave desde scp/apikeys.php (panel → Admin → API Keys)
+//   2. Añade  OST_KEY=tu-clave  al archivo .env de la raíz del proyecto
+//      (el mismo de Docker; está en .gitignore y no se versiona)
+//   3. Pulsa "Send Request" sobre cada bloque
+// ---------------------------------------------------------------------------
+
+@host = http://localhost:8080
+@key = {{$dotenv OST_KEY}}
+
+### Estado de la aplicación (portal del cliente)
+GET {{host}}/ HTTP/1.1
+
+### Instalador — sólo si la base de datos está vacía
+GET {{host}}/setup/ HTTP/1.1
+
+### Crear ticket por API (JSON)
+POST {{host}}/api/tickets.json HTTP/1.1
+X-API-Key: {{key}}
+Content-Type: application/json
+
+{
+  "alert": true,
+  "autorespond": true,
+  "source": "API",
+  "name": "Usuario de prueba",
+  "email": "usuario@example.com",
+  "subject": "Prueba desde REST Client",
+  "message": "Cuerpo del ticket enviado desde el editor."
+}
+
+### Crear ticket por API (XML)
+POST {{host}}/api/tickets.xml HTTP/1.1
+X-API-Key: {{key}}
+Content-Type: text/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ticket alert="true" autorespond="true" source="API">
+    <name>Usuario de prueba</name>
+    <email>usuario@example.com</email>
+    <subject>Prueba XML</subject>
+    <message><![CDATA[Cuerpo del ticket.]]></message>
+</ticket>
+
+### Variables de configuración del portal (AJAX público)
+GET {{host}}/ajax.php/config/client HTTP/1.1
+
+### Correo capturado por Mailpit (desarrollo)
+GET http://localhost:8025/api/v1/messages HTTP/1.1

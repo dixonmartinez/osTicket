@@ -1,0 +1,30 @@
+{
+    "name": "osticket/osticket",
+    "description": "osTicket — sistema de tickets de soporte. Dependencias de desarrollo (el runtime no requiere Composer).",
+    "type": "project",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://osticket.com",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.11",
+        "phpunit/phpunit": "^10.5",
+        "squizlabs/php_codesniffer": "^3.10"
+    },
+    "config": {
+        "vendor-dir": "vendor",
+        "sort-packages": true,
+        "allow-plugins": false
+    },
+    "scripts": {
+        "lint": "php tools/audit/scan.php --severity=high --baseline=tools/audit/baseline.json",
+        "audit": "php tools/audit/scan.php --severity=low",
+        "syntax": "PHP_BIN=php bash tools/lint.sh",
+        "test": "php setup/test/run-tests.php",
+        "check": [
+            "@syntax",
+            "@lint"
+        ]
+    }
+}

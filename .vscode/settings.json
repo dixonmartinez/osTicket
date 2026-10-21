@@ -1,0 +1,73 @@
+{
+    // ---------------------------------------------------------------------
+    // Ajustes compartidos del equipo (no específicos de la máquina).
+    // Los personales van en .vscode/settings.local.json (en .gitignore).
+    // ---------------------------------------------------------------------
+
+    "files.eol": "\n",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "files.associations": {
+        "*.inc.php": "php",
+        "*.tmpl.php": "php",
+        "compose.yaml": "yaml",
+        "compose.override.yaml": "yaml"
+    },
+    "files.watcherExclude": {
+        "**/include/mpdf/**": true,
+        "**/include/laminas-mail/**": true,
+        "**/include/pear/**": true,
+        "**/vendor/**": true,
+        "**/node_modules/**": true,
+        "**/include/i18n/**": true
+    },
+    "search.exclude": {
+        "**/include/mpdf/**": true,
+        "**/include/laminas-mail/**": true,
+        "**/include/pear/**": true,
+        "**/include/fpdf/**": true,
+        "**/vendor/**": true,
+        "**/assets/**/*.min.*": true
+    },
+
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.rulers": [80, 120],
+    "editor.formatOnSave": false,
+    "[php]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "[json][jsonc][yaml][markdown]": {
+        "editor.tabSize": 2
+    },
+
+    // PHP
+    "intelephense.environment.phpVersion": "8.4.0",
+    "intelephense.files.maxSize": 3000000,
+    "intelephense.files.exclude": [
+        "**/include/mpdf/**",
+        "**/include/laminas-mail/**",
+        "**/include/pear/**",
+        "**/include/fpdf/**",
+        "**/vendor/**"
+    ],
+    "intelephense.stubs": [
+        "Core", "standard", "mysqli", "gd", "gettext",
+        "mbstring", "intl", "zip", "json", "session", "phar"
+    ],
+    "php.validate.enable": true,
+
+    // Xdebug: el lanzador vive en launch.json
+    "php.debug.executablePath": "/usr/local/bin/php",
+
+    // Evita que el editor marque los archivos de terceros
+    "files.exclude": {
+        "**/.git": true,
+        "**/vendor": false
+    },
+
+    "terminal.integrated.env.linux": {
+        "COMPOSE_PROJECT_NAME": "osticket"
+    }
+}

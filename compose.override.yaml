@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# Ajustes de desarrollo que se aplican automáticamente sobre compose.yaml.
+#
+# Docker Compose carga este archivo si existe. No lo uses en producción:
+# publica Mailpit y añade herramientas de depuración.
+# ---------------------------------------------------------------------------
+
+services:
+  # Buzón SMTP falso: captura todos los correos que envía osTicket.
+  # Interfaz web: http://localhost:8025
+  mail:
+    image: axllent/mailpit:v1.20
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+    networks: [osticket]
+
+  php:
+    # En desarrollo el contenedor escribe como el usuario local para que los
+    # archivos generados (caché, i18n) no queden como root.
+    environment:
+      PHP_IDE_CONFIG: serverName=osticket.local

@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Overlay de producción.
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# Diferencias con desarrollo:
+#   * Imagen construida con el objetivo "prod": sin Xdebug, OPcache con JIT y
+#     sin revalidar timestamps, y el código COPIADO dentro de la imagen.
+#   * Nada de código montado desde el host: lo que sirve el contenedor es
+#     exactamente lo que se construyó (reproducible, sin sorpresas).
+#   * No se publican los puertos de la base de datos ni de Mailpit.
+#   * Reinicio automático y rotación de logs.
+#
+# `ost-config.php` se regenera en cada arranque a partir de las variables de
+# entorno del compose, así que no hay que versionarlo ni copiarlo a mano.
+#
+# Requiere Docker Compose >= 2.24 por el uso de `!reset`.
+# ---------------------------------------------------------------------------
+
+services:
+  php:
+    build:
+      target: prod
+    restart: always
+    environment:
+      XDEBUG_MODE: "off"
+      # La contraseña de root no debe llegar al contenedor de la aplicación
+      OST_DB_ROOT_PASS: ""
+      OST_INSTALL_DB: "0"
+    volumes: !reset []
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    restart: always
+    ports: !reset []
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    restart: always
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,48 @@
+# ---------------------------------------------------------------------------
+# Contexto de construcción de la imagen
+#
+# Menos archivos = imagen más pequeña y builds más rápidos. Aquí sólo se
+# excluye lo que NO hace falta en tiempo de ejecución.
+# ---------------------------------------------------------------------------
+
+# Historial y metadatos del repositorio
+.git
+.gitignore
+.github
+
+# Editores y contenedores de desarrollo
+.devcontainer
+.vscode
+.idea
+nbproject
+
+# Documentación y herramientas: no se sirven (nginx las bloquea) ni se usan
+docs
+*.md
+!README.md
+
+# Dependencias de desarrollo (el runtime no usa Composer)
+vendor
+node_modules
+composer.json
+composer.lock
+phpstan.neon.dist
+phpcs.xml.dist
+.editorconfig
+
+# Orquestación y entorno local
+compose.yaml
+compose.override.yaml
+compose.prod.yaml
+.env
+.env.example
+Makefile
+
+# Configuración local con credenciales (se genera en el arranque)
+include/ost-config.php
+
+# Artefactos y basura
+*.log
+.DS_Store
+tests-output
+stage
