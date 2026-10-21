@@ -343,6 +343,45 @@ git status --porcelain                # debe quedar vacío
 No hace falta `git add --renormalize .`: no hay nada que renormalizar, el
 contenido del repositorio es el correcto.
 
+**El instalador devuelve «HTTP ERROR 500» al pulsar *Continue*.**
+La página se queda sin cuerpo porque PHP tiene `display_errors` desactivado.
+Hay dos formas de ver el error real:
+
+```bash
+# 1) en el log del contenedor (error_log va a stderr)
+docker compose logs --tail=40 php
+
+# 2) en pantalla: activa OST_DEBUG en .env y recrea el contenedor
+#    OST_DEBUG=1  →  docker compose up -d php
+```
+
+También se puede reproducir la petición por consola, que imprime el error con
+su archivo y línea:
+
+```bash
+docker compose exec -T php php -d display_errors=1 -d error_reporting=E_ALL -r '
+  $_SERVER["HTTP_HOST"]="localhost"; $_SERVER["PHP_SELF"]="/setup/install.php";
+  $_SERVER["SCRIPT_NAME"]="/setup/install.php";
+  $_SERVER["SCRIPT_FILENAME"]="/var/www/html/setup/install.php";
+  $_SERVER["REQUEST_METHOD"]="POST"; $_SERVER["REMOTE_ADDR"]="127.0.0.1";
+  $_POST=["s"=>"prereq"]; chdir("/var/www/html/setup"); include "install.php";' \
+  2>&1 | tail -30
+```
+
+**El instalador marca IMAP y APCu con una ✗.**
+APCu ya se compila en la imagen (`apc.enabled`), así que la ✗ significa que la
+imagen es anterior: `docker compose build php`.
+
+`imap` es otra historia: PHP 8.4 **eliminó la extensión del núcleo**. Sin ella
+osTicket funciona con normalidad —se instala, se usan los tickets, la API y el
+envío de correo—, pero no puede **descargar** correo de un buzón POP/IMAP.
+Alternativas sin tocar la imagen:
+
+* crear tickets por la API (`/api/tickets.json`) o por *email piping*
+  (`api/pipe.php`), que no dependen de `imap`;
+* compilar la extensión (PECL `imap` sobre 8.4, o `ext-imap` + `imap-dev`
+  sobre 8.3) añadiendo el paquete a `docker/php/Dockerfile`.
+
 **Cambié `HTTP_PORT` y abro una dirección equivocada.**
 El puerto real es el de `.env`; el mensaje antiguo de `make docker-up` estaba
 fijado a 8080. Ahora se lee del archivo:

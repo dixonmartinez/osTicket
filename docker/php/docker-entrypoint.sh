@@ -108,7 +108,9 @@ if [ -w /usr/local/etc/php-fpm.d ]; then
         echo "pm.max_requests = ${PHP_FPM_MAX_REQUESTS:-500}"
         echo 'php_admin_value[error_log] = /proc/self/fd/2'
         echo 'php_admin_flag[log_errors] = on'
-        echo 'php_admin_flag[display_errors] = off'
+        # display_errors NO se fija aquí: php.ini lo deja en Off y osTicket
+        # lo activa sólo con OST_DEBUG (Bootstrap::init). Fijarlo con
+        # php_admin_flag haría imposible ese override al depurar.
         echo 'php_admin_flag[session.upload_progress.enabled] = off'
         echo 'php_admin_value[memory_limit] = 256M'
         # Xdebug: a dónde debe conectar. Por defecto a tu equipo, que es
@@ -176,14 +178,25 @@ if [ ! -f "$CONFIG" ] && [ "${OST_AUTO_CONFIG:-1}" = "1" ]; then
         log "Creando include/ost-config.php desde el ejemplo"
         cp /var/www/html/include/ost-sampleconfig.php "$CONFIG"
 
+        # Los marcadores son los que usa include/ost-sampleconfig.php:
+        #   %CONFIG-PREFIX (no TABLEPREFIX) y %ADMIN-EMAIL.
         sed -i \
             -e "s|%CONFIG-DBHOST|${OST_DB_HOST:-db}|g" \
             -e "s|%CONFIG-DBNAME|${OST_DB_NAME:-osticket}|g" \
             -e "s|%CONFIG-DBUSER|${OST_DB_USER:-osticket}|g" \
             -e "s|%CONFIG-DBPASS|${OST_DB_PASS:-osticket}|g" \
+            -e "s|%CONFIG-PREFIX|${OST_DB_PREFIX:-ost_}|g" \
             -e "s|%CONFIG-TABLEPREFIX|${OST_DB_PREFIX:-ost_}|g" \
             -e "s|%CONFIG-SIRI|${OST_SECRET_SALT:-change-me-please}|g" \
+            -e "s|%ADMIN-EMAIL|${OST_ADMIN_EMAIL:-admin@example.com}|g" \
             "$CONFIG"
+
+        # OST_DEBUG=1 descomenta define('OST_DEBUG', true) en el config: el
+        # error se ve en pantalla en vez de una página 500 vacía.
+        if [ "${OST_DEBUG:-0}" = "1" ]; then
+            sed -i "s|^# *define('OST_DEBUG', *true);|define('OST_DEBUG', true);|" "$CONFIG"
+            warn "OST_DEBUG activado: los errores de PHP se muestran en pantalla."
+        fi
 
         # Contiene credenciales: sólo lectura para el propietario.
         chmod 640 "$CONFIG" 2>/dev/null || true

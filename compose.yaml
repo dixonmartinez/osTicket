@@ -101,6 +101,9 @@ services:
       PHP2SHELL_STRICT: ${PHP2SHELL_STRICT:-0}
       # Sólo para que los avisos del entrypoint muestren la URL correcta.
       HTTP_PORT: ${HTTP_PORT:-8080}
+      # 1 = muestra los errores de PHP en pantalla (sólo desarrollo).
+      OST_DEBUG: ${OST_DEBUG:-0}
+      OST_ADMIN_EMAIL: ${OST_ADMIN_EMAIL:-admin@example.com}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
     volumes:

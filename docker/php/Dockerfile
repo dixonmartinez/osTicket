@@ -63,8 +63,10 @@ RUN set -eux; \
         pdo_mysql \
         zip \
     ; \
+    yes '' | pecl install apcu; \
+    docker-php-ext-enable apcu; \
     apk del --no-network .build-deps; \
-    rm -rf /var/cache/apk/* /tmp/*
+    rm -rf /var/cache/apk/* /tmp/* /tmp/pear
 
 # Configuración base compartida (segura para desarrollo y producción)
 COPY docker/php/conf.d/00-osticket.ini /usr/local/etc/php/conf.d/00-osticket.ini
