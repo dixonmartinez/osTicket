@@ -1,0 +1,284 @@
+/* ---------------------------------------------------------------------------
+   css/mobile.css — adaptación del panel de agentes a pantallas pequeñas
+   ---------------------------------------------------------------------------
+   Reglas *aditivas* que sólo se aplican por debajo de 1040px. No se toca
+   ninguna regla existente de scp.css: en escritorio el aspecto es idéntico.
+
+   Estrategia:
+     1. La barra de pestañas se desplaza en horizontal (patrón conocido en
+        móvil) en lugar de romperse en varias líneas.
+     2. El contenedor de 960px pasa a fluido y el área de contenido permite
+        desplazamiento horizontal, de modo que las tablas anchas siguen
+        siendo legibles sin cortar columnas.
+     3. Objetivos táctiles de 40px como mínimo (WCAG 2.5.5, AAA).
+     4. Los formularios ocupan el ancho disponible y evitan el zoom
+        automático de iOS (fuente >= 16px en campos de texto).
+   --------------------------------------------------------------------------- */
+
+@media screen and (max-width: 1040px) {
+
+    /* --- Contenedor ------------------------------------------------------ */
+    #container {
+        width: auto;
+        max-width: 100%;
+        margin: 0 0 16px;
+    }
+
+    html, body {
+        overflow-x: hidden;
+    }
+
+    /* --- Cabecera -------------------------------------------------------- */
+    #header {
+        height: auto;
+        min-height: 56px;
+    }
+    #logo {
+        height: auto;
+        padding: 6px 8px;
+    }
+    #logo img {
+        max-height: 46px;
+        max-width: 60vw;
+    }
+    div#header .pull-right,
+    #header .pull-right {
+        float: none;
+        display: block;
+        padding: 6px 8px;
+        text-align: left;
+    }
+
+    /* --- Navegación ------------------------------------------------------ */
+    #nav, #sub_nav {
+        padding: 0 6px;
+        height: auto;
+        min-height: 44px;
+        line-height: 44px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    #nav::-webkit-scrollbar,
+    #sub_nav::-webkit-scrollbar {
+        height: 4px;
+    }
+    #nav::-webkit-scrollbar-thumb,
+    #sub_nav::-webkit-scrollbar-thumb {
+        background: #b8c2cc;
+        border-radius: 999px;
+    }
+
+    #nav .active,
+    #nav .inactive {
+        min-width: 0;
+        height: 40px;
+        line-height: 40px;
+        padding: 0 12px;
+        display: inline-block;
+    }
+    #nav > li + li {
+        margin-left: 2px;
+    }
+
+    #sub_nav > li {
+        display: inline-block;
+    }
+    #sub_nav > li > a {
+        display: inline-block;
+        min-height: 40px;
+        line-height: 40px;
+        padding: 0 10px;
+    }
+
+    /* Los submenús desplegables en hover no existen en táctil: se muestran
+       como lista dentro de la barra desplazable. */
+    #nav li.inactive > ul,
+    #nav li.active > ul {
+        display: none;
+    }
+
+    /* --- Contenido ------------------------------------------------------- */
+    #content {
+        padding: 10px 8px 16px;
+        /* Las tablas anchas se desplazan dentro de su caja, no la página */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table.list {
+        min-width: 100%;
+    }
+    table.list thead th,
+    table.list tbody td {
+        white-space: nowrap;
+        padding: 8px 7px;
+    }
+
+    /* Enlace de fila: toda la celda es tocable */
+    table.list tbody td a {
+        display: inline-block;
+        min-height: 24px;
+        line-height: 24px;
+    }
+
+    /* --- Formularios ----------------------------------------------------- */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="number"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="date"],
+    input[type="datetime-local"],
+    select,
+    textarea {
+        max-width: 100%;
+        /* 16px evita el zoom automático de Safari iOS al enfocar */
+        font-size: 16px;
+    }
+
+    #basic_search {
+        padding: 6px 0;
+    }
+    #basic_search label {
+        display: block;
+        margin-bottom: 6px;
+    }
+    #basic_search input[type="text"],
+    #basic_search select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Botones y acciones */
+    .button,
+    .action-button,
+    button,
+    input[type="submit"],
+    input[type="button"] {
+        min-height: 40px;
+        padding: 8px 14px;
+        font-size: 15px;
+    }
+
+    /* --- Flotantes ------------------------------------------------------- */
+    /* Los bloques flotantes típicos (acciones a la derecha) se apilan */
+    .pull-right {
+        float: none;
+        text-align: left;
+    }
+    .pull-left {
+        float: none;
+    }
+
+    /* --- Diálogos y pestañas -------------------------------------------- */
+    .tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    .tabs a {
+        display: inline-block;
+        min-height: 40px;
+        line-height: 40px;
+    }
+
+    /* Los tooltips de ayuda estorban en pantallas pequeñas */
+    .help-tip {
+        display: none;
+    }
+
+    /* --- Editor de respuesta -------------------------------------------- */
+    .redactor-box,
+    .redactor-editor {
+        max-width: 100%;
+    }
+
+    /* --- Pie ------------------------------------------------------------- */
+    #footer {
+        padding: 10px 8px 24px;
+        font-size: 0.85em;
+    }
+}
+
+/* Pantallas muy pequeñas (móviles en vertical) */
+@media screen and (max-width: 480px) {
+    #content {
+        padding: 8px 6px 14px;
+    }
+    #logo img {
+        max-height: 38px;
+    }
+    /* Las columnas secundarias de las tablas de listado se ocultan para
+       que quepan las esenciales: número, asunto y fecha. */
+    table.list .column-hidden-phone {
+        display: none;
+    }
+}
+
+/* Modo apaisado en móvil: menos altura para la cabecera */
+@media screen and (max-height: 480px) and (orientation: landscape) {
+    #logo,
+    #header {
+        display: none;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Utilidades genéricas (se pueden usar en cualquier vista)
+   --------------------------------------------------------------------------- */
+
+/* Tabla que se convierte en tarjetas apiladas.
+   Requiere data-label="Nombre de columna" en cada <td>. */
+@media screen and (max-width: 720px) {
+    table.stack thead {
+        display: none;
+    }
+    table.stack,
+    table.stack tbody,
+    table.stack tr,
+    table.stack td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    table.stack tr {
+        border: 1px solid #d5dbe1;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 6px 4px;
+        background: #fff;
+    }
+    table.stack td {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        border: 0;
+        padding: 5px 8px;
+        white-space: normal;
+    }
+    table.stack td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #5b6773;
+        flex: 0 0 auto;
+    }
+}
+
+/* Impresión: sin barras de navegación ni botones */
+@media print {
+    #nav, #sub_nav, .no-print, .button, .action-button {
+        display: none !important;
+    }
+    #container {
+        width: auto;
+    }
+    #content {
+        border: 0;
+        overflow: visible;
+    }
+}

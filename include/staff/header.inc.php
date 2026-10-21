@@ -1,6 +1,9 @@
 <?php
 header("Content-Type: text/html; charset=UTF-8");
-header("Content-Security-Policy: frame-ancestors ".$cfg->getAllowIframes()."; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none'");
+// Hardening headers + CSP. The agent panel still depends on eval() for a
+// couple of legacy widgets, hence the explicit opt-in below.
+Http::security_headers($cfg);
+header('Content-Security-Policy: '.Http::csp($cfg, ['unsafe-eval' => true]));
 
 $title = ($ost && ($title=$ost->getPageTitle()))
     ? $title : ('osTicket :: '.__('Staff Control Panel'));
@@ -26,6 +29,12 @@ if (osTicket::is_ie())
     <meta http-equiv="cache-control" content="no-cache" />
     <meta http-equiv="pragma" content="no-cache" />
     <meta http-equiv="x-pjax-version" content="<?php echo GIT_VERSION; ?>">
+    <!-- Necesario para que el panel de agentes sea usable en móvil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#184E81">
+    <meta name="color-scheme" content="light">
+    <link rel="apple-touch-icon" href="<?php echo ROOT_PATH ?>images/pwa/apple-touch-icon.png">
+    <link rel="manifest" href="<?php echo ROOT_PATH ?>manifest.php?scope=scp">
     <title><?php echo Format::htmlchars($title); ?></title>
     <!--[if IE]>
     <style type="text/css">
@@ -33,8 +42,14 @@ if (osTicket::is_ie())
     </style>
     <![endif]-->
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
+    <!-- PWA: registro del service worker (ver docs/MOBILE.md) -->
+    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/pwa.js"></script>
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/thread.css" media="all">
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>scp/css/scp.css" media="all">
+    <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/ui.css" media="screen">
+    <!-- Adaptación a móvil y tablet (reglas aditivas, ver docs/MOBILE.md) -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/mobile.css" media="screen">
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/redactor.css" media="screen">
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/typeahead.css" media="screen">
     <link type="text/css" href="<?php echo ROOT_PATH; ?>css/ui-lightness/jquery-ui-1.13.2.custom.min.css"
@@ -61,15 +76,18 @@ if (osTicket::is_ie())
     ?>
 </head>
 <body>
+<a class="skip-link no-pjax" href="#content"><?php echo __('Skip to content'); ?></a>
 <div id="container">
+    <div role="status" aria-live="polite">
     <?php
     if($ost->getError())
-        echo sprintf('<div id="error_bar">%s</div>', $ost->getError());
+        echo sprintf('<div id="error_bar" role="alert">%s</div>', $ost->getError());
     elseif($ost->getWarning())
-        echo sprintf('<div id="warning_bar">%s</div>', $ost->getWarning());
+        echo sprintf('<div id="warning_bar" role="alert">%s</div>', $ost->getWarning());
     elseif($ost->getNotice())
         echo sprintf('<div id="notice_bar">%s</div>', $ost->getNotice());
     ?>
+    </div>
     <div id="header">
         <p id="info" class="pull-right no-pjax"><?php echo sprintf(__('Welcome, %s.'), '<strong>'.$thisstaff->getFirstName().'</strong>'); ?>
            <?php
@@ -105,7 +123,7 @@ if (osTicket::is_ie())
     </ul>
     <?php include STAFFINC_DIR . "templates/sub-navigation.tmpl.php"; ?>
 
-        <div id="content">
+        <div id="content" tabindex="-1">
         <?php if(isset($errors['err'])) { ?>
             <div id="msg_error"><?php echo $errors['err']; ?></div>
         <?php }elseif($msg) { ?>

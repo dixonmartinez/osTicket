@@ -53,7 +53,12 @@ else
     $order = $orderWays['DESC'];
 
 $x=$sort.'_sort';
-$$x=' class="'.strtolower($_REQUEST['order'] ?: 'desc').'" ';
+// Only ASC/DESC are meaningful sort directions. Never reflect the raw
+// request value into the markup: `?order="><script>...` is a reflected XSS
+// vector (see docs/SECURITY_AUDIT.md OST-001).
+$order_dir = (isset($_REQUEST['order'])
+        && strcasecmp($_REQUEST['order'], 'ASC') === 0) ? 'asc' : 'desc';
+$$x=' class="'.$order_dir.'" ';
 
 $basic_filter = Ticket::objects();
 if ($settings['topic_id']) {

@@ -11,6 +11,51 @@ $plots = $report->getPlotData();
 
 <link rel="stylesheet" type="text/css" href="css/dashboard.css"/>
 
+<?php
+// ---------------------------------------------------------------------------
+// Resumen rápido del periodo: cuatro cifras que responden "¿cómo vamos hoy?".
+// El detalle vive en analytics.php (tiempos, SLA, carga por agente).
+// ---------------------------------------------------------------------------
+require_once INCLUDE_DIR . 'class.analytics.php';
+$quick = (new Analytics('7d', $thisstaff))->getSummary();
+$quickHours = function ($value) {
+    if ($value === null)
+        return '&mdash;';
+    return $value < 24
+        ? sprintf(__('%s h'), number_format($value, 1))
+        : sprintf(__('%s d'), number_format($value / 24, 1));
+};
+?>
+<div class="dashboard-kpis">
+    <a class="kpi" href="analytics.php?range=7d">
+        <span class="kpi-label"><?php echo __('Created (7 days)'); ?></span>
+        <span class="kpi-value"><?php echo number_format($quick['created']); ?></span>
+    </a>
+    <a class="kpi is-ok" href="analytics.php?range=7d">
+        <span class="kpi-label"><?php echo __('Closed (7 days)'); ?></span>
+        <span class="kpi-value"><?php echo number_format($quick['closed']); ?></span>
+    </a>
+    <a class="kpi <?php echo $quick['overdue'] ? 'is-bad' : ''; ?>" href="tickets.php">
+        <span class="kpi-label"><?php echo __('Open now'); ?></span>
+        <span class="kpi-value"><?php echo number_format($quick['open']); ?></span>
+        <span class="kpi-note"><?php echo sprintf(__('%s overdue'),
+            number_format($quick['overdue'])); ?></span>
+    </a>
+    <a class="kpi" href="analytics.php?range=30d">
+        <span class="kpi-label"><?php echo __('First response'); ?></span>
+        <span class="kpi-value"><?php echo $quickHours($quick['first_response_h']); ?></span>
+        <span class="kpi-note"><?php echo __('Last 7 days average'); ?></span>
+    </a>
+    <a class="kpi <?php echo $quick['sla_pct'] === null ? ''
+        : ($quick['sla_pct'] >= 90 ? 'is-ok' : ($quick['sla_pct'] >= 75 ? 'is-warn' : 'is-bad')); ?>"
+       href="analytics.php?range=30d">
+        <span class="kpi-label"><?php echo __('SLA'); ?></span>
+        <span class="kpi-value"><?php echo $quick['sla_pct'] === null
+            ? '&mdash;' : number_format($quick['sla_pct'], 1) . '%'; ?></span>
+        <span class="kpi-note"><?php echo __('Met vs. breached'); ?></span>
+    </a>
+</div>
+
 <form method="post" action="dashboard.php">
 <div id="basic_search">
     <div style="min-height:25px;">

@@ -6,7 +6,10 @@ $signin_url = ROOT_PATH . "login.php"
 $signout_url = ROOT_PATH . "logout.php?auth=".$ost->getLinkToken();
 
 header("Content-Type: text/html; charset=UTF-8");
-header("Content-Security-Policy: frame-ancestors ".$cfg->getAllowIframes()."; script-src 'self' 'unsafe-inline'; object-src 'none'");
+// Hardening headers (nosniff / referrer policy / HSTS when on TLS) plus a
+// CSP that keeps the frame-ancestors contract configured by the admin.
+Http::security_headers($cfg);
+header('Content-Security-Policy: '.Http::csp($cfg));
 
 if (($lang = Internationalization::getCurrentLanguage())) {
     $langs = array_unique(array($lang, $cfg->getPrimaryLanguage()));
@@ -34,7 +37,11 @@ if (osTicket::is_ie())
     <title><?php echo Format::htmlchars($title); ?></title>
     <meta name="description" content="customer support platform">
     <meta name="keywords" content="osTicket, Customer support system, support ticket system">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <!-- PWA: instalable desde el navegador del móvil (ver docs/MOBILE.md) -->
+    <meta name="theme-color" content="#184E81">
+    <link rel="apple-touch-icon" href="<?php echo ROOT_PATH ?>images/pwa/apple-touch-icon.png">
+    <link rel="manifest" href="<?php echo ROOT_PATH ?>manifest.php?scope=client">
 	<link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/osticket.css" media="screen">
     <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/theme.css" media="screen">
     <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/print.css" media="print">
@@ -49,10 +56,13 @@ if (osTicket::is_ie())
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/flags.css">
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/rtl.css"/>
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/select2.min.css">
+    <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
+    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/pwa.js"></script>
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-ui-1.13.2.custom.min.js"></script>
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-ui-timepicker-addon.js"></script>
     <script src="<?php echo ROOT_PATH; ?>js/osticket.js"></script>
@@ -77,26 +87,29 @@ if (osTicket::is_ie())
         parse_str($_SERVER['QUERY_STRING'], $qs);
         foreach ($langs as $L) {
             $qs['lang'] = $L; ?>
-        <link rel="alternate" href="//<?php echo $_SERVER['HTTP_HOST'] . htmlspecialchars($_SERVER['REQUEST_URI']); ?>?<?php
+        <link rel="alternate" href="//<?php echo Format::htmlchars(Http::host()) . Format::htmlchars($_SERVER['REQUEST_URI'] ?? ''); ?>?<?php
             echo http_build_query($qs); ?>" hreflang="<?php echo $L; ?>" />
 <?php
         } ?>
-        <link rel="alternate" href="//<?php echo $_SERVER['HTTP_HOST'] . htmlspecialchars($_SERVER['REQUEST_URI']); ?>"
+        <link rel="alternate" href="//<?php echo Format::htmlchars(Http::host()) . Format::htmlchars($_SERVER['REQUEST_URI'] ?? ''); ?>"
             hreflang="x-default" />
 <?php
     }
     ?>
 </head>
 <body>
+    <a class="skip-link" href="#content"><?php echo __('Skip to content'); ?></a>
     <div id="container">
+        <div role="status" aria-live="polite">
         <?php
         if($ost->getError())
-            echo sprintf('<div class="error_bar">%s</div>', $ost->getError());
+            echo sprintf('<div class="error_bar" role="alert">%s</div>', $ost->getError());
         elseif($ost->getWarning())
-            echo sprintf('<div class="warning_bar">%s</div>', $ost->getWarning());
+            echo sprintf('<div class="warning_bar" role="alert">%s</div>', $ost->getWarning());
         elseif($ost->getNotice())
             echo sprintf('<div class="notice_bar">%s</div>', $ost->getNotice());
         ?>
+        </div>
         <div id="header">
             <div class="pull-right flush-right">
             <p>
@@ -163,7 +176,7 @@ if (($all_langs = Internationalization::getConfiguredSystemLanguages())
          <hr>
         <?php
         } ?>
-        <div id="content">
+        <div id="content" tabindex="-1">
 
          <?php if($errors['err']) { ?>
             <div id="msg_error"><?php echo $errors['err']; ?></div>

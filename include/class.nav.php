@@ -159,6 +159,9 @@ class StaffNav {
                     break;
                 case 'dashboard':
                     $subnav[]=array('desc'=>__('Dashboard'),'href'=>'dashboard.php','iconclass'=>'logs');
+                    // Panel de métricas operativas (tiempos, SLA, carga)
+                    $subnav[]=array('desc'=>__('Analytics'),'href'=>'analytics.php',
+                        'urls'=>array('analytics.php'),'iconclass'=>'logs');
                     $subnav[]=array('desc'=>__('Agent Directory'),'href'=>'directory.php','iconclass'=>'teams');
                     $subnav[]=array('desc'=>__('My Profile'),'href'=>'profile.php','iconclass'=>'users');
                     break;

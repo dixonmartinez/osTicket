@@ -2,6 +2,7 @@
 if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin()) die('Access Denied');
 
 $commit = GIT_VERSION != '$git' ? GIT_VERSION : (
+    // audit:ignore OST-RCE -- fixed command, displayed to admins only
     @shell_exec('git rev-parse HEAD | cut -b 1-8') ?: '?');
 
 $extensions = array(
@@ -76,7 +77,8 @@ $extensions = array(
 <?php
 $lv = $ost->getLatestVersion('core', MAJOR_VERSION);
 $tv = THIS_VERSION;
-$gv = (GIT_VERSION == '$git') ? substr(@`git rev-parse HEAD`, 0, 7) : (false ?: GIT_VERSION);
+// audit:ignore OST-RCE -- fixed command, displayed to admins only
+$gv = (GIT_VERSION == '$git') ? substr(@shell_exec('git rev-parse HEAD'), 0, 7) : (false ?: GIT_VERSION);
 if ($lv && $tv[0] == 'v' ? version_compare(THIS_VERSION, $lv, '>=') : $lv == $gv) { ?>
     — <span style="color:green"><i class="icon-check"></i> <?php echo __('Up to date'); ?></span>
 <?php
@@ -102,7 +104,7 @@ if (!$lv) { ?>
 ?>
     </td></tr>
     <tr><td><?php echo __('Web Server Software'); ?></td>
-        <td><span class="ltr"><?php echo $_SERVER['SERVER_SOFTWARE']; ?></span></td></tr>
+        <td><span class="ltr"><?php echo Format::htmlchars($_SERVER['SERVER_SOFTWARE'] ?? ''); ?></span></td></tr>
     <tr><td><?php echo __('MySQL Version'); ?></td>
         <td><span class="ltr"><?php echo db_version(); ?></span></td></tr>
     <tr><td><?php echo __('PHP Version'); ?></td>
@@ -187,6 +189,44 @@ if (!$lv) { ?>
         </td></tr>
 </tbody>
 </table>
+<br/>
+<h2><?php echo __('Security Posture'); ?>
+    <i class="help-tip icon-question-sign" href="#security_posture"></i></h2>
+<?php
+    $posture = class_exists('SecurityPosture') ? SecurityPosture::getIssues($cfg) : [];
+    if (!$posture) { ?>
+    <p class="notice-banner">
+        <i class="icon-ok"></i>
+        <?php echo __('No environment issues detected. Keep PHP and the application up to date.'); ?>
+    </p>
+<?php } else { ?>
+    <table class="list" width="100%">
+        <thead>
+            <tr>
+                <th width="10%"><?php echo __('Level'); ?></th>
+                <th><?php echo __('Finding'); ?></th>
+                <th width="18%"><?php echo __('Current'); ?></th>
+                <th width="18%"><?php echo __('Recommended'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($posture as $issue) { ?>
+            <tr>
+                <td><span class="ui-badge ui-badge--<?php echo Format::htmlchars($issue['level']); ?>">
+                    <?php echo Format::htmlchars(__(ucfirst($issue['level']))); ?></span></td>
+                <td><?php echo Format::htmlchars(__($issue['message'])); ?></td>
+                <td><code><?php echo Format::htmlchars($issue['current']); ?></code></td>
+                <td><code><?php echo Format::htmlchars($issue['recommended']); ?></code></td>
+            </tr>
+        <?php } ?>
+        </tbody>
+    </table>
+    <p class="faded">
+        <?php echo __('php2shell references: CVE-2026-109618 and CVE-2026-109619. Patching PHP is the only complete fix.'); ?>
+        &nbsp;<a href="https://www.php.net/archive/2026.php" target="_blank" rel="noopener noreferrer">
+            <?php echo __('PHP security releases'); ?></a>
+    </p>
+<?php } ?>
 <br/>
 <h2><?php echo __('Installed Language Packs'); ?></h2>
 <div style="margin: 0 20px">

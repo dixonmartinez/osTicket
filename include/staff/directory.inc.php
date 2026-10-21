@@ -62,7 +62,12 @@ if($_REQUEST['order'] && $orderWays[strtoupper($_REQUEST['order'])]) {
 }
 
 $x=$sort.'_sort';
-$$x=' class="'.strtolower($_REQUEST['order'] ?: 'desc').'" ';
+// Only ASC/DESC are meaningful sort directions. Never reflect the raw
+// request value into the markup: `?order="><script>...` is a reflected XSS
+// vector (see docs/SECURITY_AUDIT.md OST-001).
+$order_dir = (isset($_REQUEST['order'])
+        && strcasecmp($_REQUEST['order'], 'ASC') === 0) ? 'asc' : 'desc';
+$$x=' class="'.$order_dir.'" ';
 foreach ((array) $order_column as $C) {
     $agents->order_by($order.$C);
 }

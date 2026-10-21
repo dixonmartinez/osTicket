@@ -16,7 +16,7 @@ if ($thisstaff && $thisstaff->is2FAPending())
         <span class="valign-helper"></span>
         <img src="logo.php?login" alt="osTicket :: <?php echo __('Staff Control Panel');?>" />
     </a></h1>
-    <h3 id="login-message"><?php echo Format::htmlchars($msg); ?></h3>
+    <h3 id="login-message" role="alert" aria-live="assertive"><?php echo Format::htmlchars($msg); ?></h3>
     <div class="banner"><small><?php echo ($content) ? Format::display($content->getLocalBody()) : ''; ?></small></div>
     <div id="loading" style="display:none;" class="dialog">
         <h1><i class="icon-spinner icon-spin icon-large"></i>
@@ -42,10 +42,14 @@ if ($thisstaff && $thisstaff->is2FAPending())
         } else { ?>
             <input type="hidden" name="do" value="scplogin">
             <fieldset>
+            <label class="sr-only" for="name"><?php echo __('Email or Username'); ?></label>
             <input type="text" name="userid" id="name" value="<?php
                 echo $info['userid'] ?? null; ?>" placeholder="<?php echo __('Email or Username'); ?>"
-                autofocus autocorrect="off" autocapitalize="off">
-            <input type="password" name="passwd" id="pass" maxlength="128" placeholder="<?php echo __('Password'); ?>" autocorrect="off" autocapitalize="off">
+                autofocus autocorrect="off" autocapitalize="off" spellcheck="false"
+                autocomplete="username" required>
+            <label class="sr-only" for="pass"><?php echo __('Password'); ?></label>
+            <input type="password" name="passwd" id="pass" maxlength="128" placeholder="<?php echo __('Password'); ?>" autocorrect="off" autocapitalize="off"
+                autocomplete="current-password" required>
                 <h3 style="display:inline"><a id="reset-link" class="<?php
                     if (!$show_reset || !$cfg->allowPasswordReset()) echo 'hidden';
                     ?>" href="pwreset.php"><?php echo __('Forgot My Password'); ?></a></h3>
