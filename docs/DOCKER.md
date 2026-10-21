@@ -102,8 +102,9 @@ Hay dos formas, y las dos funcionan sin instalar PHP en el host.
    de interrupción.
 
 En este modo el puerto 9003 no se publica: VS Code y PHP viven en el mismo
-contenedor, y `.devcontainer/compose.debug.yaml` monta
-`.devcontainer/xdebug-in-container.ini` para que Xdebug conecte a `127.0.0.1`.
+contenedor. `.devcontainer/compose.debug.yaml` pone `XDEBUG_CLIENT_HOST` a
+`127.0.0.1` y el entrypoint escribe ese valor en el pool de PHP-FPM al
+arrancar, así que no hay archivos extra que montar.
 
 ### 3.2 Ventana normal de VS Code (sin devcontainer)
 
@@ -128,6 +129,8 @@ Abre el archivo (por ejemplo `tools/security/php-cve-check.php`), selecciona
 | Variable | Por defecto | Significado |
 |---|---|---|
 | `XDEBUG_MODE` | `develop,debug` | `off` para máxima velocidad, `coverage` para cobertura |
+| `XDEBUG_CLIENT_HOST` | `host.docker.internal` | A quién conecta Xdebug. El Dev Container lo pone a `127.0.0.1` |
+| `XDEBUG_CLIENT_PORT` | `9003` | Puerto del IDE |
 | `XDEBUG_TRIGGER` | vacío | Con `start_with_request=trigger` activa la sesión sólo con `?XDEBUG_SESSION=1` |
 | `PHP_IDE_CONFIG` | `serverName=osticket.local` | Nombre de servidor para configuraciones con *path mapping* |
 
@@ -247,7 +250,6 @@ docker/
 .devcontainer/
   devcontainer.json          VS Code dentro del contenedor
   compose.debug.yaml         Xdebug apuntando a 127.0.0.1
-  xdebug-in-container.ini    override de 90-xdebug.ini para ese caso
 ```
 
 ## 7. Producción
@@ -293,6 +295,16 @@ normaliza:
 git rm --cached -r . >/dev/null && git reset --hard
 # o, sin re-clonar:
 sed -i 's/\r$//' docker/php/docker-entrypoint.sh
+```
+
+**`invalid mount config for type "bind": bind source path does not exist`.**
+Una ruta relativa de `volumes:` se resuelve contra el **directorio del primer
+`-f`** (la raíz del repo), no contra la carpeta del compose que la declara. Si
+añades un overlay dentro de una subcarpeta, escribe la ruta desde la raíz:
+`./.devcontainer/mi-archivo.ini`. Para comprobarlo antes de arrancar:
+
+```bash
+docker compose -f compose.yaml -f compose.override.yaml -f .devcontainer/compose.debug.yaml config -q
 ```
 
 **El contenedor `php` reinicia en bucle.**

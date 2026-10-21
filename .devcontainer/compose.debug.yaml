@@ -6,15 +6,18 @@
 # extensión php-debug de VS Code se ejecuta DENTRO del contenedor "php"
 # cuando trabajas con "Dev Containers: Reopen in Container".
 #
-# Si depuras desde una ventana normal de VS Code (sin devcontainer), no se
-# usa este archivo: 90-xdebug.ini ya apunta a host.docker.internal y
-# compose.yaml publica la ruta al host con extra_hosts host-gateway.
+# El destino lo escribe el entrypoint en el pool de PHP-FPM a partir de la
+# variable XDEBUG_CLIENT_HOST: sin archivos extra que montar y sin depender de
+# cómo resuelve Docker las rutas relativas de los volúmenes.
+#
+# Si depuras desde una ventana normal de VS Code (sin devcontainer), este
+# archivo no se usa: compose.yaml deja XDEBUG_CLIENT_HOST en
+# host.docker.internal y 90-xdebug.ini ya trae ese valor por defecto.
 # ---------------------------------------------------------------------------
 
 services:
   php:
     environment:
       XDEBUG_MODE: debug,develop
-    volumes:
-      # Los archivos de esta carpeta son relativos a este compose
-      - ./xdebug-in-container.ini:/usr/local/etc/php/conf.d/95-xdebug-in-container.ini:ro
+      XDEBUG_CLIENT_HOST: "127.0.0.1"
+      XDEBUG_CLIENT_PORT: "9003"

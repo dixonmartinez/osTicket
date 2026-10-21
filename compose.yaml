@@ -91,8 +91,11 @@ services:
     environment:
       <<: *php-env
       # Depuración: develop,debug para Xdebug; off para máxima velocidad.
-      # El host del IDE (host.docker.internal) se define en 90-xdebug.ini.
+      # XDEBUG_CLIENT_HOST es a quién conecta Xdebug: el host (por defecto) o
+      # 127.0.0.1 cuando el IDE vive dentro del contenedor (Dev Containers).
       XDEBUG_MODE: ${XDEBUG_MODE:-develop,debug}
+      XDEBUG_CLIENT_HOST: ${XDEBUG_CLIENT_HOST:-host.docker.internal}
+      XDEBUG_CLIENT_PORT: ${XDEBUG_CLIENT_PORT:-9003}
       PHP_FPM_MAX_REQUESTS: ${PHP_FPM_MAX_REQUESTS:-500}
       PHP_FPM_MAX_CHILDREN: ${PHP_FPM_MAX_CHILDREN:-10}
       PHP2SHELL_STRICT: ${PHP2SHELL_STRICT:-0}
