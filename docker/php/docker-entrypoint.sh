@@ -108,7 +108,12 @@ if [ -w /usr/local/etc/php-fpm.d ]; then
         # Xdebug: a dónde debe conectar. Por defecto al host (depuración desde
         # una ventana normal de VS Code); con Dev Containers se pone a
         # 127.0.0.1 porque el IDE vive dentro del mismo contenedor.
-        if [ -n "${XDEBUG_CLIENT_HOST:-}" ]; then
+        #
+        # Sólo se declara si la extensión está cargada: en la etapa "prod" no
+        # existe y php-fpm escupiría un "Unable to set php_admin_value" en
+        # cada arranque.
+        if [ -n "${XDEBUG_CLIENT_HOST:-}" ] \
+                && php -r 'exit(extension_loaded("xdebug") ? 0 : 1);' 2>/dev/null; then
             echo "php_admin_value[xdebug.client_host] = ${XDEBUG_CLIENT_HOST}"
             echo "php_admin_value[xdebug.client_port] = ${XDEBUG_CLIENT_PORT:-9003}"
         fi
