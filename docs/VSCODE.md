@@ -67,8 +67,10 @@ también las imprime al terminar.
 ### 3.1 Instalar osTicket
 
 1. Abre <http://localhost:8080/setup/>.
-2. Datos de la base: *Host* `db`, *Database* `osticket`, *Username*
-   `osticket`, *Password* `osticket` (los de tu `.env`), prefijo `ost_`.
+2. Datos de la base: *Host* `db` (no `localhost`), *Database* `osticket`,
+   *Username* `osticket`, *Password* `osticket` (los de tu `.env`), prefijo
+   `ost_`. El formulario llega ya relleno con esos valores: basta con
+   *Install Now*.
 3. Crea el administrador y termina.
 
 El contenedor genera `include/ost-config.php` solo, a partir de `OST_DB_*`.

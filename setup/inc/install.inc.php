@@ -1,6 +1,19 @@
 <?php
 if(!defined('SETUPINC')) die('Kwaheri!');
-$info=($_POST && $errors)?Format::htmlchars($_POST):array('prefix'=>'ost_','dbhost'=>'localhost','lang_id'=>'en_US');
+if ($_POST && $errors)
+    $info = Format::htmlchars($_POST);
+else
+    // En Docker los datos ya están en el entorno: se proponen para no tener
+    // que teclearlos y, sobre todo, para no confundir "localhost" (el propio
+    // contenedor de PHP) con el servicio de base de datos.
+    $info = array(
+        'prefix'  => getenv('OST_DB_PREFIX') ?: 'ost_',
+        'dbhost'  => getenv('OST_DB_HOST') ?: 'localhost',
+        'dbname'  => getenv('OST_DB_NAME') ?: '',
+        'dbuser'  => getenv('OST_DB_USER') ?: '',
+        'dbpass'  => getenv('OST_DB_PASS') ?: '',
+        'lang_id' => 'en_US',
+    );
 ?>
 <div id="main" class="step2">
     <h1><?php echo __('osTicket Basic Installation'); ?></h1>

@@ -224,6 +224,7 @@ if [ "${OST_DB_CHECK_INSTALLED:-0}" = "1" ] && [ -f "$CONFIG" ]; then
         exit(($r && $r->num_rows) ? 0 : 1);
     ' 2>/dev/null; then
         warn "La base de datos aún no está instalada. Abre http://localhost:${HTTP_PORT:-8080}/setup/ y completa el asistente."
+        warn "  Host: ${OST_DB_HOST:-db} · Base: ${OST_DB_NAME:-osticket} · Usuario: ${OST_DB_USER:-osticket} · Contraseña: la de .env"
     fi
 fi
 

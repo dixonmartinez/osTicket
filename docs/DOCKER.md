@@ -72,12 +72,17 @@ La primera vez hay que crear las tablas. Dos caminos:
 **A. Asistente web (recomendado la primera vez)**
 
 1. Abre <http://localhost:8080/setup/>.
-2. Rellena los datos de la base:
-   * Host: `db`
+2. Rellena los datos de la base. **El formulario ya llega relleno** con los
+   valores de `.env`, así que normalmente basta con pulsar *Install Now*:
+   * Host: `db` — **nunca `localhost`**
    * Base de datos: `osticket`
-   * Usuario: `osticket`
+   * Usuario: `osticket` (no `root`)
    * Contraseña: `osticket` (o la que hayas puesto en `.env`)
 3. Crea el administrador y termina.
+
+> `localhost` dentro del contenedor `php` es el propio contenedor: no hay
+> ningún MySQL escuchando ahí y la conexión falla con «No such file or
+> directory». La base vive en el servicio `db` de la red de compose.
 
 **B. Preparar la base por consola**
 
@@ -427,6 +432,13 @@ Causas conocidas:
 * `Unable to set php_admin_value[...]`: una directiva `php_admin_*` que la
   extensión no conoce. Por eso `xdebug.*` sólo se declara si Xdebug está
   cargado.
+
+**«Unable to connect to MySQL server: No such file or directory» al instalar.**
+El host puesto es `localhost` o `127.0.0.1`. Dentro del contenedor eso apunta
+al propio PHP, no a MariaDB. Usa `db` (el nombre del servicio), puerto 3306 y
+las credenciales de `.env` (`osticket` / `osticket`), no las del MySQL de tu
+equipo. El formulario del instalador ya propone esos valores; si los cambiaste,
+vuelve a abrir `/setup/install.php`.
 
 **Avisos `Unable to load dynamic library 'gd'` y `libfreetype.so.6`.**
 La extensión `gd` se compila con FreeType pero faltaba la librería en tiempo de

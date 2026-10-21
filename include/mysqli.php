@@ -17,9 +17,15 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 $__db = null;
+// Último error de conexión. Se guarda aquí porque, desde PHP 8.1, mysqli
+// lanza mysqli_sql_exception en vez de devolver false y el objeto puede no
+// conservar connect_error.
+$__db_connect_error = null;
 
 function db_connect($host, $user, $passwd, $options = array()) {
-    global $__db;
+    global $__db, $__db_connect_error;
+
+    $__db_connect_error = null;
 
     //Assert
     if(!strlen($user) || !strlen($host))
@@ -66,8 +72,19 @@ function db_connect($host, $user, $passwd, $options = array()) {
     if (defined('DBCONNECT_TIMEOUT'))
         $__db->options(MYSQLI_OPT_CONNECT_TIMEOUT, DBCONNECT_TIMEOUT);
 
-    if (!@$__db->real_connect($host, $user, $passwd, null, $port, $socket))
+    try {
+        if (!@$__db->real_connect($host, $user, $passwd, null, $port, $socket)) {
+            $__db_connect_error = $__db->connect_error ?: 'unknown error';
+            return NULL;
+        }
+    }
+    catch (mysqli_sql_exception $e) {
+        // Sin este catch, un host mal escrito (p. ej. "localhost" dentro de
+        // un contenedor, donde no hay socket de MySQL) produce un 500 con
+        // traza en vez del mensaje del instalador.
+        $__db_connect_error = $e->getMessage();
         return NULL;
+    }
 
     //Select the database, if any.
     if(isset($options['db'])) $__db->select_db($options['db']);
@@ -160,7 +177,15 @@ function db_set_all($variables, $type='session') {
 
 function db_select_database($database) {
     global $__db;
-    return ($database && @$__db->select_db($database));
+    if (!$database || !$__db)
+        return false;
+
+    try {
+        return @$__db->select_db($database);
+    }
+    catch (mysqli_sql_exception $e) {
+        return false;
+    }
 }
 
 function db_create_database($database, $charset='utf8',
@@ -361,8 +386,12 @@ function db_prepare($stmt) {
 }
 
 function db_connect_error() {
-    global $__db;
-    return $__db->connect_error;
+    global $__db, $__db_connect_error;
+
+    if ($__db_connect_error)
+        return $__db_connect_error;
+
+    return $__db ? $__db->connect_error : null;
 }
 
 function db_error() {

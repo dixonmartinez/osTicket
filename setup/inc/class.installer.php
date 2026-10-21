@@ -91,8 +91,13 @@ class Installer extends SetupWizard {
 
         //MYSQL: Connect to the DB and check the version & database (create database if it doesn't exist!)
         if(!$this->errors) {
-            if(!db_connect($vars['dbhost'],$vars['dbuser'],$vars['dbpass']))
+            if(!db_connect($vars['dbhost'],$vars['dbuser'],$vars['dbpass'])) {
                 $this->errors['db']=sprintf(__('Unable to connect to MySQL server: %s'), db_connect_error());
+                // Dentro de un contenedor "localhost" es el propio contenedor
+                // de PHP: la base vive en otro servicio de la red de compose.
+                if (in_array(strtolower($vars['dbhost']), array('localhost', '127.0.0.1')))
+                    $this->errors['db'].=' '.__('Note: inside a container, "localhost" is the PHP container. Use the database service name, for example "db".');
+            }
             elseif(explode('.', db_version()) < explode('.', SetupWizard::getMySQLVersion()))
                 $this->errors['db']=sprintf(__('osTicket requires MySQL %s or later!'),SetupWizard::getMySQLVersion());
             elseif(!db_select_database($vars['dbname']) && !db_create_database($vars['dbname'])) {
