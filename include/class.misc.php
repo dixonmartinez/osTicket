@@ -47,7 +47,7 @@ class Misc {
         // the microseconds of the current time, and the upper 16-bits from
         // received value
         $seed = ((int) $value % 65535) << 16;
-        $seed += (int) ((double) microtime() * 1000000) % 65535;
+        $seed += (int) ((float) microtime() * 1000000) % 65535;
         mt_srand($seed);
     }
 
@@ -173,7 +173,7 @@ class Misc {
                 $end = $start->modify('next sunday');
                 break;
             case 'tm':
-            case 'this-month';
+            case 'this-month':
                 $start = $dt->modify('first day of this month');
                 $end = $dt->modify('last day of this month');
                 break;
@@ -196,7 +196,7 @@ class Misc {
                 $end = $start->modify('next sunday');
                 break;
             case 'lm':
-            case 'last-month';
+            case 'last-month':
                 $start = $dt->modify('- 1 month')->modify('first day of this month');
                 $end = $start->modify('last day of this month');
                 break;

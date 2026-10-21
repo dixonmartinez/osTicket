@@ -402,8 +402,15 @@ class ClientAccount extends UserAccount {
     function check_passwd($password, $autoupdate=true) {
 
         /*bcrypt based password match*/
-        if(Passwd::cmp($password, $this->get('passwd')))
+        if(Passwd::cmp($password, $this->get('passwd'))) {
+            // Opportunistically upgrade legacy/weak hashes on login
+            if ($autoupdate && Passwd::needsRehash($this->get('passwd'))
+                    && ($hash = Passwd::hash($password))) {
+                $this->set('passwd', $hash);
+                $this->save();
+            }
             return true;
+        }
 
         //Fall back to MD5
         if(!$password || strcmp($this->get('passwd'), MD5($password)))

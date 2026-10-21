@@ -148,13 +148,115 @@ class Http {
         return http_build_query($vars, '', $separator);
     }
 
+    /**
+     * host
+     *
+     * Return the current request host after validating it against a strict
+     * grammar. The Host header is fully attacker controlled and is used to
+     * build cookies, redirects, canonical links and outbound email links, so
+     * anything that is not a plain hostname / IP literal (optionally with a
+     * port) is discarded and replaced with the server name.
+     *
+     * @param string $default Value returned when no Host header is present
+     * @return string A safe "host[:port]" string
+     */
+    static function host($default = null) {
+        $host = isset($_SERVER['HTTP_HOST']) ? trim($_SERVER['HTTP_HOST']) : '';
+        // Hostname (or IPv6 literal) with an optional numeric port
+        if (preg_match('/^(\[[0-9a-fA-F:.]+\]|[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?)(?::(\d{1,5}))?$/D', $host, $m)) {
+            $name = strtolower($m[1]);
+            // Reject absurd lengths and empty labels
+            if (strlen($name) <= 253 && strpos($name, '..') === false)
+                return isset($m[2]) && $m[2] !== '' ? "$name:{$m[2]}" : $name;
+        }
+
+        if ($default)
+            return $default;
+
+        // Fall back to the value provided by the web server, never to the
+        // raw header.
+        $name = isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME']
+            ? $_SERVER['SERVER_NAME'] : 'localhost';
+        return strtolower(preg_replace('/[^a-zA-Z0-9.\-:\[\]]/', '', $name)) ?: 'localhost';
+    }
+
+    /**
+     * Emit the security headers shared by every HTML response. The
+     * Content-Security-Policy is composed by each interface (client vs
+     * staff) because the allowed script sources differ.
+     */
+    static function security_headers($cfg = null, array $options = []) {
+        if (headers_sent())
+            return;
+
+        $defaults = [
+            'nosniff'   => true,
+            'referrer'  => 'strict-origin-when-cross-origin',
+            'frame'     => true,
+            'hsts'      => true,
+            'permissions' => 'geolocation=(), microphone=(), camera=()',
+        ];
+        $options += $defaults;
+
+        if ($options['nosniff'])
+            header('X-Content-Type-Options: nosniff');
+        if ($options['referrer'])
+            header('Referrer-Policy: ' . $options['referrer']);
+        if ($options['permissions'])
+            header('Permissions-Policy: ' . $options['permissions']);
+
+        // X-Frame-Options is a legacy fallback for frame-ancestors. It can
+        // only express "same origin", so it is skipped when the help desk is
+        // explicitly allowed to be framed by a third party.
+        $ancestors = $cfg ? $cfg->getAllowIframes() : "'self'";
+        if ($options['frame'] && (!$ancestors || trim($ancestors) === "'self'"))
+            header('X-Frame-Options: SAMEORIGIN');
+
+        if ($options['hsts'] && osTicket::is_https())
+            header('Strict-Transport-Security: max-age=31536000');
+    }
+
+    /**
+     * Build a well formed Content-Security-Policy header value.
+     */
+    static function csp($cfg = null, array $directives = []) {
+        // Deliberately conservative: only directives that cannot break
+        // existing customizations (remote images, plugin endpoints and
+        // embedded chat widgets) are enforced by default. Use the
+        // $directives argument to tighten them per installation.
+        $base = [
+            'object-src'  => "'none'",
+            'base-uri'    => "'self'",
+            'style-src'   => "'self' 'unsafe-inline'",
+        ];
+        // The agent panel relies on eval() for a few legacy widgets
+        $script = "'self' 'unsafe-inline'";
+        if (!empty($directives['unsafe-eval']))
+            $script .= " 'unsafe-eval'";
+        unset($directives['unsafe-eval']);
+        $base['script-src'] = $script;
+
+        $base['frame-ancestors'] = ($cfg && $cfg->getAllowIframes())
+            ? trim($cfg->getAllowIframes()) : "'self'";
+
+        $directives = array_merge($base, $directives);
+
+        $out = [];
+        foreach ($directives as $name => $value) {
+            if ($value === null || $value === '')
+                continue;
+            $out[] = sprintf('%s %s', $name, $value);
+        }
+        return implode('; ', $out);
+    }
+
     static function domain() {
         $domain = null;
-        if (isset($_SERVER['HTTP_HOST'])
-                && strpos($_SERVER['HTTP_HOST'], '.') !== false
-                && !Validator::is_ip($_SERVER['HTTP_HOST']))
+        $host = self::host();
+        if (strpos($host, '.') !== false
+                && !Validator::is_ip($host))
             // Remote port specification, as it will make an invalid domain
-            list($domain) = explode(':', $_SERVER['HTTP_HOST']);
+            list($domain) = explode(':', $host);
 
         return $domain;
     }
@@ -165,7 +267,7 @@ class Http {
         $https =  osTicket::is_https();
         $url  = sprintf('http%s://%s',
                 $https ? 's' : '',
-                $_SERVER['HTTP_HOST']);
+                self::host());
         //  Add Port if not 80 and not https
         $port = osTicket::get_client_port();
         if ($port && $port != 80 && !$https && !str_contains($url, $port))

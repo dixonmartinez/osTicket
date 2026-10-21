@@ -32,6 +32,10 @@ if(OSTINSTALLED!=TRUE){
 # Encrypt/Decrypt secret key - randomly generated during installation.
 define('SECRET_SALT','%CONFIG-SIRI');
 
+# Descomenta sólo en entornos de desarrollo: muestra errores de PHP en pantalla
+# (en producción se registran en el log y nunca se muestran al usuario).
+# define('OST_DEBUG', true);
+
 #Default admin email. Used only on db connection issues and related alerts.
 define('ADMIN_EMAIL','%ADMIN-EMAIL');
 

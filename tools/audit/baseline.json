@@ -1,0 +1,123 @@
+{
+    "generated_at": "2026-10-21T15:53:09+00:00",
+    "scanner": "1.0.0",
+    "findings": [
+        {
+            "rule": "OST-WEAK-SECRET",
+            "severity": "high",
+            "file": "bootstrap.php",
+            "line": 206,
+            "message": "SECRET_SALT is derived from guessable values (set a strong random salt in ost-config.php)",
+            "snippet": "define('SECRET_SALT',md5(TABLE_PREFIX.ADMIN_EMAIL));",
+            "fingerprint": "49b0d49aeb4f783f0fecb5fbf3de792cf0358084"
+        },
+        {
+            "rule": "OST-WEAK-HASH",
+            "severity": "medium",
+            "file": "include/class.client.php",
+            "line": 416,
+            "message": "Legacy md5()/sha1() password path \u2014 ensure it re-hashes to bcrypt",
+            "snippet": "if(!$password || strcmp($this->get('passwd'), MD5($password)))",
+            "fingerprint": "8e9b6e9d16bf252450ad9ce061690435f147fcc6"
+        },
+        {
+            "rule": "OST-OBJ-INJECT",
+            "severity": "medium",
+            "file": "include/class.orm.php",
+            "line": 1677,
+            "message": "unserialize() on untrusted data allows object injection; prefer JSON",
+            "snippet": "$this->__unserialize(unserialize($data));",
+            "fingerprint": "d3ec401f2bd03b3f45a64626108c5a50322e636c"
+        },
+        {
+            "rule": "OST-OBJ-INJECT",
+            "severity": "medium",
+            "file": "include/class.orm.php",
+            "line": 3651,
+            "message": "unserialize() on untrusted data allows object injection; prefer JSON",
+            "snippet": "$this->__unserialize(unserialize($data));",
+            "fingerprint": "d3ec401f2bd03b3f45a64626108c5a50322e636c"
+        },
+        {
+            "rule": "OST-WEAK-HASH",
+            "severity": "medium",
+            "file": "include/class.staff.php",
+            "line": 238,
+            "message": "Legacy md5()/sha1() password path \u2014 ensure it re-hashes to bcrypt",
+            "snippet": "if(!$password || strcmp($this->getPasswd(), MD5($password)))",
+            "fingerprint": "ae6ce3492de39cd1cf2e83010f53081b88fdd29b"
+        },
+        {
+            "rule": "OST-OBJ-INJECT",
+            "severity": "medium",
+            "file": "include/class.translation.php",
+            "line": 676,
+            "message": "unserialize() on untrusted data allows object injection; prefer JSON",
+            "snippet": "$this->__unserialize(unserialize($what));",
+            "fingerprint": "97f575917a9d05b887180efebd255ded18afa4d5"
+        },
+        {
+            "rule": "OST-OBJ-INJECT",
+            "severity": "medium",
+            "file": "include/class.util.php",
+            "line": 243,
+            "message": "unserialize() on untrusted data allows object injection; prefer JSON",
+            "snippet": "$this->__unserialize(unserialize($what));",
+            "fingerprint": "2dd5035650d61d2a10be5f54c3af127c67dbdf55"
+        },
+        {
+            "rule": "OST-OBJ-INJECT",
+            "severity": "medium",
+            "file": "include/cli/modules/file.php",
+            "line": 292,
+            "message": "unserialize() on untrusted data allows object injection; prefer JSON",
+            "snippet": "$header = unserialize($header);",
+            "fingerprint": "59acd53d0aa3c3ad8d2a06333fc97842f1e789fa"
+        },
+        {
+            "rule": "OST-DEBUG-DUMP",
+            "severity": "low",
+            "file": "include/class.import.php",
+            "line": 50,
+            "message": "Debug helper left in the code; it can leak internal data",
+            "snippet": "throw new ImportError(__('Unable to parse submitted csv: ').print_r(Format::htmlchars($stream), true));",
+            "fingerprint": "c26b222d5f9b96b69ee0ad8ec7c86b2c287de265"
+        },
+        {
+            "rule": "OST-DEBUG-DUMP",
+            "severity": "low",
+            "file": "include/class.list.php",
+            "line": 586,
+            "message": "Debug helper left in the code; it can leak internal data",
+            "snippet": "echo sprintf(__('Unable to import item: %s'), print_r($data, true));",
+            "fingerprint": "8cb65d1fa64caa8406a9248bfb20f4a7c71bf1ec"
+        },
+        {
+            "rule": "OST-DEBUG-DUMP",
+            "severity": "low",
+            "file": "include/class.staff.php",
+            "line": 1206,
+            "message": "Debug helper left in the code; it can leak internal data",
+            "snippet": "print_r(Format::htmlchars($errors), true)",
+            "fingerprint": "d0fd17070d169873ee49fbf3c5c6f49b6f5a6b03"
+        },
+        {
+            "rule": "OST-DEBUG-DUMP",
+            "severity": "low",
+            "file": "include/class.user.php",
+            "line": 521,
+            "message": "Debug helper left in the code; it can leak internal data",
+            "snippet": "print_r(Format::htmlchars($data), true)));",
+            "fingerprint": "04f0ee7096ed6905a1e6334e1f50d777634f73b1"
+        },
+        {
+            "rule": "OST-DEBUG-DUMP",
+            "severity": "low",
+            "file": "include/cli/modules/org.php",
+            "line": 49,
+            "message": "Debug helper left in the code; it can leak internal data",
+            "snippet": "$this->stderr->write('Unable to import record: '.print_r($data, true));",
+            "fingerprint": "93f6a8c02eb423db87c9509cad0be8cdfdf8b44e"
+        }
+    ]
+}

@@ -116,14 +116,14 @@ if ($_POST && $can_manage) {
                     case 'edit':
                         $_GET['a']='edit';
                         break;
-                    case 'publish';
+                    case 'publish':
                         if($faq->publish())
                             $msg=sprintf(__('Successfully published %s'), __('this FAQ article'));
                         else
                             $errors['err']=sprintf(__('Unable to publish %s. Try editing it.'),
                                 __('this FAQ article'));
                         break;
-                    case 'unpublish';
+                    case 'unpublish':
                         if($faq->unpublish())
                             $msg=sprintf(__('Successfully unpublished %s'), __('this FAQ article'));
                         else

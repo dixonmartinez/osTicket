@@ -246,7 +246,9 @@ class PasswordHash {
 		if ($hash[0] == '*')
 			$hash = crypt($password, $stored_hash);
 
-		return $hash == $stored_hash;
+		// Constant time comparison - a loose == leaks timing information
+		// about the stored hash (legacy phpass behaviour).
+		return hash_equals((string) $stored_hash, (string) $hash);
 	}
 }
 

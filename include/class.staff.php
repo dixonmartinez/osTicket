@@ -224,8 +224,15 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
     function check_passwd($password, $autoupdate=true) {
 
         /*bcrypt based password match*/
-        if(Passwd::cmp($password, $this->getPasswd()))
+        if(Passwd::cmp($password, $this->getPasswd())) {
+            // Upgrade weak/legacy hashes on successful login
+            if ($autoupdate && Passwd::needsRehash($this->getPasswd())
+                    && ($hash = Passwd::hash($password))) {
+                $this->passwd = $hash;
+                $this->save();
+            }
             return true;
+        }
 
         //Fall back to MD5
         if(!$password || strcmp($this->getPasswd(), MD5($password)))

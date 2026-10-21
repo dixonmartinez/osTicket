@@ -702,7 +702,7 @@ class ResultSetExporter {
     function dump() {
         # Useful for debug output
         while ($row=$this->nextArray()) {
-            var_dump($row); //nolint
+            var_dump($row); //nolint audit:ignore OST-DEBUG-DUMP -- explicit debug helper
         }
     }
 }

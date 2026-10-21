@@ -78,8 +78,10 @@ abstract class TwoFactorAuthenticationBackend extends ServiceRegistry {
                 && ($store['time']+($timeout*60)) < time())
             throw new ExpiredOTP(__('Expired OTP'));
 
-        // Check the OTP
-        return (!strcmp($store['otp'], $otp));
+        // Check the OTP. Use a constant time comparison so the response
+        // time does not leak how many leading digits matched.
+        return (is_string($otp) && isset($store['otp'])
+            && hash_equals((string) $store['otp'], $otp));
     }
 
     // Called on a successfull validation for house keeping e.g clear 2fa

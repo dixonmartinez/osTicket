@@ -531,7 +531,7 @@ class osTicket {
     static function get_base_url() {
         return sprintf('http%s://%s',
                 osTicket::is_https() ? 's' : '',
-                $_SERVER['HTTP_HOST'] . ROOT_PATH);
+                Http::host() . ROOT_PATH);
     }
 
     /*

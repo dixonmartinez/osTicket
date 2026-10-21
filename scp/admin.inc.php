@@ -57,6 +57,18 @@ if($ost->isUpgradePending()) {
 
     if(!$sysnotice && ini_get('register_globals'))
         $sysnotice=__('Please consider turning off register globals if possible');
+
+    // Postura de seguridad del entorno: versión de PHP frente a
+    // vulnerabilidades conocidas (php2shell), directivas de php.ini y
+    // secretos débiles. Se muestra el problema más grave (ver
+    // docs/SECURITY_AUDIT.md).
+    if (!$sysnotice && class_exists('SecurityPosture')
+            && ($issue = SecurityPosture::getMostSevereIssue($cfg))) {
+        $sysnotice = sprintf('<strong>%s</strong> %s',
+            $issue['level'] === 'critical'
+                ? __('Security alert') : __('Security recommendation'),
+            Format::htmlchars($issue['message']));
+    }
 }
 
 //System notice displayed as a warning (if any).

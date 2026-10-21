@@ -119,6 +119,7 @@ class Installer extends SetupWizard {
         define('ADMIN_EMAIL',$vars['admin_email']); //Needed to report SQL errors during install.
         define('TABLE_PREFIX',$vars['prefix']); //Table prefix
         if (!defined('SECRET_SALT'))
+            // audit:ignore OST-WEAK-SECRET -- temporary value used while installing; the generated ost-config.php gets a random salt (%CONFIG-SIRI)
             define('SECRET_SALT',md5(TABLE_PREFIX.ADMIN_EMAIL));
         Bootstrap::defineTables(TABLE_PREFIX);
         Bootstrap::loadCode();

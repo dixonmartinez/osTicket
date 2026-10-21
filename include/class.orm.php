@@ -3511,7 +3511,7 @@ extends MySqlPreparedExecutor {
             case MYSQLI_TYPE_LONGLONG:
             case MYSQLI_TYPE_FLOAT:
             case MYSQLI_TYPE_DOUBLE:
-                $f = isset($f) ? (double) $f : $f;
+                $f = isset($f) ? (float) $f : $f;
                 break;
 
             case MYSQLI_TYPE_BIT:

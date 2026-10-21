@@ -228,7 +228,9 @@ class PluginManager {
     }
 
     static function getPluginByName($name, $active=false) {
-        $sql = sprintf('SELECT * FROM %s WHERE name="%s"', PLUGIN_TABLE, $name);
+        // Escape the name. It is usually a constant, but plugins may pass
+        // user supplied values — never interpolate raw data into SQL.
+        $sql = sprintf('SELECT * FROM %s WHERE name=%s', PLUGIN_TABLE, db_input($name));
         if ($active)
             $sql = sprintf('%s AND isactive = true', $sql);
         if (!($res = db_query($sql)))

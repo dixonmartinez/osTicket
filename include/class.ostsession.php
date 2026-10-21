@@ -32,9 +32,18 @@ class osTicketSession {
         $this->ttl = min($ttl ?: ($maxlife ?: SESSION_TTL), $maxlife);
         // Set osTicket specific session name/sessid
         session_name($this->name);
-        // Set Default cookie Params before we start the session
-        session_set_cookie_params($this->ttl, ROOT_PATH, Http::domain(),
-            osTicket::is_https(), true);
+        // Set Default cookie Params before we start the session. The array
+        // form is used so that SameSite can be declared for the *initial*
+        // cookie too (renewCookie() later tightens it to Strict for
+        // authenticated sessions).
+        session_set_cookie_params([
+            'lifetime' => $this->ttl,
+            'path' => ROOT_PATH,
+            'domain' => Http::domain(),
+            'secure' => osTicket::is_https(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
 
         /** Determine Session Backend to use **/
         if ((!defined('MAJOR_VERSION') || $checkdbversion)

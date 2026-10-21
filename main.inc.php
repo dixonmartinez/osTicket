@@ -40,7 +40,11 @@ if ($cfg && $cfg->forceHttps()
     if ($_SERVER['REQUEST_METHOD'] !== 'GET')
         Http::response(400, 'HTTPS Protocol Required');
 
-    Http::redirect('https://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);
+    // Build the redirect from a validated host and a local path only, so a
+    // forged Host header cannot turn this into an open redirect.
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $qs = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+    Http::redirect('https://'.Http::host().$path.($qs ? '?'.$qs : ''));
 }
 
 //Init

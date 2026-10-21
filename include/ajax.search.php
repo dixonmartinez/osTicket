@@ -66,6 +66,7 @@ class SearchAjaxAPI extends AjaxController {
                     ));
         $searchable = $search->getSupportedMatches();
         if (!($F = $searchable[$name]))
+            // audit:ignore OST-DEBUG-DUMP -- echoes back the caller supplied field name
             Http::response(404, 'No such field: ', print_r($name, true));
 
         $fields = SavedSearch::getSearchField($F, $name);

@@ -26,9 +26,20 @@ class Bootstrap {
             $error_reporting &= ~(E_DEPRECATED | E_USER_DEPRECATED);
         error_reporting($error_reporting); //Respect whatever is set in php.ini (sysadmin knows better??)
 
-        #Don't display errors
-        ini_set('display_errors', 1);
-        ini_set('display_startup_errors', 1);
+        #Don't display errors unless the installation is explicitly running in
+        #debug mode (define('OST_DEBUG', true) in ost-config.php). Displaying
+        #errors leaks absolute paths, SQL fragments and stack traces to
+        #unauthenticated users - see docs/SECURITY_AUDIT.md (OST-003).
+        $debug = defined('OST_DEBUG') && OST_DEBUG;
+        ini_set('display_errors', $debug ? 1 : 0);
+        ini_set('display_startup_errors', $debug ? 1 : 0);
+        #Always keep a log trail, even when display is disabled.
+        ini_set('log_errors', 1);
+
+        #Harden the session defaults. These are set here (before any session
+        #is started) so that a permissive php.ini cannot weaken them.
+        ini_set('session.use_only_cookies', 1);
+        ini_set('session.cookie_httponly', 1);
 
         //Default timezone
         if (!ini_get('date.timezone')) {
@@ -246,6 +257,7 @@ class Bootstrap {
         require_once INCLUDE_DIR.'mysqli.php';
         require_once INCLUDE_DIR.'class.i18n.php';
         require_once INCLUDE_DIR.'class.queue.php';
+        require_once INCLUDE_DIR.'class.security.php';
     }
 
     static function i18n_prep() {

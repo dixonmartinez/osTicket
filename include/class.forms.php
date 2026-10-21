@@ -4436,7 +4436,7 @@ class TextboxWidget extends Widget {
                         $v = $v ? 'on' : 'off';
                     $attrs[$k] = '"'.$v.'"';
                     break;
-                case 'disabled';
+                case 'disabled':
                     $attrs[$k] = '"disabled"';
                     break;
                 case 'translatable':

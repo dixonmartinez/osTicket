@@ -117,11 +117,13 @@ class Deployment extends Unpacker {
             return false;
 
         if (!$short) {
+            // audit:ignore OST-RCE -- fixed command, CLI only
             $hash = exec('git rev-parse HEAD');
             $short = substr($hash, 0, 7);
         }
 
         if (!$version)
+            // audit:ignore OST-RCE -- fixed command, CLI only
             $version = exec('git describe');
 
         if (!$short || !$version)

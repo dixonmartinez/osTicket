@@ -1623,9 +1623,12 @@ extends PasswordPolicy {
 
     function onSet($passwd, $current) {
         $pwdlen = strlen($passwd);
-        if ($pwdlen < 6) {
+        // Longitud mínima alineada con NIST SP 800-63B: la longitud aporta
+        // más entropía que las reglas de composición. Sólo afecta a las
+        // contraseñas NUEVAS; las existentes siguen funcionando.
+        if ($pwdlen < 8) {
             throw new BadPassword(
-                __('Password must be at least 6 characters'));
+                __('Password must be at least 8 characters'));
         } elseif ($pwdlen > 128) {
             throw new BadPassword(
                 sprintf('%s - %s', __('Password is too long'), __('maximum of 128 characters allowed')));

@@ -331,7 +331,8 @@ class i18n_Compiler extends Module {
         $info = array(
             'Build-Date' => date(DATE_RFC822),
             'Phrases-Version' => $po_header['x-osticket-major-version'],
-            'Build-Version' => trim(`git describe`),
+            // audit:ignore OST-RCE -- fixed command, CLI/build utility
+            'Build-Version' => trim(shell_exec('git describe')),
             'Build-Major-Version' => MAJOR_VERSION,
             'Language' => $po_header['language'],
             #'Phrases' =>
@@ -581,7 +582,7 @@ class i18n_Compiler extends Module {
             case T_FUNCTION:
                 $funcdef = true;
                 break;
-            case '{';
+            case '{':
                 $funcdef = false;
             case '(':
                 $parens++;
@@ -615,7 +616,8 @@ class i18n_Compiler extends Module {
         $lines = array(
             'msgid ""',
             'msgstr ""',
-            '"Project-Id-Version: osTicket '.trim(`git describe`).'\n"',
+            // audit:ignore OST-RCE -- fixed command, CLI/build utility
+            '"Project-Id-Version: osTicket '.trim(shell_exec('git describe')).'\n"',
             '"X-Osticket-Major-Version: '.MAJOR_VERSION.'\n"',
             '"POT-Create-Date: '.date('Y-m-d H:i O').'\n"',
             '"Report-Msgid-Bugs-To: support@osticket.com\n"',
