@@ -17,7 +17,7 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 .PHONY: help lint audit audit-all audit-json baseline test security ci clean perms serve \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
-	docker-bench
+	docker-bench docker-urls
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -73,21 +73,41 @@ serve: ## Servidor de desarrollo sin Docker (requiere PHP + BD local)
 # ---------------------------------------------------------------------------
 ENV_FILE := $(ROOT)/.env
 
+# ---------------------------------------------------------------------------
+# Puertos publicados.
+#
+# Se leen de .env AL EJECUTAR la receta (variables recursivas), no al leer
+# este archivo: así funcionan aunque .env se cree en este mismo `make` y, sobre
+# todo, cuando cambias HTTP_PORT porque 8080 está ocupado.
+# El valor por defecto replica el de compose.yaml (`${HTTP_PORT:-8080}`).
+# ---------------------------------------------------------------------------
+read_env = $(shell sed -n 's/^$1=//p' $(ENV_FILE) 2>/dev/null | tail -1 | tr -d '\r"' | tr -d ' ')
+
+HTTP_PORT       = $(or $(call read_env,HTTP_PORT),8080)
+MAILPIT_UI_PORT = $(or $(call read_env,MAILPIT_UI_PORT),8025)
+DB_PORT         = $(or $(call read_env,DB_PORT),3307)
+
+# Bloque compartido por `docker-up` y `docker-urls`.
+URLS = port=$(HTTP_PORT); mail=$(MAILPIT_UI_PORT); \
+	printf '\n  Portal del cliente : http://localhost:%s\n' "$$port"; \
+	printf '  Panel de agentes   : http://localhost:%s/scp/\n' "$$port"; \
+	printf '  Instalador         : http://localhost:%s/setup/\n' "$$port"; \
+	printf '  Correo de pruebas  : http://localhost:%s (Mailpit)\n' "$$mail"; \
+	printf '  MariaDB desde el host: 127.0.0.1:%s\n\n' "$(DB_PORT)"
+
 $(ENV_FILE):
 	@cp $(ROOT)/.env.example $@
 	@sed -i "s|^OST_SECRET_SALT=.*|OST_SECRET_SALT=$$(openssl rand -hex 32)|" $@ 2>/dev/null || \
 	 sed -i '' "s|^OST_SECRET_SALT=.*|OST_SECRET_SALT=$$(openssl rand -hex 32)|" $@
 	@echo "✓ .env creado con una SECRET_SALT aleatoria"
 
-docker-up: $(ENV_FILE) ## Levanta el entorno (http://localhost:8080)
+docker-up: $(ENV_FILE) ## Levanta el entorno (puertos tomados de .env)
 	@docker compose up -d --build
-	@echo ""
-	@echo "  Portal del cliente : http://localhost:8080"
-	@echo "  Panel de agentes   : http://localhost:8080/scp/"
-	@echo "  Instalador         : http://localhost:8080/setup/"
-	@echo "  Correo de pruebas  : http://localhost:8025 (Mailpit)"
-	@echo ""
-	@echo "  Los logs: make docker-logs"
+	@$(URLS)
+	@echo "  HTTP_PORT=$(HTTP_PORT) según .env. Logs: make docker-logs"
+
+docker-urls: ## Muestra las URLs con los puertos configurados en .env
+	@$(URLS)
 
 docker-down: ## Detiene los contenedores (conserva la base de datos)
 	@docker compose down --remove-orphans
@@ -128,7 +148,7 @@ docker-bench: ## Mide el rendimiento del stack (útil en Windows/WSL)
 	@echo "→ Petición completa a /scp/ (3 intentos)"
 	@for i in 1 2 3; do \
 		curl -s -o /dev/null -w "  intento $$i: %{time_total}s\n" \
-			http://localhost:$${HTTP_PORT:-8080}/scp/ || true; \
+			http://localhost:$(HTTP_PORT)/scp/ || true; \
 	done
 	@echo "→ Carga de clases PHP dentro del contenedor"
 	@docker compose exec -T php php -r '$$t = microtime(true); \

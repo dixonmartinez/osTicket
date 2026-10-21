@@ -59,6 +59,11 @@ PHP-FPM, MariaDB y Mailpit.
 | Correo capturado (Mailpit) | <http://localhost:8025> |
 | Base de datos desde el equipo | `127.0.0.1:3307` |
 
+Los puertos salen de `.env` (`HTTP_PORT`, `DB_PORT`, `MAILPIT_UI_PORT`). Si el
+8080 está ocupado, cámbialos ahí, recrea nginx (`docker compose up -d nginx`)
+y consulta las direcciones reales con `make docker-urls`; `make docker-up`
+también las imprime al terminar.
+
 ### 3.1 Instalar osTicket
 
 1. Abre <http://localhost:8080/setup/>.
@@ -255,6 +260,12 @@ navega después.
 Es correcto: no están en el equipo. Usa `make docker-shell` o las tareas
 *Docker: …*. Para ejecutar un comando suelto:
 `docker compose exec php php -v`.
+
+**Cambié el puerto porque el 8080 estaba ocupado y no sé dónde entrar.**
+`make docker-urls` imprime las URLs con los valores de `.env`. Si ya estaba
+levantado cuando cambiaste el puerto, recrea nginx
+(`docker compose up -d nginx`): los puertos se fijan al crear el contenedor y
+`restart` no los actualiza.
 
 **`make docker-up` termina pero <http://localhost:8080> no responde.**
 Mira `make docker-logs`. Si el `php` reinicia en bucle suele ser la versión de

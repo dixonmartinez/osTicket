@@ -29,6 +29,19 @@ Xdebug). Después:
 | Mailpit | <http://localhost:8025> | Ver los correos que envía osTicket |
 | MariaDB | `127.0.0.1:3307` | Cliente SQL desde el host (opcional) |
 
+Las URLs salen de `HTTP_PORT` en `.env` (8080 por defecto). Si **el 8080 está
+ocupado**, cambia el valor allí, recrea el contenedor de nginx y consulta las
+URLs reales:
+
+```bash
+# edita HTTP_PORT en .env y luego:
+docker compose up -d nginx
+make docker-urls
+```
+
+`make docker-up` imprime al terminar el puerto que está usando de verdad, así
+que ese mensaje es la referencia fiable.
+
 Si `make` no está disponible (Windows sin WSL), los comandos equivalentes son:
 
 ```bash
@@ -139,6 +152,7 @@ Task*; `Ctrl+Shift+B` ejecuta directamente *Docker: up (dev)*):
 | Calidad: make ci | Lint + auditoría + comprobación de PHP |
 | Calidad: pruebas del proyecto | `setup/test/run-tests.php` |
 | Datos: crear base de datos si falta | `docker/php/setup-db.php` |
+| Datos: URLs del entorno | `make docker-urls`: direcciones con el puerto de `.env` |
 
 `.vscode/launch.json`: cuatro configuraciones — web, web con traza de
 diagnóstico, script CLI y la suite de pruebas, todas lanzadas dentro del
@@ -193,7 +207,8 @@ VS Code muestra un aviso con **“Install all”**.
 ## 5. Comandos del día a día
 
 ```bash
-make docker-up          # arrancar
+make docker-up          # arrancar (imprime las URLs con el puerto real)
+make docker-urls        # ver las URLs según .env
 make docker-down        # parar (los datos se conservan)
 make docker-logs        # seguir logs
 make docker-shell       # shell en PHP
@@ -326,6 +341,19 @@ git status --porcelain                # debe quedar vacío
 
 No hace falta `git add --renormalize .`: no hay nada que renormalizar, el
 contenido del repositorio es el correcto.
+
+**Cambié `HTTP_PORT` y abro una dirección equivocada.**
+El puerto real es el de `.env`; el mensaje antiguo de `make docker-up` estaba
+fijado a 8080. Ahora se lee del archivo:
+
+```bash
+make docker-urls                                  # URLs reales
+docker compose port nginx 80                      # lo que Docker publicó
+```
+
+Si cambiaste el puerto con el entorno ya levantado, recrea nginx
+(`docker compose up -d nginx`); un `docker compose restart` no basta, porque
+los puertos se resuelven al crear el contenedor.
 
 **`invalid mount config for type "bind": bind source path does not exist`.**
 Una ruta relativa de `volumes:` se resuelve contra el **directorio del primer

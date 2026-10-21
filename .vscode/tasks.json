@@ -93,10 +93,13 @@
       "problemMatcher": []
     },
     {
-      "label": "Datos: abrir instalador",
+      // Lee HTTP_PORT del .env: si cambiaste el puerto porque el 8080 estaba
+      // ocupado, aquí ves la dirección real.
+      "label": "Datos: URLs del entorno",
       "type": "shell",
-      "command": "open http://localhost:8080/setup/ || xdg-open http://localhost:8080/setup/ || echo 'Abre http://localhost:8080/setup/'",
-      "problemMatcher": []
+      "command": "make docker-urls",
+      "problemMatcher": [],
+      "detail": "Portal, panel, instalador y Mailpit con los puertos de .env"
     }
   ]
 }
