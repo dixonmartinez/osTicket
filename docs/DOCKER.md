@@ -78,88 +78,38 @@ El contenedor genera `include/ost-config.php` automáticamente a partir de las
 variables de entorno (`OST_DB_*`), así que no hay que editarlo a mano ni
 versionarlo.
 
-Cuando la instalación termine, **borra o bloquea `/setup/`**:
+Cuando la instalación termine, **bloquea `/setup/`** descomentando el bloque
+*Producción* de `docker/nginx/default.conf` y reiniciando nginx:
 
 ```bash
-docker compose exec php rm -rf /var/www/html/setup
-# o descomenta el bloque "Producción" de docker/nginx/default.conf
+docker compose restart nginx
 ```
+
+No borres `setup/` con `rm -rf`: es código versionado y ensuciaría el
+repositorio. El instalador ya se niega a reinstalar mientras exista
+`include/ost-config.php`.
 
 ## 3. Depurar con Xdebug desde VS Code
 
-**El Dev Container es opcional.** Hay dos formas de trabajar y las dos permiten
-depurar sin instalar PHP en el host. Elige según dónde viva el proyecto:
+VS Code se queda en tu equipo; **no hay PHP que instalar**. El contenedor
+`php` lleva Xdebug y abre la sesión hacia tu equipo en el puerto `9003`, así
+que se depura sin Dev Container ni «Reopen in Container».
 
-| | Ventana normal | Dev Container |
-|---|---|---|
-| Dónde corre VS Code | En tu sistema (Windows/macOS/Linux) | Dentro del contenedor `php` |
-| Dónde corren las extensiones | En tu sistema | En el contenedor |
-| Dónde escucha Xdebug (9003) | En tu sistema | En el contenedor |
-| Hace falta PHP instalado | No | No |
-| Intelephense indexa leyendo | Disco local (rápido) | El bind mount del proyecto |
-| Terminal integrada | Tu shell | Shell del contenedor |
-| Reproducibilidad del equipo | Depende de tus extensiones | Idéntica para todos |
+```bash
+make docker-up
+# F5 → "Xdebug: osTicket (web)"  y navega a http://localhost:8080
+```
 
-**Regla práctica:** si el proyecto está en el disco de Windows (`/mnt/c`,
-`/mnt/d`) y abres VS Code desde Windows, **usa la ventana normal**: el editor
-lee por NTFS directamente y el indexado de Intelephense va mucho más rápido que
-a través del bind mount. Si el proyecto vive en el sistema de archivos de Linux
-(`~/osTicket`), el Dev Container es la mejor opción porque el servidor de VS
-Code queda junto a los archivos.
+El flujo completo —qué lanzador usar en cada caso, depurar scripts de consola,
+pruebas, extensiones y problemas frecuentes— está en
+**[`VSCODE.md`](VSCODE.md)**.
 
-### 3.1 Dev Container
-
-1. Abre la carpeta del proyecto en VS Code.
-2. Acepta el aviso **“Reopen in Container”** (o `F1` →
-   *Dev Containers: Reopen in Container*).
-3. Espera a que termine: VS Code instala las extensiones recomendadas dentro
-   del contenedor (`php-debug`, Intelephense, SQLTools…).
-4. Pon un punto de interrupción, pulsa `F5` y elige
-   **“Xdebug: osTicket (Docker)”**.
-5. Navega a <http://localhost:8080/scp/>. La ejecución se detiene en tu punto
-   de interrupción.
-
-En este modo el puerto 9003 no se publica: VS Code y PHP viven en el mismo
-contenedor. `.devcontainer/compose.debug.yaml` pone `XDEBUG_CLIENT_HOST` a
-`127.0.0.1` y el entrypoint escribe ese valor en el pool de PHP-FPM al
-arrancar, así que no hay archivos extra que montar.
-
-### 3.2 Ventana normal de VS Code (sin devcontainer)
-
-1. `make docker-up` (o `docker compose up -d`).
-2. Instala solo estas extensiones (VS Code las propone al abrir la carpeta):
-   `xdebug.php-debug` e `bmewburn.vscode-intelephense-client`.
-3. `F5` → **“Xdebug: osTicket (Docker)”**.
-4. Navega a la aplicación.
-
-El *path mapping* funciona igual porque `${workspaceFolder}` se resuelve a la
-ruta de Windows (`D:\PHPDeveloper\osTicket`) y Xdebug envía
-`/var/www/html/...`.
-
-Aquí Xdebug sale del contenedor hacia el host por `host.docker.internal:9003`;
-en Linux eso funciona gracias a `extra_hosts: host.docker.internal:host-gateway`
-que ya está en `compose.yaml`. Si tu firewall bloquea la conexión, revisa que
-el puerto 9003 esté permitido en la interfaz de Docker.
-
-### 3.3 Depurar scripts de consola
-
-Abre el archivo (por ejemplo `tools/security/php-cve-check.php`) y pulsa `F5`
-eligiendo la variante que corresponda a cómo abriste el proyecto:
-
-| Configuración | Cuándo |
-|---|---|
-| **Xdebug: script CLI (dentro del contenedor)** | Dev Container. Usa el `php` del contenedor |
-| **Xdebug: script CLI (desde el host, vía Docker)** | Ventana normal, sin PHP instalado: ejecuta `docker compose exec php php …` |
-
-Para lanzarlo sin depurador, la tarea *Docker: shell en php* o
-`docker compose exec php php tools/security/php-cve-check.php`.
-
-### 3.4 Ajustes de Xdebug
+### 3.1 Variables de Xdebug
 
 | Variable | Por defecto | Significado |
 |---|---|---|
 | `XDEBUG_MODE` | `develop,debug` | `off` para máxima velocidad, `coverage` para cobertura |
-| `XDEBUG_CLIENT_HOST` | `host.docker.internal` | A quién conecta Xdebug. El Dev Container lo pone a `127.0.0.1` |
+| `XDEBUG_CLIENT_HOST` | `host.docker.internal` | A quién conecta Xdebug: tu equipo, donde escucha VS Code |
 | `XDEBUG_CLIENT_PORT` | `9003` | Puerto del IDE |
 | `XDEBUG_TRIGGER` | vacío | Con `start_with_request=trigger` activa la sesión sólo con `?XDEBUG_SESSION=1` |
 | `PHP_IDE_CONFIG` | `serverName=osticket.local` | Nombre de servidor para configuraciones con *path mapping* |
@@ -167,16 +117,15 @@ Para lanzarlo sin depurador, la tarea *Docker: shell en php* o
 Los valores están en `.env` y en `docker/php/conf.d/90-xdebug.ini`.
 
 > `.vscode/settings.json` desactiva `php.validate` a propósito: no hay PHP en
-> el host. La validación la hace Intelephense y la ejecución va por Docker. Con
-> Dev Containers, `.devcontainer/devcontainer.json` lo reactiva apuntando a
-> `/usr/local/bin/php`.
+> el equipo. La validación la hace Intelephense y la ejecución va por Docker.
 
 El *path mapping* ya está resuelto en `.vscode/launch.json`:
 `/var/www/html` → `${workspaceFolder}`.
 
 ## 4. Tareas y lanzadores incluidos
 
-`.vscode/tasks.json` (`Ctrl+Shift+B`):
+`.vscode/tasks.json` (*Terminal → Run Task*, o `Ctrl+Shift+P` → *Tasks: Run
+Task*; `Ctrl+Shift+B` ejecuta directamente *Docker: up (dev)*):
 
 | Tarea | Qué hace |
 |---|---|
@@ -191,9 +140,10 @@ El *path mapping* ya está resuelto en `.vscode/launch.json`:
 | Calidad: pruebas del proyecto | `setup/test/run-tests.php` |
 | Datos: crear base de datos si falta | `docker/php/setup-db.php` |
 
-`.vscode/launch.json`: cinco configuraciones — web, web esperando conexión,
-script CLI dentro del contenedor, script CLI desde el host vía `docker compose`
-y la suite de pruebas.
+`.vscode/launch.json`: cuatro configuraciones — web, web con traza de
+diagnóstico, script CLI y la suite de pruebas, todas lanzadas dentro del
+contenedor mediante `docker compose`. Cuál usar en cada caso:
+[`VSCODE.md`](VSCODE.md) § 5.
 
 `.vscode/http/osticket.http`: ejemplos listos para la extensión *REST Client*
 (crear ticket por JSON y XML, consultar configuración pública, ver Mailpit).
@@ -201,8 +151,7 @@ y la suite de pruebas.
 ## 4.1 Extensiones de VS Code
 
 El repositorio ya las declara en `.vscode/extensions.json`: al abrir la carpeta,
-VS Code muestra un aviso con **“Install all”**. Las del Dev Container se
-instalan solas al hacer *Reopen in Container*.
+VS Code muestra un aviso con **“Install all”**.
 
 ### Imprescindibles
 
@@ -264,7 +213,7 @@ docker compose down          # conserva datos
 docker compose down -v       # borra datos
 ```
 
-## 6. Estructura de los archivos de Docker
+## 6. Estructura de los archivos de Docker y del entorno de VS Code
 
 ```
 compose.yaml                 entorno de desarrollo (nginx + php + db + mailpit)
@@ -284,9 +233,12 @@ docker/
       90-xdebug.ini          Xdebug 3
   nginx/default.conf         server block, FastCGI, bloqueo de rutas internas
   mysql/init/01-charset.sql  ajustes iniciales de la base
-.devcontainer/
-  devcontainer.json          VS Code dentro del contenedor
-  compose.debug.yaml         Xdebug apuntando a 127.0.0.1
+.vscode/
+  launch.json                lanzadores de Xdebug (web, CLI, pruebas)
+  tasks.json                 tareas de Docker, calidad y datos
+  settings.json              Intelephense, exclusiones, php.validate apagado
+  extensions.json            extensiones recomendadas
+  http/osticket.http         peticiones de ejemplo (REST Client)
 ```
 
 ## 7. Producción
@@ -312,7 +264,8 @@ Antes de exponerlo a Internet:
 4. Terminar el TLS en un proxy delante de nginx (Caddy, Traefik o el balanceador
    del proveedor) y activar HSTS. osTicket detecta HTTPS por las cabeceras
    reenviadas.
-5. Borrar `/setup/` después de instalar.
+5. Bloquear `/setup/` después de instalar (bloque *Producción* de
+   `docker/nginx/default.conf`).
 6. Ejecutar `make docker-security` en el arranque: si el contenedor se levanta
    con una versión vulnerable, el entrypoint aborta (con el valor por defecto).
 
@@ -377,11 +330,12 @@ contenido del repositorio es el correcto.
 **`invalid mount config for type "bind": bind source path does not exist`.**
 Una ruta relativa de `volumes:` se resuelve contra el **directorio del primer
 `-f`** (la raíz del repo), no contra la carpeta del compose que la declara. Si
-añades un overlay dentro de una subcarpeta, escribe la ruta desde la raíz:
-`./.devcontainer/mi-archivo.ini`. Para comprobarlo antes de arrancar:
+añades un overlay en una subcarpeta, escribe la ruta desde la raíz:
+`./docker/php/conf.d/mi-archivo.ini`. Para comprobarlo antes de arrancar:
 
 ```bash
-docker compose -f compose.yaml -f compose.override.yaml -f .devcontainer/compose.debug.yaml config -q
+docker compose -f compose.yaml -f compose.override.yaml config -q
+docker compose -f compose.yaml -f compose.prod.yaml config -q
 ```
 
 **El contenedor `php` reinicia en bucle.**

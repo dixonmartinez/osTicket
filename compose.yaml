@@ -11,9 +11,8 @@
 #   docker compose down           detiene (los datos quedan en el volumen)
 #   docker compose down -v        detiene y borra la base de datos
 #
-# Depuración con VS Code: abre el proyecto en el contenedor
-# (F1 → "Dev Containers: Reopen in Container") o usa la tarea
-# "Docker: up (dev)" seguida de "listen for Xdebug" (F5).
+# Depuración con VS Code: abre la carpeta en VS Code (sin instalar PHP),
+# arranca el entorno y pulsa F5 → "Xdebug: osTicket (web)". Guía: docs/VSCODE.md
 #
 # La imagen base de PHP **incluye el parche de php2shell**
 # (CVE-2026-109618 / CVE-2026-109619). No la bajes a una versión anterior.
@@ -91,8 +90,9 @@ services:
     environment:
       <<: *php-env
       # Depuración: develop,debug para Xdebug; off para máxima velocidad.
-      # XDEBUG_CLIENT_HOST es a quién conecta Xdebug: el host (por defecto) o
-      # 127.0.0.1 cuando el IDE vive dentro del contenedor (Dev Containers).
+      # XDEBUG_CLIENT_HOST es a quién conecta Xdebug: tu equipo, donde
+      # escucha VS Code. La conexión sale del contenedor, así que no hace
+      # falta publicar el 9003.
       XDEBUG_MODE: ${XDEBUG_MODE:-develop,debug}
       XDEBUG_CLIENT_HOST: ${XDEBUG_CLIENT_HOST:-host.docker.internal}
       XDEBUG_CLIENT_PORT: ${XDEBUG_CLIENT_PORT:-9003}

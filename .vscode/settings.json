@@ -56,10 +56,9 @@
         "Core", "standard", "mysqli", "gd", "gettext",
         "mbstring", "intl", "zip", "json", "session", "phar"
     ],
-    // No hay PHP en el host a propósito (todo corre en contenedores): la
-    // validación la hace Intelephense y la ejecución `docker compose`.
-    // Si abres el proyecto con Dev Containers, .devcontainer/devcontainer.json
-    // vuelve a activar php.validate con /usr/local/bin/php.
+    // No hay PHP en el equipo a propósito (todo corre en contenedores): la
+    // validación la hace Intelephense y la ejecución va por `docker compose`.
+    // Ver docs/VSCODE.md.
     "php.validate.enable": false,
 
     // Evita que el editor marque los archivos de terceros

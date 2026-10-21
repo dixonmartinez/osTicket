@@ -16,9 +16,9 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
 ### Development environment (no installs on the host)
 * `compose.yaml` + `compose.override.yaml` + `compose.prod.yaml`:
   nginx, PHP-FPM (Xdebug 3), MariaDB y Mailpit.
-* Dev Container (`.devcontainer/`) y lanzadores de VS Code
-  (`.vscode/launch.json`, `tasks.json`, `settings.json`, `extensions.json`)
-  para depurar dentro del contenedor.
+* Lanzadores de VS Code (`.vscode/launch.json`, `tasks.json`, `settings.json`,
+  `extensions.json`) para depurar sin instalar PHP: Xdebug sale del contenedor
+  hacia `host.docker.internal:9003`. Guía: `docs/VSCODE.md`.
 * Tareas de `make`: `docker-up`, `down`, `logs`, `shell`, `test`, `security`,
   `composer`, `qa`, `prod`.
 * Guía completa: `docs/DOCKER.md`.

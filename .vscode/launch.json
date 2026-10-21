@@ -2,20 +2,24 @@
   // ---------------------------------------------------------------------
   // Lanzadores de depuración de osTicket
   //
-  // Requisito: el entorno Docker debe estar arriba (make docker-up).
-  // El Dev Container es OPCIONAL: los mismos lanzadores funcionan con una
-  // ventana normal de VS Code, porque Xdebug sale del contenedor hacia
-  // host.docker.internal:9003. Ver docs/DOCKER.md § 3.
+  // No hace falta PHP en tu equipo: el código corre en el contenedor `php`
+  // y Xdebug sale hacia host.docker.internal:9003. Requisito: el entorno
+  // Docker debe estar arriba (make docker-up).
   //
-  //   F5 → "Xdebug: osTicket (Docker)"   y navega a http://localhost:8080
-  //   F5 → "Xdebug: depurar script CLI"  para manage.php / tools/*
+  //   Petición web   → F5 → "Xdebug: osTicket (web)" y navega a
+  //                    http://localhost:8080
+  //   Script o test  → F5 → "Xdebug: script CLI (vía Docker)" con el
+  //                    archivo abierto en el editor
   //
-  // El puerto 9003 debe estar libre en el host.
+  // Guía completa: docs/VSCODE.md · Variables de Xdebug: docs/DOCKER.md § 3
+  // El puerto 9003 debe estar libre en tu equipo.
   // ---------------------------------------------------------------------
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Xdebug: osTicket (Docker)",
+      // La que se usa el 99 % del tiempo. Empieza a escuchar en el 9003 y
+      // espera a que el contenedor abra una sesión al recibir una petición.
+      "name": "Xdebug: osTicket (web)",
       "type": "php",
       "request": "launch",
       "port": 9003,
@@ -38,7 +42,10 @@
       "log": false
     },
     {
-      "name": "Xdebug: osTicket (Docker, esperar conexión)",
+      // Igual que la anterior, pero escribe el protocolo de Xdebug en la
+      // consola de depuración. Úsala sólo cuando "F5 no se detiene" para
+      // ver si el contenedor intenta conectar y con qué ruta.
+      "name": "Xdebug: osTicket (web, diagnóstico)",
       "type": "php",
       "request": "launch",
       "port": 9003,
@@ -46,37 +53,13 @@
       "pathMappings": {
         "/var/www/html": "${workspaceFolder}"
       },
-      "ignore": [
-        "**/include/mpdf/**",
-        "**/include/laminas-mail/**",
-        "**/include/pear/**",
-        "**/include/fpdf/**",
-        "**/vendor/**"
-      ]
+      "log": true
     },
     {
-      // Sólo útil dentro del contenedor (Dev Containers), donde existe el
-      // binario /usr/local/bin/php. En Windows sin PHP usa la variante Docker.
-      "name": "Xdebug: script CLI (dentro del contenedor)",
-      "type": "php",
-      "request": "launch",
-      "program": "${file}",
-      "cwd": "${workspaceFolder}",
-      "port": 9003,
-      "hostname": "0.0.0.0",
-      "pathMappings": {
-        "/var/www/html": "${workspaceFolder}"
-      },
-      "runtimeArgs": ["-dxdebug.start_with_request=yes"],
-      "env": {
-        "XDEBUG_MODE": "debug,develop"
-      },
-      "console": "internalConsole"
-    },
-    {
-      // Funciona desde Windows/macOS/Linux sin PHP instalado: el script se
-      // ejecuta dentro del contenedor con `docker compose exec`.
-      "name": "Xdebug: script CLI (desde el host, vía Docker)",
+      // Scripts de consola (manage.php, tools/*.php) sin PHP en el equipo:
+      // el archivo abierto se ejecuta dentro del contenedor con
+      // `docker compose exec`. Guarda el archivo antes de pulsar F5.
+      "name": "Xdebug: script CLI (vía Docker)",
       "type": "php",
       "request": "launch",
       "runtimeExecutable": "docker",
@@ -84,9 +67,9 @@
         "compose", "exec", "-T", "php",
         "php",
         "-dxdebug.start_with_request=yes",
-        "-dxdebug.client_host=host.docker.internal",
         "/var/www/html/${relativeFile}"
       ],
+      "cwd": "${workspaceFolder}",
       "port": 9003,
       "hostname": "0.0.0.0",
       "pathMappings": {
@@ -95,10 +78,19 @@
       "console": "internalConsole"
     },
     {
-      "name": "Xdebug: pruebas del proyecto (setup/test)",
+      // Suite histórica de osTicket (setup/test). Se ejecuta en el
+      // contenedor, con el directorio de trabajo en la raíz del proyecto
+      // porque run-tests.php carga ./bootstrap.php.
+      "name": "Xdebug: pruebas del proyecto (vía Docker)",
       "type": "php",
       "request": "launch",
-      "program": "${workspaceFolder}/setup/test/run-tests.php",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": [
+        "compose", "exec", "-T", "-w", "/var/www/html",
+        "php", "php",
+        "-dxdebug.start_with_request=yes",
+        "/var/www/html/setup/test/run-tests.php"
+      ],
       "cwd": "${workspaceFolder}",
       "port": 9003,
       "hostname": "0.0.0.0",

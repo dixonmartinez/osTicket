@@ -20,12 +20,13 @@ el cambio publicado.
 
 ```bash
 make docker-up                  # nginx + PHP-FPM (Xdebug) + MariaDB + Mailpit
-# VS Code → "Reopen in Container" → F5 → "Xdebug: osTicket (Docker)"
+# VS Code → F5 → "Xdebug: osTicket (web)"
 ```
 
-Todo el equipo trabaja con la misma versión de PHP y las mismas extensiones,
-y el depurador queda configurado sin tocar el sistema operativo. Guía
-completa: [`DOCKER.md`](DOCKER.md).
+Todo el mundo trabaja con la misma versión de PHP y las mismas extensiones de
+servidor, y el depurador queda configurado sin tocar el sistema operativo.
+Guías: [`VSCODE.md`](VSCODE.md) (día a día en el editor) y
+[`DOCKER.md`](DOCKER.md) (stack de contenedores).
 
 ### Instalación local sin Docker
 
@@ -334,16 +335,18 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
 ### Con Xdebug (recomendado, ya configurado)
 
 ```bash
-make docker-up          # o "Reopen in Container" en VS Code
+make docker-up
 ```
 
-- `F5` → **“Xdebug: osTicket (Docker)”** y navega a <http://localhost:8080>.
-- `F5` → **“Xdebug: script CLI (manage.php / tools)”** para scripts de consola.
+- `F5` → **“Xdebug: osTicket (web)”** y navega a <http://localhost:8080>.
+- `F5` → **“Xdebug: script CLI (vía Docker)”** con el script abierto en el
+  editor; se ejecuta dentro del contenedor.
 - El *path mapping* (`/var/www/html` → `${workspaceFolder}`) ya está resuelto.
 - Variables: `XDEBUG_MODE` (`debug`, `develop`, `coverage`, `off`) y
   `XDEBUG_TRIGGER` cuando se usa `start_with_request=trigger`.
 
-Detalles y resolución de problemas: [`DOCKER.md`](DOCKER.md) §3.
+Flujo de trabajo y problemas frecuentes: [`VSCODE.md`](VSCODE.md).
+Variables de Xdebug: [`DOCKER.md`](DOCKER.md) §3.
 
 ### Sin Xdebug
 

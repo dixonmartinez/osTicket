@@ -1,9 +1,10 @@
 {
   // ---------------------------------------------------------------------
-  // Tareas de VS Code: Ctrl+Shift+B abre la lista de tareas.
+  // Tareas de VS Code: Ctrl+Shift+P → "Tasks: Run Task", o Ctrl+Shift+B
+  // para ejecutar directamente "Docker: up (dev)" (tarea de compilación).
   //
-  // Todas ejecutan Docker en el host, así que funcionan con el proyecto
-  // abierto de forma normal o dentro del Dev Container.
+  // Todas ejecutan Docker en tu equipo: no hace falta PHP instalado.
+  // Guía: docs/VSCODE.md
   // ---------------------------------------------------------------------
   "version": "2.0.0",
   "tasks": [

@@ -21,8 +21,7 @@
 #   OST_SECRET_SALT             sal aleatoria para SECRET_SALT (recomendado)
 #   OST_AUTO_CONFIG             "1" (por defecto) crea ost-config.php si falta
 #   OST_FAIL_ON_VULNERABLE_PHP  "1" aborta si PHP está afectado (CI/producción)
-#   XDEBUG_CLIENT_HOST          host al que Xdebug envía la sesión
-#                               (host.docker.internal o 127.0.0.1 en Dev Containers)
+#   XDEBUG_CLIENT_HOST          host al que Xdebug envía la sesión (tu equipo)
 #   PHP_FPM_MAX_REQUESTS        peticiones por worker; 1 mitiga CVE-2026-109619
 #   PHP_FPM_MAX_CHILDREN        hijos de PHP-FPM (por defecto 10)
 #   PHP2SHELL_STRICT            "1" reduce aún más los límites de subida
@@ -105,9 +104,8 @@ if [ -w /usr/local/etc/php-fpm.d ]; then
         echo 'php_admin_flag[display_errors] = off'
         echo 'php_admin_flag[session.upload_progress.enabled] = off'
         echo 'php_admin_value[memory_limit] = 256M'
-        # Xdebug: a dónde debe conectar. Por defecto al host (depuración desde
-        # una ventana normal de VS Code); con Dev Containers se pone a
-        # 127.0.0.1 porque el IDE vive dentro del mismo contenedor.
+        # Xdebug: a dónde debe conectar. Por defecto a tu equipo, que es
+        # donde escucha VS Code con el lanzador "Xdebug: osTicket (web)".
         #
         # Sólo se declara si la extensión está cargada: en la etapa "prod" no
         # existe y php-fpm escupiría un "Unable to set php_admin_value" en

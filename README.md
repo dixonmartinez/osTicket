@@ -73,13 +73,14 @@ containers. You only need Docker Desktop (or Engine + Compose v2) and VS Code.
     # http://localhost:8080/setup/ installer (first time)
     # http://localhost:8025        Mailpit (captured email)
 
-Debugging works out of the box: open the folder in VS Code, accept
-*“Reopen in Container”*, press `F5` and pick **“Xdebug: osTicket (Docker)”**.
-Without a dev container, `docker compose up -d` + the same `F5` configuration
-also works (Xdebug reaches the host through `host.docker.internal`).
+Debugging works out of the box: open the folder in VS Code, press `F5` and
+pick **“Xdebug: osTicket (web)”**, then browse to the app. Nothing PHP-related
+is installed on your machine and there is no container to “reopen”: Xdebug
+inside the `php` container connects to your editor on port 9003.
 
-See [`docs/DOCKER.md`](docs/DOCKER.md) for the full guide (tasks, ports,
-troubleshooting, production overlay).
+See [`docs/VSCODE.md`](docs/VSCODE.md) for the day-to-day workflow (launchers,
+tasks, CLI scripts, troubleshooting) and [`docs/DOCKER.md`](docs/DOCKER.md)
+for the stack itself (ports, installation, production overlay).
 
 Development
 -----------
@@ -103,8 +104,10 @@ Project documentation:
     remediation status and deployment hardening checklist.
   * [`docs/UI_GUIDE.md`](docs/UI_GUIDE.md) — accessibility/UI layer and how
     to customise it without breaking the theme.
-  * [`docs/DOCKER.md`](docs/DOCKER.md) — containers, Xdebug, VS Code tasks,
+  * [`docs/DOCKER.md`](docs/DOCKER.md) — containers, Xdebug, ports,
     production image.
+  * [`docs/VSCODE.md`](docs/VSCODE.md) — working in VS Code: opening the
+    project, launchers, daily loop, running commands in containers.
   * [`docs/MOBILE.md`](docs/MOBILE.md) — mobile/PWA usage and the roadmap for
     a separate app (API surface, auth, offline, push).
   * [`docs/SECURITY_PHP2SHELL.md`](docs/SECURITY_PHP2SHELL.md) — the
