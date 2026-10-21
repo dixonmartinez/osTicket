@@ -599,8 +599,8 @@ session.use_strict_mode = 1
 session.use_only_cookies = 1
 session.cookie_httponly = 1
 session.cookie_samesite = "Lax"
-session.sid_length = 48
-session.sid_bits_per_character = 6
+; PHP >= 8.4: session.sid_length y session.sid_bits_per_character están
+; obsoletas; el id de sesión es siempre de 32 caracteres hexadecimales.
 allow_url_include = Off
 disable_functions = exec,passthru,shell_exec,system,proc_open,popen,curl_multi_exec,parse_ini_file,show_source
 open_basedir = /var/www/osticket:/tmp

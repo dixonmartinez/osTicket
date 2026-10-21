@@ -81,7 +81,11 @@ fi
 # petición (php_value / PHP_VALUE) son una de las vías del fallo.
 FPM_POOL=/usr/local/etc/php-fpm.d/www.conf
 if [ -w /usr/local/etc/php-fpm.d ]; then
-    rm -f /usr/local/etc/php-fpm.d/*.conf
+    # Sólo se sustituye el pool de la imagen (www.conf). docker.conf y
+    # zz-docker.conf NO se tocan: aportan `daemonize = no`, el error_log a
+    # stderr y `listen = 9000`. Si se borran, php-fpm se demoniza, el proceso
+    # principal termina con 0 y Docker reinicia el contenedor en bucle.
+    rm -f /usr/local/etc/php-fpm.d/www.conf
 
     {
         echo '[www]'
@@ -93,6 +97,9 @@ if [ -w /usr/local/etc/php-fpm.d ]; then
         echo 'clear_env = no'
         echo 'catch_workers_output = yes'
         echo 'decorate_workers_output = no'
+        # docker.conf (que ahora se conserva) manda el access log a stderr.
+        # nginx ya registra cada petición; aquí sólo sería ruido.
+        echo 'access.log = /dev/null'
         echo 'pm = dynamic'
         echo "pm.max_children = ${PHP_FPM_MAX_CHILDREN:-10}"
         echo 'pm.start_servers = 2'

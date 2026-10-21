@@ -27,6 +27,7 @@ RUN set -eux; \
     apk add --no-cache \
         ca-certificates \
         curl \
+        freetype \
         icu-libs \
         libintl \
         libjpeg-turbo \
@@ -79,7 +80,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD php -r 'exit(@fsockopen("127.0.0.1", 9000) ? 0 : 1);'
 
 ENTRYPOINT ["osticket-entrypoint"]
-CMD ["php-fpm"]
+# -F: no demonizar. El proceso principal tiene que seguir vivo o Docker
+# reinicia el contenedor en bucle (ver docker-entrypoint.sh, sección del pool).
+CMD ["php-fpm", "-F"]
 
 # ---------------------------------------------------------------------------
 # Desarrollo: Xdebug + OPcache con revalidación

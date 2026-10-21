@@ -212,6 +212,7 @@ make docker-urls        # ver las URLs según .env
 make docker-down        # parar (los datos se conservan)
 make docker-logs        # seguir logs
 make docker-shell       # shell en PHP
+make docker-build       # reconstruye la imagen (Dockerfile o conf.d/*.ini)
 make docker-test        # lint + auditoría dentro del contenedor
 make docker-security    # comprobar la versión de PHP
 make docker-reset       # borrar la base y empezar de cero
@@ -367,9 +368,39 @@ docker compose -f compose.yaml -f compose.prod.yaml config -q
 ```
 
 **El contenedor `php` reinicia en bucle.**
-Mira `docker compose logs php`. Las causas habituales son: una `PHP_VERSION`
-sin parche (el entrypoint aborta a propósito), la base de datos que aún no
-responde, o un puerto ocupado.
+
+```bash
+docker compose logs --tail=40 php
+docker inspect -f '{{.State.ExitCode}} {{.State.Error}}' osticket-php-1
+```
+
+Causas conocidas:
+
+* **`php-fpm` arranca y el proceso principal termina con código 0.** El
+  contenedor se reinicia sin ningún `ERROR:` en el log. Ocurría cuando el
+  entrypoint borraba `php-fpm.d/*.conf` para generar el pool: se llevaba por
+  delante `zz-docker.conf`, donde vive `daemonize = no`. Ya está corregido
+  (sólo se sustituye `www.conf` y el `CMD` usa `php-fpm -F`); si tu imagen es
+  anterior, reconstruye.
+* Una `PHP_VERSION` sin parche: el entrypoint aborta a propósito cuando
+  `OST_FAIL_ON_VULNERABLE_PHP=1`.
+* La base de datos no responde tras 60 intentos (`OST_DB_WAIT_TRIES`).
+* `Unable to set php_admin_value[...]`: una directiva `php_admin_*` que la
+  extensión no conoce. Por eso `xdebug.*` sólo se declara si Xdebug está
+  cargado.
+
+**Avisos `Unable to load dynamic library 'gd'` y `libfreetype.so.6`.**
+La extensión `gd` se compila con FreeType pero faltaba la librería en tiempo de
+ejecución. Corregido en la imagen (`apk add freetype`). En una copia anterior:
+
+```bash
+docker compose build php && docker compose up -d
+```
+
+**`PHP Deprecated: session.sid_length ... is deprecated`.**
+Aviso de PHP 8.4 por dos directivas que ya no hacen falta (el id de sesión es
+fijo). Eliminadas de `docker/php/conf.d/00-osticket.ini`; requiere reconstruir
+la imagen porque el archivo se copia dentro.
 
 **`Permission denied` al escribir en `include/i18n` o en `attachments/`.**
 Ajusta `PUID`/`PGID` en `.env` a tu usuario (`id -u`, `id -g` en Linux/macOS) y
