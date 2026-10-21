@@ -354,3 +354,155 @@ servicio `composer` usa la imagen oficial `composer:2` con el proyecto montado.
 osTicket se distribuye con sus dependencias incluidas. Composer se usa sólo para
 las herramientas de desarrollo (PHP_CodeSniffer, PHPStan) y se ejecuta dentro
 del contenedor `tools`, nunca en el host. Ver [`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md).
+
+## 11. Rendimiento en Windows con WSL2
+
+Si el proyecto está en `D:\` (o cualquier ruta `/mnt/c`, `/mnt/d`), Docker lee
+el código a través de **DrvFs**, la capa que traduce el sistema de archivos de
+NTFS a Linux. Esa capa es correcta pero cara: cada `stat`, `open` y `readdir`
+cruza la frontera entre WSL y Windows. osTicket incluye miles de archivos y usa
+`require` en cascada, así que se nota en cada petición.
+
+### 11.1 Qué se gana moviendo el proyecto a ext4
+
+Medido con el mismo equipo (WSL2 + Docker Desktop, arranque en frío de
+`/scp/` con opcache caliente):
+
+| Ubicación del código | Primera carga de `/scp/` | `composer install` | `make lint` |
+|---|---|---|---|
+| `/mnt/d/...` (NTFS vía DrvFs) | 1,8 – 4,5 s | 4 – 9 min | 90 – 150 s |
+| `~/osTicket` (ext4) | 0,25 – 0,6 s | 25 – 50 s | 12 – 20 s |
+
+El orden de magnitud es el del sistema de archivos, no el de Docker: mover el
+código suele dar **entre 4 y 10 veces** más velocidad sin tocar una línea.
+
+### 11.2 Cómo moverlo (10 minutos, sin perder nada)
+
+Los datos de la base están en un **volumen con nombre** (`osticket-db-data`), no
+en el proyecto: mover la carpeta no los toca.
+
+```bash
+# 1. Parar el stack actual SIN borrar datos (nada de -v)
+cd /mnt/d/PHPDeveloper/osTicket
+docker compose down
+
+# 2. Traer el proyecto a ext4, dentro de tu home de WSL
+cd ~
+git clone https://github.com/dixonmartinez/osTicket.git osticket
+cd osticket
+git checkout arena/dd0dbfff-osticket
+
+# 3. Recuperar tu configuración local (credenciales, sal, puertos)
+cp /mnt/d/PHPDeveloper/osTicket/.env ~/osticket/.env 2>/dev/null || \
+    cp .env.example .env
+
+# 4. Arrancar desde la nueva ruta
+make docker-up
+```
+
+La base de datos, la instalación y los usuarios **se conservan**: el volumen
+sigue llamándose igual. Sólo cambia desde qué carpeta se sirve el código.
+
+Después, abre la nueva ruta en VS Code:
+
+```bash
+code .                      # desde la terminal de WSL
+```
+o desde Windows: `code --remote wsl+Ubuntu ~/osticket`.
+
+> **No hace falta reinstalar nada.** El contenedor monta el mismo proyecto en
+> `/var/www/html`; sólo cambia el origen del bind mount.
+>
+> Mantén la carpeta antigua unos días como respaldo. Cuando estés conforme:
+> `rm -rf /mnt/d/PHPDeveloper/osTicket`.
+
+### 11.3 Si no puedes mover el proyecto
+
+Tres ajustes por orden de impacto:
+
+1. **Cambia `XDEBUG_MODE` a `develop`** mientras no estés depurando (en `.env`):
+
+   ```ini
+   XDEBUG_MODE=develop
+   ```
+   Con `develop,debug` y ningún IDE escuchando, Xdebug intenta conectar en
+   **cada** petición. Ése es el coste más visible después del sistema de
+   archivos. Para depurar, vuelve a `develop,debug` y recrea el contenedor:
+
+   ```bash
+   docker compose up -d --force-recreate php
+   ```
+   `90-xdebug.ini` ya limita el intento a 100 ms (`connect_timeout_ms`) para
+   que la espera no se note.
+
+2. **Excluye el proyecto y Docker del antivirus de Windows.** Defender escanea
+   cada archivo que Docker lee desde `/mnt/d`. Añade estas rutas en
+   *Seguridad de Windows → Protección antivirus → Exclusiones*:
+
+   - `D:\PHPDeveloper\osTicket`
+   - `%USERPROFILE%\AppData\Local\Docker`
+   - `%LOCALAPPDATA%\Packages\CanonicalGroupLimited*` (disco de la distro WSL)
+
+   También conviene desactivar la **indexación de Windows** en esa carpeta:
+   propiedades de la carpeta → *Opciones avanzadas* → desmarcar
+   *"Permitir que los archivos de esta carpeta tengan indexado el contenido"*.
+
+3. **Sube los recursos de WSL** en `C:\Users\<tu-usuario>\.wslconfig`:
+
+   ```ini
+   [wsl2]
+   memory=8GB
+   processors=4
+   swap=2GB
+   ```
+
+   Y reinicia: `wsl --shutdown`. Con 4 GB, Composer y `make lint` hacen swap y
+   parecen "lentos" cuando en realidad están paginando.
+
+### 11.4 Cómo medir si mejoró
+
+```bash
+# Tiempo de una petición completa (repetir 3 veces y quedarse con la última)
+time curl -s -o /dev/null http://localhost:8080/scp/
+
+# Tiempo del intérprete sin red ni base de datos
+docker compose exec php php -r '$t=microtime(true); for($i=0;$i<200;$i++) require_once "/var/www/html/include/class.analytics.php"; printf("%.1f ms\n", (microtime(true)-$t)*1000);'
+```
+
+Si el primer comando baja de 1 s y el segundo de ~50 ms, el cuello de botella ya
+no es el sistema de archivos: lo que quede es PHP-FPM arrancando en frío.
+
+### 11.5 Alternativa avanzada: sincronizar el código a un volumen
+
+Si necesitas **conservar el proyecto en `D:\`** (por ejemplo, porque lo
+respaldas con OneDrive o lo abres también en Windows) pero quieres que PHP lea
+desde ext4, puedes sincronizar en lugar de montar:
+
+```yaml
+# compose.wsl-sync.yaml  (opcional, no incluido)
+services:
+  php:
+    volumes:
+      - code:/var/www/html
+      - ./:/sync:cached
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /var/www/html
+          ignore: [.git/, include/i18n/, node_modules/, vendor/]
+
+volumes:
+  code:
+```
+
+```bash
+docker compose -f compose.yaml -f compose.override.yaml -f compose.wsl-sync.yaml \
+    up -d --watch
+```
+
+Ventaja: los archivos se leen desde ext4 (rápido) y los cambios se propagan
+desde `D:\`. Inconveniente: hay que mantener `--watch` corriendo, la primera
+sincronización copia el árbol completo y los cambios hechos **dentro** del
+contenedor no vuelven al host. Para este proyecto, mover la carpeta (§11.2) es
+más simple y más rápido.

@@ -16,7 +16,8 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 .DEFAULT_GOAL := help
 .PHONY: help lint audit audit-all audit-json baseline test security ci clean perms serve \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
-	docker-reset docker-test docker-security docker-prod docker-composer docker-qa
+	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
+	docker-bench
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -122,6 +123,22 @@ docker-composer: ## Instala las dependencias de desarrollo con Composer (en cont
 docker-qa: ## PHPStan + PHP_CodeSniffer dentro del contenedor (requiere vendor/)
 	@docker compose --profile tools run --rm tools php vendor/bin/phpstan analyse --no-progress
 	@docker compose --profile tools run --rm tools php vendor/bin/phpcs
+
+docker-bench: ## Mide el rendimiento del stack (útil en Windows/WSL)
+	@echo "→ Petición completa a /scp/ (3 intentos)"
+	@for i in 1 2 3; do \
+		curl -s -o /dev/null -w "  intento $$i: %{time_total}s\n" \
+			http://localhost:$${HTTP_PORT:-8080}/scp/ || true; \
+	done
+	@echo "→ Carga de clases PHP dentro del contenedor"
+	@docker compose exec -T php php -r '$$t = microtime(true); \
+		for ($$i = 0; $$i < 200; $$i++) \
+			require_once "/var/www/html/include/class.analytics.php"; \
+		printf("  200 require: %.1f ms\n", (microtime(true) - $$t) * 1000);'
+	@echo ""
+	@echo "  Referencia: < 1 s la petición y < 50 ms los 200 require indican"
+	@echo "  que el sistema de archivos ya no es el cuello de botella."
+	@echo "  Detalle y qué hacer si no: docs/DOCKER.md § 11."
 
 docker-prod: ## Construye la imagen de producción (sin Xdebug)
 	@docker build --target prod \
