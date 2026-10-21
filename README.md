@@ -19,10 +19,17 @@ osTicket is an attractive alternative to higher-cost and complex customer
 support systems; simple, lightweight, reliable, open source, web-based and
 easy to setup and use. The best part is, it's completely free.
 
+> **Security notice (2026-10-21):** PHP *php2shell*
+> (CVE-2026-109618 / CVE-2026-109619, CVSS 9.2) is being exploited in the
+> wild. Run **PHP 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 or later** and follow
+> [`docs/SECURITY_PHP2SHELL.md`](docs/SECURITY_PHP2SHELL.md). Check any server
+> with `php tools/security/php-cve-check.php`.
+
 Requirements
 ------------
-  * HTTP server running Microsoft® IIS or Apache
-  * PHP version 8.2 - 8.4 (8.4 recommended)
+  * HTTP server running Microsoft® IIS, Apache or nginx
+  * PHP version 8.2 - 8.5 — **with the 2026-10-21 php2shell patch**
+    (8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 or later)
   * mysqli extension for PHP
   * MySQL database version 5.5 (or greater)
 
@@ -54,6 +61,69 @@ cloned the git repo into)
 
     git pull
     php manage.php deploy -v /var/www/htdocs/osticket/
+
+Quick start with Docker (nothing installed on your computer)
+------------------------------------------------------------
+Everything —PHP, MariaDB, nginx, Xdebug and the quality tools— runs in
+containers. You only need Docker Desktop (or Engine + Compose v2) and VS Code.
+
+    make docker-up        # first run builds the PHP image (a few minutes)
+    # http://localhost:8080        client portal
+    # http://localhost:8080/scp/   agent panel
+    # http://localhost:8080/setup/ installer (first time)
+    # http://localhost:8025        Mailpit (captured email)
+
+Debugging works out of the box: open the folder in VS Code, accept
+*“Reopen in Container”*, press `F5` and pick **“Xdebug: osTicket (Docker)”**.
+Without a dev container, `docker compose up -d` + the same `F5` configuration
+also works (Xdebug reaches the host through `host.docker.internal`).
+
+See [`docs/DOCKER.md`](docs/DOCKER.md) for the full guide (tasks, ports,
+troubleshooting, production overlay).
+
+Development
+-----------
+The repository includes a small, dependency-free toolchain (no Composer
+required on the host):
+
+    make lint          # PHP syntax check on every file (parallel)
+    make audit         # static security scan (fails on new high findings)
+    make audit-all     # full security report
+    make security      # PHP version vs. php2shell (CVE-2026-109618/19)
+    make ci            # lint + audit + security (the full pre-merge check)
+
+Inside containers: `make docker-test`, `make docker-security`,
+`make docker-composer`, `make docker-qa`.
+
+Project documentation:
+
+  * [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) — architecture,
+    request lifecycle, recipes and conventions.
+  * [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md) — audit findings,
+    remediation status and deployment hardening checklist.
+  * [`docs/UI_GUIDE.md`](docs/UI_GUIDE.md) — accessibility/UI layer and how
+    to customise it without breaking the theme.
+  * [`docs/DOCKER.md`](docs/DOCKER.md) — containers, Xdebug, VS Code tasks,
+    production image.
+  * [`docs/MOBILE.md`](docs/MOBILE.md) — mobile/PWA usage and the roadmap for
+    a separate app (API surface, auth, offline, push).
+  * [`docs/SECURITY_PHP2SHELL.md`](docs/SECURITY_PHP2SHELL.md) — the
+    2026-10-21 PHP vulnerability: versions, mitigations, checklists.
+  * [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) — bundled library inventory.
+
+New in this branch:
+
+  * **Analytics panel** — `scp/analytics.php`: first response and resolution
+    times, SLA compliance, backlog age, agent workload, source/hour/topic
+    breakdowns, CSV and JSON export. Server-rendered SVG charts, no
+    JavaScript dependency.
+  * **Mobile** — responsive agent panel (`css/mobile.css`), installable PWA
+    (`manifest.php`, `sw.js`) that caches *only* static assets, never tickets.
+
+Scaffold new screens or endpoints with:
+
+    php tools/scaffold.php page informes --title="Informes"
+    php tools/scaffold.php ajax inventario
 
 Upgrading
 ---------

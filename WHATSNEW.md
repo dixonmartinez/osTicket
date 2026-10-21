@@ -1,3 +1,41 @@
+osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
+=================================================================
+### Security
+* **php2shell** (CVE-2026-109618 / CVE-2026-109619, CVSS 9.2, 2026-10-21):
+  imagen Docker fijada en PHP 8.4.27, arranque abortado si el intérprete está
+  afectado (`OST_FAIL_ON_VULNERABLE_PHP`), comprobación en CLI/CI
+  (`tools/security/php-cve-check.php`, `make security`), panel *Security
+  Posture* en Admin y aviso en el dashboard. Ver `docs/SECURITY_PHP2SHELL.md`.
+* Endurecimiento de PHP: `session.upload_progress.enabled=Off`,
+  `fatal_error_backtraces=Off`, `display_errors=Off`, límites de multipart.
+* `SECRET_SALT` predecible detectado y avisado; coste de bcrypt a 10 con
+  rehash automático; validación de `Host` y cabeceras CSP/nosniff/Referrer.
+* Auditoría de 12 hallazgos (1 crítico, 1 alto, 6 medios, 4 bajos) con
+  correcciones y lista de verificación en `docs/SECURITY_AUDIT.md`.
+
+### Development environment (no installs on the host)
+* `compose.yaml` + `compose.override.yaml` + `compose.prod.yaml`:
+  nginx, PHP-FPM (Xdebug 3), MariaDB y Mailpit.
+* Dev Container (`.devcontainer/`) y lanzadores de VS Code
+  (`.vscode/launch.json`, `tasks.json`, `settings.json`, `extensions.json`)
+  para depurar dentro del contenedor.
+* Tareas de `make`: `docker-up`, `down`, `logs`, `shell`, `test`, `security`,
+  `composer`, `qa`, `prod`.
+* Guía completa: `docs/DOCKER.md`.
+
+### Analytics
+* Nuevo panel `scp/analytics.php` (`Analytics` + `AnalyticsChart`):
+  primera respuesta, resolución, SLA, antigüedad del pendiente, carga por
+  agente, origen y hora de llegada. Exportación CSV/JSON.
+* Resumen de 7 días enlazado desde el dashboard.
+* Gráficas SVG generadas en el servidor (sin dependencias de JavaScript).
+
+### Mobile / PWA
+* `css/mobile.css`: panel de agentes usable en pantalla pequeña sin alterar
+  el escritorio.
+* `manifest.php`, `sw.js` (cachea sólo estáticos) e iconos en `images/pwa/`.
+* Guía de opciones, alcance de una app y plan por fases: `docs/MOBILE.md`.
+
 osTicket v1.18.4
 ================
 ### Security

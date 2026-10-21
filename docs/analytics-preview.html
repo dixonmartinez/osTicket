@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa — Analíticas de osTicket</title>
+<style>
+body { margin:0; padding:24px; background:#eef1f5; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color:#1f2933; }
+.an-page { max-width: 1180px; margin: 0 auto; background:#fff; padding: 22px; border-radius: 14px; box-shadow: 0 2px 20px rgba(0,0,0,.08); }
+.note { max-width:1180px; margin: 0 auto 14px; font-size:.85em; color:#475569; }
+/* ---------------------------------------------------------------------------
+   Panel de analíticas
+   ---------------------------------------------------------------------------
+   Sin dependencias externas: las gráficas son SVG generado en el servidor y
+   barras hechas con degradados CSS. Funciona en móvil sin JavaScript.
+   --------------------------------------------------------------------------- */
+
+.an-page {
+    --an-fg: #1f2933;
+    --an-muted: #616e7c;
+    --an-line: #e4e7eb;
+    --an-bg: #ffffff;
+    --an-soft: #f5f7fa;
+    --an-accent: #1f6feb;
+    --an-accent-soft: #dbeafe;
+    --an-ok: #137752;
+    --an-warn: #b45309;
+    --an-bad: #b91c1c;
+    --an-radius: 10px;
+}
+
+/* --- Encabezado y filtros ------------------------------------------------- */
+.an-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.an-header h1 {
+    margin: 0;
+    font-size: 1.45em;
+    line-height: 1.2;
+}
+.an-header .an-subtitle {
+    margin: 2px 0 0;
+    color: var(--an-muted);
+    font-size: 0.9em;
+}
+.an-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+}
+.an-filters label {
+    display: block;
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--an-muted);
+    margin-bottom: 3px;
+}
+.an-filters select,
+.an-filters input[type="date"] {
+    padding: 5px 8px;
+    border: 1px solid var(--an-line);
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.92em;
+}
+.an-filters .an-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--an-accent);
+    background: var(--an-accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+.an-filters .an-btn.ghost {
+    background: #fff;
+    color: var(--an-accent);
+}
+.an-filters .an-btn:hover { filter: brightness(0.95); }
+
+/* --- Tarjetas KPI --------------------------------------------------------- */
+.an-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.an-kpi {
+    background: var(--an-bg);
+    border: 1px solid var(--an-line);
+    border-radius: var(--an-radius);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+}
+.an-kpi::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--an-accent);
+}
+.an-kpi.is-ok::before   { background: var(--an-ok); }
+.an-kpi.is-warn::before { background: var(--an-warn); }
+.an-kpi.is-bad::before  { background: var(--an-bad); }
+.an-kpi .an-kpi-label {
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--an-muted);
+    margin-bottom: 6px;
+}
+.an-kpi .an-kpi-value {
+    font-size: 1.85em;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--an-fg);
+}
+.an-kpi .an-kpi-value small {
+    font-size: 0.45em;
+    font-weight: 500;
+    color: var(--an-muted);
+    margin-left: 4px;
+}
+.an-kpi .an-kpi-note {
+    margin-top: 6px;
+    font-size: 0.8em;
+    color: var(--an-muted);
+}
+.an-delta {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+.an-delta.up   { background: #fee2e2; color: #991b1b; }
+.an-delta.down { background: #dcfce7; color: #166534; }
+.an-delta.flat { background: var(--an-soft); color: var(--an-muted); }
+
+/* --- Tarjetas de contenido ------------------------------------------------ */
+.an-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.an-card {
+    background: var(--an-bg);
+    border: 1px solid var(--an-line);
+    border-radius: var(--an-radius);
+    padding: 14px 16px 16px;
+}
+.an-card > h2 {
+    margin: 0 0 12px;
+    font-size: 1em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--an-muted);
+    font-weight: 700;
+}
+.an-card .an-empty {
+    color: var(--an-muted);
+    font-size: 0.9em;
+    padding: 18px 0;
+    text-align: center;
+}
+.an-card--wide { grid-column: 1 / -1; }
+
+/* --- Gráfica de líneas (SVG del servidor) --------------------------------- */
+.an-chart { width: 100%; height: auto; display: block; }
+.an-chart .grid  { stroke: var(--an-line); stroke-width: 1; }
+.an-chart .axis  { fill: var(--an-muted); font-size: 9px; }
+.an-chart .line-created { fill: none; stroke: var(--an-accent); stroke-width: 2; }
+.an-chart .line-closed  { fill: none; stroke: var(--an-ok); stroke-width: 2; stroke-dasharray: 4 3; }
+.an-chart .area-created { fill: var(--an-accent); opacity: 0.10; }
+.an-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.82em;
+    color: var(--an-muted);
+    margin-top: 6px;
+}
+.an-legend .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 3px;
+    border-radius: 2px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+.an-legend .swatch.created { background: var(--an-accent); }
+.an-legend .swatch.closed  { background: var(--an-ok); }
+
+/* --- Barras horizontales -------------------------------------------------- */
+.an-bars { display: flex; flex-direction: column; gap: 9px; }
+.an-bar-row {
+    display: grid;
+    grid-template-columns: minmax(90px, 34%) 1fr auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9em;
+}
+.an-bar-row .an-bar-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--an-fg);
+}
+.an-bar-track {
+    height: 9px;
+    border-radius: 999px;
+    background: var(--an-soft);
+    overflow: hidden;
+}
+.an-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--an-accent);
+}
+.an-bar-fill.is-ok   { background: var(--an-ok); }
+.an-bar-fill.is-warn { background: var(--an-warn); }
+.an-bar-fill.is-bad  { background: var(--an-bad); }
+.an-bar-row .an-bar-value {
+    font-variant-numeric: tabular-nums;
+    color: var(--an-muted);
+    white-space: nowrap;
+}
+
+/* --- Histograma de horas -------------------------------------------------- */
+.an-hours {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    align-items: end;
+    height: 90px;
+}
+.an-hours .h {
+    background: var(--an-accent-soft);
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    position: relative;
+}
+.an-hours .h.is-peak { background: var(--an-accent); }
+.an-hour-axis {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 2px;
+    font-size: 0.62em;
+    color: var(--an-muted);
+    text-align: center;
+    margin-top: 3px;
+}
+
+/* --- Tablas --------------------------------------------------------------- */
+.an-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+.an-table th {
+    text-align: left;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--an-muted);
+    border-bottom: 1px solid var(--an-line);
+    padding: 6px 8px;
+    font-weight: 700;
+}
+.an-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--an-line);
+    vertical-align: middle;
+}
+.an-table tbody tr:last-child td { border-bottom: 0; }
+.an-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.an-table .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.8em;
+    background: var(--an-soft);
+    color: var(--an-muted);
+}
+.an-table .pill.is-bad { background: #fee2e2; color: #991b1b; }
+.an-table .pill.is-ok  { background: #dcfce7; color: #166534; }
+
+/* --- Aviso de alcance ----------------------------------------------------- */
+.an-scope {
+    font-size: 0.82em;
+    color: var(--an-muted);
+    background: var(--an-soft);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+}
+
+/* --- Móvil ---------------------------------------------------------------- */
+@media (max-width: 720px) {
+    .an-header { flex-direction: column; align-items: stretch; }
+    .an-filters { display: grid; grid-template-columns: 1fr 1fr; }
+    .an-filters .an-btn { grid-column: 1 / -1; }
+    .an-kpis { grid-template-columns: repeat(2, 1fr); }
+    .an-kpi .an-kpi-value { font-size: 1.45em; }
+    .an-grid { grid-template-columns: 1fr; }
+    .an-bar-row { grid-template-columns: minmax(70px, 40%) 1fr auto; }
+    .an-hours { height: 70px; }
+    .an-hour-axis span:nth-child(even) { visibility: hidden; }
+
+    /* Tablas: tarjetas apiladas con etiqueta tomada de data-label */
+    .an-table thead { display: none; }
+    .an-table tr {
+        display: block;
+        border: 1px solid var(--an-line);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        padding: 6px 4px;
+    }
+    .an-table td {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        border: 0;
+        padding: 4px 8px;
+    }
+    .an-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--an-muted);
+    }
+}
+
+/* --- Impresión ------------------------------------------------------------ */
+@media print {
+    .an-filters, .an-header .an-btn { display: none; }
+    .an-card, .an-kpi { break-inside: avoid; border-color: #999; }
+    .an-grid { grid-template-columns: 1fr 1fr; }
+    .an-kpi .an-kpi-value { color: #000; }
+}
+
+/* --- Alto contraste ------------------------------------------------------- */
+@media (prefers-contrast: more) {
+    .an-page { --an-line: #6b7280; --an-muted: #374151; }
+    .an-bar-track { outline: 1px solid #6b7280; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .an-filters .an-btn { transition: none; }
+}
+</style>
+</head>
+<body>
+<p class="note"><strong>Vista previa estática</strong> del panel <code>scp/analytics.php</code> con datos de ejemplo. Mismo HTML, misma hoja de estilos y mismas gráficas SVG que genera el servidor; sin base de datos detrás.</p>
+<div class="an-page">
+
+  <div class="an-header">
+    <div>
+      <h1>Analíticas del help desk</h1>
+      <p class="an-subtitle">Periodo 22/09/2026 – 21/10/2026 · 30 días</p>
+    </div>
+    <form class="an-filters" onsubmit="return false">
+      <div><label for="r">Periodo</label>
+        <select id="r"><option>Últimos 30 días</option><option>Últimos 7 días</option><option>Último trimestre</option></select></div>
+      <div><label for="s">Desde</label><input type="date" id="s" value="2026-09-22"></div>
+      <div><label for="e">Hasta</label><input type="date" id="e" value="2026-10-21"></div>
+      <button class="an-btn" type="button">Aplicar</button>
+      <a class="an-btn ghost" href="#">Exportar CSV</a>
+    </form>
+  </div>
+
+  <div class="an-kpis">
+    <div class="an-kpi"><div class="an-kpi-label">Tickets creados</div>
+      <div class="an-kpi-value">328</div>
+      <div class="an-kpi-note">10,9 por día <span class="an-delta down">▼ 6,4%</span></div></div>
+    <div class="an-kpi is-ok"><div class="an-kpi-label">Tickets cerrados</div>
+      <div class="an-kpi-value">291</div><div class="an-kpi-note">88,7% de lo que entró</div></div>
+    <div class="an-kpi is-warn"><div class="an-kpi-label">Siguen abiertos</div>
+      <div class="an-kpi-value">45</div><div class="an-kpi-note">7 vencidos · 12 sin respuesta</div></div>
+    <div class="an-kpi"><div class="an-kpi-label">Primera respuesta</div>
+      <div class="an-kpi-value">2,4 h</div><div class="an-kpi-note">Promedio desde la creación</div></div>
+    <div class="an-kpi"><div class="an-kpi-label">Tiempo de resolución</div>
+      <div class="an-kpi-value">1,9 d</div><div class="an-kpi-note">Promedio hasta el cierre</div></div>
+    <div class="an-kpi is-ok"><div class="an-kpi-label">Cumplimiento de SLA</div>
+      <div class="an-kpi-value">93,1%</div><div class="an-kpi-note">269 cumplidos · 20 incumplidos</div></div>
+  </div>
+
+  <div class="an-card an-card--wide">
+    <h2>Flujo diario</h2>
+    <svg class="an-chart" viewBox="0 0 720 220" role="img" aria-label="Tickets created vs. closed per day"><line class="grid" x1="34" y1="198.0" x2="712" y2="198.0" /><text class="axis" x="28" y="201.0" text-anchor="end">0</text><line class="grid" x1="34" y1="151.0" x2="712" y2="151.0" /><text class="axis" x="28" y="154.0" text-anchor="end">7</text><line class="grid" x1="34" y1="104.0" x2="712" y2="104.0" /><text class="axis" x="28" y="107.0" text-anchor="end">14</text><line class="grid" x1="34" y1="57.0" x2="712" y2="57.0" /><text class="axis" x="28" y="60.0" text-anchor="end">21</text><line class="grid" x1="34" y1="10.0" x2="712" y2="10.0" /><text class="axis" x="28" y="13.0" text-anchor="end">28</text><polygon class="area-created" points="34.0,198.0 712.0,198.0 34.0,124.1 57.4,124.1 80.8,110.7 104.1,63.7 127.5,184.6 150.9,177.9 174.3,110.7 197.7,83.9 221.0,63.7 244.4,83.9 267.8,70.4 291.2,191.3 314.6,177.9 337.9,137.6 361.3,50.3 384.7,130.9 408.1,63.7 431.4,57.0 454.8,184.6 478.2,184.6 501.6,90.6 525.0,117.4 548.3,63.7 571.7,117.4 595.1,110.7 618.5,177.9 641.9,177.9 665.2,144.3 688.6,104.0 712.0,77.1" /><polyline class="line-closed" points="34.0,130.9 57.4,151.0 80.8,104.0 104.1,90.6 127.5,198.0 150.9,191.3 174.3,104.0 197.7,110.7 221.0,63.7 244.4,90.6 267.8,70.4 291.2,184.6 314.6,198.0 337.9,137.6 361.3,30.1 384.7,110.7 408.1,63.7 431.4,77.1 454.8,184.6 478.2,171.1 501.6,97.3 525.0,137.6 548.3,50.3 571.7,124.1 595.1,110.7 618.5,157.7 641.9,184.6 665.2,171.1 688.6,124.1 712.0,70.4" /><polyline class="line-created" points="34.0,124.1 57.4,124.1 80.8,110.7 104.1,63.7 127.5,184.6 150.9,177.9 174.3,110.7 197.7,83.9 221.0,63.7 244.4,83.9 267.8,70.4 291.2,191.3 314.6,177.9 337.9,137.6 361.3,50.3 384.7,130.9 408.1,63.7 431.4,57.0 454.8,184.6 478.2,184.6 501.6,90.6 525.0,117.4 548.3,63.7 571.7,117.4 595.1,110.7 618.5,177.9 641.9,177.9 665.2,144.3 688.6,104.0 712.0,77.1" /><text class="axis" x="34.0" y="214" text-anchor="middle">22/09</text><text class="axis" x="174.3" y="214" text-anchor="middle">28/09</text><text class="axis" x="314.6" y="214" text-anchor="middle">04/10</text><text class="axis" x="431.4" y="214" text-anchor="middle">09/10</text><text class="axis" x="571.7" y="214" text-anchor="middle">15/10</text><text class="axis" x="712.0" y="214" text-anchor="middle">21/10</text></svg>    <div class="an-legend">
+      <span><span class="swatch created"></span>Creados</span>
+      <span><span class="swatch closed"></span>Cerrados</span>
+    </div>
+  </div>
+
+  <div class="an-grid">
+    <div class="an-card"><h2>¿A qué hora llegan?</h2>
+      <div class="an-hours" role="img" aria-label="Tickets created by hour of day"><span class="h" style="height:2%" title="00:00 — 0" aria-label="00:00 — 0"></span><span class="h" style="height:2%" title="01:00 — 0" aria-label="01:00 — 0"></span><span class="h" style="height:2%" title="02:00 — 0" aria-label="02:00 — 0"></span><span class="h" style="height:2%" title="03:00 — 0" aria-label="03:00 — 0"></span><span class="h" style="height:2%" title="04:00 — 0" aria-label="04:00 — 0"></span><span class="h" style="height:2%" title="05:00 — 0" aria-label="05:00 — 0"></span><span class="h" style="height:2%" title="06:00 — 0" aria-label="06:00 — 0"></span><span class="h" style="height:2%" title="07:00 — 0" aria-label="07:00 — 0"></span><span class="h" style="height:45%" title="08:00 — 14" aria-label="08:00 — 14"></span><span class="h is-peak" style="height:100%" title="09:00 — 31" aria-label="09:00 — 31"></span><span class="h" style="height:84%" title="10:00 — 26" aria-label="10:00 — 26"></span><span class="h" style="height:58%" title="11:00 — 18" aria-label="11:00 — 18"></span><span class="h" style="height:29%" title="12:00 — 9" aria-label="12:00 — 9"></span><span class="h" style="height:23%" title="13:00 — 7" aria-label="13:00 — 7"></span><span class="h" style="height:61%" title="14:00 — 19" aria-label="14:00 — 19"></span><span class="h" style="height:74%" title="15:00 — 23" aria-label="15:00 — 23"></span><span class="h" style="height:55%" title="16:00 — 17" aria-label="16:00 — 17"></span><span class="h" style="height:26%" title="17:00 — 8" aria-label="17:00 — 8"></span><span class="h" style="height:10%" title="18:00 — 3" aria-label="18:00 — 3"></span><span class="h" style="height:2%" title="19:00 — 0" aria-label="19:00 — 0"></span><span class="h" style="height:2%" title="20:00 — 0" aria-label="20:00 — 0"></span><span class="h" style="height:2%" title="21:00 — 0" aria-label="21:00 — 0"></span><span class="h" style="height:2%" title="22:00 — 0" aria-label="22:00 — 0"></span><span class="h" style="height:2%" title="23:00 — 0" aria-label="23:00 — 0"></span></div><div class="an-hour-axis" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span></div>      <p class="an-kpi-note">Hora del día en la zona del servidor. Sirve para dimensionar turnos.</p></div>
+    <div class="an-card"><h2>Antigüedad de lo pendiente</h2>
+      <div class="an-bars"><div class="an-bar-row"><span class="an-bar-label" title="&lt; 1 day">&lt; 1 day</span><span class="an-bar-track"><span class="an-bar-fill is-ok" style="width:100%"></span></span><span class="an-bar-value">12</span></div><div class="an-bar-row"><span class="an-bar-label" title="1-3 days">1-3 days</span><span class="an-bar-track"><span class="an-bar-fill" style="width:67%"></span></span><span class="an-bar-value">8</span></div><div class="an-bar-row"><span class="an-bar-label" title="3-7 days">3-7 days</span><span class="an-bar-track"><span class="an-bar-fill is-warn" style="width:42%"></span></span><span class="an-bar-value">5</span></div><div class="an-bar-row"><span class="an-bar-label" title="7-30 days">7-30 days</span><span class="an-bar-track"><span class="an-bar-fill is-warn" style="width:33%"></span></span><span class="an-bar-value">4</span></div><div class="an-bar-row"><span class="an-bar-label" title="&gt; 30 days">&gt; 30 days</span><span class="an-bar-track"><span class="an-bar-fill is-bad" style="width:17%"></span></span><span class="an-bar-value">2</span></div></div>      <p class="an-kpi-note">Los tickets con más de una semana suelen necesitar una decisión: responder, escalar o cerrar.</p></div>
+    <div class="an-card"><h2>¿De dónde vienen?</h2><div class="an-bars"><div class="an-bar-row"><span class="an-bar-label" title="Web">Web</span><span class="an-bar-track"><span class="an-bar-fill" style="width:100%"></span></span><span class="an-bar-value">61</span></div><div class="an-bar-row"><span class="an-bar-label" title="Email">Email</span><span class="an-bar-track"><span class="an-bar-fill" style="width:79%"></span></span><span class="an-bar-value">48</span></div><div class="an-bar-row"><span class="an-bar-label" title="Phone">Phone</span><span class="an-bar-track"><span class="an-bar-fill" style="width:20%"></span></span><span class="an-bar-value">12</span></div><div class="an-bar-row"><span class="an-bar-label" title="API">API</span><span class="an-bar-track"><span class="an-bar-fill" style="width:11%"></span></span><span class="an-bar-value">7</span></div></div></div>
+    <div class="an-card"><h2>Temas más frecuentes</h2><div class="an-bars"><div class="an-bar-row"><span class="an-bar-label" title="Soporte de red">Soporte de red</span><span class="an-bar-track"><span class="an-bar-fill" style="width:100%"></span></span><span class="an-bar-value">23</span></div><div class="an-bar-row"><span class="an-bar-label" title="Acceso a sistemas">Acceso a sistemas</span><span class="an-bar-track"><span class="an-bar-fill" style="width:74%"></span></span><span class="an-bar-value">17</span></div><div class="an-bar-row"><span class="an-bar-label" title="Facturación">Facturación</span><span class="an-bar-track"><span class="an-bar-fill" style="width:48%"></span></span><span class="an-bar-value">11</span></div><div class="an-bar-row"><span class="an-bar-label" title="Impresoras">Impresoras</span><span class="an-bar-track"><span class="an-bar-fill" style="width:35%"></span></span><span class="an-bar-value">8</span></div></div>      <p class="an-kpi-note">Los temas repetidos son candidatos a un artículo de la base de conocimiento.</p></div>
+  </div>
+
+  <div class="an-grid">
+    <div class="an-card an-card--wide"><h2>Carga de trabajo ahora</h2>
+      <table class="an-table"><thead><tr><th>Agente</th><th class="num">Abiertos</th><th class="num">Vencidos</th><th>Carga</th></tr></thead>
+      <tbody>
+        <tr><td data-label="Agente">Ana Pérez</td><td class="num" data-label="Abiertos">18</td>
+            <td class="num" data-label="Vencidos"><span class="pill is-bad">3</span></td><td data-label="Carga"><span class="an-bar-track"><span class="an-bar-fill is-bad" style="width:100%"></span></span></td></tr>
+        <tr><td data-label="Agente">Luis Mora</td><td class="num" data-label="Abiertos">14</td>
+            <td class="num" data-label="Vencidos"><span class="pill is-ok">0</span></td><td data-label="Carga"><span class="an-bar-track"><span class="an-bar-fill" style="width:78%"></span></span></td></tr>
+        <tr><td data-label="Agente">Carla Ruiz</td><td class="num" data-label="Abiertos">9</td>
+            <td class="num" data-label="Vencidos"><span class="pill is-ok">0</span></td><td data-label="Carga"><span class="an-bar-track"><span class="an-bar-fill" style="width:50%"></span></span></td></tr>
+      </tbody></table></div>
+
+    <div class="an-card an-card--wide"><h2>Rendimiento por agente</h2>
+      <table class="an-table"><thead><tr><th>Agente</th><th class="num">Asignados</th><th class="num">Cerrados</th><th class="num">Vencidos</th><th class="num">Resolución media</th></tr></thead>
+      <tbody>
+              <tr><td data-label="Agente">Ana Pérez</td>
+            <td class="num" data-label="Asignados">34</td>
+            <td class="num" data-label="Cerrados">29</td>
+            <td class="num" data-label="Vencidos">1</td>
+            <td class="num" data-label="Resolución media">3,2 h</td></tr>
+              <tr><td data-label="Agente">Luis Mora</td>
+            <td class="num" data-label="Asignados">28</td>
+            <td class="num" data-label="Cerrados">26</td>
+            <td class="num" data-label="Vencidos">0</td>
+            <td class="num" data-label="Resolución media">2,8 h</td></tr>
+              <tr><td data-label="Agente">Carla Ruiz</td>
+            <td class="num" data-label="Asignados">21</td>
+            <td class="num" data-label="Cerrados">18</td>
+            <td class="num" data-label="Vencidos">2</td>
+            <td class="num" data-label="Resolución media">5,1 h</td></tr>
+            </tbody></table></div>
+  </div>
+
+</div>
+</body>
+</html>
