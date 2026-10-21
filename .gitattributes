@@ -1,40 +1,50 @@
 # ---------------------------------------------------------------------------
-# Normalización de finales de línea
+# Finales de línea
 #
-# Crítico en Windows: los scripts .sh con CRLF fallan dentro del contenedor
-# ("/bin/sh^M: bad interpreter"). Aquí se fuerza LF en todo lo que se ejecuta
-# o se lee dentro de Docker.
+# El repositorio de osTicket mezcla LF y CRLF: hay 29 archivos de texto
+# heredados guardados con CRLF (api/index.php, css/flags.css, include/index.php,
+# include/PasswordHash.php, include/i18n/langs.php, include/i18n/vendor/redactor,
+# include/pear/Crypt/*, include/staff/*.inc.php, kb/index.php, scp/js/tips.js,
+# tickets.php…).
+#
+# Declarar `* text=auto` los marcaría como modificados en cada `git status`
+# aunque nadie los toque: git compara la versión normalizada a LF con el blob
+# que sigue en CRLF. Por eso el valor por defecto es `-text`: git no convierte
+# nada y el árbol de trabajo queda byte a byte igual al repositorio.
+#
+# Sólo se fuerza LF donde un CRLF rompe la ejecución dentro del contenedor.
 # ---------------------------------------------------------------------------
 
-* text=auto eol=lf
+* -text
 
-*.sh            text eol=lf
-Dockerfile      text eol=lf
-*.conf          text eol=lf
-*.ini           text eol=lf
-*.sql           text eol=lf
-*.php           text eol=lf
-*.css           text eol=lf
-*.js            text eol=lf
-*.json          text eol=lf
-*.yaml          text eol=lf
-*.yml           text eol=lf
-Makefile        text eol=lf
-.editorconfig   text eol=lf
+# Un .sh con CRLF falla en Linux con "bad interpreter: /bin/sh^M".
+*.sh             text eol=lf
+*.bash           text eol=lf
+Dockerfile       text eol=lf
+*.conf           text eol=lf
+*.sql            text eol=lf
+Makefile         text eol=lf
+.gitattributes   text eol=lf
+.editorconfig    text eol=lf
 
-# Excepción histórica del proyecto: este archivo ya usa CRLF y se mantiene
-# así para no alterar su contenido byte a byte.
-include/PasswordHash.php text eol=crlf
+# Configuración que sólo mantenemos nosotros (no hay heredados con CRLF)
+*.yaml           text eol=lf
+*.yml            text eol=lf
+*.json           text eol=lf
+*.ini            text eol=lf
 
 # Binarios: nunca normalizar
-*.png           binary
-*.jpg           binary
-*.gif           binary
-*.ico           binary
-*.woff          binary
-*.woff2         binary
-*.ttf           binary
-*.eot           binary
-*.pdf           binary
-*.zip           binary
-*.phar          binary
+*.png            binary
+*.jpg            binary
+*.jpeg           binary
+*.gif            binary
+*.ico            binary
+*.webp           binary
+*.woff           binary
+*.woff2          binary
+*.ttf            binary
+*.otf            binary
+*.eot            binary
+*.pdf            binary
+*.zip            binary
+*.phar           binary

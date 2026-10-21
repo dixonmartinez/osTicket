@@ -334,6 +334,46 @@ git rm --cached -r . >/dev/null && git reset --hard
 sed -i 's/\r$//' docker/php/docker-entrypoint.sh
 ```
 
+### 8.1 Archivos que aparecen modificados y nadie tocó
+
+Síntoma: al abrir el panel *Source Control* de VS Code hay ~19 archivos en `M`
+que nunca editaste —`tickets.php`, `api/index.php`, `css/flags.css`,
+`include/PasswordHash.php`, `include/i18n/langs.php`,
+`include/pear/Crypt/*.php`, `include/staff/*`, `kb/index.php`,
+`scp/js/tips.js`…—. Un `git diff` no muestra nada y `git checkout -- .` no los
+limpia.
+
+Causa: osTicket arrastra **29 archivos de texto guardados con CRLF** en el
+propio repositorio (no los convirtió tu editor: ya venían así). Durante un
+tiempo `.gitattributes` declaró `* text=auto eol=lf`, y con esa regla git
+compara el blob del índice normalizado a LF contra el archivo del disco en
+CRLF: el resultado es «modificado» permanente, sin que el contenido cambie.
+
+La versión actual del archivo deja el valor por defecto en `* -text` (nada se
+convierte) y sólo fuerza LF donde un CRLF rompe la ejecución en Linux:
+`*.sh`, `Dockerfile`, `*.conf`, `*.sql`, `Makefile`, `*.yaml`/`*.yml`,
+`*.json` y `*.ini`. Comprueba cómo está tratando git a un archivo con:
+
+```bash
+git ls-files --eol tickets.php
+# i/crlf  w/crlf  attr/-text     tickets.php      ← correcto: no hay conversión
+# i/lf    w/crlf  attr/text eol=lf tickets.php    ← fantasma: se normalizó
+```
+
+Si sigues viendo los fantasmas, es que tu copia tiene el `.gitattributes`
+antiguo o un `core.autocrlf` activo que ya reescribió el árbol de trabajo:
+
+```bash
+git config --get core.autocrlf        # se recomienda: false
+git config core.autocrlf false
+git pull                              # trae el .gitattributes corregido
+git checkout -- .                     # reescribe los archivos desde el índice
+git status --porcelain                # debe quedar vacío
+```
+
+No hace falta `git add --renormalize .`: no hay nada que renormalizar, el
+contenido del repositorio es el correcto.
+
 **`invalid mount config for type "bind": bind source path does not exist`.**
 Una ruta relativa de `volumes:` se resuelve contra el **directorio del primer
 `-f`** (la raíz del repo), no contra la carpeta del compose que la declara. Si
