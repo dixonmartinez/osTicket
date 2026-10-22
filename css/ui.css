@@ -646,21 +646,59 @@ table.queue td.num {
 /* ------------------------------------------------------------------ */
 /* Mensajes del sistema                                                */
 /* ------------------------------------------------------------------ */
-.error_bar,
-.warning_bar,
-.notice_bar {
-    height: auto !important;
-    min-height: 22px;
-    padding-top: 6px;
-    padding-bottom: 6px;
-    line-height: 1.4 !important;
-    border-radius: var(--ui-radius);
+
+/* Avisos del sistema (error.png, alert.png y ok.png son PNG de 16 px con
+   fondo blanco: en oscuro se veían como un cuadro claro). Se dibujan con
+   máscara SVG y color propio para cada tipo de aviso. El color va en
+   :where() (especificidad 0) para que css/dark.css pueda cambiarlo sin
+   subir la suya. */
+:is(#error_bar, .error_bar, #msg_error, .error-banner),
+:is(#warning_bar, .warning_bar, #msg_warning, .warning-banner),
+:is(#notice_bar, .notice_bar, #msg_notice, .success-banner, .notice-banner) {
+    position: relative;
+    background-image: none;
 }
 
-.error_bar a,
-.warning_bar a,
-.notice_bar a {
-    text-decoration: underline;
+:is(#error_bar, .error_bar, #msg_error, .error-banner)::before,
+:is(#warning_bar, .warning_bar, #msg_warning, .warning-banner)::before,
+:is(#notice_bar, .notice_bar, #msg_notice, .success-banner, .notice-banner)::before {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    background-color: var(--ost-bar-color, currentColor);
+    -webkit-mask-image: var(--ost-bar-icon);
+    mask-image: var(--ost-bar-icon);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 16px 16px;
+    mask-size: 16px 16px;
+}
+
+:where(#error_bar, .error_bar, #msg_error, .error-banner) {
+    --ost-bar-icon: var(--ost-i-exclamation-sign);
+    --ost-bar-color: #c0392b;
+}
+
+:where(#warning_bar, .warning_bar, #msg_warning, .warning-banner) {
+    --ost-bar-icon: var(--ost-i-exclamation-triangle);
+    --ost-bar-color: #c47f0a;
+}
+
+:where(#notice_bar, .notice_bar, #msg_notice, .success-banner, .notice-banner) {
+    --ost-bar-icon: var(--ost-i-check-circle);
+    --ost-bar-color: #1b7f3b;
+}
+
+:root {
+    --ost-i-exclamation-sign: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M12%207v6%22/%3E%3Cpath%20d=%22M12%2016.5h.01%22/%3E%3C/svg%3E");
+    --ost-i-exclamation-triangle: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M12%203.5%2022%2020H2z%22/%3E%3Cpath%20d=%22M12%2010v4%22/%3E%3Cpath%20d=%22M12%2017h.01%22/%3E%3C/svg%3E");
+    --ost-i-check-circle: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M8%2012.2l2.7%202.7L16%209.5%22/%3E%3C/svg%3E");
 }
 
 /* ------------------------------------------------------------------ */

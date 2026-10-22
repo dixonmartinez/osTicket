@@ -474,6 +474,7 @@ html[data-theme="dark"] .error_bar {
     background-color: var(--dk-danger-bg);
     border-color: #7d3b38;
     color: #ffd7d3;
+    --ost-bar-color: var(--dk-danger);
 }
 
 html[data-theme="dark"] #warning_bar,
@@ -481,6 +482,7 @@ html[data-theme="dark"] .warning_bar {
     background-color: var(--dk-warning-bg);
     border-color: #7a6423;
     color: #f7e3ad;
+    --ost-bar-color: var(--dk-warning);
 }
 
 html[data-theme="dark"] #notice_bar,
@@ -488,22 +490,32 @@ html[data-theme="dark"] .notice_bar {
     background-color: var(--dk-success-bg);
     border-color: #2f6b3d;
     color: #c7f2cd;
+    --ost-bar-color: var(--dk-success);
 }
 
 html[data-theme="dark"] #msg_error,
-html[data-theme="dark"] #msg_notice,
-html[data-theme="dark"] #msg_warning {
-    background: var(--dk-surface-2);
-    border-color: var(--dk-border);
-    color: var(--dk-text);
+html[data-theme="dark"] .error-banner {
+    background-color: var(--dk-danger-bg);
+    border-color: #7d3b38;
+    color: #ffd7d3;
+    --ost-bar-color: var(--dk-danger);
 }
 
-html[data-theme="dark"] .error-banner,
-html[data-theme="dark"] .warning-banner,
+html[data-theme="dark"] #msg_warning,
+html[data-theme="dark"] .warning-banner {
+    background-color: var(--dk-warning-bg);
+    border-color: #7a6423;
+    color: #f7e3ad;
+    --ost-bar-color: var(--dk-warning);
+}
+
+html[data-theme="dark"] #msg_notice,
+html[data-theme="dark"] .success-banner,
 html[data-theme="dark"] .notice-banner {
-    background: var(--dk-surface-2);
-    border-color: var(--dk-border);
-    color: var(--dk-text);
+    background-color: var(--dk-success-bg);
+    border-color: #2f6b3d;
+    color: #c7f2cd;
+    --ost-bar-color: var(--dk-success);
 }
 
 /* ================================================================== */

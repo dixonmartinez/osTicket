@@ -364,6 +364,31 @@ necesitan tocar el marcado:
   portal, y el icono cae en `background-position` 0/10 px 50 %): no hay que
   tocar plantillas ni `padding`.
 
+### 3.5.2 Avisos del sistema
+
+Los avisos (`#error_bar`, `#warning_bar`, `#notice_bar`, los `#msg_*` del
+portal y los `.error-banner` / `.success-banner` / `.warning-banner` del
+panel) usan el mismo truco, porque `error.png`, `alert.png` y `ok.png` son
+PNG de 16 px **con fondo blanco**:
+
+```css
+:where(.error_bar, #msg_error, .error-banner) {
+    --ost-bar-icon: var(--ost-i-exclamation-sign);
+    --ost-bar-color: #c0392b;
+}
+```
+
+- La imagen de fondo se anula en el bloque `:is(...)` (necesita la
+  especificidad del `id` para ganar a `scp.css`), y el dibujo sale de un
+  `::before` de 16 px con `mask-image`.
+- El color va aparte, en `:where(...)`, que tiene especificidad 0: así
+  `css/dark.css` puede cambiarlo con su regla de siempre (`--dk-danger`,
+  `--dk-warning`, `--dk-success`) sin tener que ganar una guerra de
+  especificidad. **Si añades un aviso nuevo, mete el icono y el color en el
+  bloque `:where`**, no en el `:is`.
+- Los tres tipos llevan ahora fondo teñido también en oscuro; antes los
+  `#msg_*` salían en gris plano.
+
 **Para añadir una clase nueva**: una línea con su `--ost-nav-icon` y, si el
 icono no existe, un `--ost-i-*` más copiando el `path` de `js/icons.js`. Si el
 icono no está en el mapa, el `background-image: none` la dejaría sin dibujo:
@@ -445,6 +470,28 @@ Y en el portal del cliente, `body.client-portal` (la clase la pone
 `#00739f` (2,53 → 5,31:1), `.action-button` a `#4a4a4a` y
 `.article-meta` a `#5b6670`. Sin esa clase las reglas alcanzarían a los
 botones del panel, que no usan el tema del portal.
+
+### 3.9 Acciones declarativas (`js/actions.js`)
+
+Los manejadores en línea (`onclick="..."`) impiden una CSP sin
+`unsafe-inline`, así que se van sustituyendo por atributos que interpreta un
+único listener delegado en `document`. No hace falta inicializar nada: basta
+con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
+
+| Atributo | Dónde | Qué hace |
+|---|---|---|
+| `data-href="url"` | cualquier elemento | navega a `url` |
+| `data-go-back` | cualquier elemento | `history.back()` |
+| `data-submit-on-change` | `<select>` | envía su formulario al cambiar |
+| `data-dialog="201"` | enlace | abre el `href` en un diálogo AJAX (un `#` inicial se descarta) |
+| `data-dialog-url="url"` | cualquier elemento | abre esa URL en el diálogo, sin tocar el `href` |
+| `data-dialog-size="large"` | junto a los anteriores | tamaño del diálogo |
+| `data-confirm="texto"` | elemento o `<form>` | pide confirmación antes de actuar (en un formulario, al enviar) |
+
+Se combinaron 40 plantillas en la primera tanda y los manejadores en línea
+bajaron de **124 a 72** (`make inline-audit`). Lo que queda tiene lógica
+propia (editores, ordenación de columnas, combos) y se migrará con
+`addEventListener` en su archivo, no con un atributo más.
 
 ## 4. Reglas para no romper nada
 
@@ -558,10 +605,11 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 80 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 84 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
-| 13 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`: primera tanda de la migración de `onclick` inline (§6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
-| 14 | **Auditoría de manejadores inline** con umbral: `make inline-audit` lista, cuenta y falla si el número sube | ✅ Hecho | `tools/ui/inline-handlers.php` |
+| 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
+| 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`: primera tanda de la migración de `onclick` inline (§6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
+| 15 | **Auditoría de manejadores inline** con umbral: `make inline-audit` lista, cuenta y falla si el número sube | ✅ Hecho | `tools/ui/inline-handlers.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -574,9 +622,8 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **72** atributos en 42 archivos (`make inline-audit`), desde 124 en 71. Primera tanda hecha con `js/actions.js` (§6.1-13); quedan los manejadores con lógica propia: `$.userLookup` (4), `confirm(...)` (5), `saveDraft()` (4), `redactor` (4), `$.pjax` (2), `$.dialog` con `var colid`/`var pid` (3), `#dynamic-form` (2), ordenación de columnas, combos de la búsqueda avanzada y ~25 casos dispares |
-| 2 | Llevar a SVG los iconos que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, `#error_bar`) | `#nav` y `#sub_nav` ya están hechos con máscaras (§3.5.1); queda el aviso `#error_bar`, que sí necesita tocar la plantilla |
-| 3 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **72** atributos en 42 archivos (`make inline-audit`), desde 124 en 71. Primera tanda hecha con `js/actions.js` (§3.9, §6.1-14); quedan los manejadores con lógica propia: `$.userLookup` (4), `confirm(...)` (5), `saveDraft()` (4), `redactor` (4), `$.pjax` (2), `$.dialog` con `var colid`/`var pid` (3), `#dynamic-form` (2), ordenación de columnas, combos de la búsqueda avanzada y ~25 casos dispares |
+| 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar
 

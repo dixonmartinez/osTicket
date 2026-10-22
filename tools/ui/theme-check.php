@@ -354,6 +354,28 @@ check(strpos($guide, 'Valid CSRF Token Required') !== false
     'UI_GUIDE explica cómo distinguir los 400 del panel',
     'docs/UI_GUIDE.md no distingue «URL not supported» de «Valid CSRF Token Required»');
 
+/* 8. Iconos de las barras y de los avisos -------------------------------- */
+check(substr_count($uicss, '--ost-nav-icon:') >= 60
+    && strpos($uicss, '--ost-i-home') !== false
+    && strpos($uicss, 'mask-image: var(--ost-nav-icon)') !== false,
+    'los iconos de #nav y #sub_nav se dibujan con máscaras SVG',
+    'css/ui.css no tiene las máscaras de #nav/#sub_nav: los iconos vuelven a ser PNG con fondo blanco');
+
+$preview = read("$root/docs/theme-preview.html");
+check(strpos($preview, 'id="error_bar"') !== false
+    && strpos($preview, 'class="error-banner"') !== false,
+    'la vista previa incluye los avisos del sistema',
+    'docs/theme-preview.html no muestra error_bar/warning_bar/notice_bar: no se revisan sus iconos');
+
+check(strpos($uicss, '--ost-i-exclamation-sign') !== false
+    && strpos($uicss, 'mask-image: var(--ost-bar-icon)') !== false,
+    'los avisos usan máscara SVG en vez de error.png/alert.png/ok.png',
+    'css/ui.css no sustituye los PNG de los avisos: en oscuro se ve el cuadro blanco de fondo');
+
+check(substr_count($dark, '--ost-bar-color') >= 6,
+    'los iconos de aviso cambian de color en oscuro',
+    'css/dark.css no ajusta --ost-bar-color de los avisos: el icono queda con el color del tema claro');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {
