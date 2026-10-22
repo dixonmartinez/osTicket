@@ -29,7 +29,10 @@
 // v6: entra js/password-strength.js (indicador de fuerza del alta).
 // v7: HTML de terceros en oscuro (citas, código, visor de PDF, editor) y el
 //     medidor de contraseña también en el panel.
-const VERSION = 'ost-v7';
+// v8: los estáticos pasan a red-primero. Con caché-primero, tras un
+//     `git pull` el navegador servía una hoja vieja junto a un JS nuevo
+//     (iconos gigantes, CSS sin aplicar) hasta la segunda recarga.
+const VERSION = 'ost-v8';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -131,17 +134,31 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estáticos: sirve de caché y actualiza en segundo plano.
+  // Estáticos: red primero y caché como red de seguridad.
+  //
+  // Antes era caché primero con revalidación en segundo plano, que es más
+  // rápido pero deja una ventana peligrosa: tras actualizar el código (un
+  // `git pull`, una imagen nueva), la primera carga servía la hoja de
+  // estilos vieja junto al JavaScript nuevo. Con osTicket eso se ve como
+  // iconos gigantes o como una pantalla sin estilos. Ahora se pide a la red
+  // y sólo se tira de la caché si no hay conexión (o si la red falla).
   if (STATIC_EXT.test(url.pathname)) {
     event.respondWith((async () => {
       const cache = await caches.open(STATIC_CACHE);
-      const cached = await cache.match(request);
-      const network = fetch(request).then((response) => {
+
+      try {
+        const response = await fetch(request);
+
         if (response && response.ok && response.type === 'basic')
-          cache.put(request, response.clone());
+          cache.put(request, response.clone()).catch(() => { /* cuota */ });
+
         return response;
-      }).catch(() => null);
-      return cached || (await network) || Response.error();
+      }
+      catch (e) {
+        const cached = await cache.match(request);
+
+        return cached || Response.error();
+      }
     })());
   }
 });

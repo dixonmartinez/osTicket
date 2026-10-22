@@ -198,6 +198,21 @@
         }
 
         svg.setAttribute('viewBox', '0 0 24 24');
+
+        // Tamaño y trazo también como atributos, no solo desde css/ui.css:
+        // si la hoja llega vieja desde la caché del navegador (o no llega),
+        // un SVG sin medidas se estira al ancho del contenedor y, sin
+        // `fill:none`, se pinta como un disco negro enorme. Con los
+        // atributos el icono sale bien en cualquier caso; la hoja de
+        // estilos sigue mandando cuando está.
+        svg.setAttribute('width', '1em');
+        svg.setAttribute('height', '1em');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+
         svg.setAttribute('focusable', 'false');
         svg.setAttribute('aria-hidden', 'true');
         svg.setAttribute('data-icon', name);

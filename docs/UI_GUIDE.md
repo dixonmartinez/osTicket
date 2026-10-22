@@ -523,3 +523,46 @@ esta entrega para no arriesgar funcionalidad):
    Hecho en CSS y en la maqueta (§3.7). Queda comprobarlo con correos
    reales del buzón de la instalación, que es lo único que no se puede
    reproducir sin la base de datos.
+
+## 7. Si la interfaz se ve mal después de actualizar
+
+Síntoma típico: el panel sale **sin estilos**, con los **iconos gigantes y
+en negro**, o la consola muestra `400 (Bad Request)` en
+`scp/ajax.php/…` con rutas que ya no existen (`lookup2a`, por ejemplo).
+
+No es un fallo del tema: es el **navegador mezclando versiones**. El service
+worker (`sw.js`) cachea JS y CSS, y hasta la versión `ost-v8` lo hacía
+*caché primero*; tras un `git pull` podía servir una hoja vieja junto a un
+JavaScript nuevo. Desde `ost-v8` los estáticos son **red primero**, con la
+caché solo como respaldo sin conexión.
+
+Pasos, en orden:
+
+1. **Recarga dura**: `Ctrl + Shift + R` (o `Ctrl + F5`).
+2. Si sigue igual, quita el service worker:
+   DevTools → **Application → Service Workers → Unregister**, y luego
+   **Application → Storage → Clear site data**. Recarga.
+3. Comprueba en la consola que ya está todo nuevo:
+   ```js
+   document.querySelectorAll('svg.ost-icon').length   // > 0
+   getComputedStyle(document.querySelector('svg.ost-icon')).width  // ~13px
+   ```
+   Si sale un ancho de cientos de píxeles, la hoja `css/ui.css` es vieja.
+4. En **desarrollo no hay que reconstruir la imagen**: el repo está montado
+   en el contenedor (`./:/var/www/html`). Basta con recargar. Solo se
+   reconstruye si cambian `docker/php/Dockerfile`, la versión de PHP o las
+   extensiones:
+   ```bash
+   make docker-build && make docker-up      # o: docker compose up -d --build
+   ```
+   En **producción** (`compose.prod.yaml`) el código va copiado dentro de la
+   imagen, así que sí hay que reconstruir:
+   ```bash
+   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+   ```
+5. Si los `400` siguen con el código correcto, mira el enrutado: abrir
+   `http://localhost:<puerto>/scp/ajax.php/queue/counts` en una pestaña debe
+   devolver JSON, no «URL not supported». Ese mensaje significa que nginx no
+   está pasando `PATH_INFO` (hace falta `fastcgi_split_path_info` y
+   `fastcgi_param PATH_INFO`, ya presentes en `docker/nginx/default.conf`):
+   estarías usando otro servidor distinto del de `docker compose`.
