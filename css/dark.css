@@ -186,10 +186,10 @@ html[data-theme="dark"] #sub_nav li:hover {
     background: var(--dk-surface-3);
 }
 
-/* Selector de tema (botón de la cabecera del panel y del portal).
+/* Botones de icono de la cabecera (tema y densidad del panel y del portal).
    El estilo base es el claro: así el botón se ve bien aunque JavaScript esté
    desactivado. El tema oscuro solo cambia colores. */
-.ost-theme-toggle {
+.ost-icon-button {
     background: transparent;
     border: 1px solid #cfd6dd;
     color: #184E81;
@@ -203,17 +203,17 @@ html[data-theme="dark"] #sub_nav li:hover {
     vertical-align: middle;
 }
 
-.ost-theme-toggle:hover {
+.ost-icon-button:hover {
     background: #eef2f6;
     border-color: #b6c1cc;
 }
 
-.ost-theme-toggle:focus-visible {
+.ost-icon-button:focus-visible {
     outline: 2px solid #0b63ce;
     outline-offset: 2px;
 }
 
-.ost-theme-toggle .ost-theme-icon {
+.ost-icon-button .ost-theme-icon {
     width: 1em;
     height: 1em;
     fill: currentColor;
@@ -224,22 +224,22 @@ html[data-theme="dark"] #sub_nav li:hover {
 html[data-theme="dark"] .ost-theme-toggle .ost-icon-moon { display: none; }
 html:not([data-theme="dark"]) .ost-theme-toggle .ost-icon-sun { display: none; }
 
-html[data-theme="dark"] .ost-theme-toggle {
+html[data-theme="dark"] .ost-icon-button {
     border-color: var(--dk-border);
     color: var(--dk-text);
 }
 
-html[data-theme="dark"] .ost-theme-toggle:hover {
+html[data-theme="dark"] .ost-icon-button:hover {
     background: var(--dk-surface-3);
     border-color: var(--dk-border-strong);
 }
 
-html[data-theme="dark"] .ost-theme-toggle:focus-visible {
+html[data-theme="dark"] .ost-icon-button:focus-visible {
     outline-color: var(--dk-link);
 }
 
 /* En el portal del cliente la cabecera es más pequeña */
-#header .ost-theme-toggle {
+#header .ost-icon-button {
     font-size: 0.95em;
     padding: 1px 6px;
 }
@@ -1544,7 +1544,7 @@ html[data-theme="dark"] #poweredBy {
 }
 
 /* El botón de tema flota en la esquina: esta pantalla no tiene cabecera */
-#loginBody > .ost-theme-toggle {
+#loginBody > .ost-icon-button {
     position: fixed;
     top: 12px;
     right: 12px;
@@ -1552,7 +1552,7 @@ html[data-theme="dark"] #poweredBy {
     background-color: rgba(255, 255, 255, 0.75);
 }
 
-html[data-theme="dark"] #loginBody > .ost-theme-toggle {
+html[data-theme="dark"] #loginBody > .ost-icon-button {
     background-color: rgba(23, 29, 36, 0.75);
 }
 

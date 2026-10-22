@@ -13,11 +13,19 @@
  *
  * El tema se aplica como data-theme="dark" en <html>; css/dark.css hace el
  * resto. No se toca ninguna cookie: no hay nada que enviar al servidor.
+ *
+ * El mismo archivo resuelve la DENSIDAD (cómoda o compacta). Se aplica como
+ * data-density en <html> y css/density.css cambia solo el espaciado:
+ *   1. Lo elegido por el usuario (localStorage, clave "ost-density").
+ *   2. data-density-default en <html>, que viene de OST_DEFAULT_DENSITY.
+ *   3. "comfy" (el espaciado original de osTicket).
  */
 (function () {
     'use strict';
 
     var STORAGE_KEY = 'ost-theme';
+    var DENSITY_KEY = 'ost-density';
+    var DENSITIES = ['comfy', 'compact'];
     var root = document.documentElement;
     var THEME_COLORS = { dark: '#12161b', light: '#184E81' };
     var media = (window.matchMedia
@@ -94,8 +102,68 @@
         apply(value === 'auto' ? systemTheme() : value);
     }
 
+    // --- Densidad -----------------------------------------------------
+    function readDensity() {
+        try {
+            return window.localStorage.getItem(DENSITY_KEY);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function writeDensity(value) {
+        try {
+            window.localStorage.setItem(DENSITY_KEY, value);
+        } catch (e) { /* sin persistencia */ }
+    }
+
+    function isDensity(value) {
+        return DENSITIES.indexOf(value) !== -1;
+    }
+
+    function densityPreference() {
+        var stored = readDensity();
+        if (isDensity(stored))
+            return stored;
+
+        var fallback = root.getAttribute('data-density-default');
+        return isDensity(fallback) ? fallback : 'comfy';
+    }
+
+    function updateDensityButtons(density) {
+        var compact = (density === 'compact');
+
+        Array.prototype.forEach.call(
+            document.querySelectorAll('[data-ost-density-toggle]'),
+            function (btn) {
+                var label = compact
+                    ? (btn.getAttribute('data-label-comfy') || 'Switch to comfortable spacing')
+                    : (btn.getAttribute('data-label-compact') || 'Switch to compact spacing');
+
+                btn.setAttribute('aria-pressed', compact ? 'true' : 'false');
+                btn.setAttribute('title', label);
+                btn.setAttribute('aria-label', label);
+            });
+    }
+
+    function applyDensity(density) {
+        root.setAttribute('data-density', density);
+        updateDensityButtons(density);
+    }
+
+    function setDensity(value, persist) {
+        if (!isDensity(value))
+            return;
+
+        if (persist)
+            writeDensity(value);
+
+        applyDensity(value);
+    }
+
     // --- 1. Aplicar cuanto antes -------------------------------------
     apply(resolvedTheme());
+    applyDensity(densityPreference());
 
     // --- 2. Seguir al sistema cuando la preferencia es "auto" --------
     if (media) {
@@ -131,6 +199,24 @@
                         live.textContent = btn.getAttribute('aria-label') || '';
                 });
             });
+        Array.prototype.forEach.call(
+            document.querySelectorAll('[data-ost-density-toggle]'),
+            function (btn) {
+                btn.addEventListener('click', function (event) {
+                    event.preventDefault();
+
+                    var next = (root.getAttribute('data-density') === 'compact')
+                        ? 'comfy' : 'compact';
+
+                    setDensity(next, true);
+
+                    var live = document.getElementById('ost-theme-live');
+                    if (live)
+                        live.textContent = btn.getAttribute('aria-label') || '';
+                });
+            });
+
+        updateDensityButtons(root.getAttribute('data-density') || densityPreference());
     });
 
     // API mínima, útil para pruebas y para integraciones
@@ -140,6 +226,12 @@
         set: function (value) { set(value, true); },
         toggle: function () {
             set(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
+        },
+        density: function () { return root.getAttribute('data-density'); },
+        setDensity: function (value) { setDensity(value, true); },
+        toggleDensity: function () {
+            setDensity(root.getAttribute('data-density') === 'compact'
+                ? 'comfy' : 'compact', true);
         }
     };
 }());

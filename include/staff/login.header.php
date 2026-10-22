@@ -5,7 +5,8 @@ header('Content-Security-Policy: '.Http::csp($cfg));
 ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"
-      data-theme-default="<?php echo Format::htmlchars(osTicket::getThemeDefault()); ?>">
+      data-theme-default="<?php echo Format::htmlchars(osTicket::getThemeDefault()); ?>"
+      data-density-default="<?php echo Format::htmlchars(osTicket::getDensityDefault()); ?>">
 <head>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta http-equiv="refresh" content="7200" />
@@ -15,6 +16,7 @@ header('Content-Security-Policy: '.Http::csp($cfg));
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
     <!-- Tema oscuro (ver docs/UI_GUIDE.md) -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/dark.css" media="screen">
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">
     <meta name="robots" content="noindex" />
     <meta http-equiv="cache-control" content="no-cache" />
     <meta http-equiv="pragma" content="no-cache" />

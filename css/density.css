@@ -1,0 +1,118 @@
+/* ==================================================================
+   Densidad de la interfaz
+   ==================================================================
+   Dos modos, la misma funcionalidad:
+
+     data-density="comfy"    (por defecto) el espaciado original de osTicket
+     data-density="compact"  filas, formularios y pestañas más juntos
+
+   El atributo lo pone js/theme.js en <html> antes del primer pintado, igual
+   que el tema, así que no hay salto al cargar. Las reglas solo tocan
+   espaciado (padding, line-height); ni tamaños de fuente ni colores, para no
+   romper el contraste ni los objetivos táctiles de móvil.
+
+   Esta hoja se carga DESPUÉS de css/dark.css: el tema manda en colores y esta
+   en espaciado.
+   ================================================================== */
+
+/* ------------------------------------------------------------------
+   Botón de densidad de la cabecera (comparte estilo con el del tema)
+   ------------------------------------------------------------------ */
+.ost-density-toggle[aria-pressed="true"] {
+    background: #eef2f6;
+    border-color: #0b63ce;
+    color: #0b63ce;
+}
+
+html[data-theme="dark"] .ost-density-toggle[aria-pressed="true"] {
+    background: #223a52;
+    border-color: #2f6dad;
+    color: #a8ccf5;
+}
+
+/* ------------------------------------------------------------------
+   Modo compacto
+   ------------------------------------------------------------------ */
+
+/* Contenedor: menos aire arriba y abajo */
+html[data-density="compact"] #content {
+    padding: 6px 8px 14px;
+}
+
+/* Listas de tickets y colas */
+html[data-density="compact"] table.list thead th,
+html[data-density="compact"] table.list tbody td,
+html[data-density="compact"] table.queue thead th,
+html[data-density="compact"] table.queue tbody td {
+    padding: 2px 4px;
+}
+
+html[data-density="compact"] table.list tbody tr,
+html[data-density="compact"] table.queue tbody tr {
+    line-height: 1.3;
+}
+
+/* Formularios de configuración */
+html[data-density="compact"] .form_table th,
+html[data-density="compact"] .form_table td {
+    padding: 3px 5px;
+}
+
+html[data-density="compact"] .form_table input[type="text"],
+html[data-density="compact"] .form_table select,
+html[data-density="compact"] .form_table textarea {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* Pestañas */
+html[data-density="compact"] ul.tabs li a {
+    padding: 3px 8px;
+}
+
+/* Hilos del ticket: cabecera y cuerpo */
+html[data-density="compact"] .thread-entry .header {
+    padding: 3px 6px;
+}
+
+html[data-density="compact"] .thread-entry .thread-body {
+    padding: 8px;
+}
+
+html[data-density="compact"] .thread-entry + .thread-entry {
+    margin-top: 6px;
+}
+
+/* Diálogos */
+html[data-density="compact"] .dialog .table td,
+html[data-density="compact"] .dialog th {
+    padding: 3px 6px;
+}
+
+html[data-density="compact"] .ui-dialog .ui-dialog-content {
+    padding: 6px 8px;
+}
+
+/* Barra de colas y navegación superior */
+html[data-density="compact"] #sub_nav > li > a {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+html[data-density="compact"] .customQ-dropdown ul li > a {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Fichas y tablas de datos en general */
+html[data-density="compact"] .infoTable td,
+html[data-density="compact"] .infoTable th {
+    padding: 2px 5px;
+}
+
+/* Impresión: el papel no necesita el modo compacto */
+@media print {
+    html[data-density="compact"] #content {
+        padding: 0;
+    }
+}

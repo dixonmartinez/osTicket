@@ -31,6 +31,7 @@ const PRECACHE = [
   'css/mobile.css',
   'css/ui.css',
   'css/dark.css',
+  'css/density.css',
   'css/thread.css',
   'scp/css/scp.css',
   'scp/css/dashboard.css',

@@ -172,6 +172,23 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `tools/ui/contrast-audit.js` | Medición de contraste con navegador real |
 | `docs/theme-preview.html` | Maqueta con el marcado real, para revisar sin Docker |
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
+| `css/density.css` | Modo compacto (solo espaciado) |
+
+**Densidad de la interfaz.** Junto al botón de tema hay otro botón que alterna entre espaciado **cómodo** (el original de osTicket) y
+**compacto** (filas, formularios y pestañas más juntos, útil en pantallas
+pequeñas o con muchas colas). Se guarda en `localStorage` con la clave
+`ost-density` y se aplica como `data-density="compact"` en `<html>`, antes del
+primer pintado, igual que el tema:
+
+```bash
+# .env — todo el equipo arranca en compacto salvo quien elija otra cosa
+OST_DEFAULT_DENSITY=compact
+```
+
+`css/density.css` **solo** cambia `padding` y `line-height`: no toca tamaños de
+fuente ni colores, así que no puede romper el contraste ni los objetivos
+táctiles de móvil. Se carga después de `css/dark.css` (el tema manda en
+colores, esta hoja en espaciado) y `make theme` comprueba ese orden.
 
 **Añadir un componente nuevo.** Usa los tokens en lugar de colores fijos:
 
@@ -298,6 +315,8 @@ Checklist manual (5 minutos):
 - [ ] Impresión de un ticket: sin menús y con las URLs visibles.
 - [ ] El botón de la cabecera alterna claro/oscuro y **recuerda** la elección
       al recargar y al navegar a otra pantalla.
+- [ ] El botón de densidad alterna cómodo/compacto, lo recuerda y no deja
+      texto cortado en las filas de la cola.
 - [ ] Con `OST_DEFAULT_THEME=dark` no aparece ningún destello blanco al
       cargar (recarga con Ctrl+F5 y observa).
 - [ ] En oscuro se leen bien: login, cola de tickets, un ticket con respuesta
@@ -339,6 +358,7 @@ Implementado en esta iteración:
 - Ajustes responsive para tablas de datos.
 - **Modo oscuro** con selector en la cabecera, persistencia por usuario,
   respeto a `prefers-color-scheme` y valor por defecto configurable.
+- **Densidad** cómoda o compacta, con su propio botón y valor por defecto.
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -354,7 +374,6 @@ esta entrega para no arriesgar funcionalidad):
 2. Diálogos con trampa de foco y cierre con Escape.
 3. Indicador de fuerza de contraseña en el alta de cuenta.
 4. Sustituir iconos de Font Awesome por SVG embebidos (rendimiento y
-   accesibilidad).
-5. Densidad configurable (compacta / cómoda) sobre los mismos tokens.
+   accesibilidad). Los dos botones de la cabecera ya son SVG en línea.
 6. Revisión del tema oscuro en las pantallas con HTML de terceros
    (visor de correo, previsualización de PDF) con datos reales.

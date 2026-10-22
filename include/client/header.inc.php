@@ -30,6 +30,7 @@ if ($lang) {
 // Tema por defecto del despliegue (OST_DEFAULT_THEME). js/theme.js lo resuelve
 // antes del primer pintado; ver css/dark.css.
 echo ' data-theme-default="' . Format::htmlchars(osTicket::getThemeDefault()) . '"';
+echo ' data-density-default="' . Format::htmlchars(osTicket::getDensityDefault()) . '"';
 
 // Dropped IE Support Warning
 if (osTicket::is_ie())
@@ -68,6 +69,7 @@ if (osTicket::is_ie())
     <!-- Tema oscuro: la última hoja propia para poder corregir a las anteriores
          (ver docs/UI_GUIDE.md). Los estilos de plugins se cargan después. -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />

@@ -30,6 +30,7 @@
 <link rel="stylesheet" href="../css/ui-lightness/jquery-ui-1.13.2.custom.min.css" media="screen">
 <!-- Última, igual que en la aplicación: así puede corregir a las anteriores -->
 <link rel="stylesheet" href="../css/dark.css" media="screen">
+    <link rel="stylesheet" href="../css/density.css" media="screen">
 <style>
     /* Solo para la maqueta: separar las secciones y etiquetarlas */
     body { padding-bottom: 40px; }
@@ -44,11 +45,15 @@
 <a class="skip-link no-pjax" href="#content">Saltar al contenido</a>
 <div id="container">
     <div id="header">
-        <p id="info" class="pull-right no-pjax"><button type="button" class="ost-theme-toggle"
+        <p id="info" class="pull-right no-pjax"><button type="button" class="ost-icon-button ost-theme-toggle"
                 data-ost-theme-toggle
                 data-label-to-dark="Cambiar a tema oscuro"
                 data-label-to-light="Cambiar a tema claro"
-                title="Cambiar a tema oscuro" aria-pressed="false"><svg class="ost-theme-icon ost-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1.2a6.8 6.8 0 0 0 8.3 8.3A6.8 6.8 0 1 1 6.5 1.2z"/></svg><svg class="ost-theme-icon ost-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4.6A3.4 3.4 0 1 0 8 11.4 3.4 3.4 0 0 0 8 4.6z"/></svg><span class="sr-only">Cambiar tema</span></button> | Bienvenido, <strong>Dixon</strong>. | <a href="#">Panel de administración</a> | <a href="#">Perfil</a> | <a href="#">Salir</a>
+                title="Cambiar a tema oscuro" aria-pressed="false"><svg class="ost-theme-icon ost-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1.2a6.8 6.8 0 0 0 8.3 8.3A6.8 6.8 0 1 1 6.5 1.2z"/></svg><svg class="ost-theme-icon ost-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4.6A3.4 3.4 0 1 0 8 11.4 3.4 3.4 0 0 0 8 4.6z"/></svg><span class="sr-only">Cambiar tema</span></button><button type="button" class="ost-icon-button ost-density-toggle"
+                data-ost-density-toggle
+                data-label-compact="Cambiar a vista compacta"
+                data-label-comfy="Cambiar a vista comoda"
+                title="Cambiar a vista compacta" aria-pressed="false"><svg class="ost-theme-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.6h12a.6.6 0 0 1 0 1.2H2a.6.6 0 0 1 0-1.2zm0 4.6h12a.6.6 0 0 1 0 1.2H2a.6.6 0 0 1 0-1.2zm0 4.6h12a.6.6 0 0 1 0 1.2H2a.6.6 0 0 1 0-1.2z"/></svg><span class="sr-only">Cambiar densidad</span></button> | Bienvenido, <strong>Dixon</strong>. | <a href="#">Panel de administración</a> | <a href="#">Perfil</a> | <a href="#">Salir</a>
         </p>
         <a href="#" id="logo">
             <span class="valign-helper"></span>

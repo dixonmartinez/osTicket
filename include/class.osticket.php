@@ -674,6 +674,17 @@ class osTicket {
         return $theme;
     }
 
+    /* Densidad de la interfaz con la que se presenta la aplicación. El
+     * usuario puede cambiarla en la cabecera; esto sólo fija el valor de
+     * partida (ver js/theme.js y css/density.css). */
+    static function getDensityDefault() {
+        $density = getenv('OST_DEFAULT_DENSITY');
+        if (!in_array($density, ['comfy', 'compact']))
+            $density = 'comfy';
+
+        return $density;
+    }
+
     /* returns true if script is being executed via commandline */
     static function is_cli() {
         return (!strcasecmp(substr(php_sapi_name(), 0, 3), 'cli')

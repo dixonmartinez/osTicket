@@ -8,14 +8,17 @@
  * tocar el tema.
  *
  * Qué revisa:
- *   1. Que existen los cuatro archivos del tema.
- *   2. Que css/dark.css define los tokens base y tiene las llaves balanceadas.
+ *   1. Que existen los archivos del tema y de la densidad.
+ *   2. Que css/dark.css y css/density.css definen lo que deben y tienen las
+ *      llaves balanceadas.
  *   3. Que las tres cabeceras (panel, portal y acceso del personal) cargan
- *      js/theme.js antes de jQuery, css/dark.css después de css/ui.css y
- *      emiten data-theme-default.
- *   4. Que cada cabecera incluye el botón (include/templates/theme-toggle.inc.php).
- *   5. Que el service worker precachea el CSS y el JS del tema.
- *   6. Que osTicket::getThemeDefault() sólo acepta auto|light|dark.
+ *      js/theme.js antes de jQuery, css/dark.css después de css/ui.css,
+ *      css/density.css después de css/dark.css y emiten data-theme-default
+ *      y data-density-default.
+ *   4. Que cada cabecera incluye los botones de tema y densidad
+ *      (include/templates/theme-toggle.inc.php).
+ *   5. Que el service worker precachea las hojas y el JS del tema.
+ *   6. Que osTicket::getThemeDefault() y getDensityDefault() validan su valor.
  *
  * Uso:
  *   php tools/ui/theme-check.php
@@ -61,7 +64,8 @@ echo "Tema claro/oscuro\n";
 /* 1. Archivos ------------------------------------------------------------ */
 foreach ([
     'css/dark.css' => 'hoja de estilos del tema oscuro',
-    'js/theme.js' => 'resolución y persistencia de la preferencia',
+    'css/density.css' => 'hoja de estilos de la densidad',
+    'js/theme.js' => 'resolución y persistencia de las preferencias',
     'include/templates/theme-toggle.inc.php' => 'marcado del botón',
     'docs/UI_GUIDE.md' => 'documentación',
 ] as $file => $what) {
@@ -89,6 +93,20 @@ check(strpos($dark, '@media print') !== false,
 check(strpos($dark, 'prefers-reduced-motion') !== false,
     'respeta prefers-reduced-motion',
     'css/dark.css no respeta prefers-reduced-motion');
+
+$density = read("$root/css/density.css");
+check(substr_count($density, '{') === substr_count($density, '}'),
+    'llaves balanceadas en css/density.css',
+    'llaves desbalanceadas en css/density.css');
+
+check(strpos($density, 'html[data-density="compact"]') !== false,
+    'css/density.css define el modo compacto',
+    'css/density.css no tiene reglas html[data-density="compact"]');
+
+check(strpos($density, 'prefers-reduced-motion') !== false
+    || strpos($density, '@media print') !== false,
+    'la densidad no afecta a la impresión',
+    'css/density.css no ajusta la impresión del modo compacto');
 
 /* 3 y 4. Cabeceras ------------------------------------------------------- */
 $headers = [
@@ -130,16 +148,28 @@ foreach ($headers as $file => $what) {
         fn($line) => strpos($line, '<link') !== false
             && stripos($line, '.css') !== false));
 
-    check($loads && strpos(end($loads), 'dark.css') !== false,
-        "$what: css/dark.css es la última hoja del <head>",
-        "$what: css/dark.css debe ser la última hoja del <head>; ahora la "
-            . 'última es: ' . ($loads ? end($loads) : '(ninguna hoja)')
+    // El orden importa: dark.css corrige a las hojas base y density.css va
+    // después porque solo toca espaciado.
+    $last = $loads ? end($loads) : '';
+    check(strpos($last, 'density.css') !== false,
+        "$what: css/density.css es la última hoja del <head>",
+        "$what: css/density.css debe ser la última hoja del <head>; ahora la "
+            . 'última es: ' . ($last ?: '(ninguna hoja)')
             . ' [hojas encontradas: ' . count($loads) . ']');
+
+    check(before($head, 'css/dark.css', 'css/density.css'),
+        "$what: css/density.css se carga después de css/dark.css",
+        "$what: css/density.css debe ir después de css/dark.css");
 
     check(strpos($html, 'getThemeDefault') !== false
         && strpos($html, 'data-theme-default') !== false,
         "$what: emite data-theme-default",
         "$what: no emite data-theme-default (OST_DEFAULT_THEME se ignoraría)");
+
+    check(strpos($html, 'getDensityDefault') !== false
+        && strpos($html, 'data-density-default') !== false,
+        "$what: emite data-density-default",
+        "$what: no emite data-density-default (OST_DEFAULT_DENSITY se ignoraría)");
 
     check(strpos($html, 'color-scheme') !== false,
         "$what: declara color-scheme (controles nativos a juego)",
@@ -150,6 +180,12 @@ foreach ($headers as $file => $what) {
         "$what: no incluye include/templates/theme-toggle.inc.php");
 }
 
+$toggle = read("$root/include/templates/theme-toggle.inc.php");
+check(strpos($toggle, 'data-ost-theme-toggle') !== false
+    && strpos($toggle, 'data-ost-density-toggle') !== false,
+    'la plantilla incluye los botones de tema y densidad',
+    'include/templates/theme-toggle.inc.php no tiene los dos botones');
+
 /* 5. Service worker ------------------------------------------------------ */
 $sw = read("$root/sw.js");
 check(strpos($sw, "'css/dark.css'") !== false,
@@ -158,6 +194,9 @@ check(strpos($sw, "'css/dark.css'") !== false,
 check(strpos($sw, "'js/theme.js'") !== false,
     'el service worker precachea js/theme.js',
     'sw.js no precachea js/theme.js');
+check(strpos($sw, "'css/density.css'") !== false,
+    'el service worker precachea css/density.css',
+    'sw.js no precachea css/density.css');
 
 /* 6. getThemeDefault ----------------------------------------------------- */
 $core = read("$root/include/class.osticket.php");
@@ -169,6 +208,14 @@ $accepted = strpos($core, "['auto', 'light', 'dark']") !== false;
 check($accepted,
     'getThemeDefault() sólo acepta auto|light|dark',
     "getThemeDefault() no valida el valor: se esperaba ['auto', 'light', 'dark']");
+
+check(strpos($core, 'function getDensityDefault(') !== false,
+    'osTicket::getDensityDefault() existe',
+    'falta osTicket::getDensityDefault() en include/class.osticket.php');
+
+check(strpos($core, "['comfy', 'compact']") !== false,
+    'getDensityDefault() sólo acepta comfy|compact',
+    "getDensityDefault() no valida el valor: se esperaba ['comfy', 'compact']");
 
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";

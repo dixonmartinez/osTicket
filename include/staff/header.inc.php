@@ -14,6 +14,7 @@ if (!isset($_SERVER['HTTP_X_PJAX'])) { ?>
 // Tema por defecto del despliegue (OST_DEFAULT_THEME). js/theme.js lo resuelve
 // antes del primer pintado; ver css/dark.css.
 echo ' data-theme-default="' . Format::htmlchars(osTicket::getThemeDefault()) . '"';
+echo ' data-density-default="' . Format::htmlchars(osTicket::getDensityDefault()) . '"';
 if (($lang = Internationalization::getCurrentLanguage())
         && ($info = Internationalization::getLanguageInfo($lang))
         && (@$info['direction'] == 'rtl'))
@@ -74,6 +75,7 @@ if (osTicket::is_ie())
          mobile.css y jQuery UI (ver docs/UI_GUIDE.md). Los estilos de plugins
          (getExtraHeaders) se cargan después y pueden sobreescribirlo. -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />
