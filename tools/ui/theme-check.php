@@ -414,6 +414,11 @@ check(strpos(read("$root/scp/js/jb.overflow.menu.js"), 'svg.icon-sort-down') !==
     'el menú de desbordamiento quita también los iconos ya convertidos a SVG',
     'scp/js/jb.overflow.menu.js sólo busca i.icon-sort-down: los caret de la barra de colas se duplican');
 
+check(strpos($actions, 'data-click-target') !== false
+    && strpos($actions, 'data-pjax-submit') !== false,
+    'js/actions.js cubre los últimos onclick (pulsar elementos y PJAX)',
+    'js/actions.js no implementa data-click-target/data-pjax-submit');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

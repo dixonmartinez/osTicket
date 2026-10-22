@@ -285,7 +285,7 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
             <div style="padding: 5px">
                 <i class="icon-plus-sign"></i>
                 <select name="new-action" id="new-action-select"
-                        onchange="javascript: $('#new-action-btn').trigger('click');">
+                        data-click-target="#new-action-btn">
                     <option value="">— <?php echo __('Select an Action'); ?> —</option>
                     <?php
                     $current_group = '';

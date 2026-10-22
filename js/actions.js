@@ -28,6 +28,11 @@
  *   data-discard-draft[="url"] descarta los borradores del editor del
  *                              formulario y recarga (o va a `url`)
  *   data-reload                recarga la página
+ *   data-click-target="sel"    pulsa los elementos que casen (con
+ *                              data-click-scope="parent" busca dentro del
+ *                              padre); no cancela la acción propia
+ *   data-pjax-submit[="sel"]   envía el formulario por PJAX al contenedor
+ *                              indicado (por defecto `#pjax-container`)
  *
  * Todo se resuelve con delegación en `document`, así que funciona también con
  * el contenido que carga PJAX o los diálogos por AJAX. Si un elemento no tiene
@@ -38,7 +43,7 @@
 
     var CLICKABLE = '[data-href],[data-go-back],[data-dialog],[data-confirm],'
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
-        + '[data-toggle-target],[data-reload]';
+        + '[data-toggle-target],[data-reload],[data-click-target]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -99,6 +104,29 @@
             nodes[i].style.display = mode === 'hide' ? 'none' : '';
     }
 
+    /* Pulsa los elementos indicados, como hacía `$(sel).trigger('click')`.
+       No cancela la acción del propio elemento: en sequence-manage el botón
+       que lo usa es un submit y el envío tiene que seguir su curso. */
+    function clickTarget(el) {
+        var selector = el.getAttribute('data-click-target');
+        var scope = el.getAttribute('data-click-scope');
+        var root = document;
+
+        if (!selector)
+            return;
+
+        if (scope === 'parent')
+            root = el.parentElement || document;
+        else if (scope && scope.indexOf('closest:') === 0)
+            root = closest(el, scope.substring(8)) || document;
+
+        var nodes = root.querySelectorAll(selector);
+        var i;
+
+        for (i = 0; i < nodes.length; i++)
+            nodes[i].click();
+    }
+
     document.addEventListener('click', function (event) {
         var el = closest(event.target, CLICKABLE);
 
@@ -122,6 +150,9 @@
             window.location.href = el.getAttribute('data-href');
             return;
         }
+
+        if (el.hasAttribute('data-click-target'))
+            clickTarget(el);
 
         /* Va antes del borrado: hay enlaces que quitan una fila y, además,
            muestran un aviso (`data-toggle-target` + `data-remove-closest`). */
@@ -208,6 +239,11 @@
         if (!el || !el.hasAttribute)
             return;
 
+        if (el.hasAttribute('data-click-target')) {
+            clickTarget(el);
+            return;
+        }
+
         if (el.hasAttribute('data-toggle-target')) {
             toggleTarget(el);
             return;
@@ -238,6 +274,23 @@
        envía. En captura, para llegar antes que el resto de manejadores. */
     document.addEventListener('submit', function (event) {
         var form = event.target;
+
+        if (form.hasAttribute && form.hasAttribute('data-pjax-submit')) {
+            if (window.jQuery && window.jQuery.pjax) {
+                event.preventDefault();
+                window.jQuery.pjax({
+                    url: (form.getAttribute('action') || '') + '?'
+                        + window.jQuery(form).serialize(),
+                    container: form.getAttribute('data-pjax-submit')
+                        || '#pjax-container',
+                    timeout: 2000
+                });
+                return;
+            }
+
+            /* Sin pjax cargado, el formulario se envía de la forma normal. */
+        }
+
         var submitter = event.submitter;
         var message = form.getAttribute('data-confirm')
             || (submitter && submitter.getAttribute('data-confirm'));

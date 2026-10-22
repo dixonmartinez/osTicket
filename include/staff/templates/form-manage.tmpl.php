@@ -25,8 +25,7 @@ foreach ($forms as $e) { ?>
 <hr/>
 <div>
 <i class="icon-plus"></i>&nbsp;
-<select name="new-form" onchange="javascript:
-    $(this).parent().find('button').trigger('click');">
+<select name="new-form" data-click-target="button" data-click-scope="parent">
 <option selected="selected" disabled="disabled"><?php
     echo __('Add a form'); ?></option>
 <?php foreach (DynamicForm::objects()

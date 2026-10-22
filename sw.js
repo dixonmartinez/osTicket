@@ -46,7 +46,9 @@
 // v15: tercera tanda de acciones declarativas (borradores, recarga, mostrar
 //     y ocultar según el valor del control).
 // v16: el menú de desbordamiento reconoce los iconos convertidos a SVG.
-const VERSION = 'ost-v16';
+// v17: cuarta tanda de acciones declarativas (pulsar elementos y envío por
+//     PJAX).
+const VERSION = 'ost-v17';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

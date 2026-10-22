@@ -136,13 +136,7 @@ $pageNav->setURL('tickets.php', $args);
         require 'queue-sort.tmpl.php';
     ?>
   </div>
-    <form action="tickets.php" method="get" onsubmit="javascript:
-  $.pjax({
-    url:$(this).attr('action') + '?' + $(this).serialize(),
-    container:'#pjax-container',
-    timeout: 2000
-  });
-return false;">
+    <form action="tickets.php" method="get" data-pjax-submit="#pjax-container">
     <input type="hidden" name="a" value="search">
     <input type="hidden" name="search-type" value=""/>
     <div class="attached input">

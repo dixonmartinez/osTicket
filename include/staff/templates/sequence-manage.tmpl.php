@@ -88,9 +88,7 @@ foreach ($sequences as $e) {
 <hr>
 <div>
     <span class="buttons pull-right">
-        <input type="submit" value="<?php echo __('Save Changes'); ?>" onclick="javascript:
-$('#sequences .save a').each(function() { $(this).trigger('click'); });
-">
+        <input type="submit" value="<?php echo __('Save Changes'); ?>" data-click-target="#sequences .save a">
     </span>
 </div>
 
