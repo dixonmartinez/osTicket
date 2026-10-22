@@ -133,8 +133,11 @@ docker-install: ## Prepara la base de datos y dependencias tras un volumen nuevo
 docker-test: ## Ejecuta lint + auditoría dentro del contenedor
 	@docker compose run --rm tools make ci
 
-docker-security: ## Comprueba php2shell y la postura de seguridad del contenedor
+docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 	@docker compose exec php php tools/security/php-cve-check.php
+	@echo ""
+	@echo "→ ¿Sigue accesible /setup/ desde la web?"
+	@docker compose exec -T php php tools/security/setup-probe.php
 
 docker-composer: ## Instala las dependencias de desarrollo con Composer (en contenedor)
 	@docker compose --profile tools run --rm composer install

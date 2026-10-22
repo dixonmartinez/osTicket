@@ -118,6 +118,9 @@ desaparece. Así no hay que borrar código versionado (borrarlo llenaría
 | `OST_INTERNAL_URL` | `http://nginx` | A quién se pregunta si `/setup/` responde |
 | `OST_SETUP_LOCKED` | `0` | `1` = darlo por bloqueado sin comprobar (WAF, proxy, basic auth) |
 
+Comprobación manual: `docker compose exec php php tools/security/setup-probe.php`
+(o `make docker-security`, que además revisa php2shell).
+
 No borres `setup/` con `rm -rf`: es código versionado y ensuciaría el
 repositorio. El instalador ya se niega a reinstalar mientras exista
 `include/ost-config.php`.
@@ -400,19 +403,25 @@ docker compose exec -T php php -d display_errors=1 -d error_reporting=E_ALL -r '
 ```
 
 **El panel sigue avisando de «the setup directory is reachable».**
-El aviso comprueba de verdad si `/setup/install.php` responde. Si lo ves:
+El aviso comprueba de verdad si `/setup/install.php` responde. Para verlo:
 
 ```bash
-# ¿qué devuelve nginx?
-docker compose exec php php -r '$c = stream_context_create(["http"=>["ignore_errors"=>true]]);
-  $fp = @fopen("http://nginx/setup/install.php","r",false,$c);
-  echo $fp ? stream_get_meta_data($fp)["wrapper_data"][0] : "sin respuesta", "\n";'
+docker compose exec php php tools/security/setup-probe.php
+# o todo junto:  make docker-security
 ```
 
-* `200` → el bloque *Producción* de `default.conf` sigue comentado, o nginx no
-  se reinició: `docker compose restart nginx`.
-* `404/403` → está bloqueado; si el aviso persiste, espera 5 minutos (el
-  resultado se guarda en caché) o fuerza `OST_SETUP_LOCKED=1` en `.env`.
+* `Código HTTP: 200` → el bloque *Producción* de `default.conf` sigue
+  comentado, o nginx no se recargó: `docker compose restart nginx`.
+* `Código HTTP: 404/403` → está bloqueado. El aviso desaparece al refrescar;
+  el resultado se guarda 5 minutos en `/tmp/ost-setup-probe-*.cache`, que se
+  puede borrar para forzarlo.
+* `Sin respuesta` → el contenedor de PHP no alcanza `OST_INTERNAL_URL`.
+  Comprueba `docker compose ps nginx` y que la variable sea `http://nginx`
+  (no `localhost`: dentro del contenedor es él mismo).
+
+El sondeo usa `fsockopen` y una petición HTTP escrita a mano, **no**
+`file_get_contents`: `bootstrap.php` ejecuta `ini_set('allow_url_fopen', 0)` y
+el wrapper `http://` deja de funcionar.
 
 **El instalador marca IMAP y APCu con una ✗.**
 APCu ya se compila en la imagen (`apc.enabled`), así que la ✗ significa que la

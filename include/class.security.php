@@ -307,27 +307,8 @@ class SecurityPosture
                 return $state !== 'blocked';
         }
 
-        $url = rtrim($base, '/') . '/setup/install.php';
-        $ctx = stream_context_create(['http' => [
-            'timeout' => 0.7,
-            'ignore_errors' => true,
-            'header' => "User-Agent: osTicket-setup-probe\r\n",
-        ]]);
-
-        // Se usan las cabeceras del wrapper (fopen + stream_get_meta_data) en
-        // lugar de $http_response_header, que PHP 8.5 marca obsoleto.
-        $status = 0;
-        if (($fp = @fopen($url, 'r', false, $ctx)) !== false) {
-            $meta = stream_get_meta_data($fp);
-            fclose($fp);
-            if (isset($meta['wrapper_data']) && is_array($meta['wrapper_data'])) {
-                foreach ($meta['wrapper_data'] as $line)
-                    if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
-                        $status = (int) $m[1];
-                        break;
-                    }
-            }
-        }
+        $status = self::probeSetupStatus($base);
+        self::setSetupProbeStatus($status);
 
         if ($status === 403 || $status === 404)
             $state = 'blocked';
@@ -342,4 +323,57 @@ class SecurityPosture
 
         return $state !== 'blocked';
     }
+
+    /** Último código HTTP visto por el sondeo (0 = sin respuesta). */
+    private static $setupProbeStatus = null;
+
+    public static function setSetupProbeStatus($status) {
+        self::$setupProbeStatus = $status;
+    }
+
+    public static function getSetupProbeStatus() {
+        return self::$setupProbeStatus;
+    }
+
+    /**
+     * Pregunta por HTTP si /setup/install.php responde.
+     *
+     * Se hace con fsockopen y una petición HTTP/1.0 a mano, NO con
+     * file_get_contents: bootstrap.php ejecuta ini_set('allow_url_fopen', 0)
+     * y el wrapper http:// deja de funcionar, con lo que el sondeo siempre
+     * habría concluido "sin respuesta".
+     *
+     * @return int código HTTP (0 si no hubo respuesta)
+     */
+    public static function probeSetupStatus($base, $timeout = 1.0) {
+        $parts = parse_url($base);
+        if (!$parts || empty($parts['host']))
+            return 0;
+
+        $scheme = strtolower($parts['scheme'] ?? 'http');
+        $host = $parts['host'];
+        $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
+        $path = rtrim($parts['path'] ?? '', '/') . '/setup/install.php';
+
+        $target = ($scheme === 'https' ? 'ssl://' : '') . $host . ':' . $port;
+        $fp = @fsockopen($target, $port, $errno, $errstr, $timeout);
+        if (!$fp)
+            return 0;
+
+        stream_set_timeout($fp, (int) ceil($timeout));
+        $hostHeader = $host . (isset($parts['port']) ? ':' . $parts['port'] : '');
+        @fwrite($fp, "GET {$path} HTTP/1.0\r\n"
+            . "Host: {$hostHeader}\r\n"
+            . "User-Agent: osTicket-setup-probe\r\n"
+            . "Connection: close\r\n\r\n");
+
+        $line = @fgets($fp, 256);
+        @fclose($fp);
+
+        if ($line && preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m))
+            return (int) $m[1];
+
+        return 0;
+    }
+
 }
