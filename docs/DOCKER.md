@@ -118,6 +118,7 @@ desaparece. Así no hay que borrar código versionado (borrarlo llenaría
 |---|---|---|
 | `OST_INTERNAL_URL` | `http://nginx` | A quién se pregunta si `/setup/` responde |
 | `OST_SETUP_LOCKED` | `0` | `1` = darlo por bloqueado sin comprobar (WAF, proxy, basic auth) |
+| `OST_DEFAULT_THEME` | `auto` | Tema de la interfaz: `auto` (sigue al sistema), `dark` u `light` |
 
 Comprobación manual: `docker compose exec php php tools/security/setup-probe.php`
 (o `make docker-security`, que además revisa php2shell).
@@ -173,7 +174,7 @@ Task*; `Ctrl+Shift+B` ejecuta directamente *Docker: up (dev)*):
 | Docker: shell en php | `sh` dentro del contenedor |
 | Docker: shell en db | Cliente `mariadb` dentro del contenedor |
 | Seguridad: comprobar php2shell | Ejecuta `tools/security/php-cve-check.php` |
-| Calidad: make ci | Lint + auditoría + comprobación de PHP |
+| Calidad: make ci | Lint + auditoría + comprobación de PHP + tema |
 | Calidad: pruebas del proyecto | `setup/test/run-tests.php` |
 | Datos: crear base de datos si falta | `docker/php/setup-db.php` |
 | Datos: URLs del entorno | `make docker-urls`: direcciones con el puerto de `.env` |

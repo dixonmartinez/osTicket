@@ -258,7 +258,7 @@ version=2`).
 2. **Modo offline**: DevTools → *Network* → *Offline*, recarga: debe aparecer la
    pantalla de “Sin conexión” del *service worker* (no una copia del panel).
 3. **Instalación PWA**: DevTools → *Application* → *Manifest* (sin errores) y
-   *Service Workers* (activo, con la versión `ost-v1`).
+   *Service Workers* (activo, con la versión `ost-v2`).
 4. **Accesibilidad táctil**: *Lighthouse* → categoría *Accessibility*; busca
    objetivos táctiles menores de 24 px (el objetivo del proyecto es 40 px).
 5. **Rendimiento móvil**: *Lighthouse* en modo móvil con *throttling*; el panel

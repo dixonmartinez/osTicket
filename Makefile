@@ -5,7 +5,8 @@
 #   make lint       comprobación de sintaxis (rápida, sin dependencias)
 #   make audit      análisis de seguridad (falla con hallazgos altos)
 #   make test       suite de pruebas estáticas del proyecto
-#   make ci         lint + audit + security (todo lo que se ejecuta antes de integrar)
+#   make theme      integridad del tema claro/oscuro (sin navegador)
+#   make ci         lint + audit + security + theme (antes de integrar)
 # ---------------------------------------------------------------------------
 
 PHP      ?= php
@@ -14,7 +15,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help lint audit audit-all audit-json baseline test security ci clean perms serve \
+.PHONY: help lint audit audit-all audit-json baseline test security theme ci clean perms serve \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
 	docker-bench docker-urls
@@ -47,7 +48,10 @@ test: ## Ejecuta la suite de pruebas del proyecto
 security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19)
 	@$(PHP) $(ROOT)/tools/security/php-cve-check.php
 
-ci: lint audit security ## Verificación completa para integración continua
+theme: ## Revisa que el tema claro/oscuro siga completo y conectado
+	@$(PHP) $(ROOT)/tools/ui/theme-check.php
+
+ci: lint audit security theme ## Verificación completa para integración continua
 
 clean: ## Elimina artefactos temporales de desarrollo
 	@rm -rf $(ROOT)/vendor/.phpunit.result.cache

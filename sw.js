@@ -20,7 +20,7 @@
  * ------------------------------------------------------------------------- */
 
 // Sube la versión al cambiar los recursos estáticos para invalidar la caché.
-const VERSION = 'ost-v1';
+const VERSION = 'ost-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -30,10 +30,12 @@ const PRECACHE = [
   'images/pwa/apple-touch-icon.png',
   'css/mobile.css',
   'css/ui.css',
+  'css/dark.css',
   'css/thread.css',
   'scp/css/scp.css',
   'scp/css/dashboard.css',
   'scp/css/analytics.css',
+  'js/theme.js',
   'js/jquery-3.7.0.min.js'
 ];
 
@@ -46,12 +48,20 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 <title>Sin conexión</title>
 <style>
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-       font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#f5f7fa;color:#1f2933;padding:24px}
+       font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+       background:#f5f7fa;color:#1f2933;padding:24px;color-scheme:light dark}
   .box{max-width:380px;text-align:center;background:#fff;border:1px solid #e4e7eb;border-radius:14px;padding:28px}
   h1{font-size:1.2rem;margin:0 0 8px}
   p{color:#616e7c;line-height:1.5;margin:0 0 18px}
   button{min-height:44px;padding:10px 20px;border-radius:8px;border:0;background:#184E81;color:#fff;
          font-size:1rem;font-weight:600;cursor:pointer}
+  /* Sin conexión no se puede leer el tema guardado: se sigue al sistema */
+  @media (prefers-color-scheme: dark){
+    body{background:#12161b;color:#e6ebf0}
+    .box{background:#171d24;border-color:#333e4a}
+    p{color:#a6b2be}
+    button{background:#2f6dad}
+  }
 </style></head>
 <body><div class="box">
   <h1>Sin conexión</h1>

@@ -678,7 +678,7 @@ El analizador es parte del repositorio y no tiene dependencias:
 make audit          # falla si aparece un hallazgo alto nuevo
 make audit-all      # informe completo
 make baseline       # acepta los hallazgos actuales (tras revisarlos)
-make ci             # lint + auditoría + versión de PHP
+make ci             # lint + auditoría + versión de PHP + tema
 ```
 
 Reglas implementadas:

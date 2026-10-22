@@ -656,6 +656,24 @@ class osTicket {
         return false;
     }
 
+    /**
+     * Tema por defecto de la interfaz: auto (sigue al sistema), light o dark.
+     *
+     * Se configura con OST_DEFAULT_THEME en el entorno (.env en Docker). No se
+     * guarda en la base de datos a propósito: es una preferencia del
+     * despliegue, no de osTicket, y así no requiere migración. La elección de
+     * cada usuario (localStorage) siempre tiene prioridad sobre este valor.
+     *
+     * @see js/theme.js, css/dark.css
+     */
+    static function getThemeDefault() {
+        $theme = getenv('OST_DEFAULT_THEME');
+        if (!in_array($theme, ['auto', 'light', 'dark']))
+            $theme = 'auto';
+
+        return $theme;
+    }
+
     /* returns true if script is being executed via commandline */
     static function is_cli() {
         return (!strcasecmp(substr(php_sapi_name(), 0, 3), 'cli')

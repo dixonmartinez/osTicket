@@ -46,9 +46,10 @@ sus dos etiquetas `<link>`, todo vuelve exactamente al estado anterior.
 
 | Archivo | Cambio |
 |---|---|
-| `include/client/header.inc.php` | Carga `ui.css`; enlace "Saltar al contenido"; región `role="status"` con `aria-live` para los mensajes; `role="alert"` en errores/avisos |
+| `include/client/header.inc.php` | Carga `ui.css`; enlace "Saltar al contenido"; región `role="status"` con `aria-live` para los mensajes; `role="alert"` en errores/avisos; carga del tema y botón de cambio |
 | `include/staff/header.inc.php` | Ídem para el panel |
-| `include/staff/login.header.php` | Carga `ui.css` |
+| `include/staff/login.header.php` | Carga `ui.css`, el tema y el botón (flotante en la esquina) |
+| `include/templates/theme-toggle.inc.php` | Botón de cambio de tema con SVG en línea (nuevo) |
 | `include/client/login.inc.php` | `<label>` accesible, `autocomplete="username"`/`current-password`, atributo `required`, autocorrección desactivada en el usuario |
 | `include/staff/login.tpl.php` | Ídem + `role="alert"` en el mensaje de error de acceso (se anuncia al fallar) |
 
@@ -75,7 +76,8 @@ así que en escritorio no cambia ni un píxel. Qué hace:
   (`data-label` en cada `<td>`);
 * reglas de impresión.
 
-Se carga desde `include/staff/header.inc.php`, justo después de `css/ui.css`.
+Se carga desde `include/staff/header.inc.php`, después de `css/ui.css` y antes
+de `css/dark.css`, que es la última hoja del `<head>`.
 Guía de uso y de la PWA: [`MOBILE.md`](MOBILE.md).
 
 ### 2.5 Panel de analíticas (`scp/css/analytics.css`)
@@ -84,6 +86,12 @@ Diseñado primero para móvil: rejilla de tarjetas que colapsa a dos columnas,
 tablas que se convierten en tarjetas con `data-label`, gráficas SVG sin
 JavaScript, modo de alto contraste y `prefers-reduced-motion`. La vista se
 puede ver sin base de datos en [`analytics-preview.html`](analytics-preview.html).
+
+### 2.6 Modo oscuro (`css/dark.css` + `js/theme.js`)
+
+Capa independiente que se activa con `data-theme="dark"` en `<html>`. Cubre el
+panel de agentes, el portal del cliente y las dos pantallas de acceso. Detalle
+completo en [§3.4](#34-modo-oscuro).
 
 ## 3. Cómo personalizar
 
@@ -126,23 +134,97 @@ recibir actualizaciones del proyecto. Si necesitas una excepción puntual:
 
 ### 3.4 Modo oscuro
 
-No se activa automáticamente a propósito: el tema base es claro y forzar
-`prefers-color-scheme: dark` produciría texto oscuro sobre fondos oscuros
-en muchas pantallas. Si lo necesitas, parte de las variables de `ui.css`:
+El tema oscuro es una capa independiente (`css/dark.css`) que se activa con
+`data-theme="dark"` en `<html>`. No reescribe `scp.css` ni `theme.css`: los
+sobrescribe con selectores de mayor especificidad, así que una actualización
+del tema base no lo rompe.
+
+**Cómo se elige el tema**, por orden de prioridad:
+
+1. Lo que haya elegido el usuario con el botón de la cabecera (se guarda en
+   `localStorage`, clave `ost-theme`; no hay cookies ni estado en el servidor).
+2. `OST_DEFAULT_THEME` en `.env`: `auto` (por defecto), `dark` o `light`.
+3. `auto` resuelve con `prefers-color-scheme`, y **sigue al sistema en vivo**
+   si el usuario cambia de tema claro a oscuro en su equipo.
+
+```bash
+# .env — todo el helpdesk en oscuro salvo quien elija otra cosa
+OST_DEFAULT_THEME=dark
+```
+
+```bash
+docker compose up -d php     # la variable se lee del entorno al arrancar
+```
+
+`js/theme.js` se carga en el `<head>`, antes del `<body>`, y aplica el tema
+antes del primer pintado: no hay destello blanco al navegar.
+
+**Dónde está cada cosa**
+
+| Archivo | Papel |
+|---|---|
+| `css/dark.css` | Todos los colores del tema oscuro y la redefinición de los tokens `--ui-*` |
+| `js/theme.js` | Resolución de la preferencia, persistencia y botón |
+| `include/templates/theme-toggle.inc.php` | Marcado accesible del botón (panel y portal) |
+| `include/staff/header.inc.php`, `include/client/header.inc.php` | Carga del CSS/JS (tema al final del `<head>`) y colocación del botón |
+| `include/staff/login.header.php` | Lo mismo en las pantallas de acceso y recuperación de contraseña |
+| `tools/ui/theme-check.php` | Comprobación automática (`make theme`) |
+| `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
+
+**Añadir un componente nuevo.** Usa los tokens en lugar de colores fijos:
 
 ```css
-@media (prefers-color-scheme: dark) {
-    :root {
-        --ui-surface: #1c1f24;
-        --ui-surface-alt: #23272d;
-        --ui-text: #e8eaed;
-        --ui-border: #3a4048;
-        color-scheme: dark;
-    }
+.mi-componente {
+    background: var(--dk-surface-2);
+    border: 1px solid var(--dk-border);
+    color: var(--dk-text);
 }
 ```
 
-y revisa una por una las pantallas del panel antes de publicarlo.
+Dentro de `html[data-theme="dark"]` esos tokens existen; para el tema claro usa
+`var(--ui-surface, #fff)` y compañía, que ya están definidos en `css/ui.css`.
+
+**Los correos no se invierten a propósito.** El cuerpo de una entrada de ticket
+es HTML ajeno, con sus propios colores, tablas e imágenes. Invertirlo produce
+resultados ilegibles. En oscuro se muestra sobre un “papel” atenuado
+(`--dk-paper`, `#e8ecf0`): menos brillo que el blanco puro, pero fiel al
+original.
+
+**Impresión**: `@media print` fuerza siempre el tema claro y oculta la
+cabecera y los menús, para no gastar tóner en fondos oscuros.
+
+**Contraste** (verificado con la fórmula WCAG):
+
+| Combinación | Ratio | Nivel |
+|---|---|---|
+| Texto principal `#e6ebf0` sobre fondo `#12161b` | 15,1:1 | AAA |
+| Texto principal sobre superficie `#171d24` | 14,1:1 | AAA |
+| Texto secundario `#a6b2be` sobre fondo `#12161b` | 8,4:1 | AAA |
+| Enlaces `#83b7ee` sobre superficie `#171d24` | 8,1:1 | AAA |
+| Texto sobre “papel” de correo (`#1a1f24` / `#e8ecf0`) | 14,0:1 | AAA |
+| Error (`#ffd7d3` sobre `#3a1d1d`) | 11,6:1 | AAA |
+| Aviso (`#f7e3ad` sobre `#352b12`) | 11,0:1 | AAA |
+| Correcto (`#c7f2cd` sobre `#14301d`) | 11,6:1 | AAA |
+
+Los ratios están medidos con la fórmula de WCAG 2.1, no estimados: al cambiar
+un color del tema, recalcula antes de publicar.
+
+**Vista previa sin Docker**: abre `docs/theme-preview.html` en el navegador.
+Carga los CSS reales y trae el botón para alternar. (También puedes servir el
+repositorio con `python3 -m http.server 8099` y entrar en
+`http://localhost:8099/docs/theme-preview.html`.)
+
+**Comprobación automática**: `make theme` (dentro del contenedor,
+`docker compose run --rm tools make theme`). Verifica que los cuatro archivos
+existen, que los tokens están definidos, que las **tres** cabeceras —panel,
+portal y acceso del personal— cargan el tema en el orden correcto, que el
+service worker lo precachea y que `getThemeDefault()` valida el valor. Forma
+parte de `make ci` y de `make docker-test`.
+
+**Si añades una pantalla nueva** con su propia cabecera HTML, cópiale las tres
+líneas (atributo `data-theme-default`, `js/theme.js` antes de jQuery,
+`css/dark.css` como **última** hoja del `<head>`) y el `include` del botón.
+`make theme` fallará hasta que lo hagas.
 
 ---
 
@@ -162,6 +244,9 @@ y revisa una por una las pantallas del panel antes de publicarlo.
 6. **Prueba con teclado**: Tab, Shift+Tab, Enter, Espacio y Escape en
    formularios, diálogos y menús.
 7. **Prueba en ventana estrecha** (< 782 px) y con zoom al 200 %.
+8. **No escribas colores fijos en componentes nuevos**: usa los tokens
+   (`--ui-*` en claro, `--dk-*` dentro de `html[data-theme="dark"]`). Si un
+   color queda fijo, en uno de los dos temas se rompe el contraste.
 
 ---
 
@@ -179,6 +264,15 @@ Checklist manual (5 minutos):
 - [ ] Los mensajes largos de `error_bar`/`warning_bar` no se recortan.
 - [ ] Con `prefers-reduced-motion: reduce` no hay animaciones.
 - [ ] Impresión de un ticket: sin menús y con las URLs visibles.
+- [ ] El botón de la cabecera alterna claro/oscuro y **recuerda** la elección
+      al recargar y al navegar a otra pantalla.
+- [ ] Con `OST_DEFAULT_THEME=dark` no aparece ningún destello blanco al
+      cargar (recarga con Ctrl+F5 y observa).
+- [ ] En oscuro se leen bien: login, cola de tickets, un ticket con respuesta
+      y nota, el diálogo de respuesta y una tabla de configuración.
+- [ ] Una entrada con HTML de correo (tabla, imagen, enlace) sigue legible
+      sobre el papel claro.
+- [ ] `make theme` en verde.
 
 Herramientas recomendadas: Lighthouse (accesibilidad), axe DevTools,
 WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
@@ -192,6 +286,8 @@ Implementado en esta iteración:
 - Capa CSS de accesibilidad y consistencia.
 - Enlace de salto, regiones vivas y etiquetas de formulario.
 - Ajustes responsive para tablas de datos.
+- **Modo oscuro** con selector en la cabecera, persistencia por usuario,
+  respeto a `prefers-color-scheme` y valor por defecto configurable.
 
 Pendiente (requiere tocar marcado y JavaScript, por eso se deja fuera de
 esta entrega para no arriesgar funcionalidad):
@@ -200,6 +296,8 @@ esta entrega para no arriesgar funcionalidad):
    `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
 2. Diálogos con trampa de foco y cierre con Escape.
 3. Indicador de fuerza de contraseña en el alta de cuenta.
-4. Modo oscuro completo, pantalla por pantalla.
-5. Sustituir iconos de Font Awesome por SVG embebidos (rendimiento y
+4. Sustituir iconos de Font Awesome por SVG embebidos (rendimiento y
    accesibilidad).
+5. Densidad configurable (compacta / cómoda) sobre los mismos tokens.
+6. Revisión del tema oscuro en las pantallas con HTML de terceros
+   (visor de correo, previsualización de PDF) con datos reales.

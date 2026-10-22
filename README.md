@@ -91,7 +91,8 @@ required on the host):
     make audit         # static security scan (fails on new high findings)
     make audit-all     # full security report
     make security      # PHP version vs. php2shell (CVE-2026-109618/19)
-    make ci            # lint + audit + security (the full pre-merge check)
+    make theme         # light/dark theme integrity (no browser needed)
+    make ci            # lint + audit + security + theme (full pre-merge check)
 
 Inside containers: `make docker-test`, `make docker-security`,
 `make docker-composer`, `make docker-qa`.

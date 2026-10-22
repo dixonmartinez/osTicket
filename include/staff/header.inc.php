@@ -11,6 +11,9 @@ $title = ($ost && ($title=$ost->getPageTitle()))
 if (!isset($_SERVER['HTTP_X_PJAX'])) { ?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html<?php
+// Tema por defecto del despliegue (OST_DEFAULT_THEME). js/theme.js lo resuelve
+// antes del primer pintado; ver css/dark.css.
+echo ' data-theme-default="' . Format::htmlchars(osTicket::getThemeDefault()) . '"';
 if (($lang = Internationalization::getCurrentLanguage())
         && ($info = Internationalization::getLanguageInfo($lang))
         && (@$info['direction'] == 'rtl'))
@@ -32,7 +35,7 @@ if (osTicket::is_ie())
     <!-- Necesario para que el panel de agentes sea usable en móvil -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#184E81">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="light dark">
     <link rel="apple-touch-icon" href="<?php echo ROOT_PATH ?>images/pwa/apple-touch-icon.png">
     <link rel="manifest" href="<?php echo ROOT_PATH ?>manifest.php?scope=scp">
     <title><?php echo Format::htmlchars($title); ?></title>
@@ -41,6 +44,8 @@ if (osTicket::is_ie())
         .tip_shadow { display:block !important; }
     </style>
     <![endif]-->
+    <!-- Tema claro/oscuro: se aplica antes del primer pintado (sin destello) -->
+    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/theme.js"></script>
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
     <!-- PWA: registro del service worker (ver docs/MOBILE.md) -->
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/pwa.js"></script>
@@ -65,6 +70,10 @@ if (osTicket::is_ie())
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/select2.min.css">
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/rtl.css"/>
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH ?>scp/css/translatable.css"/>
+    <!-- Tema oscuro: la última hoja propia para poder corregir a scp.css,
+         mobile.css y jQuery UI (ver docs/UI_GUIDE.md). Los estilos de plugins
+         (getExtraHeaders) se cargan después y pueden sobreescribirlo. -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />
@@ -89,7 +98,11 @@ if (osTicket::is_ie())
     ?>
     </div>
     <div id="header">
-        <p id="info" class="pull-right no-pjax"><?php echo sprintf(__('Welcome, %s.'), '<strong>'.$thisstaff->getFirstName().'</strong>'); ?>
+        <p id="info" class="pull-right no-pjax"><?php
+            // Selector de tema (claro/oscuro). Ver docs/UI_GUIDE.md.
+            include INCLUDE_DIR . 'templates/theme-toggle.inc.php';
+            echo ' | ';
+            echo sprintf(__('Welcome, %s.'), '<strong>'.$thisstaff->getFirstName().'</strong>'); ?>
            <?php
             if($thisstaff->isAdmin() && !defined('ADMINPAGE')) { ?>
             | <a href="<?php echo ROOT_PATH ?>scp/admin.php" class="no-pjax"><?php echo __('Admin Panel'); ?></a>

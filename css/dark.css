@@ -1,0 +1,1062 @@
+/**
+ * css/dark.css — tema oscuro de osTicket
+ *
+ * Se activa con `data-theme="dark"` en el elemento <html>. La preferencia la
+ * resuelve js/theme.js (sistema operativo por defecto, o la elección guardada
+ * por el usuario) ANTES de pintar la página, así que no hay destello blanco.
+ *
+ * Diseño:
+ *   - Se redefinen los tokens --ui-* que ya usa css/ui.css, de modo que los
+ *     componentes accesibles (foco, tablas, formularios) se adaptan solos.
+ *   - Los overrides van prefijados con `html[data-theme="dark"]`, que tiene
+ *     más especificidad que las reglas de scp.css y theme.css sin necesidad de
+ *     `!important` (salvo en contadas excepciones documentadas).
+ *   - No se toca ningún layout, tamaño ni posición: solo color, borde,
+ *     sombra y las imágenes que dejarían de verse.
+ *   - La impresión y los correos HTML se mantienen en claro (ver el final):
+ *     el papel blanco de una entrada de ticket solo se atenúa, no se invierte,
+ *     porque el HTML del correo trae sus propios colores.
+ *
+ * Contraste: el texto principal (#e6ebf0) sobre el fondo (#12161b) supera
+ * 12:1, y el texto secundario (#a6b2be) supera 6:1 (WCAG AA/AAA).
+ *
+ * Si este archivo se elimina, la aplicación sigue funcionando igual: no hay
+ * cambios de comportamiento, solo de apariencia.
+ */
+
+/* ================================================================== */
+/* 1. Tokens                                                          */
+/* ================================================================== */
+html[data-theme="dark"] {
+    /* Superficies */
+    --dk-bg: #12161b;
+    --dk-surface: #171d24;
+    --dk-surface-2: #1c242d;
+    --dk-surface-3: #232c36;
+    --dk-surface-4: #2b3641;
+    --dk-paper: #e8ecf0;          /* “papel” de correos y notas */
+    --dk-border: #333e4a;
+    --dk-border-strong: #46525f;
+
+    /* Texto */
+    --dk-text: #e6ebf0;
+    --dk-text-muted: #a6b2be;
+    --dk-text-faint: #8492a0;
+    --dk-link: #83b7ee;
+    --dk-link-hover: #a8ccf5;
+
+    /* Semánticos */
+    --dk-accent: #2f6dad;
+    --dk-accent-soft: rgba(131, 183, 238, 0.16);
+    --dk-danger: #ff7b72;
+    --dk-danger-bg: #3a1d1d;
+    --dk-success: #56d364;
+    --dk-success-bg: #14301d;
+    --dk-warning: #e3b341;
+    --dk-warning-bg: #352b12;
+
+    /* Compatibilidad con css/ui.css */
+    --ui-accent: var(--dk-link);
+    --ui-accent-dark: var(--dk-link-hover);
+    --ui-accent-soft: var(--dk-accent-soft);
+    --ui-danger: var(--dk-danger);
+    --ui-success: var(--dk-success);
+    --ui-warning: var(--dk-warning);
+    --ui-text: var(--dk-text);
+    --ui-text-muted: var(--dk-text-muted);
+    --ui-border: var(--dk-border);
+    --ui-surface: var(--dk-surface);
+    --ui-surface-alt: var(--dk-surface-2);
+    --ui-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 6px 18px rgba(0, 0, 0, .35);
+
+    color-scheme: dark;
+}
+
+/* Barra de desplazamiento y selección */
+html[data-theme="dark"] * {
+    scrollbar-color: var(--dk-surface-4) transparent;
+}
+
+html[data-theme="dark"] ::selection {
+    background: rgba(131, 183, 238, .35);
+    color: #fff;
+}
+
+/* ================================================================== */
+/* 2. Estructura general                                              */
+/* ================================================================== */
+/* scp.css pinta body y html con #eee: hay que ganarles a los dos */
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+    background: var(--dk-bg);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #container {
+    background: transparent;
+}
+
+html[data-theme="dark"] #content {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    border-bottom-color: var(--dk-surface-4);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #footer {
+    color: var(--dk-text-muted);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] hr {
+    border-top-color: var(--dk-border);
+}
+
+/* Enlaces */
+html[data-theme="dark"] a,
+html[data-theme="dark"] .link,
+html[data-theme="dark"] a:hover,
+html[data-theme="dark"] .link:hover {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] a:hover,
+html[data-theme="dark"] .link:hover {
+    color: var(--dk-link-hover);
+}
+
+html[data-theme="dark"] .faded,
+html[data-theme="dark"] .muted,
+html[data-theme="dark"] small.muted {
+    color: var(--dk-text-muted);
+}
+
+/* ================================================================== */
+/* 3. Cabecera y navegación                                           */
+/* ================================================================== */
+html[data-theme="dark"] #header {
+    background-color: var(--dk-surface-2);
+    border-left-color: var(--dk-border);
+    border-right-color: var(--dk-border);
+    box-shadow: inset 0 -10px 8px -5px rgba(0, 0, 0, .45);
+}
+
+html[data-theme="dark"] #header a {
+    color: var(--dk-link);
+}
+
+/* El logotipo es una imagen con texto oscuro: se le pone una placa clara
+   para que siga siendo legible con cualquier logo configurado. */
+html[data-theme="dark"] #logo img {
+    background: #f4f6f8;
+    border-radius: 6px;
+    padding: 3px 8px;
+}
+
+html[data-theme="dark"] #header p,
+html[data-theme="dark"] #header #info {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #nav,
+html[data-theme="dark"] #sub_nav,
+html[data-theme="dark"] ul#nav,
+html[data-theme="dark"] ul#sub_nav {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #nav a,
+html[data-theme="dark"] #sub_nav a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #nav .active a,
+html[data-theme="dark"] #nav li.active a,
+html[data-theme="dark"] #sub_nav .active a {
+    background: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] #nav li:hover,
+html[data-theme="dark"] #sub_nav li:hover {
+    background: var(--dk-surface-3);
+}
+
+/* Selector de tema (botón de la cabecera del panel y del portal).
+   El estilo base es el claro: así el botón se ve bien aunque JavaScript esté
+   desactivado. El tema oscuro solo cambia colores. */
+.ost-theme-toggle {
+    background: transparent;
+    border: 1px solid #cfd6dd;
+    color: #184E81;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 7px;
+    margin: 0 2px;
+    line-height: 1.4;
+    font-family: inherit;
+    font-size: 1em;
+    vertical-align: middle;
+}
+
+.ost-theme-toggle:hover {
+    background: #eef2f6;
+    border-color: #b6c1cc;
+}
+
+.ost-theme-toggle:focus-visible {
+    outline: 2px solid #0b63ce;
+    outline-offset: 2px;
+}
+
+.ost-theme-toggle .ost-theme-icon {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    vertical-align: -0.15em;
+}
+
+/* En tema claro se ofrece la luna (pasar a oscuro) y al revés */
+html[data-theme="dark"] .ost-theme-toggle .ost-icon-moon { display: none; }
+html:not([data-theme="dark"]) .ost-theme-toggle .ost-icon-sun { display: none; }
+
+html[data-theme="dark"] .ost-theme-toggle {
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .ost-theme-toggle:hover {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+}
+
+html[data-theme="dark"] .ost-theme-toggle:focus-visible {
+    outline-color: var(--dk-link);
+}
+
+/* En el portal del cliente la cabecera es más pequeña */
+#header .ost-theme-toggle {
+    font-size: 0.95em;
+    padding: 1px 6px;
+}
+
+/* ================================================================== */
+/* 4. Tablas de datos                                                 */
+/* ================================================================== */
+html[data-theme="dark"] table.list {
+    background: var(--dk-border);
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] table.list caption {
+    background: var(--dk-surface-4);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] table.list thead th,
+html[data-theme="dark"] table.queue thead th {
+    background-color: var(--dk-surface-3);
+    color: var(--dk-text);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] table.list thead th a {
+    color: var(--dk-text);
+}
+
+/* Flechas de ordenación: el fondo claro del tema no debe quedar blanco */
+html[data-theme="dark"] table.list thead th a.asc,
+html[data-theme="dark"] table.list thead th a.desc {
+    background-color: var(--dk-surface-4);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] table.list tbody td,
+html[data-theme="dark"] table.list tbody th {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] table.list tbody tr:nth-child(2n+1) td {
+    background-color: var(--dk-surface-2);
+}
+
+html[data-theme="dark"] table.list tbody tr:hover td,
+html[data-theme="dark"] table.list tbody tr.highlight td,
+html[data-theme="dark"] table.list tbody tr:nth-child(2n+1):hover td,
+html[data-theme="dark"] table tbody tr:hover > td,
+html[data-theme="dark"] table.queue tbody tr:hover > td {
+    background: var(--dk-surface-3);
+}
+
+html[data-theme="dark"] table.list tfoot td {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] table.dashboard-stats {
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] table.dashboard-stats tbody:first-child th {
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) tr:nth-child(odd) {
+    background-color: var(--dk-surface-2);
+}
+
+html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) th,
+html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) td {
+    border-right-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) tr:hover {
+    background-color: var(--dk-surface-3);
+}
+
+html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) tr:hover th {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] table thead,
+html[data-theme="dark"] th {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] td,
+html[data-theme="dark"] th {
+    border-color: var(--dk-border);
+}
+
+/* Tablas apiladas en móvil (css/mobile.css) */
+html[data-theme="dark"] table.stack tr {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] table.stack td::before {
+    color: var(--dk-text-muted);
+}
+
+/* ================================================================== */
+/* 5. Formularios                                                     */
+/* ================================================================== */
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] input[type=text],
+html[data-theme="dark"] input[type=password],
+html[data-theme="dark"] input[type=email],
+html[data-theme="dark"] input[type=search],
+html[data-theme="dark"] input[type=url],
+html[data-theme="dark"] input[type=tel],
+html[data-theme="dark"] input[type=number],
+html[data-theme="dark"] input[type=date],
+html[data-theme="dark"] input[type=time] {
+    background: #0e1318;
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] select option {
+    background: var(--dk-surface-2);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] input[disabled],
+html[data-theme="dark"] select[disabled],
+html[data-theme="dark"] textarea[disabled],
+html[data-theme="dark"] input[readonly] {
+    background: var(--dk-surface-2);
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] .form_table th,
+html[data-theme="dark"] div.section-break {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .form_table td {
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .form_table em,
+html[data-theme="dark"] .form_table th em {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .form_table th h4,
+html[data-theme="dark"] .form_table th h4 a,
+html[data-theme="dark"] #content .settings_table th h4 a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .search input[type=text] {
+    background: #0e1318;
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .error,
+html[data-theme="dark"] font.error {
+    color: var(--dk-danger);
+}
+
+html[data-theme="dark"] .form_table .error input {
+    border-color: var(--dk-danger);
+}
+
+/* Botones */
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] .button,
+html[data-theme="dark"] input[type=submit],
+html[data-theme="dark"] input[type=button],
+html[data-theme="dark"] input[type=reset],
+html[data-theme="dark"] button {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .btn:hover,
+html[data-theme="dark"] .button:hover,
+html[data-theme="dark"] input[type=submit]:hover,
+html[data-theme="dark"] button:hover {
+    background: var(--dk-surface-4);
+}
+
+html[data-theme="dark"] .btn_sm {
+    background: var(--dk-surface-4);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+/* Pestañas */
+html[data-theme="dark"] .tabs,
+html[data-theme="dark"] ul.tabs {
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .tabs li,
+html[data-theme="dark"] .tabs a {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .tabs li.active,
+html[data-theme="dark"] .tabs li.active a,
+html[data-theme="dark"] .tabs a.active {
+    background: var(--dk-surface);
+    border-bottom-color: var(--dk-surface);
+    color: var(--dk-text);
+}
+
+/* ================================================================== */
+/* 6. Mensajes y avisos                                               */
+/* ================================================================== */
+html[data-theme="dark"] #error_bar,
+html[data-theme="dark"] .error_bar {
+    background-color: var(--dk-danger-bg);
+    border-color: #7d3b38;
+    color: #ffd7d3;
+}
+
+html[data-theme="dark"] #warning_bar,
+html[data-theme="dark"] .warning_bar {
+    background-color: var(--dk-warning-bg);
+    border-color: #7a6423;
+    color: #f7e3ad;
+}
+
+html[data-theme="dark"] #notice_bar,
+html[data-theme="dark"] .notice_bar {
+    background-color: var(--dk-success-bg);
+    border-color: #2f6b3d;
+    color: #c7f2cd;
+}
+
+html[data-theme="dark"] #msg_error,
+html[data-theme="dark"] #msg_notice,
+html[data-theme="dark"] #msg_warning {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .error-banner,
+html[data-theme="dark"] .warning-banner,
+html[data-theme="dark"] .notice-banner {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* ================================================================== */
+/* 7. Diálogos, menús, tooltips, selectores                           */
+/* ================================================================== */
+html[data-theme="dark"] .dialog,
+html[data-theme="dark"] .dialog * {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .dialog,
+html[data-theme="dark"] .dialog#popup,
+html[data-theme="dark"] .popup {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+}
+
+/* jQuery UI (tema ui-lightness) */
+html[data-theme="dark"] .ui-widget,
+html[data-theme="dark"] .ui-widget-content,
+html[data-theme="dark"] .ui-dialog .ui-dialog-content {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .ui-widget-header,
+html[data-theme="dark"] .ui-dialog .ui-dialog-titlebar {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .ui-state-default,
+html[data-theme="dark"] .ui-widget-content .ui-state-default,
+html[data-theme="dark"] .ui-widget-header .ui-state-default {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .ui-state-hover,
+html[data-theme="dark"] .ui-state-focus,
+html[data-theme="dark"] .ui-widget-content .ui-state-hover {
+    background: var(--dk-surface-4);
+    border-color: var(--dk-border-strong);
+    color: #fff;
+}
+
+html[data-theme="dark"] .ui-state-active {
+    background: var(--dk-accent);
+    border-color: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .ui-state-disabled {
+    opacity: .5;
+}
+
+/* Menús desplegables propios */
+html[data-theme="dark"] .action-dropdown ul,
+html[data-theme="dark"] .noclick-dropdown ul {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    box-shadow: 0 5px 16px rgba(0, 0, 0, .55);
+}
+
+html[data-theme="dark"] .action-dropdown ul li a,
+html[data-theme="dark"] .noclick-dropdown ul li a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .action-dropdown ul li:hover,
+html[data-theme="dark"] .noclick-dropdown ul li:hover {
+    background: var(--dk-surface-4);
+}
+
+/* Tooltips */
+html[data-theme="dark"] .tip,
+html[data-theme="dark"] .tip_shadow,
+html[data-theme="dark"] .help-tip-content,
+html[data-theme="dark"] div.tip {
+    background: var(--dk-surface-4);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .55);
+}
+
+/* select2 */
+html[data-theme="dark"] .select2-container .select2-choice,
+html[data-theme="dark"] .select2-container-multi .select2-choices {
+    background: #0e1318;
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-drop,
+html[data-theme="dark"] .select2-dropdown {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-results .select2-result-label,
+html[data-theme="dark"] .select2-results li {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-results .select2-highlighted {
+    background: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .select2-search input {
+    background: #0e1318;
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container-multi .select2-choices .select2-search-choice {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+/* Editor Redactor */
+html[data-theme="dark"] .redactor-box,
+html[data-theme="dark"] .redactor-toolbar {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .redactor-toolbar a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .redactor-toolbar a:hover {
+    background: var(--dk-surface-4);
+}
+
+html[data-theme="dark"] .redactor-editor,
+html[data-theme="dark"] .redactor-box .redactor-editor {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* ================================================================== */
+/* 8. Entradas de ticket, notas y correo                              */
+/* ================================================================== */
+html[data-theme="dark"] .thread-entry,
+html[data-theme="dark"] .thread-entry .header {
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* El HTML del correo trae sus propios colores: se mantiene “papel” claro,
+   solo atenuado para no deslumbrar. Invertirlo lo volvería ilegible. */
+html[data-theme="dark"] .thread-body,
+html[data-theme="dark"] .thread-entry .thread-body,
+html[data-theme="dark"] .preview-body {
+    background: var(--dk-paper);
+    color: #1a1f24;
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .thread-body a {
+    color: #14508f;
+}
+
+html[data-theme="dark"] .quicknote .body,
+html[data-theme="dark"] .message.bar .body {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .avatar {
+    border-color: var(--dk-border);
+}
+
+/* Respuestas del agente: mismo criterio de papel */
+html[data-theme="dark"] .thread-entry.response .thread-body,
+html[data-theme="dark"] .thread-entry.message .thread-body {
+    background: var(--dk-paper);
+    color: #1a1f24;
+}
+
+/* ================================================================== */
+/* 9. Otros componentes                                               */
+/* ================================================================== */
+html[data-theme="dark"] .pagination a,
+html[data-theme="dark"] .pagination span {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .pagination .active,
+html[data-theme="dark"] .pagination .current {
+    background: var(--dk-accent);
+    border-color: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .badge,
+html[data-theme="dark"] .label {
+    border-color: var(--dk-border-strong);
+}
+
+html[data-theme="dark"] .section-break,
+html[data-theme="dark"] .headline {
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] pre,
+html[data-theme="dark"] code,
+html[data-theme="dark"] .code {
+    background: #0b1014;
+    border-color: var(--dk-border);
+    color: #d7e3ee;
+}
+
+html[data-theme="dark"] img.flag {
+    filter: none;
+}
+
+/* Analíticas: el CSS propio usa --an-* */
+html[data-theme="dark"] {
+    --an-bg: var(--dk-surface);
+    --an-line: var(--dk-border);
+    --an-muted: var(--dk-text-muted);
+    --an-accent: var(--dk-link);
+    --an-grid: #2b3641;
+}
+
+/* ================================================================== */
+/* 9bis. Refuerzos de pantallas concretas del panel y del portal       */
+/* ================================================================== */
+/* Estas reglas cubren selectores de scp.css/osticket.css que quedaban
+   claros. Se agrupan aquí, y no repartidas, para que sea fácil revisarlas
+   cuando se actualiza el tema base. */
+
+/* Ruta de navegación y banners informativos */
+html[data-theme="dark"] #breadcrumbs {
+    background-color: var(--dk-surface-2);
+    border: 1px solid var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] #breadcrumbs a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] #msg_info,
+html[data-theme="dark"] .info-banner {
+    background-color: #16324a;
+    border-color: #2b5d80;
+    color: #cfe6f7;
+}
+
+/* Hovers de la navegación principal */
+html[data-theme="dark"] #nav li.inactive:hover {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #nav .inactive li a:hover {
+    background-color: var(--dk-surface-4);
+    color: var(--dk-link-hover);
+}
+
+/* Desplegable de colas personalizadas */
+html[data-theme="dark"] .customQ-dropdown,
+html[data-theme="dark"] .customQ-dropdown ul li.subQ > ul,
+html[data-theme="dark"] .jb-overflowmenu-menu-secondary .customQ-dropdown .controlQ div.editQ .manageQ ul {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="dark"] .customQ-dropdown ul li,
+html[data-theme="dark"] .customQ-dropdown ul li > a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .customQ-dropdown li > span {
+    color: var(--dk-link-hover);
+}
+
+html[data-theme="dark"] .customQ-dropdown li > span.disabled {
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] .customQ-dropdown ul li:not(.personalQ):hover {
+    background-color: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .customQ-dropdown ul li:hover > a {
+    color: #fff;
+}
+
+html[data-theme="dark"] .customQ-dropdown ul li.subQ > a i {
+    color: var(--dk-text);
+}
+
+/* Menú de desbordamiento (pantallas estrechas) */
+html[data-theme="dark"] .jb-overflowmenu-menu-secondary {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .jb-overflowmenu-menu-secondary li.item {
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .jb-overflowmenu-menu-secondary li.item > a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .jb-overflowmenu-menu-secondary li.item:hover {
+    background-color: var(--dk-surface-3);
+}
+
+html[data-theme="dark"] .jb-overflowmenu-menu-secondary li.item:hover > a {
+    color: var(--dk-link-hover);
+}
+
+html[data-theme="dark"] .jb-overflowmenu .jb-overflowmenu-container > a.jb-overflowmenu-menu-secondary-handle,
+html[data-theme="dark"] .jb-overflowmenu .jb-overflowmenu-menu-secondary-handle {
+    background-color: var(--dk-surface-3);
+    border-right-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .jb-overflowmenu .jb-overflowmenu-container > a.jb-overflowmenu-menu-secondary-handle:hover {
+    background-color: var(--dk-surface-4);
+    color: #fff;
+}
+
+/* Ficha del ticket */
+html[data-theme="dark"] .ticket_info {
+    background: var(--dk-surface-2);
+}
+
+html[data-theme="dark"] .ticket_info.custom-data thead th {
+    background-color: var(--dk-surface-3);
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .table td:not(:empty) {
+    background-color: var(--dk-surface);
+}
+
+html[data-theme="dark"] .dialog .table td:not(:empty) {
+    background-color: var(--dk-surface-2) !important;
+}
+
+/* Dentro del correo, el papel manda: ninguna celda se pinta en oscuro */
+html[data-theme="dark"] .thread-body table td:not(:empty),
+html[data-theme="dark"] .preview-body table td:not(:empty) {
+    background-color: transparent;
+}
+
+/* Separadores y cabeceras de las entradas de ticket */
+html[data-theme="dark"] .thread-entry::before,
+html[data-theme="dark"] .thread-entry::after {
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .thread-entry.message .header {
+    background: #2a3d52;
+}
+
+html[data-theme="dark"] .thread-entry.avatar.message .header:after {
+    border-left-color: #2a3d52;
+}
+
+html[data-theme="dark"] .thread-entry.response .header {
+    background: #4a3a22;
+}
+
+html[data-theme="dark"] .thread-entry.avatar.response .header:after {
+    border-right-color: #4a3a22;
+}
+
+html[data-theme="dark"] .thread-entry.note .header {
+    background: #3d3a22;
+}
+
+html[data-theme="dark"] .thread-entry.avatar.note .header:after {
+    border-right-color: #3d3a22;
+}
+
+html[data-theme="dark"] a#post-note:hover {
+    background-color: #3a3320;
+    color: var(--dk-text) !important;
+}
+
+/* Pastillas de css/ui.css */
+html[data-theme="dark"] .ui-badge {
+    border-color: var(--dk-border-strong);
+}
+
+html[data-theme="dark"] .ui-badge--critical {
+    background: var(--dk-danger-bg);
+    border-color: #7d3b38;
+    color: #ffd7d3;
+}
+
+html[data-theme="dark"] .ui-badge--warning {
+    background: var(--dk-warning-bg);
+    border-color: #7a6423;
+    color: #f7e3ad;
+}
+
+html[data-theme="dark"] .ui-badge--info {
+    background: #16324a;
+    border-color: #2b5d80;
+    color: #cfe6f7;
+}
+
+html[data-theme="dark"] .skip-link:focus,
+html[data-theme="dark"] .skip-link:focus-visible {
+    outline-color: var(--dk-text);
+}
+
+/* ================================================================== */
+/* 10. Página de acceso del personal (login.css tiene su propio diseño) */
+/* ================================================================== */
+html[data-theme="dark"] #loginBody,
+html[data-theme="dark"] body.staff-login {
+    background-color: var(--dk-bg);
+    color: var(--dk-text);
+}
+
+/* El fondo del acceso es una imagen (logo.php?backdrop). Se atenúa en vez de
+   ocultarse: mantiene la identidad visual sin deslumbrar. */
+html[data-theme="dark"] #brickwall,
+html[data-theme="dark"] #background {
+    filter: brightness(0.32) saturate(0.5);
+}
+
+html[data-theme="dark"] #loginBox {
+    color: var(--dk-text);
+    box-shadow: 0 0 50px 5px rgba(0, 0, 0, 0.65),
+                0 0 5px -1px rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme="dark"] #loginBox:after {
+    background-color: rgba(23, 29, 36, 0.92);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #loginBody,
+html[data-theme="dark"] #loginBody input {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #loginBox fieldset input {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #loginBox fieldset input:focus {
+    border-color: var(--dk-link);
+    box-shadow: 0 0 4px var(--dk-link);
+}
+
+html[data-theme="dark"] #loginBox input::placeholder {
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] #loginBox h3 {
+    color: #ff9d95;
+}
+
+html[data-theme="dark"] #loginBox div.banner {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] #loginBox hr {
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #loginBox .button,
+html[data-theme="dark"] #loginBox input[type="submit"] {
+    background-color: var(--dk-surface-3);
+    box-shadow: 0 0 0 1px var(--dk-border-strong) inset;
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #loginBox .button:hover,
+html[data-theme="dark"] #loginBox input[type="submit"]:hover,
+html[data-theme="dark"] #loginBox button[type="submit"]:hover {
+    background-color: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] #poweredBy {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: var(--dk-text-muted);
+}
+
+/* El botón de tema flota en la esquina: esta pantalla no tiene cabecera */
+#loginBody > .ost-theme-toggle {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 100;
+    background-color: rgba(255, 255, 255, 0.75);
+}
+
+html[data-theme="dark"] #loginBody > .ost-theme-toggle {
+    background-color: rgba(23, 29, 36, 0.75);
+}
+
+/* ================================================================== */
+/* 11. Impresión: siempre en claro                                    */
+/* ================================================================== */
+@media print {
+    html[data-theme="dark"],
+    html[data-theme="dark"] body {
+        background: #fff !important;
+        color: #000 !important;
+        color-scheme: light;
+    }
+
+    html[data-theme="dark"] #content,
+    html[data-theme="dark"] table.list tbody td,
+    html[data-theme="dark"] table.list tbody tr:nth-child(2n+1) td,
+    html[data-theme="dark"] .thread-body {
+        background: #fff !important;
+        color: #000 !important;
+        border-color: #ccc !important;
+    }
+
+    html[data-theme="dark"] #header,
+    html[data-theme="dark"] #nav,
+    html[data-theme="dark"] #sub_nav {
+        display: none !important;
+    }
+}
+
+/* ================================================================== */
+/* 12. Preferencias del sistema                                       */
+/* ================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    html[data-theme="dark"] * {
+        transition: none !important;
+        animation: none !important;
+    }
+}

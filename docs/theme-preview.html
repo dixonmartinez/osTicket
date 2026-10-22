@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es" data-theme-default="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa del tema oscuro — osTicket</title>
+<meta name="theme-color" content="#12161b">
+<meta name="color-scheme" content="light dark">
+<!--
+  Vista previa del tema oscuro SIN Docker: abre este archivo en el navegador.
+
+  Carga los CSS reales del proyecto (scp.css, ui.css, dark.css), así que lo que
+  se ve aquí es lo que verá el panel de agentes. El botón de la cabecera
+  alterna claro/oscuro igual que en la aplicación (js/theme.js).
+
+  Es solo una maqueta de referencia: no forma parte de la aplicación y no la
+  sirve nginx (docs/ está bloqueado en la configuración del servidor).
+-->
+<link rel="stylesheet" href="../scp/css/scp.css" media="all">
+<link rel="stylesheet" href="../css/ui.css" media="screen">
+<link rel="stylesheet" href="../css/mobile.css" media="screen">
+<link rel="stylesheet" href="../css/font-awesome.min.css">
+<!-- Última, igual que en la aplicación: así puede corregir a las anteriores -->
+<link rel="stylesheet" href="../css/dark.css" media="screen">
+<style>
+    /* Pequeños añadidos para la maqueta */
+    body { padding-bottom: 40px; }
+    .preview-title { margin: 24px 0 8px; font-size: 1.15em; }
+    .preview-note { color: #a6b2be; font-size: .9em; margin-bottom: 20px; }
+    /* El botón se estiliza desde css/dark.css; aquí solo el espaciado */
+    #header #info .ost-theme-toggle { margin-right: 6px; }
+</style>
+<script src="../js/theme.js"></script>
+</head>
+<body>
+<div id="container">
+    <div id="header">
+        <p id="info">
+            <button type="button" class="ost-theme-toggle"
+                    data-ost-theme-toggle
+                    data-label-to-dark="Cambiar a tema oscuro"
+                    data-label-to-light="Cambiar a tema claro"
+                    title="Cambiar a tema oscuro" aria-pressed="false">
+                <svg class="ost-theme-icon ost-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1.2a6.8 6.8 0 0 0 8.3 8.3A6.8 6.8 0 1 1 6.5 1.2z"/></svg>
+                <svg class="ost-theme-icon ost-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4.6A3.4 3.4 0 1 0 8 11.4 3.4 3.4 0 0 0 8 4.6zM8 1.5a.7.7 0 0 1 .7.7v1a.7.7 0 1 1-1.4 0v-1a.7.7 0 0 1 .7-.7zm0 10.6a.7.7 0 0 1 .7.7v1a.7.7 0 1 1-1.4 0v-1a.7.7 0 0 1 .7-.7zM1.5 7.3h1a.7.7 0 1 1 0 1.4h-1a.7.7 0 1 1 0-1.4zm12 0h1a.7.7 0 1 1 0 1.4h-1a.7.7 0 1 1 0-1.4z"/></svg>
+                <span class="sr-only">Cambiar tema</span>
+            </button>
+            | Bienvenido, <strong>Dixon</strong>. | Panel de administración | Perfil | Salir
+        </p>
+        <div id="logo" style="padding:14px 10px;">
+            <span style="background:#184E81;color:#fff;font:700 22px/1 sans-serif;padding:10px 14px;border-radius:4px;">osTicket</span>
+        </div>
+    </div>
+
+    <ul id="nav">
+        <li class="active"><a href="#">Panel</a></li>
+        <li><a href="#">Tickets</a></li>
+        <li><a href="#">Tareas</a></li>
+        <li><a href="#">Agentes</a></li>
+    </ul>
+    <ul id="sub_nav">
+        <li class="active"><a href="#">Configuración del sistema</a></li>
+        <li><a href="#">Correo</a></li>
+    </ul>
+
+    <div id="content">
+        <h1 class="preview-title">Tema oscuro — vista previa</h1>
+        <p class="preview-note">
+            Pulsa el botón de la cabecera para alternar. La elección se guarda en
+            este navegador, igual que en osTicket.
+        </p>
+
+        <div id="warning_bar">Aviso de ejemplo: el directorio setup/ es accesible.</div>
+        <div id="notice_bar" style="margin-top:8px;">Correcto: la copia de seguridad terminó.</div>
+        <div id="error_bar" style="margin-top:8px;">Error de ejemplo: no se pudo enviar el correo.</div>
+
+        <h2 class="preview-title">Cola de tickets</h2>
+        <table class="list" width="100%">
+            <caption>Abiertos (3)</caption>
+            <thead>
+                <tr>
+                    <th><a href="#">ID</a></th>
+                    <th><a href="#" class="asc">Asunto</a></th>
+                    <th>De</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>1024</td><td>No puedo iniciar sesión</td><td>ana@example.com</td><td>Alta</td><td>Abierto</td></tr>
+                <tr><td>1023</td><td>Factura de septiembre</td><td>luis@example.com</td><td>Normal</td><td>Abierto</td></tr>
+                <tr><td>1022</td><td>Error al adjuntar archivos</td><td>marta@example.com</td><td>Baja</td><td>Pendiente</td></tr>
+            </tbody>
+            <tfoot><tr><td colspan="5">Mostrando 3 de 3</td></tr></tfoot>
+        </table>
+
+        <h2 class="preview-title">Formulario</h2>
+        <table class="form_table" width="100%">
+            <tbody>
+                <tr><th colspan="2"><h4>Preferencias</h4></th></tr>
+                <tr><td width="180" class="required">Nombre del helpdesk</td>
+                    <td><input type="text" value="Helpdesk ANCA" size="40"></td></tr>
+                <tr><td>Departamento</td>
+                    <td><select><option>Soporte</option><option>Ventas</option></select></td></tr>
+                <tr><td>Descripción</td>
+                    <td><textarea rows="3" cols="50">Texto de ejemplo con un enlace y más contenido.</textarea></td></tr>
+                <tr><td>Opciones</td>
+                    <td><label><input type="checkbox" checked> Avisar por correo</label>
+                        <label style="margin-left:12px;"><input type="radio" name="r" checked> Activo</label></td></tr>
+                <tr><td colspan="2">
+                    <input type="submit" class="button" value="Guardar cambios">
+                    <button type="button" class="btn_sm">Cancelar</button>
+                    <a href="#">o volver al panel</a>
+                </td></tr>
+            </tbody>
+        </table>
+
+        <h2 class="preview-title">Entrada de ticket (cuerpo del correo)</h2>
+        <div class="thread-entry">
+            <div class="thread-body" style="padding:12px;">
+                <p>Hola, <strong>buenos días</strong>.</p>
+                <p>El cuerpo del correo conserva el papel claro (atenuado) porque trae
+                   sus propios colores y una tabla:</p>
+                <table border="1" cellpadding="6" style="border-collapse:collapse;">
+                    <tr><th>Producto</th><th>Cantidad</th></tr>
+                    <tr><td>Licencia</td><td>2</td></tr>
+                </table>
+                <p><a href="#">Un enlace dentro del correo</a></p>
+            </div>
+        </div>
+    </div>
+
+    <span id="ost-theme-live" class="sr-only" role="status" aria-live="polite"></span>
+    <div id="footer">osTicket — vista previa del tema · <a href="../docs/UI_GUIDE.md">docs/UI_GUIDE.md</a></div>
+</div>
+</body>
+</html>

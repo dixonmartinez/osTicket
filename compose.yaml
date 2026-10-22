@@ -112,6 +112,8 @@ services:
       # contenedor de PHP, nginx se llama `nginx`.
       OST_INTERNAL_URL: ${OST_INTERNAL_URL:-http://nginx}
       OST_SETUP_LOCKED: ${OST_SETUP_LOCKED:-0}
+      # Tema por defecto de la interfaz: auto | light | dark
+      OST_DEFAULT_THEME: ${OST_DEFAULT_THEME:-auto}
       OST_ADMIN_EMAIL: ${OST_ADMIN_EMAIL:-admin@example.com}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}

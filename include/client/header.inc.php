@@ -27,6 +27,10 @@ if ($lang) {
     echo ' lang="' . $lang . '"';
 }
 
+// Tema por defecto del despliegue (OST_DEFAULT_THEME). js/theme.js lo resuelve
+// antes del primer pintado; ver css/dark.css.
+echo ' data-theme-default="' . Format::htmlchars(osTicket::getThemeDefault()) . '"';
+
 // Dropped IE Support Warning
 if (osTicket::is_ie())
     $ost->setWarning(__('osTicket no longer supports Internet Explorer.'));
@@ -40,8 +44,11 @@ if (osTicket::is_ie())
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <!-- PWA: instalable desde el navegador del móvil (ver docs/MOBILE.md) -->
     <meta name="theme-color" content="#184E81">
+    <meta name="color-scheme" content="light dark">
     <link rel="apple-touch-icon" href="<?php echo ROOT_PATH ?>images/pwa/apple-touch-icon.png">
     <link rel="manifest" href="<?php echo ROOT_PATH ?>manifest.php?scope=client">
+	<!-- Tema claro/oscuro: se aplica antes del primer pintado (sin destello) -->
+    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/theme.js"></script>
 	<link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/osticket.css" media="screen">
     <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/theme.css" media="screen">
     <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/print.css" media="print">
@@ -58,6 +65,9 @@ if (osTicket::is_ie())
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/select2.min.css">
     <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
+    <!-- Tema oscuro: la última hoja propia para poder corregir a las anteriores
+         (ver docs/UI_GUIDE.md). Los estilos de plugins se cargan después. -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />
@@ -112,8 +122,11 @@ if (osTicket::is_ie())
         </div>
         <div id="header">
             <div class="pull-right flush-right">
-            <p>
-             <?php
+            <p><?php
+                // Selector de tema (claro/oscuro). Ver docs/UI_GUIDE.md.
+                include INCLUDE_DIR . 'templates/theme-toggle.inc.php';
+                echo ' &nbsp;|&nbsp; ';
+            ?><?php
                 if ($thisclient && is_object($thisclient) && $thisclient->isValid()
                     && !$thisclient->isGuest()) {
                  echo Format::htmlchars($thisclient->getName()).'&nbsp;|';

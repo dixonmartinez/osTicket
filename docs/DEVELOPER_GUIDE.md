@@ -49,7 +49,8 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make audit-all` | Informe completo con severidad baja | ~2 s |
 | `make test` | Suite histórica de pruebas (`setup/test/`) | variable |
 | `make security` | Versión de PHP frente a php2shell (CVE-2026-109618/19) | ~1 s |
-| `make ci` | lint + audit + security (verificación completa previa al commit) | ~6 s |
+| `make theme` | Integridad del tema claro/oscuro (sin navegador) | ~1 s |
+| `make ci` | lint + audit + security + theme (verificación previa al commit) | ~7 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
 | `php tools/scaffold.php` | Genera esqueletos de página/AJAX | instantáneo |
@@ -312,7 +313,7 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
   desarrollo (`composer install`). Ubica las pruebas en `tests/` con el
   namespace `osTicket\Tests` y ejecuta `vendor/bin/phpunit`.
 - **Sin CI alojado**: este fork no configura pipelines automáticos en GitHub.
-  La verificación (`make ci`: lint + auditoría + versión de PHP) se ejecuta a
+  La verificación (`make ci`: lint + auditoría + versión de PHP + tema) se ejecuta a
   mano o como paso previo a cada integración, en local o dentro del contenedor
   (`make docker-test`).
 
