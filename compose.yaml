@@ -237,8 +237,12 @@ services:
       PGID: ${PGID:-1000}
     volumes:
       - ./:/var/www/html:cached
-    entrypoint: ["/bin/sh", "-lc"]
-    command: ["make help"]
+    # Sin entrypoint propio: así `docker compose run --rm tools make ci` ejecuta
+    # exactamente eso. Con ["/bin/sh", "-lc"] los argumentos se partían mal
+    # (`sh -lc make ci` -> sh ejecuta "make", "ci" queda como $0) y siempre
+    # salía la ayuda de make.
+    entrypoint: []
+    command: ["make", "help"]
 
 volumes:
   db-data:

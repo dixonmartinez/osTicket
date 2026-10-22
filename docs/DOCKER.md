@@ -549,6 +549,14 @@ INSTALL_APCU=0 docker compose build php
 
 `INSTALL_APCU=0` en `.env` equivale a lo segundo de forma permanente.
 
+**`make docker-test` imprime la ayuda de `make` en vez de ejecutar `ci`.**
+El servicio `tools` tenía `entrypoint: ["/bin/sh", "-lc"]`. Docker entrega los
+argumentos como lista, así que terminaba ejecutando `sh -lc make ci`: `-c`
+recibe solo `make` y `ci` se convierte en `$0`, de ahí la ayuda. El servicio ya
+no declara entrypoint, así que `docker compose run --rm tools make ci` ejecuta
+exactamente ese comando. Requiere recrear nada: es configuración de compose
+(`docker compose run` siempre arranca un contenedor nuevo).
+
 **`ci: line 0: make: not found` (o `bash: not found`) al usar `make docker-test`.**
 Los servicios `tools` y `cron` ejecutan `make` **dentro** del contenedor. La
 imagen `dev` ya instala `bash`, `make` y `findutils`; una imagen construida
