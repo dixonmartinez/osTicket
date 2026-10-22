@@ -52,6 +52,9 @@ security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19
 theme: ## Revisa que el tema claro/oscuro siga completo y conectado
 	@$(PHP) $(ROOT)/tools/ui/theme-check.php
 
+icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (/tmp/ost-iconos.html)
+	@$(PHP) $(ROOT)/tools/ui/icon-sheet.php --out=/tmp/ost-iconos.html
+
 metrics: ## Radiografía del código propio (tamaño y deuda técnica)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php
 

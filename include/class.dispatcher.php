@@ -42,6 +42,13 @@ class Dispatcher {
                 return $matcher->dispatch($url, $args);
             }
         }
+        # En OST_DEBUG se devuelve la ruta recibida: sin ella, un 400 en
+        # /ajax.php/algo no dice si el problema es el enrutador, el servidor
+        # web (PATH_INFO) o una URL mal formada en el JavaScript.
+        if (defined('OST_DEBUG') && OST_DEBUG)
+            Http::response(400, sprintf('%s: %s', __("URL not supported"),
+                var_export($url, true)));
+
         Http::response(400, __("URL not supported"));
     }
     /**

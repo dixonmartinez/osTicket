@@ -19,6 +19,8 @@
  *      (include/templates/theme-toggle.inc.php).
  *   5. Que el service worker precachea las hojas y el JS del tema.
  *   6. Que osTicket::getThemeDefault() y getDensityDefault() validan su valor.
+ *   7. Que el 400 del enrutador es diagnosticable y que docs/UI_GUIDE.md
+ *      mantiene separado lo entregado de lo pendiente.
  *
  * Uso:
  *   php tools/ui/theme-check.php
@@ -225,9 +227,9 @@ check(strpos($uicss, 'svg.ost-icon') !== false
 
 $checked = preg_match_all("/^\s*'icon-[a-z0-9-]+':/m", $icons);
 
-check($checked >= 50,
+check($checked >= 150,
     "el mapa cubre los iconos más usados ($checked dibujados)",
-    "el mapa SVG solo tiene $checked iconos; se esperaban 50 o más");
+    "el mapa SVG solo tiene $checked iconos; se esperaban 150 o más");
 
 /* 4d. Indicador de fuerza de la contraseña: script, estilos y enganche. */
 $pw = read("$root/js/password-strength.js");
@@ -324,6 +326,28 @@ check(strpos($core, 'function getDensityDefault(') !== false,
 check(strpos($core, "['comfy', 'compact']") !== false,
     'getDensityDefault() sólo acepta comfy|compact',
     "getDensityDefault() no valida el valor: se esperaba ['comfy', 'compact']");
+
+/* 7. Diagnóstico de rutas y documentación al día -------------------------- */
+$dispatcher = read("$root/include/class.dispatcher.php");
+check(strpos($dispatcher, 'OST_DEBUG') !== false,
+    'el 400 del enrutador dice la ruta recibida en OST_DEBUG',
+    'include/class.dispatcher.php no informa de la ruta recibida: depurar un 400 en ajax.php vuelve a ser adivinar');
+
+$guide = read("$root/docs/UI_GUIDE.md");
+check(strpos($guide, '### 6.1 Entregado') !== false
+    && strpos($guide, '### 6.2 Pendiente') !== false,
+    'UI_GUIDE separa lo entregado de lo pendiente',
+    'docs/UI_GUIDE.md no tiene las secciones 6.1 (Entregado) y 6.2 (Pendiente): el estado real se pierde');
+
+check(strpos($guide, 'Pendiente (requiere tocar marcado') === false
+    && strpos($guide, '~~Sustituir los iconos de Font Awesome') === false,
+    'UI_GUIDE no conserva listas de pendientes ya cerradas',
+    'docs/UI_GUIDE.md sigue anunciando como pendiente algo que ya está hecho');
+
+check(strpos($guide, 'Valid CSRF Token Required') !== false
+    && strpos($guide, 'URL not supported') !== false,
+    'UI_GUIDE explica cómo distinguir los 400 del panel',
+    'docs/UI_GUIDE.md no distingue «URL not supported» de «Valid CSRF Token Required»');
 
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";

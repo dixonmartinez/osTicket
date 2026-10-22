@@ -34,7 +34,7 @@
 // v8: los estáticos pasan a red-primero. Con caché-primero, tras un
 //     `git pull` el navegador servía una hoja vieja junto a un JS nuevo
 //     (iconos gigantes, CSS sin aplicar) hasta la segunda recarga.
-const VERSION = 'ost-v9';
+const VERSION = 'ost-v10';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

@@ -170,6 +170,7 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `include/staff/login.header.php` | Lo mismo en las pantallas de acceso y recuperación de contraseña |
 | `tools/ui/theme-check.php` | Comprobación automática (`make theme`) |
 | `tools/ui/contrast-audit.js` | Medición de contraste con navegador real |
+| `tools/ui/icon-sheet.php` | Hoja con los 155 iconos SVG para revisarlos a ojo (§3.5) |
 | `docs/theme-preview.html` | Maqueta del **panel** con el marcado real, para revisar sin Docker |
 | `docs/theme-preview-client.html` | Maqueta del **portal del cliente**, con sus hojas exactas |
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
@@ -313,18 +314,38 @@ tamaño sigue al texto (`1em`), incluidos `.icon-large` y el zoom.
   es aditiva, nunca deja un hueco.
 - Para volver atrás sin tocar código: `<html data-svg-icons="off">`.
 - Para añadir un icono, una entrada más en `SVG_ICONS` (rejilla 24×24, trazo
-  de 2 px). `theme-check` exige que haya 50 o más.
+  de 2 px). `theme-check` exige que haya 150 o más.
 
-Quedan en Font Awesome las utilidades que no son dibujos (`icon-fixed-width`,
-`icon-spin`) y los iconos que pinta el CSS con pseudo-elementos (`#nav`,
-`#sub_nav`, avisos `#error_bar`): esos no son `<i>` y se dejan como estaban
-para no tocar el marcado.
+El mapa se amplió en dos tandas medidas con `grep` sobre `include/` y `scp/`:
+primero los 107 más repetidos y después los 48 que quedaban con uso real
+(avisos, adjuntos, ordenaciones de columna, manos de asignación, redes y
+estado). En total **155 iconos**. La hoja de revisión visual se genera con:
+
+```bash
+make icons                                      # deja la hoja en /tmp/ost-iconos.html
+php tools/ui/icon-sheet.php --theme=dark --out=/tmp/iconos.html
+```
+
+Ábrela en el navegador: muestra los 155 con el mismo `js/icons.js` de la
+aplicación, así que lo que se ve ahí es lo que verá el agente. Si un icono no
+se entiende a 13 px, se redibuja en `js/icons.js`.
+
+Quedan en Font Awesome:
+
+- Las utilidades que no son dibujos (`icon-fixed-width`, `icon-spin`, `icon-2x`,
+  `icon-large`…).
+- Los iconos de marca que osTicket no usa en ninguna plantilla.
+- Los que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, avisos
+  `#error_bar`): esos no son `<i>` y necesitan tocar el marcado, así que en
+  oscuro se resuelven con glifos de Font Awesome desde `css/dark.css` (§3.4).
 
 ### 3.6 Indicador de fuerza de la contraseña
 
 `js/password-strength.js` engancha un medidor de cuatro tramos a los campos
 marcados con `data-password-strength` (alta de cuenta y cambio de contraseña
-del portal) y avisa si el campo `data-password-confirm` no coincide.
+del portal, y alta o cambio de contraseña del panel de agentes, incluido el
+diálogo que se abre por AJAX) y avisa si el campo `data-password-confirm` no
+coincide.
 
 - **No bloquea el envío** ni sustituye la validación del servidor: si el
   script no carga, el alta funciona igual. Es una ayuda, no un requisito.
@@ -483,24 +504,21 @@ WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
 
 ## 6. Estado y siguientes pasos
 
-Implementado en esta iteración:
+### 6.1 Entregado (marcado como completado)
 
-- Capa CSS de accesibilidad y consistencia.
-- Enlace de salto, regiones vivas y etiquetas de formulario.
-- Ajustes responsive para tablas de datos.
-- **Modo oscuro** con selector en la cabecera, persistencia por usuario,
-  respeto a `prefers-color-scheme` y valor por defecto configurable.
-- **Densidad** cómoda o compacta, con su propio botón y valor por defecto.
-- **Diálogos accesibles**: foco atrapado mientras están abiertos, devuelto al
-  cerrarlos y cierre con Escape (esto último ya existía en `scp.js`).
-- **Iconos**: los de Font Awesome se marcan como decorativos y los enlaces de
-  solo icono reciben nombre accesible a partir de su `title`.
-- **Iconos en SVG**: 107 iconos se dibujan en línea, con el color y el tamaño
-  heredados, sin depender de la fuente (§3.5).
-- **Indicador de fuerza de la contraseña** en el alta y el cambio de
-  contraseña del portal y del panel, accesible y traducible (§3.6).
-- **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y
-  editor enriquecido legibles (§3.7).
+| # | Mejora | Estado | Dónde está |
+|---|---|---|---|
+| 1 | Capa CSS de accesibilidad y consistencia, enlace de salto, regiones vivas, etiquetas de formulario y tablas responsive | ✅ Hecho | `css/ui.css`, `include/staff/header.inc.php`, `include/client/header.inc.php` |
+| 2 | **Modo oscuro global**: selector en la cabecera, persistencia por usuario, respeto a `prefers-color-scheme` y valor por defecto configurable. Cubre el panel, el portal del cliente y las vistas previas | ✅ Hecho | `css/dark.css`, `js/theme.js`, `OST_DEFAULT_THEME` |
+| 3 | **Densidad** cómoda o compacta, con su propio botón y valor por defecto | ✅ Hecho | `css/density.css`, `OST_DEFAULT_DENSITY` |
+| 4 | **Diálogos accesibles**: foco atrapado mientras están abiertos, devuelto al cerrarlos y cierre con Escape | ✅ Hecho | `js/dialog-focus.js` |
+| 5 | **Iconos**: los de Font Awesome se marcan como decorativos y los enlaces de solo icono reciben nombre accesible a partir de su `title` | ✅ Hecho | `js/icons.js` |
+| 6 | **Iconos en SVG**: 155 iconos dibujados en línea, con color y tamaño heredados, sin depender de la fuente (§3.5) | ✅ Hecho | `js/icons.js` (`SVG_ICONS`) |
+| 7 | **Indicador de fuerza de la contraseña** en el portal **y** en el panel, también dentro del diálogo AJAX de cambio de contraseña del agente (§3.6) | ✅ Hecho | `include/templates/password-strength.inc.php`, `js/password-strength.js` |
+| 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
+| 9 | **Iconos de todos los menús del panel** en oscuro: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por glifos con color heredado | ✅ Hecho | `css/dark.css` |
+| 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
+| 11 | **Comprobación automática del tema** con 75 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -509,23 +527,14 @@ analíticas, panel de inicio, traducciones en línea, entradas de ticket,
 notas, ayudas, respuesta a un ticket) y portal del cliente (lista, ficha,
 respuesta, acceso y FAQ).
 
-Pendiente (requiere tocar marcado y JavaScript, por eso se deja fuera de
-esta entrega para no arriesgar funcionalidad):
+### 6.2 Pendiente
 
-1. Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin
-   `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
-2. ~~Indicador de fuerza de contraseña en el alta de cuenta.~~ Hecho para el
-   portal y para el panel (§3.6): se engancha solo en los campos
-   `passwd1`/`passwd2`, también en los formularios que carga el AJAX
-   (diálogo de cambio de contraseña del agente).
-3. ~~Sustituir los iconos de Font Awesome por SVG embebidos.~~ Hecho como capa
-   progresiva: 107 iconos dibujados en `SVG_ICONS` (ver §3.5). Pendiente
-   ampliar el mapa a los iconos menos usados y a los pseudo-elementos de
-   `#nav`/`#sub_nav`, que necesitan tocar el marcado de las plantillas.
-4. ~~Revisión del tema oscuro en las pantallas con HTML de terceros.~~
-   Hecho en CSS y en la maqueta (§3.7). Queda comprobarlo con correos
-   reales del buzón de la instalación, que es lo único que no se puede
-   reproducir sin la base de datos.
+| # | Mejora | Por qué sigue abierta |
+|---|---|---|
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | 127 atributos `onclick=`/`onchange=` repartidos por el panel y el portal; hay que ir plantilla por plantilla para no perder funcionalidad. Se abordará en tandas, empezando por las pantallas más usadas |
+| 2 | Llevar a SVG los iconos que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, `#error_bar`) | Los 155 del mapa son `<i>` en el marcado; los de `::before` necesitan tocar las plantillas, y en oscuro ya se sustituyen por glifos de Font Awesome |
+| 3 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
+
 
 ## 7. Si la interfaz se ve mal después de actualizar
 
@@ -563,17 +572,30 @@ Pasos, en orden:
    ```bash
    docker compose -f compose.yaml -f compose.prod.yaml up -d --build
    ```
-5. Si los `400` siguen con el código al día, mira el enrutado:
+5. Si los `400` siguen con el código al día, **lee el cuerpo de la
+   respuesta** antes de tocar nada: DevTools → **Network** → clic en la
+   petición → pestaña **Response**. El texto distingue los dos casos:
+
+   | Cuerpo del 400 | Qué significa | Qué hacer |
+   | --- | --- | --- |
+   | `URL not supported` | El enrutador no reconoce la ruta: el servidor no está entregando `PATH_INFO` (o lo entrega con el script delante o sin barra inicial) | Comprueba el `curl` del paso siguiente. `get_path_info()` ya lo deduce de `REQUEST_URI`; si aun así falla, el servidor no es el de `docker compose` (revisa que `docker/nginx/default.conf` tenga `fastcgi_split_path_info` y `fastcgi_param PATH_INFO`) |
+   | `Valid CSRF Token Required` | La petición llegó como `POST`/`PUT`/`PATCH`/`DELETE` sin token | No es la barra de colas (`scp.js` la pide por `GET`): es otro componente. Mira a qué URL corresponde en la pestaña Network |
+   | `HTTPS Protocol Required` | El panel está marcado como «forzar HTTPS» y la petición no es `GET` | Entra por `https://` o desactiva la opción en Ajustes → Sistema |
+
+   Para ver la ruta exacta que recibió el enrutador, arranca con
+   `OST_DEBUG=1` en el `.env` (o `define('OST_DEBUG', true)` en
+   `include/ost-config.php`): el 400 pasa a ser
+   `URL not supported: '/queue/counts'` y se ve de un vistazo si el problema
+   es el `PATH_INFO` o el `JavaScript` que pide una URL que ya no existe.
 
    ```bash
    curl -s -o /dev/null -w "%{http_code}\n" \
         http://localhost:8090/scp/ajax.php/queue/counts
    ```
 
-   Debe devolver `200` o `403` (pide sesión), nunca `400`. Un `400` con
-   «URL not supported» significaba que el servidor no pasaba `PATH_INFO`;
-   desde esta versión `osTicket::get_path_info()` lo deduce de
-   `REQUEST_URI` cuando falta, así que ese caso queda cubierto. Si aun así
-   aparece, el servidor no es el de `docker compose` (revisa
-   `docker/nginx/default.conf`, que ya trae `fastcgi_split_path_info` y
-   `fastcgi_param PATH_INFO`).
+   Debe devolver `200` o `403` (pide sesión), nunca `400`. Con sesión de
+   agente (`-b cookies.txt`), `200` y un JSON con los contadores:
+
+   ```bash
+   curl -s -b cookies.txt http://localhost:8090/scp/ajax.php/queue/counts
+   ```

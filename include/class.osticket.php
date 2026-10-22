@@ -366,26 +366,43 @@ class osTicket {
     }
 
     static function get_path_info() {
-        if(isset($_SERVER['PATH_INFO']))
-            return htmlentities($_SERVER['PATH_INFO']);
+        $script = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : null;
+        $candidates = array();
 
-        if(isset($_SERVER['ORIG_PATH_INFO']))
-            return htmlentities($_SERVER['ORIG_PATH_INFO']);
+        foreach (array('PATH_INFO', 'ORIG_PATH_INFO') as $key) {
+            if (isset($_SERVER[$key]))
+                $candidates[] = $_SERVER[$key];
+        }
 
         // Algunos servidores no rellenan PATH_INFO (el servidor embebido de
-        // PHP, ciertos proxys inversos o una configuración de FastCGI sin
-        // `fastcgi_split_path_info`). Sin este respaldo, TODAS las rutas de
-        // ajax.php / api/ devuelven 400 «URL not supported», que es lo que
-        // rompe las colas, los tips y el buscador de usuarios del panel.
-        // Se deduce restando el script a la URI de la petición.
-        if (isset($_SERVER['REQUEST_URI'], $_SERVER['SCRIPT_NAME'])
-                && ($path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH))
-                && ($script = $_SERVER['SCRIPT_NAME'])
-                && strpos($path, $script) === 0) {
-            $info = substr($path, strlen($script));
+        // PHP, ciertos proxys inversos o FastCGI sin `fastcgi_split_path_info`)
+        // y otros lo rellenan con la URI completa o sin la barra inicial. En
+        // los tres casos las rutas de ajax.php / api/ acaban en un 400 «URL
+        // not supported», que deja sin colas, sin tips y sin buscador al panel.
+        // Se deduce de REQUEST_URI restando el script y se normaliza.
+        if (isset($_SERVER['REQUEST_URI'])) {
+            $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-            if ($info !== '' && $info !== false)
-                return htmlentities($info);
+            if ($path && $script && strpos($path, $script) === 0)
+                $candidates[] = substr($path, strlen($script));
+        }
+
+        foreach ($candidates as $info) {
+            if (!is_string($info) || $info === '')
+                continue;
+
+            // El servidor puede devolver la ruta con el script delante.
+            if ($script && strpos($info, $script) === 0)
+                $info = substr($info, strlen($script));
+
+            if ($info === '')
+                continue;
+
+            // Y puede devolverla sin la barra inicial: el enrutador la espera.
+            if ($info[0] !== '/')
+                $info = '/'.$info;
+
+            return htmlentities($info);
         }
 
         return null;
