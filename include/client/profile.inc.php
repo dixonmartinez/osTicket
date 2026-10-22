@@ -74,7 +74,7 @@ $selected = ($info['lang'] == $l['code']) ? 'selected="selected"' : ''; ?>
         <?php echo __('New Password'); ?>:
     </td>
     <td>
-        <input type="password" size="18" name="passwd1" maxlength="128" value="<?php echo $info['passwd1']; ?>">
+        <input type="password" size="18" name="passwd1" maxlength="128" autocomplete="new-password" data-password-strength value="<?php echo $info['passwd1']; ?>">
         &nbsp;<span class="error">&nbsp;<?php echo $errors['passwd1']; ?></span>
     </td>
 </tr>
@@ -83,7 +83,7 @@ $selected = ($info['lang'] == $l['code']) ? 'selected="selected"' : ''; ?>
         <?php echo __('Confirm New Password'); ?>:
     </td>
     <td>
-        <input type="password" size="18" name="passwd2" maxlength="128" value="<?php echo $info['passwd2']; ?>">
+        <input type="password" size="18" name="passwd2" maxlength="128" autocomplete="new-password" data-password-confirm value="<?php echo $info['passwd2']; ?>">
         &nbsp;<span class="error">&nbsp;<?php echo $errors['passwd2']; ?></span>
     </td>
 </tr>

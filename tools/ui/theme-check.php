@@ -68,6 +68,7 @@ foreach ([
     'js/theme.js' => 'resolución y persistencia de las preferencias',
     'js/dialog-focus.js' => 'foco y teclado en los diálogos',
     'js/icons.js' => 'iconos decorativos para lectores de pantalla',
+    'js/password-strength.js' => 'indicador de fuerza de la contraseña',
     'include/templates/theme-toggle.inc.php' => 'marcado del botón',
     'docs/UI_GUIDE.md' => 'documentación',
     'docs/theme-preview.html' => 'vista previa del panel',
@@ -226,6 +227,38 @@ $checked = preg_match_all("/^\s*'icon-[a-z0-9-]+':/m", $icons);
 check($checked >= 50,
     "el mapa cubre los iconos más usados ($checked dibujados)",
     "el mapa SVG solo tiene $checked iconos; se esperaban 50 o más");
+
+/* 4d. Indicador de fuerza de la contraseña: script, estilos y enganche. */
+$pw = read("$root/js/password-strength.js");
+$clientFooter = read("$root/include/client/footer.inc.php");
+$register = read("$root/include/client/register.inc.php");
+$profile = read("$root/include/client/profile.inc.php");
+
+check(strpos($clientFooter, 'js/password-strength.js') !== false,
+    'el portal carga js/password-strength.js',
+    'include/client/footer.inc.php no carga js/password-strength.js');
+
+check(strpos($clientFooter, 'OST_PW_STRENGTH') !== false,
+    'el portal traduce los textos del indicador',
+    'include/client/footer.inc.php no emite OST_PW_STRENGTH (saldría en inglés)');
+
+check(strpos($register, 'data-password-strength') !== false
+    && strpos($profile, 'data-password-strength') !== false,
+    'alta y perfil marcan el campo de contraseña',
+    'falta data-password-strength en el alta o en el perfil');
+
+check(strpos($register, 'data-password-confirm') !== false,
+    'el alta comprueba que las dos contraseñas coinciden',
+    'falta data-password-confirm en el alta');
+
+check(strpos($pw, 'addEventListener') !== false
+    && strpos($pw, 'role="status"') !== false,
+    'el indicador es accesible (aria-live) y no usa oninput en línea',
+    'js/password-strength.js no anuncia el nivel o no usa addEventListener');
+
+check(strpos($uicss, '.pw-strength-bar') !== false,
+    'css/ui.css dibuja el medidor',
+    'css/ui.css no define .pw-strength-bar');
 
 $toggle = read("$root/include/templates/theme-toggle.inc.php");
 check(strpos($toggle, 'data-ost-theme-toggle') !== false

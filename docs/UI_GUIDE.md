@@ -320,7 +320,31 @@ Quedan en Font Awesome las utilidades que no son dibujos (`icon-fixed-width`,
 `#sub_nav`, avisos `#error_bar`): esos no son `<i>` y se dejan como estaban
 para no tocar el marcado.
 
-### 3.6 Tema claro: dónde vive cada corrección
+### 3.6 Indicador de fuerza de la contraseña
+
+`js/password-strength.js` engancha un medidor de cuatro tramos a los campos
+marcados con `data-password-strength` (alta de cuenta y cambio de contraseña
+del portal) y avisa si el campo `data-password-confirm` no coincide.
+
+- **No bloquea el envío** ni sustituye la validación del servidor: si el
+  script no carga, el alta funciona igual. Es una ayuda, no un requisito.
+- Todo se calcula en el navegador; la contraseña no sale de la página.
+- Puntúa longitud (8, 12 y 16 caracteres), variedad (minúsculas, mayúsculas,
+  dígitos, símbolos) y penaliza las contraseñas y secuencias típicas
+  (`password`, `123456`, `qwerty`, `osticket`…).
+- El nivel se anuncia con `role="status"` y `aria-live="polite"`, y el campo
+  queda ligado al medidor con `aria-describedby`.
+- Los textos se traducen en `include/client/footer.inc.php` y se pasan como
+  `window.OST_PW_STRENGTH`; el script trae los mismos en inglés por si falta.
+
+| Nivel | Cuándo | Color (claro / oscuro) |
+| --- | --- | --- |
+| 1 Débil | menos de 8 caracteres, o una palabra o secuencia típica | `#b3261e` / `--dk-danger` |
+| 2 Aceptable | 8–11 con poca variedad | `#9a6700` / `--dk-warning` |
+| 3 Buena | 12+ o mucha variedad | `#1b7f3b` / `--dk-success` |
+| 4 Fuerte | 16+ y los cuatro tipos de carácter | `#14652f` / `--dk-success` |
+
+### 3.7 Tema claro: dónde vive cada corrección
 
 El tema claro **no se toca** en `assets/default/css/theme.css` (es el tema
 de osTicket y se puede actualizar). Las correcciones van a `css/ui.css`,
@@ -398,6 +422,8 @@ Checklist manual (5 minutos):
       sobre el papel claro.
 - [ ] Los iconos se ven nítidos y alineados con su texto en las dos densidades
       y en los dos temas (son SVG; compara con `data-svg-icons="off"`).
+- [ ] En el alta de cuenta, el medidor sube al escribir (`abc` → Débil,
+      `Tr0ub4dor&3` → Buena) y avisa si las dos contraseñas no coinciden.
 - [ ] `make theme` en verde.
 
 **Auditoría de contraste con navegador** (lo que encontró los huecos de la
@@ -444,6 +470,8 @@ Implementado en esta iteración:
   solo icono reciben nombre accesible a partir de su `title`.
 - **Iconos en SVG**: 107 iconos se dibujan en línea, con el color y el tamaño
   heredados, sin depender de la fuente (§3.5).
+- **Indicador de fuerza de la contraseña** en el alta y el cambio de
+  contraseña del portal, accesible y traducible (§3.6).
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -457,7 +485,9 @@ esta entrega para no arriesgar funcionalidad):
 
 1. Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin
    `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
-2. Indicador de fuerza de contraseña en el alta de cuenta.
+2. ~~Indicador de fuerza de contraseña en el alta de cuenta.~~ Hecho para el
+   portal del cliente (§3.6). Pendiente el cambio de contraseña del personal
+   (`scp/staff.php`), que usa su propio formulario.
 3. ~~Sustituir los iconos de Font Awesome por SVG embebidos.~~ Hecho como capa
    progresiva: 107 iconos dibujados en `SVG_ICONS` (ver §3.5). Pendiente
    ampliar el mapa a los iconos menos usados y a los pseudo-elementos de

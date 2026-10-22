@@ -39,6 +39,16 @@
 </style>
 <script src="../js/theme.js"></script>
 <script src="../js/icons.js"></script>
+<script>
+    // Mismos textos que emite include/client/footer.inc.php
+    window.OST_PW_STRENGTH = {
+        weak: 'Debil', fair: 'Aceptable', good: 'Buena', strong: 'Fuerte',
+        empty: 'Usa al menos 8 caracteres, con numeros y simbolos.',
+        hintShort: 'Suma longitud y variedad de caracteres.',
+        mismatch: 'Las contrasenas no coinciden.'
+    };
+</script>
+<script src="../js/password-strength.js"></script>
 </head>
 <body class="client-portal">
 <a class="skip-link no-pjax" href="#content">Saltar al contenido</a>
@@ -203,6 +213,32 @@
                 <div>Abrir un ticket, adjuntar archivos y seguir el estado.</div>
             </li>
         </ul>
+    </div>
+
+    <!-- Alta de cuenta: incluye el indicador de fuerza de la contraseña
+         (include/client/register.inc.php + js/password-strength.js) -->
+    <div class="demo-sec">
+        <h2>Alta de cuenta (contraseña y su fuerza)</h2>
+        <form action="#" method="post">
+            <table width="800" class="padded">
+                <tbody>
+                    <tr>
+                        <td width="180">Crear una contraseña:</td>
+                        <td>
+                            <input type="password" size="18" name="passwd1" maxlength="128"
+                                   autocomplete="new-password" data-password-strength value="osticket2026">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td width="180">Confirmar la contraseña:</td>
+                        <td>
+                            <input type="password" size="18" name="passwd2" maxlength="128"
+                                   autocomplete="new-password" data-password-confirm value="osticket2026">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </form>
     </div>
 
     <!-- Preguntas frecuentes -->

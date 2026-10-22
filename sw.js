@@ -26,7 +26,8 @@
 // v4: correcciones de contraste del tema claro en css/ui.css (acentos del
 // panel, botones del portal) y el botón de reset de selects.
 // v5: js/icons.js dibuja los iconos en SVG y css/ui.css les da forma.
-const VERSION = 'ost-v5';
+// v6: entra js/password-strength.js (indicador de fuerza del alta).
+const VERSION = 'ost-v6';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -45,6 +46,7 @@ const PRECACHE = [
   'js/theme.js',
   'js/dialog-focus.js',
   'js/icons.js',
+  'js/password-strength.js',
   'js/jquery-3.7.0.min.js'
 ];
 

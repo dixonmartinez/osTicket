@@ -1714,6 +1714,28 @@ html[data-theme="dark"] .skip-link:focus-visible {
    selector no llegaba a 4.5:1 en el tema oscuro. No quitar sin volver a
    medir (ver docs/UI_GUIDE.md §5). */
 
+/* Indicador de fuerza de la contraseña (js/password-strength.js) */
+html[data-theme="dark"] .pw-strength-bar {
+    background: var(--dk-surface-4);
+}
+
+html[data-theme="dark"] .pw-strength[data-level="1"] .pw-strength-bar.on {
+    background: var(--dk-danger);
+}
+
+html[data-theme="dark"] .pw-strength[data-level="2"] .pw-strength-bar.on {
+    background: var(--dk-warning);
+}
+
+html[data-theme="dark"] .pw-strength[data-level="3"] .pw-strength-bar.on,
+html[data-theme="dark"] .pw-strength[data-level="4"] .pw-strength-bar.on {
+    background: var(--dk-success);
+}
+
+html[data-theme="dark"] .pw-strength-label {
+    color: var(--dk-text-muted);
+}
+
 /* Títulos de sección (scp.css los pinta en azul oscuro fijo) */
 html[data-theme="dark"] h2 {
     color: var(--dk-link-hover);

@@ -127,6 +127,40 @@ html[data-theme="light"] .faded {
 }
 
 /* ------------------------------------------------------------------ */
+/* Indicador de fuerza de la contraseña (js/password-strength.js)       */
+/* ------------------------------------------------------------------ */
+/* Solo informa: no bloquea el envío. El color sube con el nivel y el
+   texto va en aria-live para que el lector de pantalla lo anuncie. */
+.pw-strength {
+    margin: 4px 0 0;
+    max-width: 240px;
+}
+
+.pw-strength-bars {
+    display: flex;
+    gap: 3px;
+}
+
+.pw-strength-bar {
+    height: 4px;
+    flex: 1 1 0;
+    border-radius: 2px;
+    background: #d6dde4;
+}
+
+.pw-strength[data-level="1"] .pw-strength-bar.on { background: #b3261e; }
+.pw-strength[data-level="2"] .pw-strength-bar.on { background: #9a6700; }
+.pw-strength[data-level="3"] .pw-strength-bar.on { background: #1b7f3b; }
+.pw-strength[data-level="4"] .pw-strength-bar.on { background: #14652f; }
+
+.pw-strength-label {
+    margin: 3px 0 0;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--ui-text-muted);
+}
+
+/* ------------------------------------------------------------------ */
 /* Iconos en SVG (js/icons.js)                                         */
 /* ------------------------------------------------------------------ */
 /* js/icons.js cambia los `<i class="icon-x">` del mapa por un SVG en
