@@ -84,6 +84,11 @@ class Scanner {
         '/include/Spyc.php',
         '/include/htmLawed.php',
         '/setup/test/',
+        // Configuración LOCAL de la instalación: la genera el instalador (o el
+        // entrypoint desde .env), contiene credenciales por definición y está
+        // en .gitignore. Escanearla solo produce falsos positivos.
+        '/include/ost-config.php',
+        '/include/settings.php',
     ];
 
     /** Directories scanned when the tool is run without arguments */

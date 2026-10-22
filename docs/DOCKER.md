@@ -549,6 +549,13 @@ INSTALL_APCU=0 docker compose build php
 
 `INSTALL_APCU=0` en `.env` equivale a lo segundo de forma permanente.
 
+**`make docker-test` falla con `OST-HARDCODED-SECRET` en `include/ost-config.php`.**
+Ese archivo lo genera la instalación (o el entrypoint desde `.env`) y contiene
+las credenciales por definición; está en `.gitignore`, así que nunca llega al
+repositorio. El escáner ya lo excluye, igual que `include/settings.php`. Si lo
+ves, actualiza (`git pull`); el resto de archivos se siguen analizando sin
+cambios.
+
 **`make docker-test` imprime la ayuda de `make` en vez de ejecutar `ci`.**
 El servicio `tools` tenía `entrypoint: ["/bin/sh", "-lc"]`. Docker entrega los
 argumentos como lista, así que terminaba ejecutando `sh -lc make ci`: `-c`
