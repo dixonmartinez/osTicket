@@ -101,7 +101,8 @@ variables de entorno (`OST_DB_*`), así que no hay que editarlo a mano ni
 versionarlo.
 
 Cuando la instalación termine, **bloquea `/setup/`** descomentando el bloque
-*Producción* de `docker/nginx/default.conf` y reiniciando nginx:
+*Instalador* de `docker/nginx/default.conf` (en la zona de rutas internas,
+**no** al final del archivo) y reiniciando nginx:
 
 ```bash
 docker compose restart nginx
@@ -400,6 +401,31 @@ docker compose exec -T php php -d display_errors=1 -d error_reporting=E_ALL -r '
   $_SERVER["REQUEST_METHOD"]="POST"; $_SERVER["REMOTE_ADDR"]="127.0.0.1";
   $_POST=["s"=>"prereq"]; chdir("/var/www/html/setup"); include "install.php";' \
   2>&1 | tail -30
+```
+
+**Bloqueé `/setup/` en nginx pero sigue respondiendo 200.**
+Es el **orden de las reglas**. nginx evalúa las expresiones regulares en el
+orden en que aparecen y se queda con la primera que coincide. Si el bloqueo se
+escribe como `location ~ ^/setup(/|$)` al final del archivo, la regla de PHP
+—`location ~ \.php(/|$)`, más arriba— captura antes `/setup/install.php` y lo
+sirve. Resultado: `/setup/` a secas devuelve 404, pero el instalador responde.
+
+La solución es un prefijo prioritario con `^~`, que se evalúa **antes** que
+cualquier regex y corta la búsqueda:
+
+```nginx
+location ^~ /setup/ {
+    deny all;
+    return 404;
+}
+```
+
+Ese bloque ya está en `docker/nginx/default.conf` (sección *Instalador*),
+comentado. Descomentarlo y reiniciar:
+
+```bash
+docker compose restart nginx
+docker compose exec php php tools/security/setup-probe.php   # debe dar 404
 ```
 
 **El panel sigue avisando de «the setup directory is reachable».**
