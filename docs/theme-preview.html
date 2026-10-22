@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="../css/mobile.css" media="screen">
 <link rel="stylesheet" href="../css/font-awesome.min.css">
 <link rel="stylesheet" href="../css/thread.css" media="screen">
+<link rel="stylesheet" href="../scp/css/dropdown.css" media="screen">
 <link rel="stylesheet" href="../css/ui-lightness/jquery-ui-1.13.2.custom.min.css" media="screen">
 <!-- Última, igual que en la aplicación: así puede corregir a las anteriores -->
 <link rel="stylesheet" href="../css/dark.css" media="screen">
@@ -78,14 +79,42 @@
         </li>
     </ul>
 
-    <nav id="sub_nav_wrap">
-        <ul id="sub_nav">
-            <li><a class="open active" href="#">Open</a></li>
-            <li><a class="mine" href="#">My Tickets</a></li>
-            <li><a class="closed" href="#">Closed</a></li>
-            <li><a class="search" href="#">Search</a></li>
-            <li><a class="new" href="#">New Ticket</a></li>
+    <nav id="customQ_nav" class="jb-overflowmenu">
+      <div class="jb-overflowmenu-container">
+        <ul id="sub_nav" class="jb-overflowmenu-menu-primary">
+            <li class="top-queue item active">
+                <a class="open" href="#">Open <i class="small icon-sort-down pull-right"></i></a>
+                <div class="customQ-dropdown" style="display:block;">
+                    <ul class="scroll-height">
+                        <li class="top-level">
+                            <span class="pull-right newItemQ queue-count">3</span>
+                            <a class="truncate active" href="#">Open</a>
+                        </li>
+                        <li class="subQ">
+                            <span class="pull-right newItemQ queue-count">1</span>
+                            <a class="truncate" href="#">Answered</a>
+                            <ul class="subMenuQ">
+                                <li><a class="truncate" href="#">Answered by me</a></li>
+                            </ul>
+                        </li>
+                        <li>
+                            <span class="pull-right newItemQ queue-count">2</span>
+                            <a class="truncate" href="#">Overdue</a>
+                        </li>
+                        <li class="personalQ"></li>
+                        <li><a class="truncate" href="#">Mis pendientes</a></li>
+                    </ul>
+                    <div class="add-queue">
+                        <a class="full-width" href="#"><span><i class="green icon-plus-sign"></i> Add personal queue</span></a>
+                    </div>
+                </div>
+            </li>
+            <li class="top-queue item"><a class="mine" href="#">My Tickets</a></li>
+            <li class="top-queue item"><a class="closed" href="#">Closed</a></li>
+            <li class="top-queue item"><a class="search" href="#">Search</a></li>
+            <li class="top-queue item"><a class="new" href="#">New Ticket</a></li>
         </ul>
+      </div>
     </nav>
 
     <div id="content" tabindex="-1">
@@ -228,6 +257,101 @@
             <div id="warning_bar">El directorio setup/ es accesible.</div>
             <div id="notice_bar">La copia de seguridad termino.</div>
             <div id="error_bar">No se pudo enviar el correo.</div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Desplegables flotantes (.action-dropdown y .noclick-dropdown)</h2>
+            <div style="position:relative;height:150px;">
+                <!-- Filtro rapido: marcado de queue-quickfilter.tmpl.php -->
+                <div id="quickfilter-dropdown" class="action-dropdown anchor-right"
+                     style="display:block;position:absolute;left:0;top:0;">
+                    <ul>
+                        <li class="active"><a href="#">Assigned to Me</a></li>
+                        <li><a href="#">Assigned to Teams</a></li>
+                        <li><a href="#">Assigned to Me or Teams</a></li>
+                    </ul>
+                </div>
+
+                <!-- Menu contextual de cola: configureQ / noclick-dropdown -->
+                <div class="noclick-dropdown anchor-left"
+                     style="display:block;position:absolute;left:320px;top:0;">
+                    <ul>
+                        <li><a href="#"><i class="icon-pencil"></i> Edit</a></li>
+                        <li><a href="#"><i class="icon-plus-sign"></i> Add Sub Queue</a></li>
+                        <li><a href="#"><i class="icon-trash"></i> Delete</a></li>
+                    </ul>
+                </div>
+
+                <!-- Boton "Sort" con su menu -->
+                <div class="action-dropdown" style="display:block;position:absolute;left:600px;top:0;">
+                    <ul>
+                        <li><a href="#">Last Updated</a></li>
+                        <li><a href="#">Created</a></li>
+                        <li><a href="#">Priority</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Fichas del ticket, vista previa de entradas y ayudas</h2>
+            <table id="ticket_notes" class="table" style="width:100%;">
+                <tbody>
+                    <tr>
+                        <td><span class="info">Dixon - 22/10/2026 10:12</span> Se reinicio el servicio de correo.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="info">Soporte - 22/10/2026 10:30</span> Pendiente de confirmacion.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="thread-preview-entry collapsed ticket" style="margin-top:14px;">
+                <div class="header">
+                    <span class="thread-name"><span>Cliente</span> <span>#4821</span></span>
+                    <span class="pull-right">22/10/2026 09:05</span>
+                </div>
+                <div class="thread-body">No puedo acceder al panel desde esta manana.</div>
+            </div>
+            <div class="thread-preview-entry message" style="margin-top:14px;">
+                <div class="header">
+                    <span class="thread-name"><span>Mensaje</span> <span>#4821</span></span>
+                </div>
+            </div>
+            <div class="thread-preview-entry response" style="margin-top:6px;">
+                <div class="header">
+                    <span class="thread-name"><span>Respuesta</span> <span>#4821</span></span>
+                </div>
+            </div>
+            <div class="thread-preview-entry note" style="margin-top:6px;">
+                <div class="header">
+                    <span class="thread-name"><span>Nota interna</span> <span>#4821</span></span>
+                </div>
+            </div>
+
+            <div class="freetext-files" style="margin-top:14px;">
+                <div class="title">Archivos adjuntos</div>
+                <div class="file"><a href="#">informe.pdf</a> · 128 KB</div>
+            </div>
+
+            <div id="resizable-columns" style="margin-top:14px;display:flex;">
+                <div class="column-header active" style="padding:4px 8px;">Ticket</div>
+                <div class="column-header" style="padding:4px 8px;">Last Updated</div>
+                <div class="column-header" style="padding:4px 8px;">Subject</div>
+            </div>
+
+            <table class="ticket_info custom-data" style="margin-top:14px;width:100%;">
+                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                <tbody><tr><td>Departamento</td><td>Soporte</td></tr></tbody>
+            </table>
+
+            <div class="tip_content" style="margin-top:14px;position:relative;">
+                <h4>Ayuda</h4>
+                <p>Las colas personalizadas se pueden compartir con el equipo.</p>
+                <hr>
+                <textarea rows="2" placeholder="Comentario de la ayuda"></textarea>
+                <div class="links"><a href="#">Mas informacion</a></div>
+            </div>
         </div>
 
         <div class="demo-sec">
@@ -387,6 +511,84 @@
 
             <div class="tip" style="margin-top:14px;display:inline-block;">
                 <i class="icon-info-sign"></i> Ayuda contextual del campo.
+            </div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Portal del cliente (lista, ficha, respuesta, acceso y FAQ)</h2>
+
+            <!-- Lista de tickets (include/client/tickets.inc.php) -->
+            <table id="ticketTable" width="800" border="0" cellspacing="0" cellpadding="0">
+                <caption>5 tickets abiertos</caption>
+                <thead>
+                    <tr>
+                        <th><a href="#">Ticket # <i class="icon-sort"></i></a></th>
+                        <th width="120">Fecha</th>
+                        <th width="100">Estado</th>
+                        <th width="320">Asunto</th>
+                        <th width="120">Departamento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="alt">
+                        <td><a class="Icon emailTicket" href="#">4821</a></td>
+                        <td>22/10/2026</td>
+                        <td>Abierto</td>
+                        <td><div class="link truncate">No puedo acceder al panel</div></td>
+                        <td>Soporte</td>
+                    </tr>
+                    <tr>
+                        <td><a class="Icon emailTicket" href="#">4820</a></td>
+                        <td>21/10/2026</td>
+                        <td>Resuelto</td>
+                        <td><div class="link truncate">Factura de septiembre</div></td>
+                        <td>Facturacion</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Ficha del ticket (include/client/view.inc.php) -->
+            <table class="infoTable" cellspacing="1" cellpadding="3" width="100%" border="0"
+                   style="margin-top:14px;">
+                <thead>
+                    <tr><td class="headline" colspan="2">Informacion basica del ticket</td></tr>
+                </thead>
+                <tbody>
+                    <tr><th width="100">Estado:</th><td>Abierto</td></tr>
+                    <tr><th>Departamento:</th><td>Soporte</td></tr>
+                    <tr><th>Fecha de creacion:</th><td>22/10/2026 08:40</td></tr>
+                </tbody>
+            </table>
+
+            <!-- Respuesta del cliente -->
+            <form id="reply" action="#" style="margin-top:14px;">
+                <div id="response_options">
+                    <div><label for="reply-subject">Asunto</label>
+                        <input id="reply-subject" type="text" value="Re: No puedo acceder al panel"></div>
+                    <div><label for="reply-body">Mensaje</label>
+                        <textarea id="reply-body" rows="3">Sigue sin funcionar.</textarea></div>
+                    <span class="action-button"><i class="icon-upload"></i> Adjuntar</span>
+                    <button type="submit" class="button">Enviar respuesta</button>
+                </div>
+            </form>
+
+            <!-- Acceso del cliente -->
+            <div id="clientLogin" style="margin-top:14px;">
+                <div><label for="cl-email">Correo electronico</label>
+                    <input id="cl-email" type="text" value="cliente@ejemplo.com"></div>
+                <div><label for="cl-pass">Contrasena</label>
+                    <input id="cl-pass" type="password" value="secreto"></div>
+                <div class="clear"><button type="submit" class="button">Entrar</button></div>
+            </div>
+
+            <!-- Preguntas frecuentes -->
+            <div id="faq" style="margin-top:14px;">
+                <ol>
+                    <li><a href="#">Como creo un ticket nuevo</a>
+                        <span class="article-meta">Actualizado el 22/10/2026</span></li>
+                    <li><a href="#">Como adjunto un archivo</a>
+                        <span class="article-meta">Actualizado el 02/09/2026</span></li>
+                </ol>
             </div>
         </div>
 

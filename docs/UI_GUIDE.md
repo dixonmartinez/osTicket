@@ -234,6 +234,14 @@ renderizado, no a ojo:
 | `.select2-highlighted` | 4.48:1, justo por debajo del mínimo |
 | Enlaces del cuerpo del correo | `thread.css` los fija con `!important` a `#428bca` (3:1 sobre el papel) |
 | `.skip-link` | Fondo azul claro con texto blanco |
+| Desplegable de colas (`#customQ_nav .customQ-dropdown`) | `li.top-level`, `personalQ`, `.add-queue` y enlaces en blanco; el `li:hover` azul se comía el texto del `span` |
+| Barra de colas: `.jb-overflowmenu-container` | Gris `#eee` detrás de todo el menú |
+| `#sub_nav .active a` | Regla demasiado ancha: pintaba de azul también los enlaces del desplegable |
+| `#ticket_notes` | Celdas y `.info` en `#f9f9f9` |
+| `.thread-preview-entry` (colapsada y cabeceras) | Gris y pasteles azul/naranja/amarillo con texto claro |
+| `.freetext-files`, `.tip_content`, `#resizable-columns`, `.custom-data thead th` | Bloques de ayuda y ficheros en blanco/gris |
+| Portal del cliente: `#ticketTable`, `tr.alt`, `#reply`, `#clientLogin`, `#ticketForm`, `#faq` | Campos blancos y bordes claros de `assets/default/css/theme.css` |
+| `.action-button` del portal | Texto `#555` sobre superficie oscura (2.3:1) |
 
 **Comprobación automática**: `make theme` (dentro del contenedor,
 `docker compose run --rm tools make theme`). Verifica que los cuatro archivos
@@ -309,9 +317,10 @@ node tools/ui/contrast-audit.js http://localhost:8090/scp/tickets.php \
 ```
 
 Sale 0 si no hay hallazgos y 1 si los hay, así que se puede encadenar. En la
-vista previa el tema oscuro está a **0 hallazgos**; en claro quedan 17
+vista previa el tema oscuro está a **0 hallazgos**; en claro quedan 18
 heredados del tema base de osTicket (naranja `#F6A828` con texto blanco en
-jQuery UI, `.btn_sm`, `#header a`), que son anteriores a este trabajo.
+jQuery UI, `.btn_sm`, `#header a`, `.article-meta`), que son anteriores a
+este trabajo y se corrigen en el tema claro en una pasada aparte.
 
 Herramientas recomendadas además: Lighthouse (accesibilidad), axe DevTools,
 WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
@@ -327,6 +336,12 @@ Implementado en esta iteración:
 - Ajustes responsive para tablas de datos.
 - **Modo oscuro** con selector en la cabecera, persistencia por usuario,
   respeto a `prefers-color-scheme` y valor por defecto configurable.
+
+Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
+(reproduce el marcado real de las plantillas): panel (cabecera, colas,
+búsqueda, listas, ficha, formularios, pestañas, avisos, diálogos, widgets,
+analíticas, entradas de ticket, notas, ayudas) y portal del cliente (lista,
+ficha, respuesta, acceso y FAQ).
 
 Pendiente (requiere tocar marcado y JavaScript, por eso se deja fuera de
 esta entrega para no arriesgar funcionalidad):

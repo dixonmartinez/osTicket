@@ -173,9 +173,10 @@ html[data-theme="dark"] #sub_nav a {
     color: var(--dk-text);
 }
 
-html[data-theme="dark"] #nav .active a,
-html[data-theme="dark"] #nav li.active a,
-html[data-theme="dark"] #sub_nav .active a {
+/* Ojo con el descendiente: #sub_nav .active a también alcanzaba a los
+   enlaces "active" del desplegable de colas y los pintaba de azul. */
+html[data-theme="dark"] #nav > li.active > a,
+html[data-theme="dark"] #sub_nav > li.active > a {
     background: var(--dk-accent);
     color: #fff;
 }
@@ -810,6 +811,287 @@ html[data-theme="dark"] .customQ-dropdown ul li:hover > a {
 }
 
 html[data-theme="dark"] .customQ-dropdown ul li.subQ > a i {
+    color: var(--dk-text);
+}
+
+/* Desplegable de colas de #sub_nav (#customQ_nav). Es un caso aparte del
+   resto: scp.css pinta el nivel superior con #eee, los enlaces con #666 y el
+   botón "Add personal queue" con #666, así que hay que corregir los tres. */
+html[data-theme="dark"] #customQ_nav .customQ-dropdown,
+html[data-theme="dark"] .jb-overflowmenu-menu-primary div.customQ-dropdown {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="dark"] .customQ-dropdown ul.scroll-height {
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .customQ-dropdown li h4,
+html[data-theme="dark"] .customQ-dropdown li.top-level {
+    background-color: var(--dk-surface-3);
+    color: var(--dk-text-muted);
+}
+
+/* #customQ_nav ... li.item > a usa #000 con especificidad de id: hay que
+   igualarla para que el enlace del submenú no se quede negro. */
+html[data-theme="dark"] #customQ_nav .customQ-dropdown ul li > a,
+html[data-theme="dark"] #customQ_nav .customQ-dropdown ul li > a.truncate,
+html[data-theme="dark"] #sub_nav .customQ-dropdown ul li > a,
+html[data-theme="dark"] .customQ-dropdown ul li > a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #customQ_nav .customQ-dropdown ul li:hover > a,
+html[data-theme="dark"] #customQ_nav .customQ-dropdown ul li > a.active,
+html[data-theme="dark"] #sub_nav .customQ-dropdown ul li:hover > a {
+    color: #fff;
+}
+
+html[data-theme="dark"] .customQ-dropdown li.personalQ {
+    background-color: var(--dk-surface-2);
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .customQ-dropdown ul li:not(.personalQ):hover {
+    background-color: var(--dk-surface-4);
+}
+
+html[data-theme="dark"] .customQ-dropdown ul li:hover > span,
+html[data-theme="dark"] .customQ-dropdown ul li:hover > a {
+    color: #fff;
+}
+
+html[data-theme="dark"] .customQ-dropdown .add-queue a,
+html[data-theme="dark"] .customQ-dropdown .add-queue a span {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .customQ-dropdown .add-queue a:hover,
+html[data-theme="dark"] .customQ-dropdown .add-queue a:hover span {
+    color: var(--dk-link-hover);
+}
+
+/* Los enlaces de la barra de colas: scp.css los fija en #000 con
+   #customQ_nav ... li.item > a, que gana a un selector sin id. */
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item > a,
+html[data-theme="dark"] #sub_nav li.item > a,
+html[data-theme="dark"] #sub_nav > li > a {
+    color: var(--dk-text);
+}
+
+/* La cola activa lleva fondo --dk-accent: el texto tiene que ser blanco.
+   Hace falta la misma especificidad que la regla de arriba (id + 3 clases),
+   si no el enlace se queda en --dk-text. */
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary > li.active > a,
+html[data-theme="dark"] #sub_nav.jb-overflowmenu-menu-primary > li.active > a,
+html[data-theme="dark"] #sub_nav > li.active > a,
+html[data-theme="dark"] #nav > li.active > a {
+    color: #fff;
+}
+
+/* La cola activa/hover en la barra de colas (scp.css usa naranja #E65524) */
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item:hover > a,
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item > a.active,
+html[data-theme="dark"] #sub_nav > li > a:hover {
+    color: var(--dk-link-hover);
+}
+
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item:hover {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+/* Contenedor del menú de colas (scp.css lo deja en #eee) */
+html[data-theme="dark"] #sub_nav .jb-overflowmenu-container,
+html[data-theme="dark"] .jb-overflowmenu-container {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+/* --- 9quater: notas, vista previa de entradas, ayudas y ficheros ---
+   scp.css pinta estas zonas con #f9f9f9, #f7f7f7, #f5f5f5, #ddd y blanco. */
+
+html[data-theme="dark"] #ticket_notes td,
+html[data-theme="dark"] #ticket_notes table td,
+html[data-theme="dark"] #ticket_notes table td:not(:empty) {
+    background: var(--dk-surface-2);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #ticket_notes .info,
+html[data-theme="dark"] .thread-entry .info,
+html[data-theme="dark"] #ticket_notes td .info {
+    background: transparent;
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .thread-preview-entry.collapsed,
+html[data-theme="dark"] .thread-preview-entry.collapsed .header,
+/* La vista previa colapsada no es el HTML del correo: no lleva papel claro. */
+html[data-theme="dark"] .thread-preview-entry.collapsed .thread-body {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+/* Las cabeceras de la vista previa usan azul, naranja y amarillo pastel */
+html[data-theme="dark"] .thread-preview-entry.message .header {
+    background-color: #223850;
+}
+
+html[data-theme="dark"] .thread-preview-entry.response .header {
+    background-color: #45331a;
+}
+
+html[data-theme="dark"] .thread-preview-entry.note .header {
+    background-color: #3a3818;
+}
+
+html[data-theme="dark"] .thread-preview-entry .header,
+html[data-theme="dark"] .thread-preview-entry .header .thread-name span:first-child {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .thread-preview-entry .header .thread-name span:last-child {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .freetext-files {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .freetext-files .title {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .freetext-files .file,
+html[data-theme="dark"] .freetext-files .file a {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] #resizable-columns .column-header {
+    background-color: var(--dk-surface-3);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #resizable-columns .column-header.ui-resizable.active,
+html[data-theme="dark"] #resizable-columns .column-header.active {
+    background-color: #2b4a68;
+}
+
+html[data-theme="dark"] .ticket_info.custom-data thead th {
+    background-color: var(--dk-surface-3);
+    border-bottom-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .tip_content {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .tip_content h4,
+html[data-theme="dark"] .tip_content p,
+html[data-theme="dark"] .tip_content li,
+html[data-theme="dark"] .tip_content label {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .tip_content .links {
+    border-top-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .tip_content .links a,
+html[data-theme="dark"] .tip_content a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] .tip_content hr {
+    background-color: var(--dk-border);
+    color: var(--dk-border);
+    border: 0;
+}
+
+html[data-theme="dark"] .tip_content textarea,
+html[data-theme="dark"] .tip_content select,
+html[data-theme="dark"] .tip_content input[type="text"] {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* --- 9quinquies: portal del cliente (assets/default/css/theme.css) --- */
+
+html[data-theme="dark"] #reply #response_options textarea,
+html[data-theme="dark"] #reply input[type="text"],
+html[data-theme="dark"] #ticketForm div input,
+html[data-theme="dark"] #ticketForm div textarea,
+html[data-theme="dark"] #clientLogin div input,
+html[data-theme="dark"] #clientLogin div textarea {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #ticketForm div label,
+html[data-theme="dark"] #clientLogin div label,
+html[data-theme="dark"] #ticketForm td em,
+html[data-theme="dark"] #clientLogin td em {
+    color: var(--dk-text-muted);
+}
+
+/* .action-button del portal no pasaba por .button */
+html[data-theme="dark"] .action-button,
+html[data-theme="dark"] a.action-button {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .action-button:hover,
+html[data-theme="dark"] a.action-button:hover {
+    background: var(--dk-surface-4);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #faq ol,
+html[data-theme="dark"] #faq ol li {
+    border-top-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] #faq ol li a,
+html[data-theme="dark"] #faq ol li a:hover {
+    color: var(--dk-link);
+    background-color: transparent;
+}
+
+html[data-theme="dark"] #faq .article-meta {
+    background: var(--dk-surface-2);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] table .headline,
+html[data-theme="dark"] table.custom-data .headline,
+html[data-theme="dark"] td.headline {
+    background-color: var(--dk-surface-3);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #ticketTable caption {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] #ticketTable tr.alt td {
+    background-color: var(--dk-surface-2);
+}
+
+html[data-theme="dark"] #ticketTable td,
+html[data-theme="dark"] #ticketTable th {
+    border-color: var(--dk-border);
     color: var(--dk-text);
 }
 
