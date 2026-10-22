@@ -535,7 +535,6 @@ respuesta, acceso y FAQ).
 | 2 | Llevar a SVG los iconos que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, `#error_bar`) | Los 155 del mapa son `<i>` en el marcado; los de `::before` necesitan tocar las plantillas, y en oscuro ya se sustituyen por glifos de Font Awesome |
 | 3 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
-
 ## 7. Si la interfaz se ve mal después de actualizar
 
 Síntoma típico: el panel sale **sin estilos**, con los **iconos gigantes y
