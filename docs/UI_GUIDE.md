@@ -174,6 +174,7 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
 | `css/density.css` | Modo compacto (solo espaciado) |
 | `js/dialog-focus.js` | Foco atrapado en los diálogos y devuelto al cerrarlos |
+| `js/icons.js` | Iconos de Font Awesome marcados como decorativos y SVG fuera del tabulador |
 
 **Densidad de la interfaz.** Junto al botón de tema hay otro botón que alterna entre espaciado **cómodo** (el original de osTicket) y
 **compacto** (filas, formularios y pestañas más juntos, útil en pantallas
@@ -323,6 +324,8 @@ Checklist manual (5 minutos):
       texto cortado en las filas de la cola.
 - [ ] Con un diálogo abierto, Tab y Shift+Tab no salen de él; al cerrarlo con
       Escape el foco vuelve al botón que lo abrió.
+- [ ] Con un lector de pantalla, los botones de solo icono anuncian su acción
+      (no «círculo, signo más»).
 - [ ] Con `OST_DEFAULT_THEME=dark` no aparece ningún destello blanco al
       cargar (recarga con Ctrl+F5 y observa).
 - [ ] En oscuro se leen bien: login, cola de tickets, un ticket con respuesta
@@ -367,6 +370,8 @@ Implementado en esta iteración:
 - **Densidad** cómoda o compacta, con su propio botón y valor por defecto.
 - **Diálogos accesibles**: foco atrapado mientras están abiertos, devuelto al
   cerrarlos y cierre con Escape (esto último ya existía en `scp.js`).
+- **Iconos**: los de Font Awesome se marcan como decorativos y los enlaces de
+  solo icono reciben nombre accesible a partir de su `title`.
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -381,7 +386,9 @@ esta entrega para no arriesgar funcionalidad):
 1. Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin
    `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
 2. Indicador de fuerza de contraseña en el alta de cuenta.
-3. Sustituir iconos de Font Awesome por SVG embebidos (rendimiento y
-   accesibilidad). Los dos botones de la cabecera ya son SVG en línea.
+3. Sustituir los iconos de Font Awesome por SVG embebidos (rendimiento y
+   accesibilidad). Mientras tanto, `js/icons.js` ya evita que el lector de
+   pantalla anuncie el carácter del icono y que los SVG reciban el foco; los
+   botones de la cabecera usan SVG en línea desde el principio.
 6. Revisión del tema oscuro en las pantallas con HTML de terceros
    (visor de correo, previsualización de PDF) con datos reales.

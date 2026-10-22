@@ -67,6 +67,7 @@ foreach ([
     'css/density.css' => 'hoja de estilos de la densidad',
     'js/theme.js' => 'resolución y persistencia de las preferencias',
     'js/dialog-focus.js' => 'foco y teclado en los diálogos',
+    'js/icons.js' => 'iconos decorativos para lectores de pantalla',
     'include/templates/theme-toggle.inc.php' => 'marcado del botón',
     'docs/UI_GUIDE.md' => 'documentación',
 ] as $file => $what) {
@@ -186,9 +187,15 @@ foreach ([
     'include/staff/footer.inc.php' => 'panel de agentes',
     'include/client/footer.inc.php' => 'portal del cliente',
 ] as $file => $what) {
-    check(strpos(read("$root/$file"), 'js/dialog-focus.js') !== false,
+    $footer = read("$root/$file");
+
+    check(strpos($footer, 'js/dialog-focus.js') !== false,
         "$what: carga js/dialog-focus.js (foco atrapado en diálogos)",
         "$what: no carga js/dialog-focus.js");
+
+    check(strpos($footer, 'js/icons.js') !== false,
+        "$what: carga js/icons.js (iconos fuera del lector de pantalla)",
+        "$what: no carga js/icons.js");
 }
 
 $toggle = read("$root/include/templates/theme-toggle.inc.php");
