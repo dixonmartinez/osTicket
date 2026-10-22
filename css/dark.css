@@ -1095,6 +1095,122 @@ html[data-theme="dark"] #ticketTable th {
     color: var(--dk-text);
 }
 
+/* --- 9sexies: analíticas y panel de inicio ---
+   analytics.css define sus propios tokens en .an-page: basta redefinirlos
+   para que las tarjetas, tablas y gráficas hereden la paleta oscura. */
+
+html[data-theme="dark"] .an-page {
+    --an-fg: var(--dk-text);
+    --an-muted: var(--dk-text-muted);
+    --an-line: var(--dk-border);
+    --an-bg: var(--dk-surface-2);
+    --an-soft: var(--dk-surface-3);
+    --an-accent: var(--dk-link);
+    --an-accent-soft: #223a52;
+    --an-ok: var(--dk-success);
+    --an-warn: var(--dk-warning);
+    --an-bad: var(--dk-danger);
+}
+
+/* Los botones usan --an-accent como fondo (#83b7ee) con texto blanco: no
+   llega al mínimo, así que se fijan a un azul con contraste 4.9:1. */
+html[data-theme="dark"] .an-filters .an-btn {
+    background: #2f6dad;
+    border-color: #2f6dad;
+    color: #fff;
+}
+
+html[data-theme="dark"] .an-filters .an-btn.ghost {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] .an-filters select,
+html[data-theme="dark"] .an-filters input[type="date"] {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .an-card h2,
+html[data-theme="dark"] .an-page .an-title {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .an-subtitle,
+html[data-theme="dark"] .an-scope,
+html[data-theme="dark"] .an-empty {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .an-table th,
+html[data-theme="dark"] .an-table td {
+    background: transparent;
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .an-bar-track {
+    background: var(--dk-surface-4);
+}
+
+html[data-theme="dark"] .an-kpi-value,
+html[data-theme="dark"] .an-bar-value {
+    color: var(--dk-text);
+}
+
+/* Panel de inicio */
+html[data-theme="dark"] #line-chart-here {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #line-chart-legend {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .dashboard-kpis .kpi {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .dashboard-kpis .kpi-label,
+html[data-theme="dark"] .dashboard-kpis .kpi-note {
+    color: var(--dk-text-muted);
+}
+
+/* --- 9septies: traducciones en línea (scp/css/translatable.css) --- */
+
+html[data-theme="dark"] div.translations {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] div.translations label.language,
+html[data-theme="dark"] div.translations .language,
+html[data-theme="dark"] div.translations .close {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] div.translations input[type="text"] {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] div.add-translation {
+    background-color: var(--dk-surface-3);
+    border-top-color: var(--dk-border);
+}
+
+html[data-theme="dark"] div.add-translation select {
+    background: var(--dk-surface-4);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
 /* Menú de desbordamiento (pantallas estrechas) */
 html[data-theme="dark"] .jb-overflowmenu-menu-secondary {
     background-color: var(--dk-surface-2);

@@ -242,6 +242,9 @@ renderizado, no a ojo:
 | `.freetext-files`, `.tip_content`, `#resizable-columns`, `.custom-data thead th` | Bloques de ayuda y ficheros en blanco/gris |
 | Portal del cliente: `#ticketTable`, `tr.alt`, `#reply`, `#clientLogin`, `#ticketForm`, `#faq` | Campos blancos y bordes claros de `assets/default/css/theme.css` |
 | `.action-button` del portal | Texto `#555` sobre superficie oscura (2.3:1) |
+| Analíticas (`.an-page`) | Tokens `--an-*` con `#ffffff` y `#1f2933`: tarjetas, tablas y gráficas en claro |
+| Panel de inicio (`.dashboard-kpis`, `#line-chart-here`) | Tarjetas `#fff` y gráfica con degradado claro |
+| Traducciones en línea (`div.translations`, `div.add-translation`) | Menú blanco y pie gris `#eee` |
 
 **Comprobación automática**: `make theme` (dentro del contenedor,
 `docker compose run --rm tools make theme`). Verifica que los cuatro archivos
@@ -340,8 +343,8 @@ Implementado en esta iteración:
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
 búsqueda, listas, ficha, formularios, pestañas, avisos, diálogos, widgets,
-analíticas, entradas de ticket, notas, ayudas) y portal del cliente (lista,
-ficha, respuesta, acceso y FAQ).
+analíticas, panel de inicio, traducciones en línea, entradas de ticket,
+notas, ayudas) y portal del cliente (lista, ficha, respuesta, acceso y FAQ).
 
 Pendiente (requiere tocar marcado y JavaScript, por eso se deja fuera de
 esta entrega para no arriesgar funcionalidad):

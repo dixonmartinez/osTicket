@@ -24,6 +24,9 @@
 <link rel="stylesheet" href="../css/font-awesome.min.css">
 <link rel="stylesheet" href="../css/thread.css" media="screen">
 <link rel="stylesheet" href="../scp/css/dropdown.css" media="screen">
+    <link rel="stylesheet" href="../scp/css/analytics.css" media="screen">
+    <link rel="stylesheet" href="../scp/css/dashboard.css" media="screen">
+    <link rel="stylesheet" href="../scp/css/translatable.css" media="screen">
 <link rel="stylesheet" href="../css/ui-lightness/jquery-ui-1.13.2.custom.min.css" media="screen">
 <!-- Última, igual que en la aplicación: así puede corregir a las anteriores -->
 <link rel="stylesheet" href="../css/dark.css" media="screen">
@@ -511,6 +514,152 @@
 
             <div class="tip" style="margin-top:14px;display:inline-block;">
                 <i class="icon-info-sign"></i> Ayuda contextual del campo.
+            </div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Traducciones en linea (jquery.translatable)</h2>
+            <div style="position:relative;display:inline-block;">
+                <div class="translatable">
+                    <input type="text" value="Bienvenido al portal" style="width:240px;">
+                    <button type="button" class="translatable"><i class="icon-globe"></i></button>
+                </div>
+                <div class="translations" style="display:block;position:static;margin-top:6px;min-width:320px;">
+                    <li>
+                        <label class="language"><span class="flag flag-es"></span> Espanol
+                            <input type="text" value="Bienvenido al portal">
+                        </label>
+                    </li>
+                    <li>
+                        <label class="language"><span class="flag flag-us"></span> Ingles
+                            <input type="text" value="Welcome to the portal">
+                        </label>
+                    </li>
+                    <div class="language-commit">
+                        <button type="button" class="white button commit"><i class="icon-save"></i> Guardar</button>
+                    </div>
+                    <div class="add-translation">
+                        <form method="post">
+                            <select name="locale"><option value="pt">Portugues</option></select>
+                            <button type="button"><i class="icon-plus-sign"></i> Agregar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Analiticas y panel de inicio (an-* y dashboard-kpis)</h2>
+
+            <div class="an-page">
+                <div class="an-header">
+                    <div>
+                        <h1 class="an-title">Analiticas</h1>
+                        <p class="an-subtitle">Ultimos 30 dias</p>
+                    </div>
+                    <form class="an-filters" method="get" action="#" id="an-filter">
+                        <div>
+                            <label for="an-range">Periodo</label>
+                            <select name="range" id="an-range">
+                                <option>Ultimos 30 dias</option>
+                                <option>Este mes</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="an-start">Desde</label>
+                            <input type="date" name="start" id="an-start" value="2026-09-22">
+                        </div>
+                        <button class="an-btn" type="submit">Aplicar</button>
+                        <a class="an-btn ghost" href="#">Exportar CSV</a>
+                    </form>
+                </div>
+
+                <p class="an-scope">Datos de todos los departamentos.</p>
+
+                <div class="an-kpis">
+                    <div class="an-kpi">
+                        <div class="an-kpi-label">Tickets creados</div>
+                        <div class="an-kpi-value">128</div>
+                        <div class="an-kpi-note">
+                            <span class="an-delta up">+12%</span> frente al periodo anterior
+                        </div>
+                    </div>
+                    <div class="an-kpi is-ok">
+                        <div class="an-kpi-label">Tickets cerrados</div>
+                        <div class="an-kpi-value">96</div>
+                        <div class="an-kpi-note"><span class="an-delta flat">0%</span></div>
+                    </div>
+                    <div class="an-kpi is-warn">
+                        <div class="an-kpi-label">Siguen abiertos</div>
+                        <div class="an-kpi-value">32</div>
+                        <div class="an-kpi-note">Cola pendiente</div>
+                    </div>
+                </div>
+
+                <div class="an-grid">
+                    <div class="an-card an-card--wide">
+                        <h2>Creados y cerrados</h2>
+                        <div class="an-legend">
+                            <span class="swatch created"></span> Creados
+                            <span class="swatch closed"></span> Cerrados
+                        </div>
+                        <div class="an-chart">
+                            <div class="an-bar-row">
+                                <span class="an-bar-label">Lun</span>
+                                <span class="an-bar-track"><span class="an-bar-fill" style="width:60%"></span></span>
+                                <span class="an-bar-value">12</span>
+                            </div>
+                            <div class="an-bar-row">
+                                <span class="an-bar-label">Mar</span>
+                                <span class="an-bar-track"><span class="an-bar-fill" style="width:35%"></span></span>
+                                <span class="an-bar-value">7</span>
+                            </div>
+                        </div>
+                        <div class="an-hours">
+                            <div class="an-hour-axis"><span>00</span><span>06</span><span>12</span><span>18</span></div>
+                        </div>
+                    </div>
+
+                    <div class="an-card">
+                        <h2>Carga de trabajo</h2>
+                        <table class="an-table">
+                            <thead>
+                                <tr><th>Agente</th><th class="num">Abiertos</th><th>Vencidos</th><th>Carga</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td data-label="Agente">Dixon</td>
+                                    <td class="num" data-label="Abiertos">8</td>
+                                    <td data-label="Vencidos"><span class="pill is-bad">2</span></td>
+                                    <td data-label="Carga">
+                                        <span class="an-bar-track"><span class="an-bar-fill is-bad" style="width:70%"></span></span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td data-label="Agente">Soporte</td>
+                                    <td class="num" data-label="Abiertos">4</td>
+                                    <td data-label="Vencidos"><span class="pill is-ok">0</span></td>
+                                    <td data-label="Carga">
+                                        <span class="an-bar-track"><span class="an-bar-fill" style="width:35%"></span></span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-kpis" style="margin-top:16px;">
+                <a class="kpi" href="#">
+                    <span class="kpi-label">Tickets abiertos</span>
+                    <span class="kpi-value">32</span>
+                    <span class="kpi-note">4 vencidos</span>
+                </a>
+                <a class="kpi is-ok" href="#">
+                    <span class="kpi-label">Cerrados hoy</span>
+                    <span class="kpi-value">11</span>
+                    <span class="kpi-note">Meta: 10</span>
+                </a>
             </div>
         </div>
 
