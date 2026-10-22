@@ -471,6 +471,22 @@ las credenciales de `.env` (`osticket` / `osticket`), no las del MySQL de tu
 equipo. El formulario del instalador ya propone esos valores; si los cambiaste,
 vuelve a abrir `/setup/install.php`.
 
+**El build falla en `pecl install apcu` con «No releases available».**
+PECL no está respondiendo o su canal quedó en caché. Desde `docker/php/` la
+imagen ya **no** depende de ello: si PECL falla, se avisa en el build y se
+continúa sin APCu (osTicket funciona igual, sólo pierde la caché en memoria).
+Si quieres forzarlo:
+
+```bash
+# reintentar dentro del contenedor
+docker compose exec php sh -lc 'pecl channel-update pecl.php.net && pecl install apcu'
+
+# o construir sin intentarlo
+INSTALL_APCU=0 docker compose build php
+```
+
+`INSTALL_APCU=0` en `.env` equivale a lo segundo de forma permanente.
+
 **Avisos `Unable to load dynamic library 'gd'` y `libfreetype.so.6`.**
 La extensión `gd` se compila con FreeType pero faltaba la librería en tiempo de
 ejecución. Corregido en la imagen (`apk add freetype`). En una copia anterior:

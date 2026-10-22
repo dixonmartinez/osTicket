@@ -83,6 +83,7 @@ services:
       target: ${PHP_BUILD_TARGET:-dev}
       args:
         PHP_VERSION: ${PHP_VERSION:-8.4.27}
+        INSTALL_APCU: ${INSTALL_APCU:-1}
     restart: unless-stopped
     depends_on:
       db:
@@ -158,6 +159,7 @@ services:
       target: dev
       args:
         PHP_VERSION: ${PHP_VERSION:-8.4.27}
+        INSTALL_APCU: ${INSTALL_APCU:-1}
     profiles: [tools]
     restart: unless-stopped
     depends_on:
@@ -209,6 +211,7 @@ services:
       target: dev
       args:
         PHP_VERSION: ${PHP_VERSION:-8.4.27}
+        INSTALL_APCU: ${INSTALL_APCU:-1}
     profiles: [tools]
     working_dir: /var/www/html
     environment:

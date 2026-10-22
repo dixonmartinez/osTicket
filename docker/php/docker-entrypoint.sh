@@ -60,6 +60,12 @@ fi
 PHP_VERSION="$(php -r 'echo PHP_VERSION;')"
 log "PHP ${PHP_VERSION}"
 
+if php -r 'exit(extension_loaded("apcu") ? 0 : 1);' 2>/dev/null; then
+    log "APCu disponible (caché en memoria activa)"
+else
+    log "APCu no instalado (opcional: osTicket funciona igual)"
+fi
+
 if [ -f /var/www/html/tools/security/php-cve-check.php ]; then
     if php /var/www/html/tools/security/php-cve-check.php --quiet; then
         log "PHP no afectado por php2shell (CVE-2026-109618 / CVE-2026-109619)"

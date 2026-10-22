@@ -13,7 +13,14 @@
 ARG PHP_VERSION=8.4.27
 # Versión de Xdebug (sólo etapa dev). Vacío = la última compatible.
 ARG XDEBUG_VERSION=
+# 0 = no intentar instalar APCu. APCu es una mejora de rendimiento, no un
+# requisito: osTicket comprueba function_exists('apcu_fetch') y sigue igual.
+# Si PECL no está accesible, la imagen se construye de todos modos.
+ARG INSTALL_APCU=1
 FROM php:${PHP_VERSION}-fpm-alpine AS base
+
+# Los ARG declarados antes de FROM no llegan al build: hay que repetirlos.
+ARG INSTALL_APCU=1
 
 LABEL org.opencontainers.image.title="osTicket" \
       org.opencontainers.image.description="osTicket help desk" \
@@ -63,8 +70,13 @@ RUN set -eux; \
         pdo_mysql \
         zip \
     ; \
-    yes '' | pecl install apcu; \
-    docker-php-ext-enable apcu; \
+    pecl channel-update pecl.php.net >/dev/null 2>&1 || true; \
+    if [ "${INSTALL_APCU:-1}" != "0" ] && (yes '' | pecl install apcu); then \
+        docker-php-ext-enable apcu; \
+        echo 'build: APCu instalado'; \
+    else \
+        echo 'build: AVISO — APCu no disponible en PECL; se continúa sin él'; \
+    fi; \
     apk del --no-network .build-deps; \
     rm -rf /var/cache/apk/* /tmp/* /tmp/pear
 
