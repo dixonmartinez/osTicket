@@ -52,6 +52,12 @@ security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19
 theme: ## Revisa que el tema claro/oscuro siga completo y conectado
 	@$(PHP) $(ROOT)/tools/ui/theme-check.php
 
+inline-audit: ## Cuenta los onclick/onchange en línea (trabajo pendiente de la CSP)
+	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php
+
+inline-audit-json: ## Lo mismo, en JSON, para comparar antes/después
+	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --json
+
 icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (/tmp/ost-iconos.html)
 	@$(PHP) $(ROOT)/tools/ui/icon-sheet.php --out=/tmp/ost-iconos.html
 

@@ -171,6 +171,7 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `tools/ui/theme-check.php` | Comprobación automática (`make theme`) |
 | `tools/ui/contrast-audit.js` | Medición de contraste con navegador real |
 | `tools/ui/icon-sheet.php` | Hoja con los 155 iconos SVG para revisarlos a ojo (§3.5) |
+| `tools/ui/inline-handlers.php` | Inventario de `onclick=`/`onchange=` para la migración a `addEventListener` (§6.2) |
 | `docs/theme-preview.html` | Maqueta del **panel** con el marcado real, para revisar sin Docker |
 | `docs/theme-preview-client.html` | Maqueta del **portal del cliente**, con sus hojas exactas |
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
@@ -537,7 +538,7 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | 127 atributos `onclick=`/`onchange=` repartidos por el panel y el portal; hay que ir plantilla por plantilla para no perder funcionalidad. Se abordará en tandas, empezando por las pantallas más usadas |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **124** atributos en 71 archivos (`make inline-audit`), casi todos en `include/staff/`. Hay que ir plantilla por plantilla y probar la pantalla: es la razón de que no se haga de golpe. El inventario sirve para bajar el número sin que vuelva a subir |
 | 2 | Llevar a SVG los iconos que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, `#error_bar`) | Los 155 del mapa son `<i>` en el marcado; los de `::before` necesitan tocar las plantillas, y en oscuro ya se sustituyen por glifos de Font Awesome |
 | 3 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
