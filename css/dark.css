@@ -1211,6 +1211,68 @@ html[data-theme="dark"] div.add-translation select {
     color: var(--dk-text);
 }
 
+/* --- 9octies: responder a un ticket --- */
+
+html[data-theme="dark"] #ticket_actions {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #response_options textarea,
+html[data-theme="dark"] #response_options input[type="text"],
+html[data-theme="dark"] #response_options select {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* scp.css fija color:black con !important en estos botones de acción */
+html[data-theme="dark"] .quicknote a.action,
+html[data-theme="dark"] .floating-options a.action {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text) !important;
+}
+
+html[data-theme="dark"] .quicknote a.action:hover,
+html[data-theme="dark"] .floating-options a.action:hover {
+    background-color: var(--dk-surface-4);
+    border-color: var(--dk-accent);
+    color: #fff !important;
+}
+
+html[data-theme="dark"] .quicknote a.action.save-note,
+html[data-theme="dark"] .floating-options a.action.save-note {
+    background-color: #234a2c;
+}
+
+html[data-theme="dark"] .quicknote .body {
+    background: var(--dk-surface-2);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] div.selected-signature {
+    background-color: var(--dk-surface-2);
+    border-top-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] tr.disabled td,
+html[data-theme="dark"] tr.disabled th {
+    background: var(--dk-surface-2);
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] input[type="text"]:disabled,
+html[data-theme="dark"] input[type="password"]:disabled,
+html[data-theme="dark"] input[type="checkbox"]:disabled,
+html[data-theme="dark"] select:disabled,
+html[data-theme="dark"] textarea:disabled {
+    background-color: var(--dk-surface-4);
+    border-color: var(--dk-border);
+    color: var(--dk-text-faint);
+}
+
 /* Menú de desbordamiento (pantallas estrechas) */
 html[data-theme="dark"] .jb-overflowmenu-menu-secondary {
     background-color: var(--dk-surface-2);

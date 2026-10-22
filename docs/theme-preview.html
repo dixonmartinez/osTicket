@@ -523,6 +523,45 @@
         </div>
 
         <div class="demo-sec">
+            <h2>Responder a un ticket (barra de acciones, adjuntos y firma)</h2>
+
+            <div id="ticket_actions">
+                <span class="action-button"><i class="icon-reply"></i> Responder</span>
+                <span class="action-button"><i class="icon-pencil"></i> Editar</span>
+                <span class="action-button danger"><i class="icon-trash"></i> Borrar</span>
+            </div>
+
+            <div id="response_options" style="margin-top:12px;">
+                <form method="post" action="#">
+                    <div class="floating-options">
+                        <a class="action" href="#" title="Adjuntar"><i class="icon-paper-clip"></i></a>
+                        <a class="action save-note" href="#" title="Guardar nota"><i class="icon-save"></i></a>
+                    </div>
+                    <textarea rows="3" style="width:100%;">Gracias por el aviso, lo revisamos hoy mismo.</textarea>
+                    <div class="quicknote">
+                        <div class="body">Nota interna: el cliente usa la version 1.17.</div>
+                        <a class="action" href="#" title="Editar nota"><i class="icon-pencil"></i></a>
+                    </div>
+                    <div class="selected-signature">
+                        <div class="inner">Dixon Martinez · Soporte tecnico</div>
+                    </div>
+                    <div class="freetext-files">
+                        <div class="title">Archivos adjuntos</div>
+                        <div class="file"><a href="#">captura.png</a> · 64 KB</div>
+                    </div>
+                </form>
+            </div>
+
+            <table class="list" style="margin-top:14px;width:100%;">
+                <thead><tr><th>Ticket</th><th>Asunto</th></tr></thead>
+                <tbody>
+                    <tr><td>4822</td><td>Consulta de facturacion</td></tr>
+                    <tr class="disabled"><td>4823</td><td>Ticket cerrado (no editable)</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="demo-sec">
             <h2>Traducciones en linea (jquery.translatable)</h2>
             <div style="position:relative;display:inline-block;">
                 <div class="translatable">
