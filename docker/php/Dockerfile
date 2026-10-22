@@ -22,6 +22,34 @@ FROM php:${PHP_VERSION}-fpm-alpine AS base
 # Los ARG declarados antes de FROM no llegan al build: hay que repetirlos.
 ARG INSTALL_APCU=1
 
+# Reintentos para redes inestables (DNS de Docker Desktop, VPN, wifi):
+# `apk` falla con "DNS: transient error" y acto seguido se queja de que NINGÚN
+# paquete existe — el mensaje engaña, el problema es la red.
+RUN set -eux; \
+    printf '%s\n' \
+      '#!/bin/sh' \
+      '# apk con reintentos' \
+      'n=0' \
+      'until apk "$@"; do' \
+      '    n=$((n + 1))' \
+      '    [ "$n" -ge 5 ] && exit 1' \
+      '    echo "apk falló (intento $n de 5); reintentando en 5 s" >&2' \
+      '    sleep 5' \
+      'done' \
+      > /usr/local/bin/apk-retry; \
+    printf '%s\n' \
+      '#!/bin/sh' \
+      '# pecl install con reintentos' \
+      'n=0' \
+      'until pecl install "$@"; do' \
+      '    n=$((n + 1))' \
+      '    [ "$n" -ge 3 ] && exit 1' \
+      '    echo "pecl falló (intento $n de 3); reintentando en 5 s" >&2' \
+      '    sleep 5' \
+      'done' \
+      > /usr/local/bin/pecl-retry; \
+    chmod +x /usr/local/bin/apk-retry /usr/local/bin/pecl-retry
+
 LABEL org.opencontainers.image.title="osTicket" \
       org.opencontainers.image.description="osTicket help desk" \
       org.opencontainers.image.source="https://github.com/osTicket/osTicket" \
@@ -31,7 +59,7 @@ LABEL org.opencontainers.image.title="osTicket" \
 # Dependencias del sistema y extensiones de PHP
 # ---------------------------------------------------------------------------
 RUN set -eux; \
-    apk add --no-cache \
+    apk-retry add --no-cache \
         ca-certificates \
         curl \
         freetype \
@@ -44,7 +72,7 @@ RUN set -eux; \
         oniguruma \
         tzdata \
     ; \
-    apk add --no-cache --virtual .build-deps \
+    apk-retry add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
         freetype-dev \
         gettext-dev \
@@ -110,14 +138,14 @@ ARG XDEBUG_VERSION
 #   bash       -> tools/lint.sh usa arrays, BASH_SOURCE y export -f
 #   findutils  -> `find` de GNU (-not -path -print0) tal como lo usa lint.sh
 # Sin ellas, `make docker-test` muere con «make: not found» (exit 127).
-RUN apk add --no-cache bash make findutils
+RUN apk-retry add --no-cache bash make findutils
 
 RUN set -eux; \
-    apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers; \
+    apk-retry add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers; \
     if [ -n "$XDEBUG_VERSION" ]; then \
-        pecl install "xdebug-$XDEBUG_VERSION"; \
+        pecl-retry "xdebug-$XDEBUG_VERSION"; \
     else \
-        pecl install xdebug; \
+        pecl-retry xdebug; \
     fi; \
     docker-php-ext-enable xdebug; \
     apk del --no-network .build-deps; \

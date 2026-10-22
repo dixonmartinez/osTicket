@@ -84,6 +84,10 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION:-8.4.27}
         INSTALL_APCU: ${INSTALL_APCU:-1}
+      # Si la construcción falla por DNS (apk: "no such package" para todo),
+      # descomenta la línea siguiente para usar la red del equipo durante el
+      # build: el contenedor hereda su resolución de nombres.
+      # network: host
     restart: unless-stopped
     depends_on:
       db:
@@ -164,6 +168,10 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION:-8.4.27}
         INSTALL_APCU: ${INSTALL_APCU:-1}
+      # Si la construcción falla por DNS (apk: "no such package" para todo),
+      # descomenta la línea siguiente para usar la red del equipo durante el
+      # build: el contenedor hereda su resolución de nombres.
+      # network: host
     profiles: [tools]
     restart: unless-stopped
     depends_on:
@@ -216,6 +224,10 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION:-8.4.27}
         INSTALL_APCU: ${INSTALL_APCU:-1}
+      # Si la construcción falla por DNS (apk: "no such package" para todo),
+      # descomenta la línea siguiente para usar la red del equipo durante el
+      # build: el contenedor hereda su resolución de nombres.
+      # network: host
     profiles: [tools]
     working_dir: /var/www/html
     environment:

@@ -497,6 +497,42 @@ las credenciales de `.env` (`osticket` / `osticket`), no las del MySQL de tu
 equipo. El formulario del instalador ya propone esos valores; si los cambiaste,
 vuelve a abrir `/setup/install.php`.
 
+**El build falla con «DNS: transient error» y «(no such package)» para todo.**
+El mensaje engaña: `apk` no pudo bajar el índice y acto seguido dice que
+ninguno de los paquetes existe. Es un problema de red del constructor, no de la
+imagen. Desde esta versión las llamadas a `apk` y a `pecl` **reintentan solas**
+(5 y 3 veces, con 5 s de espera), que resuelve los cortes momentáneos.
+
+Si persiste, comprueba la resolución de nombres del motor:
+
+```bash
+docker run --rm alpine sh -c 'wget -q -O- https://dl-cdn.alpinelinux.org/alpine/ | head -1'
+docker run --rm alpine nslookup dl-cdn.alpinelinux.org   # si tienes nslookup
+```
+
+Soluciones, de menos a más invasiva:
+
+1. **Reintentar el build** (ya con los reintentos integrados):
+   `docker compose build php`.
+2. **Dar DNS al motor** (Docker Desktop → *Settings → Docker Engine*):
+
+   ```json
+   { "dns": ["8.8.8.8", "1.1.1.1"] }
+   ```
+
+   Aplica y reinicia Docker Desktop.
+3. **WSL2**: si `/etc/resolv.conf` apunta a un DNS inalcanzable, pon
+   `nameserver 8.8.8.8` y evita que WSL lo regenere:
+   `generateResolvConf = false` en `/etc/wsl.conf`, luego `wsl --shutdown`.
+4. **VPN o proxy corporativo**: el contenedor no ve el DNS de la VPN. Usa la
+   red del equipo durante el build, descomentando `network: host` en el bloque
+   `build:` de `compose.yaml` (ya está comentado en los tres servicios).
+5. **Wi-Fi cambiada / MTU**: los paquetes grandes se pierden aunque el ping
+   funcione. Baja la MTU en Docker Desktop → *Settings → Resources → Network*.
+
+Nada de esto afecta a la imagen resultante: la etapa `prod` no depende de la
+red más allá de sus paquetes de ejecución.
+
 **El build falla en `pecl install apcu` con «No releases available».**
 PECL no está respondiendo o su canal quedó en caché. Desde `docker/php/` la
 imagen ya **no** depende de ello: si PECL falla, se avisa en el build y se
