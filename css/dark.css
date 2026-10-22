@@ -612,7 +612,8 @@ html[data-theme="dark"] .select2-results li {
     color: var(--dk-text);
 }
 
-html[data-theme="dark"] .select2-results .select2-highlighted {
+html[data-theme="dark"] .select2-results .select2-highlighted,
+html[data-theme="dark"] .select2-results .select2-highlighted .select2-result-label {
     background: var(--dk-accent);
     color: #fff;
 }
@@ -931,6 +932,139 @@ html[data-theme="dark"] .ui-badge--info {
 html[data-theme="dark"] .skip-link:focus,
 html[data-theme="dark"] .skip-link:focus-visible {
     outline-color: var(--dk-text);
+}
+
+/* ================================================================== */
+/* 9ter. Huecos detectados con auditoría de contraste en navegador     */
+/* ================================================================== */
+/* Cada regla de este bloque sale de una medición: el texto de ese
+   selector no llegaba a 4.5:1 en el tema oscuro. No quitar sin volver a
+   medir (ver docs/UI_GUIDE.md §5). */
+
+/* Títulos de sección (scp.css los pinta en azul oscuro fijo) */
+html[data-theme="dark"] h2 {
+    color: var(--dk-link-hover);
+}
+
+/* Menú desplegable de la navegación principal (#nav li > ul) */
+html[data-theme="dark"] #nav li.inactive > ul {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="dark"] #nav li.active {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] #nav .inactive li a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #nav .inactive li a:hover {
+    background-color: var(--dk-surface-4);
+    color: var(--dk-link-hover);
+}
+
+/* Barra de herramientas de la cola: .sticky.bar.opaque es blanca */
+html[data-theme="dark"] .sticky.bar,
+html[data-theme="dark"] .sticky.bar.opaque,
+html[data-theme="dark"] .sticky.bar.fixed {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+}
+
+/* Barra de búsqueda superior */
+html[data-theme="dark"] #basic_search {
+    background-color: var(--dk-surface-2);
+    border-bottom-color: var(--dk-border);
+    box-shadow: inset 0 4px 12px -10px #000;
+}
+
+/* Pestañas */
+html[data-theme="dark"] ul.tabs {
+    background: var(--dk-surface-2);
+    border-bottom-color: var(--dk-border);
+    box-shadow: inset 0 -5px 10px -9px #000;
+}
+
+html[data-theme="dark"] ul.tabs li {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] ul.tabs li a {
+    color: inherit;
+}
+
+html[data-theme="dark"] ul.tabs li.active {
+    background-color: var(--dk-surface);
+    border-color: var(--dk-border);
+    border-top-color: var(--dk-link);
+    color: var(--dk-text);
+}
+
+/* Título dentro de la cabecera de un formulario (fondo gris fijo) */
+html[data-theme="dark"] .form_table th h4 {
+    background: var(--dk-surface-3);
+    color: var(--dk-text);
+}
+
+/* Etiquetas de estado */
+html[data-theme="dark"] .label {
+    background-color: var(--dk-surface-4);
+    color: var(--dk-text);
+    text-shadow: none;
+}
+
+html[data-theme="dark"] .label-bare {
+    background-color: transparent;
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .label-info {
+    background-color: #1d5c80;
+    color: #e8f4fb;
+}
+
+html[data-theme="dark"] .label-verified {
+    background-color: transparent;
+    color: var(--dk-success);
+}
+
+html[data-theme="dark"] .label-danger {
+    background-color: transparent;
+    color: var(--dk-danger);
+}
+
+/* Enlace de salto: su fondo es --ui-accent (azul claro en oscuro) */
+html[data-theme="dark"] .skip-link {
+    background: var(--dk-accent);
+    color: #fff;
+}
+
+/* Dentro del cuerpo de un correo manda el papel claro: el HTML del
+   mensaje trae sus propios colores y aquí sólo se corrige lo que
+   heredaría del tema oscuro. */
+html[data-theme="dark"] .thread-body th,
+html[data-theme="dark"] .thread-body td,
+html[data-theme="dark"] .preview-body th,
+html[data-theme="dark"] .preview-body td {
+    background-color: transparent;
+    border-color: #c2ccd4;
+    color: #1a1f24;
+}
+
+/* thread.css declara este color con !important (para que el HTML del correo
+   no lo sobreescriba); en oscuro hay que corregirlo con la misma fuerza,
+   porque #428bca sobre el papel claro sólo llega a 3:1. */
+html[data-theme="dark"] .thread-body a:not(.button),
+html[data-theme="dark"] .thread-body a,
+html[data-theme="dark"] .preview-body a {
+    color: #14507f !important;
 }
 
 /* ================================================================== */

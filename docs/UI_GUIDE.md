@@ -169,6 +169,8 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `include/staff/header.inc.php`, `include/client/header.inc.php` | Carga del CSS/JS (tema al final del `<head>`) y colocación del botón |
 | `include/staff/login.header.php` | Lo mismo en las pantallas de acceso y recuperación de contraseña |
 | `tools/ui/theme-check.php` | Comprobación automática (`make theme`) |
+| `tools/ui/contrast-audit.js` | Medición de contraste con navegador real |
+| `docs/theme-preview.html` | Maqueta con el marcado real, para revisar sin Docker |
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
 
 **Añadir un componente nuevo.** Usa los tokens en lugar de colores fijos:
@@ -213,6 +215,25 @@ un color del tema, recalcula antes de publicar.
 Carga los CSS reales y trae el botón para alternar. (También puedes servir el
 repositorio con `python3 -m http.server 8099` y entrar en
 `http://localhost:8099/docs/theme-preview.html`.)
+
+**Huecos corregidos tras probarlo en un navegador de verdad.** El primer
+intento cubría la estructura pero dejaba piezas con el fondo claro del tema
+base y el texto claro del oscuro. Se localizaron midiendo el contraste
+renderizado, no a ojo:
+
+| Zona | Síntoma |
+|---|---|
+| `#nav li > ul` (menús desplegables de la barra superior) | Fondo blanco con texto claro: ilegible |
+| `#basic_search` | Franja blanca alrededor del buscador |
+| `.sticky.bar.opaque` | Barra de la cola de tickets en blanco |
+| `ul.tabs` y sus pestañas | Pestañas blancas |
+| `.form_table th h4` | Título de formulario sobre gris `#929292` |
+| `.label` / `.label-info` / `.label-bare` | Etiquetas de estado con fondo claro |
+| `table tfoot`, paginación (`Page: [n]`) | Se leían mal sobre el fondo oscuro |
+| `h2` de sección | Azul `#0A568E` sobre oscuro (2.2:1) |
+| `.select2-highlighted` | 4.48:1, justo por debajo del mínimo |
+| Enlaces del cuerpo del correo | `thread.css` los fija con `!important` a `#428bca` (3:1 sobre el papel) |
+| `.skip-link` | Fondo azul claro con texto blanco |
 
 **Comprobación automática**: `make theme` (dentro del contenedor,
 `docker compose run --rm tools make theme`). Verifica que los cuatro archivos
@@ -274,7 +295,25 @@ Checklist manual (5 minutos):
       sobre el papel claro.
 - [ ] `make theme` en verde.
 
-Herramientas recomendadas: Lighthouse (accesibilidad), axe DevTools,
+**Auditoría de contraste con navegador** (lo que encontró los huecos de la
+tabla anterior). `tools/ui/contrast-audit.js` abre una página, calcula el
+contraste real de cada texto visible —incluidos los menús desplegables, que
+sólo se pueden medir abiertos— y lista los que no llegan a WCAG 2.1:
+
+```bash
+npm install --no-save playwright-core
+node tools/ui/contrast-audit.js                    # la vista previa, en oscuro
+node tools/ui/contrast-audit.js --theme light      # comprobar que no se rompió el claro
+node tools/ui/contrast-audit.js http://localhost:8090/scp/tickets.php \
+     --cookie "OSTSESSID=<tu-sesion>"              # contra la app real
+```
+
+Sale 0 si no hay hallazgos y 1 si los hay, así que se puede encadenar. En la
+vista previa el tema oscuro está a **0 hallazgos**; en claro quedan 17
+heredados del tema base de osTicket (naranja `#F6A828` con texto blanco en
+jQuery UI, `.btn_sm`, `#header a`), que son anteriores a este trabajo.
+
+Herramientas recomendadas además: Lighthouse (accesibilidad), axe DevTools,
 WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
 
 ---
