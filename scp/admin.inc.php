@@ -43,8 +43,11 @@ if($ost->isUpgradePending()) {
         if(!strcasecmp(basename($_SERVER['SCRIPT_NAME']), 'settings.php'))
             die($sysnotice);
 
-    } elseif(file_exists('../setup/')) {
-        $sysnotice=__('Please take a minute to delete <strong>setup</strong> directory (../setup/) for security reasons.');
+    } elseif(file_exists('../setup/')
+            && (!class_exists('SecurityPosture') || SecurityPosture::isSetupExposed())) {
+        // La carpeta forma parte del repositorio: borrarla ensucia el árbol de
+        // git. Si el servidor web ya la bloquea, no hay nada que reclamar.
+        $sysnotice=__('The <strong>setup</strong> directory is reachable from the web. Block it in your web server (docker/nginx/default.conf) or delete it before going live.');
     } elseif(CONFIG_FILE && file_exists(CONFIG_FILE) && is_writable(CONFIG_FILE)) {
             //Confirm for real that the file is writable by group or world.
             clearstatcache(); //clear the cache!

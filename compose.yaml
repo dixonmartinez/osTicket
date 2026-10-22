@@ -104,6 +104,10 @@ services:
       HTTP_PORT: ${HTTP_PORT:-8080}
       # 1 = muestra los errores de PHP en pantalla (sólo desarrollo).
       OST_DEBUG: ${OST_DEBUG:-0}
+      # Cómo comprobar si /setup/ sigue accesible (aviso del panel). Desde el
+      # contenedor de PHP, nginx se llama `nginx`.
+      OST_INTERNAL_URL: ${OST_INTERNAL_URL:-http://nginx}
+      OST_SETUP_LOCKED: ${OST_SETUP_LOCKED:-0}
       OST_ADMIN_EMAIL: ${OST_ADMIN_EMAIL:-admin@example.com}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}

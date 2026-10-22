@@ -268,4 +268,78 @@ class SecurityPosture
 
         return (int) $number;
     }
+
+    /**
+     * ¿Está /setup/ realmente accesible por HTTP?
+     *
+     * De la existencia del directorio no se deduce nada: en este despliegue
+     * nginx lo bloquea (bloque "Producción" de docker/nginx/default.conf) y
+     * la carpeta sigue en el repositorio porque es código versionado. Para no
+     * pedirle al administrador que borre archivos versionados, se comprueba
+     * de verdad si el instalador responde.
+     *
+     * Devuelve true (expuesto, hay que avisar) o false (bloqueado, silencio).
+     * Si no hay forma de comprobarlo, devuelve true para no ocultar el aviso.
+     */
+    public static function isSetupExposed() {
+        // Escape explícito para despliegues que bloquean /setup/ de otra forma
+        // (proxy externo, WAF, autenticación básica).
+        if (getenv('OST_SETUP_LOCKED') === '1')
+            return false;
+
+        // Sólo se puede comprobar si hay una URL interna alcanzable desde el
+        // contenedor de PHP (en Docker, el servicio `nginx`).
+        $base = getenv('OST_INTERNAL_URL') ?: '';
+        if (!$base)
+            return true;
+
+        $cache = sys_get_temp_dir() . '/ost-setup-probe-' . md5($base) . '.cache';
+        $now = time();
+
+        // 5 minutos de validez para un resultado definitivo, 30 s si falló.
+        if (is_readable($cache)
+                && ($data = @file_get_contents($cache)) !== false
+                && ($parts = explode(' ', trim($data))) === 2
+                && is_numeric($parts[1])) {
+            list($state, $when) = $parts;
+            $ttl = ($state === 'unknown') ? 30 : 300;
+            if ($now - (int) $when < $ttl)
+                return $state !== 'blocked';
+        }
+
+        $url = rtrim($base, '/') . '/setup/install.php';
+        $ctx = stream_context_create(['http' => [
+            'timeout' => 0.7,
+            'ignore_errors' => true,
+            'header' => "User-Agent: osTicket-setup-probe\r\n",
+        ]]);
+
+        // Se usan las cabeceras del wrapper (fopen + stream_get_meta_data) en
+        // lugar de $http_response_header, que PHP 8.5 marca obsoleto.
+        $status = 0;
+        if (($fp = @fopen($url, 'r', false, $ctx)) !== false) {
+            $meta = stream_get_meta_data($fp);
+            fclose($fp);
+            if (isset($meta['wrapper_data']) && is_array($meta['wrapper_data'])) {
+                foreach ($meta['wrapper_data'] as $line)
+                    if (preg_match('#^HTTP/\S+\s+(\d{3})#', $line, $m)) {
+                        $status = (int) $m[1];
+                        break;
+                    }
+            }
+        }
+
+        if ($status === 403 || $status === 404)
+            $state = 'blocked';
+        elseif ($status === 200)
+            $state = 'exposed';
+        else
+            // Sin respuesta: no se puede afirmar nada. Se avisa (postura
+            // conservadora) y se reintenta pronto.
+            $state = 'unknown';
+
+        @file_put_contents($cache, $state . ' ' . $now);
+
+        return $state !== 'blocked';
+    }
 }

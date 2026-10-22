@@ -107,6 +107,17 @@ Cuando la instalación termine, **bloquea `/setup/`** descomentando el bloque
 docker compose restart nginx
 ```
 
+Al entrar en el panel, osTicket avisa de que `setup/` sigue ahí. El aviso ya no
+se basa en que la carpeta exista, sino en que **responda por HTTP**: se pide
+`/setup/install.php` al servicio `nginx` y, si contesta 404 o 403, el aviso
+desaparece. Así no hay que borrar código versionado (borrarlo llenaría
+`git status` de archivos eliminados).
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `OST_INTERNAL_URL` | `http://nginx` | A quién se pregunta si `/setup/` responde |
+| `OST_SETUP_LOCKED` | `0` | `1` = darlo por bloqueado sin comprobar (WAF, proxy, basic auth) |
+
 No borres `setup/` con `rm -rf`: es código versionado y ensuciaría el
 repositorio. El instalador ya se niega a reinstalar mientras exista
 `include/ost-config.php`.
@@ -387,6 +398,21 @@ docker compose exec -T php php -d display_errors=1 -d error_reporting=E_ALL -r '
   $_POST=["s"=>"prereq"]; chdir("/var/www/html/setup"); include "install.php";' \
   2>&1 | tail -30
 ```
+
+**El panel sigue avisando de «the setup directory is reachable».**
+El aviso comprueba de verdad si `/setup/install.php` responde. Si lo ves:
+
+```bash
+# ¿qué devuelve nginx?
+docker compose exec php php -r '$c = stream_context_create(["http"=>["ignore_errors"=>true]]);
+  $fp = @fopen("http://nginx/setup/install.php","r",false,$c);
+  echo $fp ? stream_get_meta_data($fp)["wrapper_data"][0] : "sin respuesta", "\n";'
+```
+
+* `200` → el bloque *Producción* de `default.conf` sigue comentado, o nginx no
+  se reinició: `docker compose restart nginx`.
+* `404/403` → está bloqueado; si el aviso persiste, espera 5 minutos (el
+  resultado se guarda en caché) o fuerza `OST_SETUP_LOCKED=1` en `.env`.
 
 **El instalador marca IMAP y APCu con una ✗.**
 APCu ya se compila en la imagen (`apc.enabled`), así que la ✗ significa que la
