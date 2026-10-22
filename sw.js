@@ -25,7 +25,8 @@
 // sirviendo el CSS anterior y los arreglos "no se ven".
 // v4: correcciones de contraste del tema claro en css/ui.css (acentos del
 // panel, botones del portal) y el botón de reset de selects.
-const VERSION = 'ost-v4';
+// v5: js/icons.js dibuja los iconos en SVG y css/ui.css les da forma.
+const VERSION = 'ost-v5';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

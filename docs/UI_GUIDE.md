@@ -300,7 +300,27 @@ líneas (atributo `data-theme-default`, `js/theme.js` antes de jQuery,
 
 ---
 
-### 3.5 Tema claro: dónde vive cada corrección
+### 3.5 Iconos en SVG
+
+`js/icons.js` sustituye en el navegador los `<i class="icon-x">` que están en
+su mapa `SVG_ICONS` por un `<svg>` en línea con **las mismas clases** y el
+color heredado (`currentColor`). Ventajas: no depende de la fuente de iconos
+(se acaba el parpadeo mientras carga), se ve nítido en pantallas HiDPI y el
+tamaño sigue al texto (`1em`), incluidos `.icon-large` y el zoom.
+
+- Las plantillas **no cambian**: el marcado sigue siendo `<i class="icon-x">`.
+- Un icono que no esté en el mapa se queda con Font Awesome: la sustitución
+  es aditiva, nunca deja un hueco.
+- Para volver atrás sin tocar código: `<html data-svg-icons="off">`.
+- Para añadir un icono, una entrada más en `SVG_ICONS` (rejilla 24×24, trazo
+  de 2 px). `theme-check` exige que haya 50 o más.
+
+Quedan en Font Awesome las utilidades que no son dibujos (`icon-fixed-width`,
+`icon-spin`) y los iconos que pinta el CSS con pseudo-elementos (`#nav`,
+`#sub_nav`, avisos `#error_bar`): esos no son `<i>` y se dejan como estaban
+para no tocar el marcado.
+
+### 3.6 Tema claro: dónde vive cada corrección
 
 El tema claro **no se toca** en `assets/default/css/theme.css` (es el tema
 de osTicket y se puede actualizar). Las correcciones van a `css/ui.css`,
@@ -376,6 +396,8 @@ Checklist manual (5 minutos):
       y nota, el diálogo de respuesta y una tabla de configuración.
 - [ ] Una entrada con HTML de correo (tabla, imagen, enlace) sigue legible
       sobre el papel claro.
+- [ ] Los iconos se ven nítidos y alineados con su texto en las dos densidades
+      y en los dos temas (son SVG; compara con `data-svg-icons="off"`).
 - [ ] `make theme` en verde.
 
 **Auditoría de contraste con navegador** (lo que encontró los huecos de la
@@ -420,6 +442,8 @@ Implementado en esta iteración:
   cerrarlos y cierre con Escape (esto último ya existía en `scp.js`).
 - **Iconos**: los de Font Awesome se marcan como decorativos y los enlaces de
   solo icono reciben nombre accesible a partir de su `title`.
+- **Iconos en SVG**: 107 iconos se dibujan en línea, con el color y el tamaño
+  heredados, sin depender de la fuente (§3.5).
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -434,9 +458,9 @@ esta entrega para no arriesgar funcionalidad):
 1. Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin
    `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
 2. Indicador de fuerza de contraseña en el alta de cuenta.
-3. Sustituir los iconos de Font Awesome por SVG embebidos (rendimiento y
-   accesibilidad). Mientras tanto, `js/icons.js` ya evita que el lector de
-   pantalla anuncie el carácter del icono y que los SVG reciban el foco; los
-   botones de la cabecera usan SVG en línea desde el principio.
+3. ~~Sustituir los iconos de Font Awesome por SVG embebidos.~~ Hecho como capa
+   progresiva: 107 iconos dibujados en `SVG_ICONS` (ver §3.5). Pendiente
+   ampliar el mapa a los iconos menos usados y a los pseudo-elementos de
+   `#nav`/`#sub_nav`, que necesitan tocar el marcado de las plantillas.
 6. Revisión del tema oscuro en las pantallas con HTML de terceros
    (visor de correo, previsualización de PDF) con datos reales.

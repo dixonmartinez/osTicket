@@ -200,6 +200,33 @@ foreach ([
         "$what: no carga js/icons.js");
 }
 
+/* 4c. Iconos en SVG: la capa se apoya en js/icons.js y en css/ui.css. */
+$icons = read("$root/js/icons.js");
+$uicss = read("$root/css/ui.css");
+
+check(strpos($icons, 'var SVG_ICONS = {') !== false,
+    'js/icons.js define el mapa SVG_ICONS',
+    'js/icons.js no define SVG_ICONS (los iconos se quedan en la fuente)');
+
+check(strpos($icons, "createElementNS(SVG_NS, 'svg')") !== false,
+    'js/icons.js cambia los iconos de Font Awesome por SVG',
+    'js/icons.js no construye los SVG');
+
+check(strpos($icons, "data-svg-icons") !== false,
+    'los iconos SVG se pueden desactivar con data-svg-icons="off"',
+    'falta la salida de emergencia data-svg-icons="off"');
+
+check(strpos($uicss, 'svg.ost-icon') !== false
+    && strpos($uicss, 'stroke: currentColor') !== false,
+    'css/ui.css da tamaño y color heredado a los iconos SVG',
+    'css/ui.css no estiliza svg.ost-icon (los iconos saldrían sin tamaño)');
+
+$checked = preg_match_all("/^\s*'icon-[a-z0-9-]+':/m", $icons);
+
+check($checked >= 50,
+    "el mapa cubre los iconos más usados ($checked dibujados)",
+    "el mapa SVG solo tiene $checked iconos; se esperaban 50 o más");
+
 $toggle = read("$root/include/templates/theme-toggle.inc.php");
 check(strpos($toggle, 'data-ost-theme-toggle') !== false
     && strpos($toggle, 'data-ost-density-toggle') !== false,

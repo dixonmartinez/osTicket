@@ -127,6 +127,54 @@ html[data-theme="light"] .faded {
 }
 
 /* ------------------------------------------------------------------ */
+/* Iconos en SVG (js/icons.js)                                         */
+/* ------------------------------------------------------------------ */
+/* js/icons.js cambia los `<i class="icon-x">` del mapa por un SVG en
+   línea con las mismas clases. Aquí solo se le da forma: ocupa 1em (así
+   hereda el tamaño del texto, incluidos .icon-large y el zoom del
+   navegador), toma el color con currentColor (funciona en claro y en
+   oscuro sin reglas extra) y se alinea con la línea base como hacía la
+   fuente. El trazo y el relleno los decide cada icono en su marcado. */
+svg.ost-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: -0.125em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    overflow: visible;
+}
+
+/* El icono dentro de un botón o una pestaña no debe separarse del texto */
+svg.ost-icon.pull-right {
+    float: right;
+}
+
+/* El desplegable de filtros de scp/dropdown.css dibuja una raya separadora
+   con `.action-button i.icon-caret-down`. El icono ahora es un SVG, así que
+   se replican esas medidas sobre el elemento nuevo. El selector lleva
+   [data-icon] para ganar sin depender del orden de las hojas. */
+.action-button svg.ost-icon.icon-caret-down[data-icon] {
+    height: 17px;
+    line-height: 100%;
+    margin: -1px -1px 0 5px;
+    padding: 7px 0 0 5px;
+    display: inline-block;
+    border-left: 1px solid #ccc;
+}
+
+.action-button:hover svg.ost-icon.icon-caret-down[data-icon] {
+    border-color: inherit;
+}
+
+.action-button.muted svg.ost-icon.icon-caret-down[data-icon] {
+    border: none;
+}
+
+/* ------------------------------------------------------------------ */
 /* Utilidades                                                          */
 /* ------------------------------------------------------------------ */
 .sr-only {
