@@ -66,6 +66,7 @@ foreach ([
     'css/dark.css' => 'hoja de estilos del tema oscuro',
     'css/density.css' => 'hoja de estilos de la densidad',
     'js/theme.js' => 'resolución y persistencia de las preferencias',
+    'js/dialog-focus.js' => 'foco y teclado en los diálogos',
     'include/templates/theme-toggle.inc.php' => 'marcado del botón',
     'docs/UI_GUIDE.md' => 'documentación',
 ] as $file => $what) {
@@ -178,6 +179,16 @@ foreach ($headers as $file => $what) {
     check(strpos($html, 'theme-toggle.inc.php') !== false,
         "$what: incluye el botón de cambio de tema",
         "$what: no incluye include/templates/theme-toggle.inc.php");
+}
+
+/* 4b. Foco en los diálogos: sin este script, Tab se escapa del diálogo. */
+foreach ([
+    'include/staff/footer.inc.php' => 'panel de agentes',
+    'include/client/footer.inc.php' => 'portal del cliente',
+] as $file => $what) {
+    check(strpos(read("$root/$file"), 'js/dialog-focus.js') !== false,
+        "$what: carga js/dialog-focus.js (foco atrapado en diálogos)",
+        "$what: no carga js/dialog-focus.js");
 }
 
 $toggle = read("$root/include/templates/theme-toggle.inc.php");

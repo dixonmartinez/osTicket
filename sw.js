@@ -37,6 +37,7 @@ const PRECACHE = [
   'scp/css/dashboard.css',
   'scp/css/analytics.css',
   'js/theme.js',
+  'js/dialog-focus.js',
   'js/jquery-3.7.0.min.js'
 ];
 

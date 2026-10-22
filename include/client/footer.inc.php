@@ -15,6 +15,7 @@ if (($lang = Internationalization::getCurrentLanguage()) && $lang != 'en_US') { 
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>ajax.php/i18n/<?php
         echo $lang; ?>/js"></script>
 <?php } ?>
+<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/dialog-focus.js"></script>
 <script type="text/javascript">
     getConfig().resolve(<?php
         include INCLUDE_DIR . 'ajax.config.php';

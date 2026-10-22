@@ -173,6 +173,7 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `docs/theme-preview.html` | Maqueta con el marcado real, para revisar sin Docker |
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
 | `css/density.css` | Modo compacto (solo espaciado) |
+| `js/dialog-focus.js` | Foco atrapado en los diálogos y devuelto al cerrarlos |
 
 **Densidad de la interfaz.** Junto al botón de tema hay otro botón que alterna entre espaciado **cómodo** (el original de osTicket) y
 **compacto** (filas, formularios y pestañas más juntos, útil en pantallas
@@ -317,6 +318,8 @@ Checklist manual (5 minutos):
       al recargar y al navegar a otra pantalla.
 - [ ] El botón de densidad alterna cómodo/compacto, lo recuerda y no deja
       texto cortado en las filas de la cola.
+- [ ] Con un diálogo abierto, Tab y Shift+Tab no salen de él; al cerrarlo con
+      Escape el foco vuelve al botón que lo abrió.
 - [ ] Con `OST_DEFAULT_THEME=dark` no aparece ningún destello blanco al
       cargar (recarga con Ctrl+F5 y observa).
 - [ ] En oscuro se leen bien: login, cola de tickets, un ticket con respuesta
@@ -359,6 +362,8 @@ Implementado en esta iteración:
 - **Modo oscuro** con selector en la cabecera, persistencia por usuario,
   respeto a `prefers-color-scheme` y valor por defecto configurable.
 - **Densidad** cómoda o compacta, con su propio botón y valor por defecto.
+- **Diálogos accesibles**: foco atrapado mientras están abiertos, devuelto al
+  cerrarlos y cierre con Escape (esto último ya existía en `scp.js`).
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -371,9 +376,8 @@ esta entrega para no arriesgar funcionalidad):
 
 1. Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin
    `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
-2. Diálogos con trampa de foco y cierre con Escape.
-3. Indicador de fuerza de contraseña en el alta de cuenta.
-4. Sustituir iconos de Font Awesome por SVG embebidos (rendimiento y
+2. Indicador de fuerza de contraseña en el alta de cuenta.
+3. Sustituir iconos de Font Awesome por SVG embebidos (rendimiento y
    accesibilidad). Los dos botones de la cabecera ya son SVG en línea.
 6. Revisión del tema oscuro en las pantallas con HTML de terceros
    (visor de correo, previsualización de PDF) con datos reales.
