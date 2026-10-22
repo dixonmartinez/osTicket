@@ -13,9 +13,7 @@
     type="hidden" />
   <input name="condition_field[]" value="<?php echo $field_name; ?>" type="hidden" />
   <div class="pull-right">
-    <a href="#" onclick="javascript: $(this).closest('.condition').remove();
-      return false;
-      "><i class="icon-trash"></i></a>
+    <a href="#" data-remove-closest=".condition"><i class="icon-trash"></i></a>
   </div>
   <div><strong><?php echo $label ?: $field->getLabel(); ?></div></strong>
   <div class="advanced-search">

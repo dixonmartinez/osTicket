@@ -58,6 +58,9 @@ inline-audit: ## Cuenta los onclick/onchange en línea (trabajo pendiente de la 
 inline-audit-json: ## Lo mismo, en JSON, para comparar antes/después
 	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --json
 
+inline-budget: ## Falla si los onclick/onchange vuelven a subir del tope actual
+	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --max=59
+
 icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (/tmp/ost-iconos.html)
 	@$(PHP) $(ROOT)/tools/ui/icon-sheet.php --out=/tmp/ost-iconos.html
 

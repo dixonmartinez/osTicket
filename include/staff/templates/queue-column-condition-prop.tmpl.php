@@ -11,7 +11,7 @@
   <input type="hidden" name="properties[]" value="<?php echo $id; ?>" />
   <input type="hidden" name="property_name[]" value="<?php echo $prop; ?>" />
   <div class="pull-right">
-    <a href="#" onclick="javascript:$(this).closest('.condition-property').remove()"
+    <a href="#" data-remove-closest=".condition-property"
       ><i class="icon-trash"></i></a>
   </div>
   <div><?php echo mb_convert_case($prop, MB_CASE_TITLE); ?></div>

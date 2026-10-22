@@ -376,6 +376,26 @@ check(substr_count($dark, '--ost-bar-color') >= 6,
     'los iconos de aviso cambian de color en oscuro',
     'css/dark.css no ajusta --ost-bar-color de los avisos: el icono queda con el color del tema claro');
 
+/* 9. Acciones declarativas ----------------------------------------------- */
+$actions = read("$root/js/actions.js");
+check(strpos($actions, 'data-remove-closest') !== false
+    && strpos($actions, 'data-inherit-toggle') !== false
+    && strpos($actions, 'data-save-draft') !== false
+    && strpos($actions, 'data-toggle-target') !== false,
+    'js/actions.js cubre las acciones que sustituyen a los onclick',
+    'js/actions.js no implementa data-remove-closest/data-inherit-toggle/data-save-draft/data-toggle-target');
+
+check(strpos($actions, "document.addEventListener('click'") !== false
+    && strpos($actions, "document.addEventListener('change'") !== false,
+    'las acciones se resuelven por delegación (funcionan con PJAX y diálogos)',
+    'js/actions.js no delega en document: el contenido cargado por AJAX se quedaría sin acciones');
+
+$makefile = read("$root/Makefile");
+check(strpos($makefile, 'inline-budget') !== false
+    && strpos($guide, 'inline-budget') !== false,
+    'hay tope para los manejadores en línea (make inline-budget)',
+    'falta el objetivo inline-budget: el número de onclick puede volver a subir sin que nadie lo note');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

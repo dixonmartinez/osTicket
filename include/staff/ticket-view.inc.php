@@ -160,8 +160,7 @@ if($ticket->isOverdue())
                  if ($role->hasPerm(Ticket::PERM_EDIT)) { ?>
                     <li><a class="change-user" href="#tickets/<?php
                     echo $ticket->getId(); ?>/change-user"
-                    onclick="javascript:
-                        saveDraft();"
+                    data-save-draft
                     ><i class="icon-user"></i> <?php
                     echo __('Change Owner'); ?></a></li>
                 <?php
@@ -319,8 +318,7 @@ if($ticket->isOverdue())
                           <a class="tickets-action" data-dropdown="#action-dropdown-statuses" data-placement="bottom" data-toggle="tooltip" title="<?php echo __('Change Status'); ?>"
                               data-redirect="tickets.php?id=<?php echo $ticket->getId(); ?>"
                               href="#statuses"
-                              onclick="javascript:
-                                  saveDraft();"
+                              data-save-draft
                               >
                               <?php echo $ticket->getStatus(); ?>
                           </a>
@@ -352,8 +350,7 @@ if($ticket->isOverdue())
                           <a class="ticket-action" data-placement="bottom" data-toggle="tooltip" title="<?php echo __('Transfer'); ?>"
                             data-redirect="tickets.php?id=<?php echo $ticket->getId(); ?>"
                             href="#tickets/<?php echo $ticket->getId(); ?>/transfer"
-                            onclick="javascript:
-                                saveDraft();"
+                            data-save-draft
                             ><?php echo Format::htmlchars($ticket->getDeptName()); ?>
                         </a>
                       </td>

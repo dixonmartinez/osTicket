@@ -8,7 +8,7 @@ if ($queue->parent) { ?>
       <td colspan="3">
         <input type="checkbox" name="inherit-columns" <?php
           if ($hidden_cols) echo 'checked="checked"'; ?>
-          onchange="javascript:$(this).closest('table').find('.if-not-inherited').toggle(!$(this).prop('checked'));" />
+          data-inherit-toggle />
         <?php echo __('Inherit columns from the parent queue'); ?>
         <br /><br />
       </td>

@@ -372,8 +372,7 @@ if (!$ticket) { ?>
                             <a class="task-action" data-placement="bottom" data-toggle="tooltip" title="<?php echo __('Transfer'); ?>"
                               data-redirect="tasks.php?id=<?php echo $task->getId(); ?>"
                               href="#tasks/<?php echo $task->getId(); ?>/transfer"
-                              onclick="javascript:
-                                  saveDraft();"
+                              data-save-draft
                               ><?php echo Format::htmlchars($task->dept->getName()); ?>
                         </td>
                         <?php }else {?>

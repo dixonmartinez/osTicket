@@ -156,10 +156,10 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
             <td>
                 <label>
                 <input type="radio" name="custom-numbers" value="0" <?php echo !$info['custom-numbers']?'checked="checked"':''; ?>
-                    onchange="javascript:$('#custom-numbers').hide();"> <?php echo __('System Default'); ?>
+                    data-toggle-target="#custom-numbers" data-toggle-mode="hide"> <?php echo __('System Default'); ?>
                 </label>&nbsp;<label>
                 <input type="radio" name="custom-numbers" value="1" <?php echo $info['custom-numbers']?'checked="checked"':''; ?>
-                    onchange="javascript:$('#custom-numbers').show(200);"> <?php echo __('Custom'); ?>
+                    data-toggle-target="#custom-numbers" data-toggle-mode="show" data-toggle-speed="200"> <?php echo __('Custom'); ?>
                 </label>&nbsp; <i class="help-tip icon-question-sign" href="#custom_numbers"></i>
             </td>
         </tr>

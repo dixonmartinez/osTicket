@@ -7,7 +7,7 @@ if ($queue->parent) { ?>
       <td colspan="3">
         <input type="checkbox" name="inherit-exports" <?php
           if ($queue->inheritExport()) echo 'checked="checked"'; ?>
-          onchange="javascript:$(this).closest('table').find('.if-not-inherited').toggle(!$(this).prop('checked'));" />
+          data-inherit-toggle />
         <?php echo __('Inherit export fields from the parent queue'); ?>
         <br /><br />
       </td>
@@ -23,7 +23,7 @@ if ($queue->parent) { ?>
         <input type="checkbox" name="inherit-exports" <?php
           if (count($queue->exports) == 0) echo 'checked="checked"';
           if ($queue instanceof SavedSearch) echo 'disabled="disabled"'; ?>
-          onchange="javascript:$(this).closest('table').find('.if-not-inherited').toggle(!$(this).prop('checked'));" />
+          data-inherit-toggle />
         <?php echo __('Use standard export fields'); ?>
         <br /><br />
       </td>

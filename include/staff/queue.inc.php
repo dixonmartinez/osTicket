@@ -182,7 +182,7 @@ if ($queue->parent) { ?>
               <td colspan="3">
                 <input type="checkbox" name="inherit-sorting" <?php
                   if ($queue->inheritSorting()) echo 'checked="checked"'; ?>
-                  onchange="javascript:$(this).closest('table').find('.if-not-inherited').toggle(!$(this).prop('checked'));" />
+                  data-inherit-toggle />
                 <?php echo __('Inherit sorting from the parent queue'); ?>
                 <br /><br />
               </td>

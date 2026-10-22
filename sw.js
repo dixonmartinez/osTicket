@@ -39,7 +39,9 @@
 // v11: icono de búsqueda y «abrir ticket» del portal en oscuro.
 // v12: #nav y #sub_nav pasan a máscaras SVG (css/ui.css) y entra
 //     js/actions.js, que sustituye a los onclick más repetidos.
-const VERSION = 'ost-v12';
+// v13: avisos del sistema con máscara SVG y acciones nuevas de actions.js
+//     (borrar la fila más cercana, mostrar/ocultar, borradores).
+const VERSION = 'ost-v13';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

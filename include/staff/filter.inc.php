@@ -177,7 +177,7 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                             </select>&nbsp;
                             <input type="text" size="60" name="rules[<?php echo $i; ?>][v]" value="<?php echo $rule["v"]; ?>">
                         <div class="pull-right" style="padding-right:20px;"><a href="#" class="clearrule"
-                            onclick="javascript: $(this).closest('tr').remove();">(<?php echo __('clear');?>)</a></div>
+                            data-remove-closest="tr">(<?php echo __('clear');?>)</a></div>
                         <div class="error"><?php echo $errors["rule_$i"]; ?></div>
                     </td>
                 </tr>
