@@ -112,6 +112,19 @@ html[data-theme="light"] body .thread-body a:not(.button) {
     color: #2d6491 !important;
 }
 
+/* HTML de terceros en el correo: thread.css deja la cita en #777 (4,48:1
+   sobre blanco) y el código en #777 sobre #f2f2f2 (4,01:1). */
+html[data-theme="light"] .thread-body blockquote {
+    color: #4a4f55;
+}
+
+html[data-theme="light"] .thread-body code,
+html[data-theme="light"] .thread-body pre,
+html[data-theme="light"] .thread-body kbd {
+    background: #f1f3f5;
+    color: #333;
+}
+
 /* «Add personal queue» se atenúa a opacity .4 por diseño: a ese nivel el
    texto desaparece (>8:1 → 4,4:1). Se atenúa menos y se oscurece. */
 html[data-theme="light"] .customQ-dropdown .add-queue a {

@@ -159,13 +159,29 @@
         box.className = 'pw-strength' + (value ? ' is-active' : '');
     }
 
+    /**
+     * Busca el campo a medir: primero el marcado con el atributo y, si no
+     * hay, el `passwd1` de toda la vida de osTicket. Así funciona también en
+     * los formularios que genera el ORM (diálogo de cambio de contraseña,
+     * alta de usuario desde el panel) sin tocarlos.
+     */
+    function findInput(form) {
+        return form.querySelector('[data-password-strength]')
+            || form.querySelector('input[type="password"][name="passwd1"]');
+    }
+
+    function findConfirm(form) {
+        return form.querySelector('[data-password-confirm]')
+            || form.querySelector('input[type="password"][name="passwd2"]');
+    }
+
     function enhance(form) {
-        var input = form.querySelector('[data-password-strength]');
+        var input = findInput(form);
 
         if (!input || input.getAttribute('data-pw-ready'))
             return;
 
-        var confirm = form.querySelector('[data-password-confirm]');
+        var confirm = findConfirm(form);
         var box = build(input);
 
         input.setAttribute('data-pw-ready', '1');
@@ -190,6 +206,31 @@
 
         for (var i = 0; i < forms.length; i++)
             enhance(forms[i]);
+    }
+
+    // Los formularios de contraseña aparecen dentro de diálogos que se cargan
+    // por AJAX: sin observador, el medidor no se engancharía nunca.
+    if (window.MutationObserver) {
+        var pending = false;
+
+        new MutationObserver(function (records) {
+            if (pending)
+                return;
+
+            for (var i = 0; i < records.length; i++) {
+                if (!records[i].addedNodes.length)
+                    continue;
+
+                pending = true;
+
+                window.setTimeout(function () {
+                    pending = false;
+                    run();
+                }, 30);
+
+                return;
+            }
+        }).observe(document.documentElement, { childList: true, subtree: true });
     }
 
     if (document.readyState === 'loading')

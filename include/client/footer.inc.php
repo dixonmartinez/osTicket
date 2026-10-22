@@ -17,19 +17,7 @@ if (($lang = Internationalization::getCurrentLanguage()) && $lang != 'en_US') { 
 <?php } ?>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/dialog-focus.js"></script>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/icons.js"></script>
-<script type="text/javascript">
-    // Textos del indicador de fuerza de la contraseña (js/password-strength.js)
-    window.OST_PW_STRENGTH = {
-        weak: <?php echo json_encode(__('Weak')); ?>,
-        fair: <?php echo json_encode(__('Fair')); ?>,
-        good: <?php echo json_encode(__('Good')); ?>,
-        strong: <?php echo json_encode(__('Strong')); ?>,
-        empty: <?php echo json_encode(__('Use at least 8 characters, with numbers and symbols.')); ?>,
-        hintShort: <?php echo json_encode(__('Add length and variety of characters.')); ?>,
-        mismatch: <?php echo json_encode(__('The passwords do not match.')); ?>
-    };
-</script>
-<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/password-strength.js"></script>
+<?php include INCLUDE_DIR . 'templates/password-strength.inc.php'; ?>
 <script type="text/javascript">
     getConfig().resolve(<?php
         include INCLUDE_DIR . 'ajax.config.php';

@@ -408,6 +408,17 @@
                         <tr><td>Licencia</td><td>2</td></tr>
                     </table>
                     <p><a href="#">Un enlace dentro del correo</a></p>
+                    <hr>
+                    <p>Un mensaje reenviado suele traer la cita del anterior:</p>
+                    <blockquote>
+                        De: soporte@example.com<br>
+                        Enviado: lunes, 20 de octubre de 2026 11:04<br>
+                        <p>Adjunto el <em>log</em> del servidor, linea 42:</p>
+                        <pre><code>2026-10-20 11:03:58 ERROR  db: conexion rechazada
+2026-10-20 11:03:59 WARN   reintento 1/3</code></pre>
+                    </blockquote>
+                    <p>Y una imagen en linea: <img alt="captura" width="120" height="32"
+                        src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='32'%3E%3Crect width='120' height='32' fill='%23ffffff' stroke='%2399a'/%3E%3Ctext x='8' y='21' font-family='sans-serif' font-size='12' fill='%23333'%3Elogo.png%3C/text%3E%3C/svg%3E"></p>
                 </div>
             </div>
             <div class="thread-entry response">
@@ -424,6 +435,19 @@
                     <span class="title">Nota interna</span>
                 </div>
                 <div class="thread-body"><p>El cliente tiene licencia vencida: comprobar antes de responder.</p></div>
+            </div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Visor de adjuntos (PDF y editor enriquecido)</h2>
+            <div class="attachment-preview" style="width:420px;height:150px;">
+                <iframe title="Vista previa del PDF" class="pdf-preview" src="about:blank"
+                        style="width:100%;height:100%;border:0;"></iframe>
+            </div>
+            <div class="redactor-box" style="margin-top:10px;width:420px;">
+                <div class="redactor-editor" style="padding:8px;border:1px solid #ccc;">
+                    Texto del editor enriquecido: aqui se escribe la respuesta.
+                </div>
             </div>
         </div>
 

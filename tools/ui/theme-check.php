@@ -69,6 +69,7 @@ foreach ([
     'js/dialog-focus.js' => 'foco y teclado en los diálogos',
     'js/icons.js' => 'iconos decorativos para lectores de pantalla',
     'js/password-strength.js' => 'indicador de fuerza de la contraseña',
+    'include/templates/password-strength.inc.php' => 'carga y textos del indicador',
     'include/templates/theme-toggle.inc.php' => 'marcado del botón',
     'docs/UI_GUIDE.md' => 'documentación',
     'docs/theme-preview.html' => 'vista previa del panel',
@@ -234,13 +235,32 @@ $clientFooter = read("$root/include/client/footer.inc.php");
 $register = read("$root/include/client/register.inc.php");
 $profile = read("$root/include/client/profile.inc.php");
 
-check(strpos($clientFooter, 'js/password-strength.js') !== false,
-    'el portal carga js/password-strength.js',
-    'include/client/footer.inc.php no carga js/password-strength.js');
+$pwTemplate = read("$root/include/templates/password-strength.inc.php");
+$staffFooter = read("$root/include/staff/footer.inc.php");
 
-check(strpos($clientFooter, 'OST_PW_STRENGTH') !== false,
-    'el portal traduce los textos del indicador',
-    'include/client/footer.inc.php no emite OST_PW_STRENGTH (saldría en inglés)');
+check(strpos($pwTemplate, 'OST_PW_STRENGTH') !== false
+    && strpos($pwTemplate, 'js/password-strength.js') !== false,
+    'la plantilla del indicador carga el script y traduce sus textos',
+    'include/templates/password-strength.inc.php no carga el script o no traduce');
+
+foreach ([
+    'include/client/footer.inc.php' => 'el portal',
+    'include/staff/footer.inc.php' => 'el panel',
+] as $file => $what) {
+    $footer = read("$root/$file");
+
+    check(strpos($footer, 'templates/password-strength.inc.php') !== false,
+        "$what carga el indicador de fuerza",
+        "$file no incluye templates/password-strength.inc.php");
+}
+
+check(strpos($pw, "name=\"passwd1\"") !== false,
+    'el indicador reconoce los campos passwd1/passwd2 de osTicket',
+    'js/password-strength.js no reconoce passwd1 (los diálogos del panel se quedarían sin medidor)');
+
+check(strpos($pw, 'MutationObserver') !== false,
+    'el indicador se engancha también en formularios cargados por AJAX',
+    'js/password-strength.js no observa el DOM: el diálogo de cambio de contraseña se queda sin medidor');
 
 check(strpos($register, 'data-password-strength') !== false
     && strpos($profile, 'data-password-strength') !== false,

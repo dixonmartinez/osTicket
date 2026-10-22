@@ -676,6 +676,87 @@ html[data-theme="dark"] .thread-body a {
     color: #14508f;
 }
 
+/* ================================================================== */
+/* 8bis. HTML de terceros: correo y visor de adjuntos                 */
+/* ================================================================== */
+/* El cuerpo del correo se queda en “papel” claro (arriba), pero dentro
+   puede haber de todo: tablas con borde, citas del mensaje anterior,
+   bloques de código, líneas divisorias e imágenes. Aquí se ajusta lo que
+   el tema base deja con colores pensados para papel blanco puro, y se
+   declara color-scheme: light para que los controles y las barras que
+   lleguen en el HTML se dibujen en claro y no en negro sobre blanco. */
+html[data-theme="dark"] .thread-body,
+html[data-theme="dark"] .thread-entry .thread-body,
+html[data-theme="dark"] .preview-body {
+    color-scheme: light;
+}
+
+html[data-theme="dark"] .thread-body table,
+html[data-theme="dark"] .thread-body th,
+html[data-theme="dark"] .thread-body td {
+    border-color: #b9c3cd;
+}
+
+html[data-theme="dark"] .thread-body th {
+    background: #dbe2e9;
+    color: #12232e;
+}
+
+html[data-theme="dark"] .thread-body blockquote {
+    background: #dee5ec;
+    border-left: 3px solid #97a5b3;
+    color: #1a1f24;
+    margin: 8px 0;
+    padding: 6px 10px;
+}
+
+html[data-theme="dark"] .thread-body pre,
+html[data-theme="dark"] .thread-body code,
+html[data-theme="dark"] .thread-body kbd {
+    background: #d9e0e7;
+    border: 1px solid #c3ccd6;
+    color: #12232e;
+}
+
+html[data-theme="dark"] .thread-body pre {
+    padding: 8px 10px;
+    overflow-x: auto;
+}
+
+html[data-theme="dark"] .thread-body hr {
+    border: 0;
+    border-top: 1px solid #b9c3cd;
+}
+
+/* Los adjuntos se abren en un visor propio (PDF en <object>/<iframe>,
+   imágenes en <img>). El visor tiene que ser claro: el PDF y la imagen
+   vienen con fondo blanco y un marco oscuro los haría irreconocibles. */
+html[data-theme="dark"] .attachment-preview,
+html[data-theme="dark"] .preview-body iframe,
+html[data-theme="dark"] .preview-body embed,
+html[data-theme="dark"] .preview-body object,
+html[data-theme="dark"] object[type*="pdf"],
+html[data-theme="dark"] iframe.pdf-preview {
+    background: #fff;
+    border: 1px solid var(--dk-border);
+    color-scheme: light;
+}
+
+/* El editor enriquecido y los diálogos con iframe también son superficies
+   de papel: no deben quedar con el texto claro sobre blanco. */
+/* El editor enriquecido se queda en “papel”: lo que se pega desde Word u
+   Outlook trae color negro en línea y sobre una superficie oscura
+   desaparecería. El selector repite `.redactor-box` para ganar al bloque
+   de arriba, que lo pintaba oscuro. */
+html[data-theme="dark"] .redactor-box .redactor-editor,
+html[data-theme="dark"] .redactor-editor,
+html[data-theme="dark"] .redactor-box iframe {
+    background: #fff;
+    color: #1a1f24;
+    border-color: var(--dk-border);
+    color-scheme: light;
+}
+
 html[data-theme="dark"] .quicknote .body,
 html[data-theme="dark"] .message.bar .body {
     background: var(--dk-surface-2);

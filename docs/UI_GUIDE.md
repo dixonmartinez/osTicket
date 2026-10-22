@@ -344,7 +344,27 @@ del portal) y avisa si el campo `data-password-confirm` no coincide.
 | 3 Buena | 12+ o mucha variedad | `#1b7f3b` / `--dk-success` |
 | 4 Fuerte | 16+ y los cuatro tipos de carácter | `#14652f` / `--dk-success` |
 
-### 3.7 Tema claro: dónde vive cada corrección
+### 3.7 HTML de terceros: correo, adjuntos y editor
+
+El cuerpo de un correo llega con **colores propios** (`style="color:#000"`,
+tablas con fondo blanco, imágenes…). En oscuro se mantiene ese “papel”
+claro y atenuado, porque invertirlo vuelve ilegible el mensaje; lo que se
+corrige es lo que el tema dejaba a medias:
+
+| Zona | Antes | Ahora (oscuro) |
+| --- | --- | --- |
+| Citas (`blockquote`) | Texto `#777` heredado del tema | Fondo `#dee5ec`, texto `#1a1f24` |
+| Bloques de código (`pre`, `code`, `kbd`) | Gris sobre gris | Fondo `#d9e0e7`, borde y texto oscuro |
+| Tablas y celdas | Bordes casi invisibles | Borde `#b9c3cd`, cabecera `#dbe2e9` |
+| Líneas (`hr`) | Borde claro del tema | `#b9c3cd` |
+| Controles dentro del HTML | Dibujados en oscuro | `color-scheme: light` en el papel |
+| Visor de PDF (`object`/`iframe`) | Hueco oscuro | Fondo blanco y borde del tema |
+| Editor enriquecido | Superficie oscura | Papel blanco: lo pegado desde Word/Outlook trae negro en línea y desaparecía |
+
+En claro, `thread.css` dejaba la cita en `#777` (4,48:1) y el código en
+`#777` sobre `#f2f2f2` (4,01:1); `css/ui.css` los sube a `#4a4f55` y `#333`.
+
+### 3.8 Tema claro: dónde vive cada corrección
 
 El tema claro **no se toca** en `assets/default/css/theme.css` (es el tema
 de osTicket y se puede actualizar). Las correcciones van a `css/ui.css`,
@@ -424,6 +444,10 @@ Checklist manual (5 minutos):
       y en los dos temas (son SVG; compara con `data-svg-icons="off"`).
 - [ ] En el alta de cuenta, el medidor sube al escribir (`abc` → Débil,
       `Tr0ub4dor&3` → Buena) y avisa si las dos contraseñas no coinciden.
+- [ ] En el panel, el diálogo «Change Password» del agente también muestra
+      el medidor (se engancha solo, sin atributos).
+- [ ] Un correo con cita, tabla y bloque de código se lee entero en oscuro,
+      y el visor de un PDF adjunto se ve sobre fondo blanco.
 - [ ] `make theme` en verde.
 
 **Auditoría de contraste con navegador** (lo que encontró los huecos de la
@@ -471,7 +495,9 @@ Implementado en esta iteración:
 - **Iconos en SVG**: 107 iconos se dibujan en línea, con el color y el tamaño
   heredados, sin depender de la fuente (§3.5).
 - **Indicador de fuerza de la contraseña** en el alta y el cambio de
-  contraseña del portal, accesible y traducible (§3.6).
+  contraseña del portal y del panel, accesible y traducible (§3.6).
+- **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y
+  editor enriquecido legibles (§3.7).
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -486,11 +512,14 @@ esta entrega para no arriesgar funcionalidad):
 1. Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin
    `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`).
 2. ~~Indicador de fuerza de contraseña en el alta de cuenta.~~ Hecho para el
-   portal del cliente (§3.6). Pendiente el cambio de contraseña del personal
-   (`scp/staff.php`), que usa su propio formulario.
+   portal y para el panel (§3.6): se engancha solo en los campos
+   `passwd1`/`passwd2`, también en los formularios que carga el AJAX
+   (diálogo de cambio de contraseña del agente).
 3. ~~Sustituir los iconos de Font Awesome por SVG embebidos.~~ Hecho como capa
    progresiva: 107 iconos dibujados en `SVG_ICONS` (ver §3.5). Pendiente
    ampliar el mapa a los iconos menos usados y a los pseudo-elementos de
    `#nav`/`#sub_nav`, que necesitan tocar el marcado de las plantillas.
-6. Revisión del tema oscuro en las pantallas con HTML de terceros
-   (visor de correo, previsualización de PDF) con datos reales.
+4. ~~Revisión del tema oscuro en las pantallas con HTML de terceros.~~
+   Hecho en CSS y en la maqueta (§3.7). Queda comprobarlo con correos
+   reales del buzón de la instalación, que es lo único que no se puede
+   reproducir sin la base de datos.

@@ -27,7 +27,9 @@
 // panel, botones del portal) y el botón de reset de selects.
 // v5: js/icons.js dibuja los iconos en SVG y css/ui.css les da forma.
 // v6: entra js/password-strength.js (indicador de fuerza del alta).
-const VERSION = 'ost-v6';
+// v7: HTML de terceros en oscuro (citas, código, visor de PDF, editor) y el
+//     medidor de contraseña también en el panel.
+const VERSION = 'ost-v7';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
