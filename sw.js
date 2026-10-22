@@ -50,7 +50,8 @@
 //     PJAX).
 // v18: quinta tanda (escribir campos del formulario y llamar a funciones con
 //     nombre).
-const VERSION = 'ost-v18';
+// v19: sexta tanda (diálogo con el id de la fila y columnas heredadas).
+const VERSION = 'ost-v19';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

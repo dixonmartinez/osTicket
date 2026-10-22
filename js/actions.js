@@ -51,7 +51,7 @@
     var CLICKABLE = '[data-href],[data-go-back],[data-dialog],[data-confirm],'
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
         + '[data-toggle-target],[data-reload],[data-click-target],'
-        + '[data-set-name],[data-call]';
+        + '[data-set-name],[data-call],[data-dialog-row]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -283,6 +283,23 @@
             return;
         }
 
+        if (el.hasAttribute('data-dialog-row')) {
+            var row = closest(el, el.getAttribute('data-dialog-row-scope') || 'tr');
+            var field = el.getAttribute('data-dialog-row-field');
+            var node = row && field ? row.querySelector(field) : null;
+            var id = node ? node.value : '';
+
+            event.preventDefault();
+
+            if (!id || !window.jQuery || !window.jQuery.dialog)
+                return;
+
+            window.jQuery.dialog(
+                el.getAttribute('data-dialog-row') + id,
+                parseInt(el.getAttribute('data-dialog'), 10) || 201);
+            return;
+        }
+
         if (el.hasAttribute('data-dialog')) {
             var url = el.getAttribute('data-dialog-url') || dialogUrl(el);
             var size = parseInt(el.getAttribute('data-dialog'), 10) || 201;
@@ -343,6 +360,9 @@
                display que traía el tbody (table-row-group), no `block`. */
             if (window.jQuery) {
                 window.jQuery(table).find('.if-not-inherited').toggle(!el.checked);
+                /* En la cola guardada hay dos grupos: las columnas propias y
+                   las estándar. Si no existe el segundo, no hace nada. */
+                window.jQuery(table).find('.standard-columns').toggle(!!el.checked);
                 return;
             }
 

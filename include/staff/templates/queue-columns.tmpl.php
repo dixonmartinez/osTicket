@@ -21,8 +21,7 @@ if ($queue->parent) { ?>
         <input type="checkbox" name="inherit-columns" <?php
           if ($queue->useStandardColumns()) echo 'checked="checked"';
           if ($queue instanceof SavedSearch && $queue->__new__) echo 'disabled="disabled"'; ?>
-          onchange="javascript:$(this).closest('table').find('.if-not-inherited').toggle(!$(this).prop('checked'));
-          $(this).closest('table').find('.standard-columns').toggle($(this).prop('checked'));" />
+          data-inherit-toggle />
         <?php echo __('Use standard columns'); ?>
         <br /><br />
       </td>
@@ -51,11 +50,7 @@ $hidden_cols = $queue->inheritColumns() || $queue->useStandardColumns();
 <?php if (!$queue instanceof SavedSearch) { ?>
         <div>
         <a class="inline action-button"
-            href="#" onclick="javascript:
-            var colid = $(this).closest('tr').find('[data-name=column_id]').val();
-            $.dialog('ajax.php/tickets/search/column/edit/' + colid, 201);
-            return false;
-            "><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
+            href="#" data-dialog="201" data-dialog-row="ajax.php/tickets/search/column/edit/" data-dialog-row-field="[data-name=column_id]"><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
         </div>
 <?php }
       else { ?>

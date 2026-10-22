@@ -207,11 +207,7 @@ if ($queue->parent) { ?>
               <td>
                 <div>
                 <a class="inline action-button"
-                    href="#" onclick="javascript:
-                    var colid = $(this).closest('tr').find('[data-name^=sorts]').val();
-                    $.dialog('ajax.php/tickets/search/sort/edit/' + colid, 201);
-                    return false;
-                    "><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
+                    href="#" data-dialog="201" data-dialog-row="ajax.php/tickets/search/sort/edit/" data-dialog-row-field="[data-name^=sorts]"><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
                 </div>
               </td>
               <td>

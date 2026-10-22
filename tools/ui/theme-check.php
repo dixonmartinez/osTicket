@@ -424,6 +424,10 @@ check(strpos($actions, 'data-set-name') !== false
     'js/actions.js cubre escribir campos y llamar a funciones con nombre',
     'js/actions.js no implementa data-set-name/data-call');
 
+check(strpos($actions, 'data-dialog-row') !== false,
+    'js/actions.js abre diálogos con el id de la fila (data-dialog-row)',
+    'js/actions.js no implementa data-dialog-row');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {
