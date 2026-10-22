@@ -1543,13 +1543,18 @@ html[data-theme="dark"] #poweredBy {
     color: var(--dk-text-muted);
 }
 
-/* El botón de tema flota en la esquina: esta pantalla no tiene cabecera */
+/* Los botones de tema y densidad flotan en la esquina: esta pantalla no
+   tiene cabecera. Se apilan en vertical para no taparse. */
 #loginBody > .ost-icon-button {
     position: fixed;
     top: 12px;
     right: 12px;
     z-index: 100;
     background-color: rgba(255, 255, 255, 0.75);
+}
+
+#loginBody > .ost-density-toggle {
+    top: 44px;
 }
 
 html[data-theme="dark"] #loginBody > .ost-icon-button {
