@@ -24,9 +24,7 @@ if(!defined('OSTSCPINC') || !$thisstaff || !is_object($org)) die('Invalid path')
               <ul>
 <?php if ($thisstaff->hasPerm(Organization::PERM_EDIT)) { ?>
                 <li><a href="#ajax.php/orgs/<?php echo $org->getId();
-                    ?>/forms/manage" onclick="javascript:
-                    $.dialog($(this).attr('href').substr(1), 201);
-                    return false"
+                    ?>/forms/manage" data-dialog="201"
                     ><i class="icon-paste"></i>
                     <?php echo __('Manage Forms'); ?></a></li>
 <?php } ?>

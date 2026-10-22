@@ -125,6 +125,6 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
         $(this.form).find('textarea.richtext')
             .redactor('deleteDraft');
         location.reload();" />
-    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" onclick='window.location.href="canned.php"'>
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="canned.php">
 </p>
 </form>

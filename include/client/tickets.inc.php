@@ -150,7 +150,7 @@ $tickets->values(
     <input type="submit" value="<?php echo __('Search');?>">
 <div class="pull-right">
     <?php echo __('Help Topic'); ?>:
-    <select name="topic_id" class="nowarn" onchange="javascript: this.form.submit(); ">
+    <select name="topic_id" class="nowarn" data-submit-on-change>
         <option value="">&mdash; <?php echo __('All Help Topics');?> &mdash;</option>
 <?php
 foreach (Topic::getHelpTopics(true) as $id=>$name) {

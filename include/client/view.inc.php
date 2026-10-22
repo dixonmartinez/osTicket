@@ -193,7 +193,7 @@ echo $attrs; ?>><?php echo $draft ?: $info['message'];
     <p style="text-align:center">
         <input type="submit" value="<?php echo __('Post Reply');?>">
         <input type="reset" value="<?php echo __('Reset');?>">
-        <input type="button" value="<?php echo __('Cancel');?>" onClick="history.go(-1)">
+        <input type="button" value="<?php echo __('Cancel');?>" data-go-back>
     </p>
 </form>
 <?php

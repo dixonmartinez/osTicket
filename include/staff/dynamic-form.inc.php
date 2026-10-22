@@ -208,10 +208,7 @@ if ($form && count($langs) > 1) { ?>
                 <a class="action-button field-config" style="overflow:inherit"
                     href="#ajax.php/form/field-config/<?php
                         echo $f->get('id'); ?>"
-                    onclick="javascript:
-                        $.dialog($(this).attr('href').substr(1), [201]);
-                        return false;
-                    "><i class="icon-edit"></i> <?php echo __('Config'); ?></a>
+                    data-dialog="201"><i class="icon-edit"></i> <?php echo __('Config'); ?></a>
             <?php } ?></td>
             <td>
                 <?php echo $f->getVisibilityDescription(); ?>
@@ -295,7 +292,7 @@ if ($form && count($langs) > 1) { ?>
 <p class="centered">
     <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
     <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
-    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" onclick='window.location.href="?"'>
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="?">
 </p>
 
 <div style="display:none;" class="draggable dialog" id="delete-confirm">

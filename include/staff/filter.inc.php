@@ -349,7 +349,7 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
     <p style="text-align:center;">
         <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
         <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
-        <input type="button" name="cancel" value="<?php echo __('Cancel');?>" onclick='window.location.href="filters.php"'>
+        <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="filters.php">
     </p>
 </form>
 <script type="text/javascript">

@@ -29,14 +29,17 @@
 // v6: entra js/password-strength.js (indicador de fuerza del alta).
 // v7: HTML de terceros en oscuro (citas, código, visor de PDF, editor) y el
 //     medidor de contraseña también en el panel.
+// v8: los estáticos pasan a red-primero. Con caché-primero, tras un
+//     `git pull` el navegador servía una hoja vieja junto a un JS nuevo
+//     (iconos gigantes, CSS sin aplicar) hasta la segunda recarga.
 // v9: iconos de todos los menús del panel (correo, ajustes, gestión) y
 //     padding del hueco del icono.
 // v10: barra y menús de Redactor en oscuro, zona de adjuntos y estados de
 //     hover con fondo claro.
-// v8: los estáticos pasan a red-primero. Con caché-primero, tras un
-//     `git pull` el navegador servía una hoja vieja junto a un JS nuevo
-//     (iconos gigantes, CSS sin aplicar) hasta la segunda recarga.
-const VERSION = 'ost-v11';
+// v11: icono de búsqueda y «abrir ticket» del portal en oscuro.
+// v12: #nav y #sub_nav pasan a máscaras SVG (css/ui.css) y entra
+//     js/actions.js, que sustituye a los onclick más repetidos.
+const VERSION = 'ost-v12';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -57,6 +60,7 @@ const PRECACHE = [
   'js/theme.js',
   'js/dialog-focus.js',
   'js/icons.js',
+  'js/actions.js',
   'js/password-strength.js',
   'js/jquery-3.7.0.min.js'
 ];

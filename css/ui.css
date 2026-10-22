@@ -156,6 +156,191 @@ html[data-theme="light"] .row-item .delete:hover {
 }
 
 /* ------------------------------------------------------------------ */
+/* Iconos de la barra de menús (#sub_nav) en SVG                       */
+/* ------------------------------------------------------------------ */
+/* scp.css dibuja cada entrada de la barra con un GIF/PNG de 16 px: fondo
+   blanco en unos, color fijo pensado para fondo claro en otros, y borroso
+   en pantallas HiDPI. Aquí se sustituyen por una máscara SVG: el dibujo
+   toma el color del texto (currentColor), se ve nítido a cualquier zoom y
+   no pide otra petición. El hueco es el mismo (padding-left de 21 px). */
+
+#sub_nav > li > a {
+    position: relative;
+}
+
+:root {
+    --ost-i-ban: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M6%2018%2018%206%22/%3E%3C/svg%3E");
+    --ost-i-beaker: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M9%203h6v5l4%209a2%202%200%200%201-1.8%203H6.8A2%202%200%200%201%205%2017l4-9z%22/%3E%3Cpath%20d=%22M7.5%2015h9%22/%3E%3C/svg%3E");
+    --ost-i-bell: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M6%2017V11a6%206%200%200%201%2012%200v6l2%202H4z%22/%3E%3Cpath%20d=%22M10%2021h4%22/%3E%3C/svg%3E");
+    --ost-i-building: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M4%2021V6l7-3v18%22/%3E%3Cpath%20d=%22M11%209h9v12%22/%3E%3Cpath%20d=%22M7%209h.01M7%2013h.01M7%2017h.01M15%2013h.01M15%2017h.01%22/%3E%3Cpath%20d=%22M3%2021h18%22/%3E%3C/svg%3E");
+    --ost-i-check-square: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M4%204h16v16H4z%22/%3E%3Cpath%20d=%22M8%2012.5l2.8%202.8L16%209.5%22/%3E%3C/svg%3E");
+    --ost-i-code-fork: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%227%22%20cy=%225%22%20r=%222%22/%3E%3Ccircle%20cx=%227%22%20cy=%2219%22%20r=%222%22/%3E%3Ccircle%20cx=%2217%22%20cy=%228%22%20r=%222%22/%3E%3Cpath%20d=%22M7%207v10%22/%3E%3Cpath%20d=%22M17%2010v2a4%204%200%200%201-4%204H7%22/%3E%3C/svg%3E");
+    --ost-i-cog: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%223.2%22/%3E%3Cpath%20d=%22M12%203v3M12%2018v3M3%2012h3M18%2012h3M5.6%205.6l2.1%202.1M16.3%2016.3l2.1%202.1M18.4%205.6l-2.1%202.1M7.7%2016.3l-2.1%202.1%22/%3E%3C/svg%3E");
+    --ost-i-comment: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M3.5%205.5h17v11h-9l-5%204v-4h-3z%22/%3E%3C/svg%3E");
+    --ost-i-envelope: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x=%223%22%20y=%225%22%20width=%2218%22%20height=%2214%22%20rx=%222%22/%3E%3Cpath%20d=%22M3.5%207%2012%2013l8.5-6%22/%3E%3C/svg%3E");
+    --ost-i-file: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M6%203h8l6%206v12H6z%22/%3E%3Cpath%20d=%22M14%203v6h6%22/%3E%3C/svg%3E");
+    --ost-i-file-text: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M6%203h8l6%206v12H6z%22/%3E%3Cpath%20d=%22M14%203v6h6%22/%3E%3Cpath%20d=%22M9%2013h6M9%2016.5h6%22/%3E%3C/svg%3E");
+    --ost-i-filter: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M3%205h18l-7%208.2V20l-4-2.2v-4.6z%22/%3E%3C/svg%3E");
+    --ost-i-folder-close: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M3%206.5h6l2%202h10V20H3z%22/%3E%3C/svg%3E");
+    --ost-i-folder-open: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M3%206.5h6l2%202h10V9H8l-2%2011H3z%22/%3E%3Cpath%20d=%22M6%2020h15l2-9H9z%22/%3E%3C/svg%3E");
+    --ost-i-list: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M9%206h11M9%2012h11M9%2018h11%22/%3E%3Cpath%20d=%22M4.5%206h.01M4.5%2012h.01M4.5%2018h.01%22/%3E%3C/svg%3E");
+    --ost-i-list-alt: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x=%223.5%22%20y=%224%22%20width=%2217%22%20height=%2216%22%20rx=%222%22/%3E%3Cpath%20d=%22M7%209h10M7%2013h10M7%2017h6%22/%3E%3C/svg%3E");
+    --ost-i-lock: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x=%225%22%20y=%2210%22%20width=%2214%22%20height=%2211%22%20rx=%222%22/%3E%3Cpath%20d=%22M8.5%2010V7.5a3.5%203.5%200%200%201%207%200V10%22/%3E%3C/svg%3E");
+    --ost-i-mail-reply: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M9%207%204%2012l5%205%22/%3E%3Cpath%20d=%22M4%2012h10a6%206%200%200%201%206%206v2%22/%3E%3C/svg%3E");
+    --ost-i-plus-sign: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M12%208v8M8%2012h8%22/%3E%3C/svg%3E");
+    --ost-i-puzzle-piece: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M9%204a2%202%200%200%201%204%200v1h4v4h1a2%202%200%200%201%200%204h-1v4h-4v-1a2%202%200%200%200-4%200v1H5v-4H4a2%202%200%200%201%200-4h1V5h4z%22/%3E%3C/svg%3E");
+    --ost-i-question-sign: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M9.6%209.4a2.5%202.5%200%201%201%203.4%202.3c-.6.3-1%20.9-1%201.6v.4%22/%3E%3Cpath%20d=%22M12%2016.8h.01%22/%3E%3C/svg%3E");
+    --ost-i-search: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2211%22%20cy=%2211%22%20r=%226.5%22/%3E%3Cpath%20d=%22M16%2016l4.5%204.5%22/%3E%3C/svg%3E");
+    --ost-i-ticket: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M3%209V7a2%202%200%200%201%202-2h14a2%202%200%200%201%202%202v2a3%203%200%200%200%200%206v2a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2v-2a3%203%200%200%200%200-6z%22/%3E%3C/svg%3E");
+    --ost-i-time: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%2212%22%20r=%229%22/%3E%3Cpath%20d=%22M12%207.5V12l3%202%22/%3E%3C/svg%3E");
+    --ost-i-user: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%2212%22%20cy=%228%22%20r=%224%22/%3E%3Cpath%20d=%22M4.5%2020.5a7.5%207.5%200%200%201%2015%200%22/%3E%3C/svg%3E");
+    --ost-i-users: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx=%229%22%20cy=%228%22%20r=%223.5%22/%3E%3Cpath%20d=%22M2.5%2020a6.5%206.5%200%200%201%2013%200%22/%3E%3Cpath%20d=%22M16%205.2a3.5%203.5%200%200%201%200%206.6%22/%3E%3Cpath%20d=%22M17.5%2014.4A6.5%206.5%200%200%201%2021.5%2020%22/%3E%3C/svg%3E");
+    --ost-i-warning-sign: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M12%203.5%2022%2020H2z%22/%3E%3Cpath%20d=%22M12%2010v4%22/%3E%3Cpath%20d=%22M12%2017h.01%22/%3E%3C/svg%3E");
+}
+
+#sub_nav a:is(
+    .Ticket, .alert-settings, .answered, .answeredTickets, .api, .assignedTickets,
+    .banList, .canned, .closed, .closedTickets, .departments, .email-autoresponders,
+    .email-settings, .emailDiagnostic, .emailFilters, .emailSettings, .emailTemplates, .emails,
+    .faq-categories, .forms, .groups, .helpTopics, .kb, .kb-settings,
+    .lists, .logs, .mine, .new, .newDepartment, .newEmail,
+    .newEmailTemplate, .newHelpTopic, .newPage, .newPremade, .newTicket, .newTicketFilter,
+    .newapi, .newgroup, .newsla, .newuser, .open, .overdueTickets,
+    .pages, .plugins, .preferences, .premade, .roles, .search,
+    .sla, .staff, .teams, .test, .ticket-settings, .ticketFilters,
+    .user, .userPasswd, .userPref, .users) {
+    background-image: none;
+}
+
+#sub_nav a:is(
+    .Ticket, .alert-settings, .answered, .answeredTickets, .api, .assignedTickets,
+    .banList, .canned, .closed, .closedTickets, .departments, .email-autoresponders,
+    .email-settings, .emailDiagnostic, .emailFilters, .emailSettings, .emailTemplates, .emails,
+    .faq-categories, .forms, .groups, .helpTopics, .kb, .kb-settings,
+    .lists, .logs, .mine, .new, .newDepartment, .newEmail,
+    .newEmailTemplate, .newHelpTopic, .newPage, .newPremade, .newTicket, .newTicketFilter,
+    .newapi, .newgroup, .newsla, .newuser, .open, .overdueTickets,
+    .pages, .plugins, .preferences, .premade, .roles, .search,
+    .sla, .staff, .teams, .test, .ticket-settings, .ticketFilters,
+    .user, .userPasswd, .userPref, .users)::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    width: 15px;
+    height: 15px;
+    margin-top: -7.5px;
+    background-color: currentColor;
+    opacity: .85;
+    -webkit-mask-image: var(--ost-nav-icon);
+    mask-image: var(--ost-nav-icon);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 15px 15px;
+    mask-size: 15px 15px;
+}
+
+#sub_nav a.Ticket { --ost-nav-icon: var(--ost-i-folder-open); }
+#sub_nav a.alert-settings { --ost-nav-icon: var(--ost-i-bell); }
+#sub_nav a.answered { --ost-nav-icon: var(--ost-i-comment); }
+#sub_nav a.answeredTickets { --ost-nav-icon: var(--ost-i-comment); }
+#sub_nav a.api { --ost-nav-icon: var(--ost-i-code-fork); }
+#sub_nav a.assignedTickets { --ost-nav-icon: var(--ost-i-users); }
+#sub_nav a.banList { --ost-nav-icon: var(--ost-i-ban); }
+#sub_nav a.canned { --ost-nav-icon: var(--ost-i-comment); }
+#sub_nav a.closed { --ost-nav-icon: var(--ost-i-check-square); }
+#sub_nav a.closedTickets { --ost-nav-icon: var(--ost-i-check-square); }
+#sub_nav a.departments { --ost-nav-icon: var(--ost-i-building); }
+#sub_nav a.email-autoresponders { --ost-nav-icon: var(--ost-i-mail-reply); }
+#sub_nav a.email-settings { --ost-nav-icon: var(--ost-i-envelope); }
+#sub_nav a.emailDiagnostic { --ost-nav-icon: var(--ost-i-beaker); }
+#sub_nav a.emailFilters { --ost-nav-icon: var(--ost-i-filter); }
+#sub_nav a.emailSettings { --ost-nav-icon: var(--ost-i-envelope); }
+#sub_nav a.emailTemplates { --ost-nav-icon: var(--ost-i-file-text); }
+#sub_nav a.emails { --ost-nav-icon: var(--ost-i-envelope); }
+#sub_nav a.faq-categories { --ost-nav-icon: var(--ost-i-folder-close); }
+#sub_nav a.forms { --ost-nav-icon: var(--ost-i-list-alt); }
+#sub_nav a.groups { --ost-nav-icon: var(--ost-i-users); }
+#sub_nav a.helpTopics { --ost-nav-icon: var(--ost-i-question-sign); }
+#sub_nav a.kb { --ost-nav-icon: var(--ost-i-file-text); }
+#sub_nav a.kb-settings { --ost-nav-icon: var(--ost-i-file-text); }
+#sub_nav a.lists { --ost-nav-icon: var(--ost-i-list); }
+#sub_nav a.logs { --ost-nav-icon: var(--ost-i-list); }
+#sub_nav a.mine { --ost-nav-icon: var(--ost-i-user); }
+#sub_nav a.new { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newDepartment { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newEmail { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newEmailTemplate { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newHelpTopic { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newPage { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newPremade { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newTicket { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newTicketFilter { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newapi { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newgroup { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newsla { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.newuser { --ost-nav-icon: var(--ost-i-plus-sign); }
+#sub_nav a.open { --ost-nav-icon: var(--ost-i-folder-open); }
+#sub_nav a.overdueTickets { --ost-nav-icon: var(--ost-i-warning-sign); }
+#sub_nav a.pages { --ost-nav-icon: var(--ost-i-file); }
+#sub_nav a.plugins { --ost-nav-icon: var(--ost-i-puzzle-piece); }
+#sub_nav a.preferences { --ost-nav-icon: var(--ost-i-cog); }
+#sub_nav a.premade { --ost-nav-icon: var(--ost-i-file-text); }
+#sub_nav a.roles { --ost-nav-icon: var(--ost-i-lock); }
+#sub_nav a.search { --ost-nav-icon: var(--ost-i-search); }
+#sub_nav a.sla { --ost-nav-icon: var(--ost-i-time); }
+#sub_nav a.staff { --ost-nav-icon: var(--ost-i-users); }
+#sub_nav a.teams { --ost-nav-icon: var(--ost-i-users); }
+#sub_nav a.test { --ost-nav-icon: var(--ost-i-folder-open); }
+#sub_nav a.ticket-settings { --ost-nav-icon: var(--ost-i-ticket); }
+#sub_nav a.ticketFilters { --ost-nav-icon: var(--ost-i-filter); }
+#sub_nav a.user { --ost-nav-icon: var(--ost-i-user); }
+#sub_nav a.userPasswd { --ost-nav-icon: var(--ost-i-lock); }
+#sub_nav a.userPref { --ost-nav-icon: var(--ost-i-cog); }
+#sub_nav a.users { --ost-nav-icon: var(--ost-i-user); }
+
+/* Iconos de la barra del portal (#nav): theme.css los pinta con PNG de fondo
+   blanco (home.png, kb.png, new.png, status.png, tix.png). Misma solución que
+   en #sub_nav: máscara SVG con el color del texto. */
+#nav li a { position: relative; }
+
+#nav li a:is(.home, .kb, .new, .status, .tickets) {
+    background-image: none;
+}
+
+#nav li a:is(.home, .kb, .new, .status, .tickets)::before {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 15px;
+    height: 15px;
+    margin-top: -7.5px;
+    background-color: currentColor;
+    opacity: .9;
+    -webkit-mask-image: var(--ost-nav-icon);
+    mask-image: var(--ost-nav-icon);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 15px 15px;
+    mask-size: 15px 15px;
+}
+
+:root {
+    --ost-i-home: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d=%22M3%2010.6%2012%203l9%207.6V21h-6v-6H9v6H3z%22/%3E%3C/svg%3E");
+}
+
+#nav li a.home { --ost-nav-icon: var(--ost-i-home); }
+#nav li a.kb { --ost-nav-icon: var(--ost-i-file-text); }
+#nav li a.new { --ost-nav-icon: var(--ost-i-plus-sign); }
+#nav li a.status { --ost-nav-icon: var(--ost-i-search); }
+#nav li a.tickets { --ost-nav-icon: var(--ost-i-ticket); }
+
+/* ------------------------------------------------------------------ */
 /* Indicador de fuerza de la contraseña (js/password-strength.js)       */
 /* ------------------------------------------------------------------ */
 /* Solo informa: no bloquea el envío. El color sube con el nivel y el

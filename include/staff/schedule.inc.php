@@ -87,7 +87,7 @@ if ($schedule->isBusinessHours()) {?>
     <input type="submit" name="submit" value="<?php echo __('Save'); ?>">
     <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
     <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>"
-        onclick='window.location.href="?"'>
+        data-href="?">
 </p>
 </form>
 

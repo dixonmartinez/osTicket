@@ -63,7 +63,7 @@ esta rama salvo los que requieren una decisión operativa del administrador
 | OST-011 | **Crítica (9.2)** | PHP vulnerable a **php2shell** (CVE-2026-109618 / 109619) | ✅ Mitigado + controlado |
 | OST-012 | Media | Configuración PHP que habilita rutas de php2shell (`session.upload_progress`, `fatal_error_backtraces`) | ✅ Corregido |
 | OST-101 | Baja | `validateId()` siempre `true` (modo estricto inefectivo) | ⏳ Recomendación |
-| OST-102 | Media | `unsafe-inline` / `unsafe-eval` en la CSP | ⏳ Recomendación |
+| OST-102 | Media | `unsafe-inline` / `unsafe-eval` en la CSP | 🔄 En curso (72 manejadores inline) |
 | OST-103 | Media | Sin limitación de intentos a nivel de infraestructura | ⏳ Recomendación |
 | OST-104 | Media | Directorio `setup/` presente tras instalar | ⏳ Operación |
 | OST-105 | Media | Contraseñas heredadas MD5 en base de datos | ⏳ Operación |
@@ -528,6 +528,15 @@ inline en plantillas.
 2. Emitir un *nonce* por petición (`Http::csp()` ya acepta directivas).
 3. Eliminar `unsafe-eval` del panel sustituyendo los widgets que usan `eval`.
 4. Medir con `Content-Security-Policy-Report-Only` antes de aplicar.
+
+**Estado: en curso.** `js/actions.js` implementa las acciones declarativas
+que sustituyen a los `onclick` más repetidos (`data-href`, `data-go-back`,
+`data-submit-on-change`, `data-dialog`, `data-confirm`) y las plantillas se
+van migrando en tandas. `tools/ui/inline-handlers.php` (`make inline-audit`)
+cuenta lo que queda —**72** al escribir esto, desde 124— y falla con
+`--max=N` si el número vuelve a subir. Falta el paso 2 (nonce) y los
+manejadores con lógica propia (editores, ordenación de columnas, combos de
+la búsqueda avanzada).
 
 ### OST-103 — Sin límite de intentos a nivel de infraestructura · Media
 

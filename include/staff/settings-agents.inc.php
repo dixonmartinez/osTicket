@@ -191,16 +191,12 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
                         <td colspan="2">
                             <div style="padding:2px 5px">
                                 <a href="#ajax.php/content/<?php echo $id; ?>/manage"
-                                   onclick="javascript:
-                                    $.dialog($(this).attr('href').substr(1), 201);
-                                    return false;" class="pull-left">
+                                   data-dialog="201" class="pull-left">
                                     <i class="icon-file-text icon-2x" style="color:#bbb;"></i>
                                 </a>
                                 <span style="display:inline-block;width:90%;width:calc(100% - 32px);padding-left:10px;line-height:1.2em">
                                 <a href="#ajax.php/content/<?php echo $id; ?>/manage"
-                                   onclick="javascript:
-                                    $.dialog($(this).attr('href').substr(1), 201, null, {size:'large'});
-                                    return false;"><?php
+                                   data-dialog="201" data-dialog-size="large"><?php
                                     echo Format::htmlchars($title); ?>
                                     </a>
                                 </span>

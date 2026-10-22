@@ -44,8 +44,7 @@ if ($queue && !$queue->parent_id && $queue->staff_id)
     <!-- Add Queue button sticky at the bottom -->
 
      <div class="add-queue">
-      <a class="full-width" onclick="javascript:
-        $.dialog('ajax.php/tickets/search', 201);">
+      <a class="full-width" data-dialog="201" data-dialog-url="ajax.php/tickets/search">
         <span><i class="green icon-plus-sign"></i>
           <?php echo __('Add personal search'); ?></span>
       </a>

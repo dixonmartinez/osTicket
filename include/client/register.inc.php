@@ -93,8 +93,7 @@ $info = Format::htmlchars(($errors && $_POST)?$_POST:$info);
 <hr>
 <p style="text-align: center;">
     <input type="submit" value="<?php echo __('Register'); ?>"/>
-    <input type="button" value="<?php echo __('Cancel'); ?>" onclick="javascript:
-        window.location.href='index.php';"/>
+    <input type="button" value="<?php echo __('Cancel'); ?>" data-href="index.php"/>
 </p>
 </form>
 <?php if (!isset($info['timezone'])) { ?>

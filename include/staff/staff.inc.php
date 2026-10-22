@@ -126,8 +126,7 @@ $extras = new ArrayObject();
               class="staff-username typeahead"
               name="username" value="<?php echo Format::htmlchars($staff->username); ?>" />
 <?php if (!($bk = $staff->getAuthBackend()) || $bk->supportsPasswordChange()) { ?>
-            <button type="button" class="action-button" onclick="javascript:
-            $.dialog('ajax.php/staff/'+<?php echo $info['id'] ?: '0'; ?>+'/set-password', 201);">
+            <button type="button" class="action-button" data-dialog="201" data-dialog-url="ajax.php/staff/<?php echo $info['id'] ?: '0'; ?>/set-password">
               <i class="icon-refresh"></i> <?php echo __('Set Password'); ?>
             </button>
 <?php } ?>
@@ -478,7 +477,7 @@ foreach ($staff->teams as $TM) {
   <p style="text-align:center;">
       <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
       <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
-      <input type="button" name="cancel" value="<?php echo __('Cancel');?>" onclick="window.history.go(-1);">
+      <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-go-back>
   </p>
 </form>
 

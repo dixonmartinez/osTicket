@@ -49,6 +49,7 @@ if(is_object($thisstaff) && $thisstaff->isStaff()) { ?>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>scp/js/scp.js"></script>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/dialog-focus.js"></script>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/icons.js"></script>
+<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/actions.js"></script>
 <?php include INCLUDE_DIR . 'templates/password-strength.inc.php'; ?>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/filedrop.field.js"></script>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/select2.min.js"></script>

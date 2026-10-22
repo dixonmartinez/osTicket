@@ -259,6 +259,6 @@ echo $attrs; ?>><?php echo $draft ?: Format::viewableImages($answer);
         $(this.form).find('textarea.richtext')
             .redactor('deleteDraft');
         location.reload();" />
-    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" onclick='window.location.href="faq.php?<?php echo $qstr; ?>"'>
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="faq.php?<?php echo $qstr; ?>">
 </p>
 </form>

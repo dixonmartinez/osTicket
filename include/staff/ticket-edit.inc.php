@@ -176,7 +176,7 @@ if ($_POST)
 <p style="text-align:center;">
     <input type="submit" name="submit" value="<?php echo __('Save');?>">
     <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
-    <input type="button" name="cancel" value="<?php echo __('Cancel');?>" onclick='window.location.href="tickets.php?id=<?php echo $ticket->getId(); ?>"'>
+    <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="tickets.php?id=<?php echo $ticket->getId(); ?>">
 </p>
 </form>
 <div style="display:none;" class="dialog draggable" id="user-lookup">

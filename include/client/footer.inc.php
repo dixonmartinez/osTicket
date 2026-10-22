@@ -17,6 +17,7 @@ if (($lang = Internationalization::getCurrentLanguage()) && $lang != 'en_US') { 
 <?php } ?>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/dialog-focus.js"></script>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/icons.js"></script>
+<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/actions.js"></script>
 <?php include INCLUDE_DIR . 'templates/password-strength.inc.php'; ?>
 <script type="text/javascript">
     getConfig().resolve(<?php

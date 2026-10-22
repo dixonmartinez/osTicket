@@ -94,7 +94,6 @@ $selected = ($info['lang'] == $l['code']) ? 'selected="selected"' : ''; ?>
 <p style="text-align: center;">
     <input type="submit" value="<?php echo __('Update'); ?>"/>
     <input type="reset" value="<?php echo __('Reset'); ?>"/>
-    <input type="button" value="<?php echo __('Cancel'); ?>" onclick="javascript:
-        window.location.href='index.php';"/>
+    <input type="button" value="<?php echo __('Cancel'); ?>" data-href="index.php"/>
 </p>
 </form>

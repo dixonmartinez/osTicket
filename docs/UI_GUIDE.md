@@ -336,9 +336,39 @@ Quedan en Font Awesome:
 - Las utilidades que no son dibujos (`icon-fixed-width`, `icon-spin`, `icon-2x`,
   `icon-large`…).
 - Los iconos de marca que osTicket no usa en ninguna plantilla.
-- Los que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, avisos
-  `#error_bar`): esos no son `<i>` y necesitan tocar el marcado, así que en
-  oscuro se resuelven con glifos de Font Awesome desde `css/dark.css` (§3.4).
+
+### 3.5.1 Las barras `#nav` y `#sub_nav`
+
+Estas dos barras no usan `<i>`: el tema pinta el icono con un PNG/GIF de
+fondo (`scp/css/scp.css` para el panel y `assets/default/css/theme.css` para
+el portal). Varios de esos PNG **llevan fondo blanco**, así que en oscuro se
+veía un cuadrado claro comiéndose el texto, y en pantallas HiDPI salían
+borrosos.
+
+Ahora los dibuja `css/ui.css` con **máscaras SVG** (`mask-image`), que no
+necesitan tocar el marcado:
+
+```css
+#sub_nav a.Ticket { --ost-nav-icon: var(--ost-i-folder-open); }
+```
+
+- La imagen de fondo se anula (`background-image: none`) y el icono sale de un
+  `::before` con `background-color: currentColor` y `mask-image`. Resultado:
+  **hereda el color del texto** en los dos temas, incluidos el hover y la
+  pestaña activa.
+- Son 58 clases del panel y 5 del portal, con 28 dibujos en total, definidos
+  una sola vez como `--ost-i-*` en `:root`.
+- Los trazos salen de `js/icons.js`, así que el dibujo es el mismo que el de
+  los `<i>` del resto de la interfaz.
+- El hueco es el del tema (`padding-left` de 21 px en el panel y 32 px en el
+  portal, y el icono cae en `background-position` 0/10 px 50 %): no hay que
+  tocar plantillas ni `padding`.
+
+**Para añadir una clase nueva**: una línea con su `--ost-nav-icon` y, si el
+icono no existe, un `--ost-i-*` más copiando el `path` de `js/icons.js`. Si el
+icono no está en el mapa, el `background-image: none` la dejaría sin dibujo:
+por eso la lista de clases con máscara y la de selectores que la activan es la
+misma.
 
 ### 3.6 Indicador de fuerza de la contraseña
 
@@ -513,6 +543,9 @@ WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
 
 ### 6.1 Entregado (marcado como completado)
 
+Se marca `[x]` lo terminado y probado en la vista previa; `[ ]` es lo que
+queda en §6.2.
+
 | # | Mejora | Estado | Dónde está |
 |---|---|---|---|
 | 1 | Capa CSS de accesibilidad y consistencia, enlace de salto, regiones vivas, etiquetas de formulario y tablas responsive | ✅ Hecho | `css/ui.css`, `include/staff/header.inc.php`, `include/client/header.inc.php` |
@@ -523,9 +556,12 @@ WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
 | 6 | **Iconos en SVG**: 155 iconos dibujados en línea, con color y tamaño heredados, sin depender de la fuente (§3.5) | ✅ Hecho | `js/icons.js` (`SVG_ICONS`) |
 | 7 | **Indicador de fuerza de la contraseña** en el portal **y** en el panel, también dentro del diálogo AJAX de cambio de contraseña del agente (§3.6) | ✅ Hecho | `include/templates/password-strength.inc.php`, `js/password-strength.js` |
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
-| 9 | **Iconos de todos los menús del panel** en oscuro: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por glifos con color heredado | ✅ Hecho | `css/dark.css` |
+| 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 75 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 80 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
+| 13 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`: primera tanda de la migración de `onclick` inline (§6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
+| 14 | **Auditoría de manejadores inline** con umbral: `make inline-audit` lista, cuenta y falla si el número sube | ✅ Hecho | `tools/ui/inline-handlers.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -538,8 +574,8 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **124** atributos en 71 archivos (`make inline-audit`), casi todos en `include/staff/`. Hay que ir plantilla por plantilla y probar la pantalla: es la razón de que no se haga de golpe. El inventario sirve para bajar el número sin que vuelva a subir |
-| 2 | Llevar a SVG los iconos que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, `#error_bar`) | Los 155 del mapa son `<i>` en el marcado; los de `::before` necesitan tocar las plantillas, y en oscuro ya se sustituyen por glifos de Font Awesome |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **72** atributos en 42 archivos (`make inline-audit`), desde 124 en 71. Primera tanda hecha con `js/actions.js` (§6.1-13); quedan los manejadores con lógica propia: `$.userLookup` (4), `confirm(...)` (5), `saveDraft()` (4), `redactor` (4), `$.pjax` (2), `$.dialog` con `var colid`/`var pid` (3), `#dynamic-form` (2), ordenación de columnas, combos de la búsqueda avanzada y ~25 casos dispares |
+| 2 | Llevar a SVG los iconos que pinta el CSS con pseudo-elementos (`#nav`, `#sub_nav`, `#error_bar`) | `#nav` y `#sub_nav` ya están hechos con máscaras (§3.5.1); queda el aviso `#error_bar`, que sí necesita tocar la plantilla |
 | 3 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar

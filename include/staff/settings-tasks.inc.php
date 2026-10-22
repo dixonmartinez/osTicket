@@ -55,10 +55,7 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
                         ?>><?php echo $s->name; ?></option>
     <?php } ?>
                     </select>
-                    <button class="action-button pull-right" onclick="javascript:
-                    $.dialog('ajax.php/sequence/manage', 205);
-                    return false;
-                    "><i class="icon-gear"></i> <?php echo __('Manage'); ?></button>
+                    <button class="action-button pull-right" data-dialog="205" data-dialog-url="ajax.php/sequence/manage"><i class="icon-gear"></i> <?php echo __('Manage'); ?></button>
                     <i class="help-tip icon-question-sign" href="#sequence_id"></i>
                 </td>
             </tr>
@@ -93,10 +90,7 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
                     <a class="action-button field-config" style="overflow:inherit"
                         href="#ajax.php/form/field-config/<?php
                             echo $f->get('id'); ?>"
-                        onclick="javascript:
-                            $.dialog($(this).attr('href').substr(1), [201]);
-                            return false;
-                        "><i class="icon-edit"></i> <?php echo __('Config'); ?></a>
+                        data-dialog="201"><i class="icon-edit"></i> <?php echo __('Config'); ?></a>
                     <i class="help-tip icon-question-sign" href="#task_attachment_settings"></i>
                 </td>
             </tr>

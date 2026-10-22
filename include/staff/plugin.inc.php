@@ -92,7 +92,7 @@ $info= Format::htmlchars(($errors && $_POST) ? $_POST : array(), true);
         <input type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
         <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
         <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>"
-            onclick='window.location.href="?"'>
+            data-href="?">
         </p>
     </form>
 </div>

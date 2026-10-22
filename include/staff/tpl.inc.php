@@ -133,6 +133,6 @@ if ($template instanceof EmailTemplate) {
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes'); ?>" onclick="javascript:
         setTimeout('location.reload()', 25);" />
     <input class="button" type="button" name="cancel" value="<?php echo __('Cancel Changes'); ?>"
-        onclick='window.location.href="templates.php?tpl_id=<?php echo $tpl_id; ?>"'>
+        data-href="templates.php?tpl_id=<?php echo $tpl_id; ?>">
 </p>
 </form>

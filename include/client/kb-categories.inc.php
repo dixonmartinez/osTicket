@@ -85,7 +85,7 @@
         <form method="get" action="faq.php">
         <input type="hidden" name="a" value="search"/>
         <select name="topicId"  style="width:100%;max-width:100%"
-            onchange="javascript:this.form.submit();">
+            data-submit-on-change>
             <option value="">—<?php echo __("Browse by Topic"); ?>—</option>
 <?php
 $topics = Topic::objects()

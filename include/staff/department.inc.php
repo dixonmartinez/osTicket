@@ -471,7 +471,7 @@ foreach ($dept->getMembers() as $member) {
     <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
     <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>"
-        onclick='window.location.href="?"'>
+        data-href="?">
 </p>
 </form>
 
