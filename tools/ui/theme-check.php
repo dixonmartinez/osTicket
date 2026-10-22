@@ -419,6 +419,11 @@ check(strpos($actions, 'data-click-target') !== false
     'js/actions.js cubre los últimos onclick (pulsar elementos y PJAX)',
     'js/actions.js no implementa data-click-target/data-pjax-submit');
 
+check(strpos($actions, 'data-set-name') !== false
+    && strpos($actions, 'data-call') !== false,
+    'js/actions.js cubre escribir campos y llamar a funciones con nombre',
+    'js/actions.js no implementa data-set-name/data-call');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

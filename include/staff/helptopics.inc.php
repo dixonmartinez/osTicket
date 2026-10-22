@@ -67,11 +67,7 @@ $order_by = 'sort';
     <thead>
 <tr><td colspan="7">
     <div style="padding:3px" class="pull-right"><?php echo __('Sorting Mode'); ?>:
-    <select name="help_topic_sort_mode" onchange="javascript:
-    var $form = $(this).closest('form');
-    $form.find('input[name=a]').val('sort');
-    $form.submit();
-">
+    <select name="help_topic_sort_mode" data-set-name="a" data-set-value="sort" data-submit-form>
 <?php foreach (OsticketConfig::allTopicSortModes() as $i=>$m)
     echo sprintf('<option value="%s"%s>%s</option>',
         $i, $i == $cfg->getTopicSortMode() ? ' selected="selected"' : '', $m); ?>

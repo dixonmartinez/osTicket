@@ -22,7 +22,7 @@ if ($thisstaff && $thisstaff->is2FAPending())
         <h1><i class="icon-spinner icon-spin icon-large"></i>
         <?php echo __('Verifying');?></h1>
     </div>
-    <form action="login.php" method="post" id="login" onsubmit="attemptLoginAjax(event)">
+    <form action="login.php" method="post" id="login" data-call="attemptLoginAjax">
         <?php csrf_token();
         if ($thisstaff
                 &&  $thisstaff->is2FAPending()

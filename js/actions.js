@@ -33,6 +33,13 @@
  *                              padre); no cancela la acción propia
  *   data-pjax-submit[="sel"]   envía el formulario por PJAX al contenedor
  *                              indicado (por defecto `#pjax-container`)
+ *   data-set-name="campo"      escribe un campo del formulario antes de
+ *                              enviarlo; el valor sale de `data-set-value`
+ *                              (literal) o de `data-set-from="clave"` (el
+ *                              `data-clave` del elemento o del que se pulsó).
+ *                              Con `data-submit-form` se envía el formulario
+ *   data-call="funcion"        llama a `window.funcion(event)`; si devuelve
+ *                              `false` se cancela la acción (formularios)
  *
  * Todo se resuelve con delegación en `document`, así que funciona también con
  * el contenido que carga PJAX o los diálogos por AJAX. Si un elemento no tiene
@@ -43,7 +50,8 @@
 
     var CLICKABLE = '[data-href],[data-go-back],[data-dialog],[data-confirm],'
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
-        + '[data-toggle-target],[data-reload],[data-click-target]';
+        + '[data-toggle-target],[data-reload],[data-click-target],'
+        + '[data-set-name],[data-call]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -104,6 +112,55 @@
             nodes[i].style.display = mode === 'hide' ? 'none' : '';
     }
 
+    /* Escribe un campo del formulario. El valor puede venir de otro `data-*`
+       del propio elemento o del que se pulsó dentro del contenedor. */
+    function applyFormSet(el, event) {
+        var name = el.getAttribute('data-set-name');
+        var form = el.form || closest(el, 'form');
+
+        if (!name || !form)
+            return;
+
+        var from = el.getAttribute('data-set-from');
+        var value = el.getAttribute('data-set-value');
+
+        if (from) {
+            value = el.getAttribute('data-' + from);
+
+            if (value === null && event && event.target
+                    && event.target.getAttribute)
+                value = event.target.getAttribute('data-' + from);
+        }
+
+        var field = form.elements[name]
+            || form.querySelector('[name="' + name + '"]');
+
+        if (field)
+            field.value = value === null ? '' : value;
+    }
+
+    /* Llama a una función con nombre. `false` cancela la acción, igual que
+       `return false` en el onclick original. */
+    function callNamed(el, event) {
+        var name = el.getAttribute('data-call');
+        var fn = name ? window[name] : null;
+
+        if (typeof fn !== 'function')
+            return true;
+
+        return fn.call(el, event) !== false;
+    }
+
+    function submitForm(form) {
+        if (!form)
+            return;
+
+        if (window.jQuery && window.jQuery.fn.submit)
+            window.jQuery(form).submit();
+        else
+            form.submit();
+    }
+
     /* Pulsa los elementos indicados, como hacía `$(sel).trigger('click')`.
        No cancela la acción del propio elemento: en sequence-manage el botón
        que lo usa es un submit y el envío tiene que seguir su curso. */
@@ -148,6 +205,22 @@
         if (el.hasAttribute('data-href')) {
             event.preventDefault();
             window.location.href = el.getAttribute('data-href');
+            return;
+        }
+
+        if (el.hasAttribute('data-set-name'))
+            applyFormSet(el, event);
+
+        if (el.hasAttribute('data-submit-form')) {
+            event.preventDefault();
+            submitForm(el.form || closest(el, 'form'));
+        }
+
+        /* En un <form> el data-call se ejecuta en el evento submit, no en el
+           clic del botón que lo envía: si no, se llamaría dos veces. */
+        if (el.tagName !== 'FORM' && el.hasAttribute('data-call')
+                && !callNamed(el, event)) {
+            event.preventDefault();
             return;
         }
 
@@ -239,6 +312,17 @@
         if (!el || !el.hasAttribute)
             return;
 
+        if (el.hasAttribute('data-set-name'))
+            applyFormSet(el, event);
+
+        if (el.hasAttribute('data-submit-form')) {
+            submitForm(el.form || closest(el, 'form'));
+            return;
+        }
+
+        if (el.hasAttribute('data-call') && !callNamed(el, event))
+            return;
+
         if (el.hasAttribute('data-click-target')) {
             clickTarget(el);
             return;
@@ -289,6 +373,13 @@
             }
 
             /* Sin pjax cargado, el formulario se envía de la forma normal. */
+        }
+
+        if (form.hasAttribute && form.hasAttribute('data-call')
+                && !callNamed(form, event)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
         }
 
         var submitter = event.submitter;

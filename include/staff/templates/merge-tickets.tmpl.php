@@ -19,7 +19,7 @@
 ?>
 <br/>
 <br/>
-<form method="post" onsubmit="refreshAndClose();" action="<?php echo $info['action']; ?>">
+<form method="post" data-call="refreshAndClose" action="<?php echo $info['action']; ?>">
 <input type="hidden" name="title" value="<?php echo $title; ?>" />
 <ul id="ticket-entries">
 <div class="merge-tickets" style="overflow-y: auto; height:100px; margin-bottom:5px;">

@@ -48,7 +48,9 @@
 // v16: el menú de desbordamiento reconoce los iconos convertidos a SVG.
 // v17: cuarta tanda de acciones declarativas (pulsar elementos y envío por
 //     PJAX).
-const VERSION = 'ost-v17';
+// v18: quinta tanda (escribir campos del formulario y llamar a funciones con
+//     nombre).
+const VERSION = 'ost-v18';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

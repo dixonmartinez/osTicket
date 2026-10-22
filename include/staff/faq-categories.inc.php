@@ -34,10 +34,7 @@ if(!defined('OSTSTAFFINC') || !$thisstaff) die('Access Denied');
         </div>
 
         <div id="category-dropdown" class="action-dropdown anchor-right"
-            onclick="javascript:
-                var form = $(this).closest('form');
-                form.find('[name=cid]').val($(event.target).data('cid'));
-                form.submit();">
+            data-set-name="cid" data-set-from="cid" data-submit-form>
             <ul class="bleed-left">
 <?php
 $total = FAQ::objects()->count();
@@ -63,10 +60,7 @@ foreach ($categories as $C) {
         </div>
 
         <div id="topic-dropdown" class="action-dropdown anchor-right"
-            onclick="javascript:
-                var form = $(this).closest('form');
-                form.find('[name=topicId]').val($(event.target).data('topicId'));
-                form.submit();">
+            data-set-name="topicId" data-set-from="topicId" data-submit-form>
             <ul class="bleed-left">
 <?php
 $topics = Topic::objects()
