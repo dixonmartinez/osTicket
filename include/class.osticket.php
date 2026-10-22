@@ -372,7 +372,21 @@ class osTicket {
         if(isset($_SERVER['ORIG_PATH_INFO']))
             return htmlentities($_SERVER['ORIG_PATH_INFO']);
 
-        //TODO: conruct possible path info.
+        // Algunos servidores no rellenan PATH_INFO (el servidor embebido de
+        // PHP, ciertos proxys inversos o una configuración de FastCGI sin
+        // `fastcgi_split_path_info`). Sin este respaldo, TODAS las rutas de
+        // ajax.php / api/ devuelven 400 «URL not supported», que es lo que
+        // rompe las colas, los tips y el buscador de usuarios del panel.
+        // Se deduce restando el script a la URI de la petición.
+        if (isset($_SERVER['REQUEST_URI'], $_SERVER['SCRIPT_NAME'])
+                && ($path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH))
+                && ($script = $_SERVER['SCRIPT_NAME'])
+                && strpos($path, $script) === 0) {
+            $info = substr($path, strlen($script));
+
+            if ($info !== '' && $info !== false)
+                return htmlentities($info);
+        }
 
         return null;
     }

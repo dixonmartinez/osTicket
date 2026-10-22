@@ -1034,6 +1034,9 @@ html[data-theme="dark"] #sub_nav a.closedTickets {
 
 html[data-theme="dark"] #sub_nav > li > a {
     position: relative;
+    /* El hueco del icono lo pone scp.css; se repite aquí para que el glifo
+       no se monte sobre el texto si otra hoja lo pisa (densidad, plugins). */
+    padding-left: 21px;
 }
 
 html[data-theme="dark"] #sub_nav > li > a[class]::before {
@@ -1067,6 +1070,35 @@ html[data-theme="dark"] #sub_nav a.staff::before { content: "\f0c0"; }
 html[data-theme="dark"] #sub_nav a.user::before { content: "\f007"; }
 html[data-theme="dark"] #sub_nav a.userPref::before { content: "\f085"; }
 html[data-theme="dark"] #sub_nav a.userPasswd::before { content: "\f084"; }
+
+/* El resto de menús del panel (correo, ajustes, gestión) usan PNG con fondo
+   transparente pero de un solo color pensado para fondo claro. Se sustituyen
+   por el mismo criterio: fuera la imagen y glifo de Font Awesome. */
+html[data-theme="dark"] #sub_nav a:is(.emails, .emailSettings, .newEmail, .emailTemplates,
+    .newEmailTemplate, .emailFilters, .ticketFilters, .newTicketFilter, .emailDiagnostic,
+    .banList, .users, .newuser, .groups, .teams, .newgroup, .helpTopics, .newHelpTopic,
+    .departments, .newDepartment, .preferences, .logs, .sla, .api, .newapi,
+    .pages, .newPage, .forms, .lists, .premade, .newPremade) {
+    background-image: none;
+}
+
+html[data-theme="dark"] #sub_nav a:is(.emails, .emailSettings)::before { content: "\f0e0"; }
+html[data-theme="dark"] #sub_nav a:is(.emailTemplates, .pages, .forms)::before { content: "\f0f6"; }
+html[data-theme="dark"] #sub_nav a:is(.emailFilters, .ticketFilters, .lists)::before { content: "\f0b0"; }
+html[data-theme="dark"] #sub_nav a:is(.emailDiagnostic)::before { content: "\f0e4"; }
+html[data-theme="dark"] #sub_nav a:is(.banList)::before { content: "\f05e"; }
+html[data-theme="dark"] #sub_nav a:is(.users, .groups, .teams)::before { content: "\f0c0"; }
+html[data-theme="dark"] #sub_nav a:is(.helpTopics)::before { content: "\f128"; }
+html[data-theme="dark"] #sub_nav a:is(.departments)::before { content: "\f0e8"; }
+html[data-theme="dark"] #sub_nav a:is(.preferences)::before { content: "\f085"; }
+html[data-theme="dark"] #sub_nav a:is(.logs)::before { content: "\f0c9"; }
+html[data-theme="dark"] #sub_nav a:is(.sla)::before { content: "\f017"; }
+html[data-theme="dark"] #sub_nav a:is(.api)::before { content: "\f0ac"; }
+html[data-theme="dark"] #sub_nav a:is(.premade)::before { content: "\f016"; }
+html[data-theme="dark"] #sub_nav a:is(.newEmail, .newEmailTemplate, .newTicketFilter, .newuser,
+    .newgroup, .newHelpTopic, .newDepartment, .newPage, .newapi, .newPremade)::before {
+    content: "\f055";
+}
 
 /* Contenedor del menú de colas (scp.css lo deja en #eee) */
 html[data-theme="dark"] #sub_nav .jb-overflowmenu-container,

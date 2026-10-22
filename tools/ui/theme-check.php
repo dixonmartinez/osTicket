@@ -280,6 +280,14 @@ check(strpos($uicss, '.pw-strength-bar') !== false,
     'css/ui.css dibuja el medidor',
     'css/ui.css no define .pw-strength-bar');
 
+/* 4e. Enrutado: sin el respaldo de PATH_INFO, los ajax del panel dan 400. */
+$osticket = read("$root/include/class.osticket.php");
+
+check(strpos($osticket, "static function get_path_info()") !== false
+    && strpos($osticket, "REQUEST_URI") !== false,
+    'get_path_info() deduce la ruta si el servidor no rellena PATH_INFO',
+    'get_path_info() no tiene respaldo: los ajax.php devolverían 400 «URL not supported» sin PATH_INFO');
+
 $toggle = read("$root/include/templates/theme-toggle.inc.php");
 check(strpos($toggle, 'data-ost-theme-toggle') !== false
     && strpos($toggle, 'data-ost-density-toggle') !== false,

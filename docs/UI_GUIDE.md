@@ -448,6 +448,9 @@ Checklist manual (5 minutos):
       el medidor (se engancha solo, sin atributos).
 - [ ] Un correo con cita, tabla y bloque de código se lee entero en oscuro,
       y el visor de un PDF adjunto se ve sobre fondo blanco.
+- [ ] La barra de menús del panel (Emails, Settings, Banlist, Templates,
+      Diagnostic) usa iconos de un solo color, sin cuadros claros, y el texto
+      no se solapa.
 - [ ] `make theme` en verde.
 
 **Auditoría de contraste con navegador** (lo que encontró los huecos de la
@@ -560,9 +563,17 @@ Pasos, en orden:
    ```bash
    docker compose -f compose.yaml -f compose.prod.yaml up -d --build
    ```
-5. Si los `400` siguen con el código correcto, mira el enrutado: abrir
-   `http://localhost:<puerto>/scp/ajax.php/queue/counts` en una pestaña debe
-   devolver JSON, no «URL not supported». Ese mensaje significa que nginx no
-   está pasando `PATH_INFO` (hace falta `fastcgi_split_path_info` y
-   `fastcgi_param PATH_INFO`, ya presentes en `docker/nginx/default.conf`):
-   estarías usando otro servidor distinto del de `docker compose`.
+5. Si los `400` siguen con el código al día, mira el enrutado:
+
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" \
+        http://localhost:8090/scp/ajax.php/queue/counts
+   ```
+
+   Debe devolver `200` o `403` (pide sesión), nunca `400`. Un `400` con
+   «URL not supported» significaba que el servidor no pasaba `PATH_INFO`;
+   desde esta versión `osTicket::get_path_info()` lo deduce de
+   `REQUEST_URI` cuando falta, así que ese caso queda cubierto. Si aun así
+   aparece, el servidor no es el de `docker compose` (revisa
+   `docker/nginx/default.conf`, que ya trae `fastcgi_split_path_info` y
+   `fastcgi_param PATH_INFO`).
