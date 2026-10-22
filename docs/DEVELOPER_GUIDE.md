@@ -50,6 +50,7 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make test` | Suite histórica de pruebas (`setup/test/`) | variable |
 | `make security` | Versión de PHP frente a php2shell (CVE-2026-109618/19) | ~1 s |
 | `make theme` | Integridad del tema claro/oscuro (sin navegador) | ~1 s |
+| `make metrics` | Radiografía del código: tamaño y deuda técnica | ~2 s |
 | `make ci` | lint + audit + security + theme (verificación previa al commit) | ~7 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
@@ -305,6 +306,8 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
 ## 7. Pruebas y calidad
 
 - **Sintaxis**: `make lint` (obligatorio antes de cada commit).
+- **Deuda técnica**: `make metrics` antes y después de un refactor; plan en
+  [`CODE_QUALITY.md`](CODE_QUALITY.md).
 - **Seguridad**: `make audit` (falla con hallazgos altos nuevos). Cualquier
   excepción deliberada se anota con `// audit:ignore <REGLA> -- motivo`.
 - **Suite histórica**: `setup/test/run-tests.php` (análisis estático:

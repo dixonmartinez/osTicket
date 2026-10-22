@@ -92,6 +92,7 @@ required on the host):
     make audit-all     # full security report
     make security      # PHP version vs. php2shell (CVE-2026-109618/19)
     make theme         # light/dark theme integrity (no browser needed)
+    make metrics       # code size and technical-debt report
     make ci            # lint + audit + security + theme (full pre-merge check)
 
 Inside containers: `make docker-test`, `make docker-security`,
@@ -113,6 +114,8 @@ Project documentation:
     a separate app (API surface, auth, offline, push).
   * [`docs/SECURITY_PHP2SHELL.md`](docs/SECURITY_PHP2SHELL.md) — the
     2026-10-21 PHP vulnerability: versions, mitigations, checklists.
+  * [`docs/CODE_QUALITY.md`](docs/CODE_QUALITY.md) — code health: measured
+    figures, the six refactoring fronts and what not to touch.
   * [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) — bundled library inventory.
 
 New in this branch:

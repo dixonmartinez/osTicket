@@ -6,6 +6,7 @@
 #   make audit      análisis de seguridad (falla con hallazgos altos)
 #   make test       suite de pruebas estáticas del proyecto
 #   make theme      integridad del tema claro/oscuro (sin navegador)
+#   make metrics    tamaño y deuda técnica del código propio
 #   make ci         lint + audit + security + theme (antes de integrar)
 # ---------------------------------------------------------------------------
 
@@ -15,7 +16,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help lint audit audit-all audit-json baseline test security theme ci clean perms serve \
+.PHONY: help lint audit audit-all audit-json baseline test security theme metrics metrics-json ci clean perms serve \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
 	docker-bench docker-urls
@@ -50,6 +51,12 @@ security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19
 
 theme: ## Revisa que el tema claro/oscuro siga completo y conectado
 	@$(PHP) $(ROOT)/tools/ui/theme-check.php
+
+metrics: ## Radiografía del código propio (tamaño y deuda técnica)
+	@$(PHP) $(ROOT)/tools/quality/metrics.php
+
+metrics-json: ## Lo mismo, en JSON (para comparar antes/después)
+	@$(PHP) $(ROOT)/tools/quality/metrics.php --json
 
 ci: lint audit security theme ## Verificación completa para integración continua
 
