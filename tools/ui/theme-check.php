@@ -70,6 +70,8 @@ foreach ([
     'js/icons.js' => 'iconos decorativos para lectores de pantalla',
     'include/templates/theme-toggle.inc.php' => 'marcado del botón',
     'docs/UI_GUIDE.md' => 'documentación',
+    'docs/theme-preview.html' => 'vista previa del panel',
+    'docs/theme-preview-client.html' => 'vista previa del portal',
 ] as $file => $what) {
     check(is_file("$root/$file"), "$file ($what)", "falta $file ($what)");
 }

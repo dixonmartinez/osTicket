@@ -109,7 +109,7 @@ if (osTicket::is_ie())
     }
     ?>
 </head>
-<body>
+<body class="client-portal">
     <a class="skip-link" href="#content"><?php echo __('Skip to content'); ?></a>
     <div id="container">
         <div role="status" aria-live="polite">

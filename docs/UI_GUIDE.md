@@ -170,7 +170,8 @@ antes del primer pintado: no hay destello blanco al navegar.
 | `include/staff/login.header.php` | Lo mismo en las pantallas de acceso y recuperación de contraseña |
 | `tools/ui/theme-check.php` | Comprobación automática (`make theme`) |
 | `tools/ui/contrast-audit.js` | Medición de contraste con navegador real |
-| `docs/theme-preview.html` | Maqueta con el marcado real, para revisar sin Docker |
+| `docs/theme-preview.html` | Maqueta del **panel** con el marcado real, para revisar sin Docker |
+| `docs/theme-preview-client.html` | Maqueta del **portal del cliente**, con sus hojas exactas |
 | `include/class.osticket.php` → `getThemeDefault()` | Lectura de `OST_DEFAULT_THEME` |
 | `css/density.css` | Modo compacto (solo espaciado) |
 | `js/dialog-focus.js` | Foco atrapado en los diálogos y devuelto al cerrarlos |
@@ -230,10 +231,18 @@ cabecera y los menús, para no gastar tóner en fondos oscuros.
 Los ratios están medidos con la fórmula de WCAG 2.1, no estimados: al cambiar
 un color del tema, recalcula antes de publicar.
 
-**Vista previa sin Docker**: abre `docs/theme-preview.html` en el navegador.
+**Vista previa sin Docker**: abre `docs/theme-preview.html` (panel) y
+`docs/theme-preview-client.html` (portal del cliente) en el navegador.
 Carga los CSS reales y trae el botón para alternar. (También puedes servir el
 repositorio con `python3 -m http.server 8099` y entrar en
 `http://localhost:8099/docs/theme-preview.html`.)
+
+**Por qué hay dos maquetas.** El portal del cliente no carga
+`scp/css/scp.css`: sus hojas son `css/osticket.css` y
+`assets/default/css/theme.css`. Si se mezclan las dos en un solo archivo,
+reglas del panel como `#nav .active { display:inline-block }` falsean el
+resultado (la barra del portal se ve como una lista de viñetas). Cada
+maqueta carga exactamente las hojas de su cabecera, en el mismo orden.
 
 **Huecos corregidos tras probarlo en un navegador de verdad.** El primer
 intento cubría la estructura pero dejaba piezas con el fondo claro del tema
@@ -264,9 +273,18 @@ renderizado, no a ojo:
 | Analíticas (`.an-page`) | Tokens `--an-*` con `#ffffff` y `#1f2933`: tarjetas, tablas y gráficas en claro |
 | Panel de inicio (`.dashboard-kpis`, `#line-chart-here`) | Tarjetas `#fff` y gráfica con degradado claro |
 | Traducciones en línea (`div.translations`, `div.add-translation`) | Menú blanco y pie gris `#eee` |
-| Responder (`#ticket_actions`, `#response_options`, `.selected-signature`) | Barra `#eee`, `textarea` blanca y firma sobre blanco |
+| Responder (`#reply`, `#response_options`, `.selected-signature`) | Barra blanca (`sticky bar`), `textarea` blanca y firma sobre blanco |
 | Nota rápida y acciones flotantes (`.quicknote a.action`, `.floating-options a.action`) | `color:black !important` sobre fondo claro |
 | Filas y campos deshabilitados (`tr.disabled`, `input:disabled`) | Gris `#f5f5f5` con texto claro |
+| Portada del portal (`.thread-body` dentro de `#landing_page`) | El “papel claro” de los correos se aplicaba a la portada: texto oscuro sobre blanco en mitad del tema |
+| Barra de navegación del portal (`#nav li a.active`) | Píldora `#dbefff` con el texto claro |
+| Iconos de `#nav` y `#sub_nav` | PNG/GIF de 16 px **con fondo blanco**: cuadrados claros sobre la barra oscura. Se sustituyen por el glifo de Font Awesome |
+| Acceso del cliente (`#clientLogin`), `.infoTable`, `#reply` | `#f6f6f6`, `#f4faff` y `#f9f9f9` de `theme.css` |
+| `.sidebar .content`, `.search-form .search`, `#kb > li` | Barra lateral y base de conocimiento en blanco |
+| `.action-button` del portal | `color:#777 !important` de `theme.css`: hacía falta `!important` |
+| `div.translatable` | Envoltorio blanco del campo traducible |
+| Hover de la barra de colas sin `#customQ_nav` | En `settings.php` el menú no lleva ese id: el `li:hover` se quedaba blanco |
+| `h2 i` / `h2 small` | Icono verde oscuro y texto secundario gris sobre oscuro |
 
 **Comprobación automática**: `make theme` (dentro del contenedor,
 `docker compose run --rm tools make theme`). Verifica que los cuatro archivos
@@ -281,6 +299,32 @@ líneas (atributo `data-theme-default`, `js/theme.js` antes de jQuery,
 `make theme` fallará hasta que lo hagas.
 
 ---
+
+### 3.5 Tema claro: dónde vive cada corrección
+
+El tema claro **no se toca** en `assets/default/css/theme.css` (es el tema
+de osTicket y se puede actualizar). Las correcciones van a `css/ui.css`,
+siempre bajo `html[data-theme="light"]`, para que no se mezclen con el
+tema oscuro de `css/dark.css`:
+
+| Selector | Antes | Ahora |
+| --- | --- | --- |
+| `div#header a`, `#sub_nav > li > a`, `.newItemQ.queue-count` | Naranja `#E65524` (3,69:1) | `#b23d13` |
+| `.ui-dialog-titlebar`, `.ui-datepicker-header` | Blanco sobre `#F6A828` (1,99:1) | Texto `#3b2800` |
+| `.btn_sm` | Blanco sobre `#f90` (2,14:1) | Degradado `#a05f00`→`#8b5200` |
+| `.action-button.danger` | `#999` translúcido sobre `#eee` (2,46:1) | `#b3261e` opaco |
+| `.label` | Blanco sobre `#999` (2,85:1) | Fondo `#63696f` |
+| `.form_table th h4` | Blanco sobre `#929292` (3,11:1) | Fondo `#5a636b` |
+| `.action-dropdown li.active > a` | `#08C` sobre `#cce7f5` (3,03:1) | `#0b4f75` |
+| `.tip_content .links a`, `.thread-body a` | `#548dd4` / `#428bca` | `#2d6491` |
+| `.faded`, `.add-queue a` | `rgba(0,0,0,.5)` / `#666` al 40 % | `#5b6670` / `#444` al 85 % |
+
+Y en el portal del cliente, `body.client-portal` (la clase la pone
+`include/client/header.inc.php`) agrupa los botones del tema:
+`.green.button` pasa a `#5d7b08` (2,21 → 4,88:1), `.blue.button` a
+`#00739f` (2,53 → 5,31:1), `.action-button` a `#4a4a4a` y
+`.article-meta` a `#5b6670`. Sin esa clase las reglas alcanzarían a los
+botones del panel, que no usan el tema del portal.
 
 ## 4. Reglas para no romper nada
 
@@ -347,11 +391,15 @@ node tools/ui/contrast-audit.js http://localhost:8090/scp/tickets.php \
      --cookie "OSTSESSID=<tu-sesion>"              # contra la app real
 ```
 
-Sale 0 si no hay hallazgos y 1 si los hay, así que se puede encadenar. En la
-vista previa el tema oscuro está a **0 hallazgos**; en claro quedan 18
-heredados del tema base de osTicket (naranja `#F6A828` con texto blanco en
-jQuery UI, `.btn_sm`, `#header a`, `.article-meta`), que son anteriores a
-este trabajo y se corrigen en el tema claro en una pasada aparte.
+Sale 0 si no hay hallazgos y 1 si los hay, así que se puede encadenar. Las
+dos maquetas están a **0 hallazgos en oscuro y en claro**:
+
+```bash
+node tools/ui/contrast-audit.js docs/theme-preview.html                # panel
+node tools/ui/contrast-audit.js docs/theme-preview-client.html         # portal
+node tools/ui/contrast-audit.js docs/theme-preview.html --theme light
+node tools/ui/contrast-audit.js docs/theme-preview-client.html --theme light
+```
 
 Herramientas recomendadas además: Lighthouse (accesibilidad), axe DevTools,
 WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.

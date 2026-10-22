@@ -17,6 +17,10 @@
   El botón de la cabecera alterna claro/oscuro igual que en la aplicación
   (js/theme.js). Es solo una maqueta de referencia: no forma parte de la
   aplicación y nginx no la sirve (docs/ está bloqueado en el servidor).
+
+  El PORTAL DEL CLIENTE tiene su propia maqueta,
+  docs/theme-preview-client.html: allí no se carga scp/css/scp.css, y
+  mezclar las dos hojas en un solo archivo falsea el resultado.
 -->
 <link rel="stylesheet" href="../scp/css/scp.css" media="all">
 <link rel="stylesheet" href="../css/ui.css" media="screen">
@@ -118,9 +122,9 @@
                     </div>
                 </div>
             </li>
-            <li class="top-queue item"><a class="mine" href="#">My Tickets</a></li>
-            <li class="top-queue item"><a class="closed" href="#">Closed</a></li>
-            <li class="top-queue item"><a class="search" href="#">Search</a></li>
+            <li class="top-queue item"><a class="mine" href="#">My Tickets <i class="small icon-sort-down pull-right"></i></a></li>
+            <li class="top-queue item"><a class="closed" href="#">Closed <i class="small icon-sort-down pull-right"></i></a></li>
+            <li class="top-queue item"><a class="search" href="#">Search <i class="small icon-sort-down pull-right"></i></a></li>
             <li class="top-queue item"><a class="new" href="#">New Ticket</a></li>
         </ul>
       </div>
@@ -532,8 +536,10 @@
                 <span class="action-button danger"><i class="icon-trash"></i> Borrar</span>
             </div>
 
-            <div id="response_options" style="margin-top:12px;">
-                <form method="post" action="#">
+            <!-- Marcado real de include/staff/ticket-view.inc.php:
+                 #reply es el formulario y #response_options la barra fija -->
+            <form id="reply" method="post" action="#" style="margin-top:12px;">
+            <div id="response_options" class="sticky bar stop actions">
                     <div class="floating-options">
                         <a class="action" href="#" title="Adjuntar"><i class="icon-paper-clip"></i></a>
                         <a class="action save-note" href="#" title="Guardar nota"><i class="icon-save"></i></a>
@@ -550,8 +556,8 @@
                         <div class="title">Archivos adjuntos</div>
                         <div class="file"><a href="#">captura.png</a> · 64 KB</div>
                     </div>
-                </form>
             </div>
+            </form>
 
             <table class="list" style="margin-top:14px;width:100%;">
                 <thead><tr><th>Ticket</th><th>Asunto</th></tr></thead>
@@ -705,84 +711,6 @@
                     <span class="kpi-value">11</span>
                     <span class="kpi-note">Meta: 10</span>
                 </a>
-            </div>
-        </div>
-
-        <div class="demo-sec">
-            <h2>Portal del cliente (lista, ficha, respuesta, acceso y FAQ)</h2>
-
-            <!-- Lista de tickets (include/client/tickets.inc.php) -->
-            <table id="ticketTable" width="800" border="0" cellspacing="0" cellpadding="0">
-                <caption>5 tickets abiertos</caption>
-                <thead>
-                    <tr>
-                        <th><a href="#">Ticket # <i class="icon-sort"></i></a></th>
-                        <th width="120">Fecha</th>
-                        <th width="100">Estado</th>
-                        <th width="320">Asunto</th>
-                        <th width="120">Departamento</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="alt">
-                        <td><a class="Icon emailTicket" href="#">4821</a></td>
-                        <td>22/10/2026</td>
-                        <td>Abierto</td>
-                        <td><div class="link truncate">No puedo acceder al panel</div></td>
-                        <td>Soporte</td>
-                    </tr>
-                    <tr>
-                        <td><a class="Icon emailTicket" href="#">4820</a></td>
-                        <td>21/10/2026</td>
-                        <td>Resuelto</td>
-                        <td><div class="link truncate">Factura de septiembre</div></td>
-                        <td>Facturacion</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- Ficha del ticket (include/client/view.inc.php) -->
-            <table class="infoTable" cellspacing="1" cellpadding="3" width="100%" border="0"
-                   style="margin-top:14px;">
-                <thead>
-                    <tr><td class="headline" colspan="2">Informacion basica del ticket</td></tr>
-                </thead>
-                <tbody>
-                    <tr><th width="100">Estado:</th><td>Abierto</td></tr>
-                    <tr><th>Departamento:</th><td>Soporte</td></tr>
-                    <tr><th>Fecha de creacion:</th><td>22/10/2026 08:40</td></tr>
-                </tbody>
-            </table>
-
-            <!-- Respuesta del cliente -->
-            <form id="reply" action="#" style="margin-top:14px;">
-                <div id="response_options">
-                    <div><label for="reply-subject">Asunto</label>
-                        <input id="reply-subject" type="text" value="Re: No puedo acceder al panel"></div>
-                    <div><label for="reply-body">Mensaje</label>
-                        <textarea id="reply-body" rows="3">Sigue sin funcionar.</textarea></div>
-                    <span class="action-button"><i class="icon-upload"></i> Adjuntar</span>
-                    <button type="submit" class="button">Enviar respuesta</button>
-                </div>
-            </form>
-
-            <!-- Acceso del cliente -->
-            <div id="clientLogin" style="margin-top:14px;">
-                <div><label for="cl-email">Correo electronico</label>
-                    <input id="cl-email" type="text" value="cliente@ejemplo.com"></div>
-                <div><label for="cl-pass">Contrasena</label>
-                    <input id="cl-pass" type="password" value="secreto"></div>
-                <div class="clear"><button type="submit" class="button">Entrar</button></div>
-            </div>
-
-            <!-- Preguntas frecuentes -->
-            <div id="faq" style="margin-top:14px;">
-                <ol>
-                    <li><a href="#">Como creo un ticket nuevo</a>
-                        <span class="article-meta">Actualizado el 22/10/2026</span></li>
-                    <li><a href="#">Como adjunto un archivo</a>
-                        <span class="article-meta">Actualizado el 02/09/2026</span></li>
-                </ol>
             </div>
         </div>
 

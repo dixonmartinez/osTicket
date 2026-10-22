@@ -33,6 +33,100 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* Tema claro: acentos del panel (medidos sobre el marcado real)        */
+/* ------------------------------------------------------------------ */
+/* scp.css usa naranja #E65524 (3,69:1 sobre blanco) para la navegación
+   de colas y los contadores, blanco sobre #999 en .label (2,85:1) y
+   blanco sobre el naranja de jQuery UI (1,99:1). Se conservan los
+   matices y se oscurecen lo justo para pasar 4,5:1. El tema oscuro
+   tiene su propia capa en css/dark.css; estas reglas solo actúan en
+   el tema claro (dark.css se carga después y gana cuando toca). */
+html[data-theme="light"] div#header a,
+html[data-theme="light"] #nav .inactive li a:hover,
+html[data-theme="light"] #sub_nav > li > a,
+html[data-theme="light"] #sub_nav > li > a:hover,
+html[data-theme="light"] #customQ_nav .jb-overflowmenu-menu-primary li.item:hover > a,
+html[data-theme="light"] .jb-overflowmenu-menu-secondary li.item:hover,
+html[data-theme="light"] #sub_nav .customQ-dropdown li > span,
+html[data-theme="light"] #sub_nav .customQ-dropdown li:not(.personalQ) > span,
+html[data-theme="light"] .customQ-dropdown li > span.newItemQ,
+html[data-theme="light"] .newItemQ.queue-count {
+    color: #b23d13;
+}
+
+/* Título del diálogo y cabecera del calendario (ui-lightness: blanco
+   sobre #F6A828) */
+html[data-theme="light"] .ui-dialog .ui-dialog-titlebar,
+html[data-theme="light"] .ui-dialog .ui-dialog-titlebar .ui-dialog-title,
+html[data-theme="light"] .ui-datepicker .ui-datepicker-header {
+    color: #3b2800;
+}
+
+html[data-theme="light"] .ui-datepicker .ui-datepicker-header a,
+html[data-theme="light"] .ui-datepicker .ui-datepicker-header a:hover {
+    color: #3b2800 !important;
+}
+
+/* Botón pequeño de scp.css: degradado naranja con texto blanco */
+html[data-theme="light"] .btn_sm {
+    background: linear-gradient(#a05f00, #8b5200) #a05f00;
+    border-color: #6f4200;
+    color: #fff;
+}
+
+/* Acción destructiva: era gris translúcido sobre gris */
+html[data-theme="light"] .action-button.danger,
+html[data-theme="light"] .action-button.danger span,
+html[data-theme="light"] .action-button.danger a {
+    color: #b3261e !important;
+    opacity: 1;
+    border-color: rgba(179, 38, 30, 0.45);
+}
+
+/* Etiquetas de estado (blanco sobre #999) */
+html[data-theme="light"] .label {
+    background-color: #63696f;
+}
+
+/* Cabecera plegada de .form_table (blanco sobre #929292) */
+html[data-theme="light"] .form_table th h4 {
+    background: #5a636b;
+}
+
+/* Elemento activo del desplegable de acciones (#08C sobre #cce7f5) */
+/* La hoja dropdown.css se carga después de esta: hace falta más peso
+   que su `.action-dropdown ul li.active > a` para ganarle. */
+html[data-theme="light"] body .action-dropdown ul li.active > a,
+html[data-theme="light"] body .action-dropdown ul li.active > a:hover,
+html[data-theme="light"] body .noclick-dropdown ul li.active > a {
+    color: #0b4f75;
+}
+
+/* Enlaces y textos secundarios */
+html[data-theme="light"] .tip_content .links a {
+    color: #2d6491;
+}
+
+/* css/thread.css se carga después en la vista del ticket */
+html[data-theme="light"] body .thread-body a:not(.button) {
+    color: #2d6491 !important;
+}
+
+/* «Add personal queue» se atenúa a opacity .4 por diseño: a ese nivel el
+   texto desaparece (>8:1 → 4,4:1). Se atenúa menos y se oscurece. */
+html[data-theme="light"] .customQ-dropdown .add-queue a {
+    color: #444 !important;
+}
+
+html[data-theme="light"] .customQ-dropdown .add-queue a span {
+    opacity: .85;
+}
+
+html[data-theme="light"] .faded {
+    color: #5b6670;
+}
+
+/* ------------------------------------------------------------------ */
 /* Utilidades                                                          */
 /* ------------------------------------------------------------------ */
 .sr-only {
@@ -45,6 +139,47 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Portal del cliente: contraste de botones y metadatos (tema claro)    */
+/* ------------------------------------------------------------------ */
+/* Medido sobre el marcado real: el verde #91bd09 del tema deja el texto
+   blanco en 2,21:1 y el azul #00AEEF en 2,53:1. Los tonos de abajo
+   conservan el mismo matiz y llegan a 4,88:1 y 5,31:1. El gris #777 de
+   .action-button sobre #ddd se queda en 3,3:1, y el #999 de
+   .article-meta sobre #fafafa en 2,73:1.
+   Todo va bajo body.client-portal (lo pone include/client/header.inc.php)
+   para no tocar los botones del panel, que usan sus propias clases. */
+html[data-theme="light"] body.client-portal .button,
+html[data-theme="light"] body.client-portal .button:visited,
+html[data-theme="light"] body.client-portal .green.button,
+html[data-theme="light"] body.client-portal .green.button:visited {
+    background-color: #5d7b08;
+}
+
+html[data-theme="light"] body.client-portal .button:hover,
+html[data-theme="light"] body.client-portal .green.button:hover {
+    background-color: #4e6708;
+}
+
+html[data-theme="light"] body.client-portal .blue.button,
+html[data-theme="light"] body.client-portal .blue.button:visited {
+    background-color: #00739f;
+}
+
+html[data-theme="light"] body.client-portal .blue.button:hover {
+    background-color: #00638a;
+}
+
+html[data-theme="light"] body.client-portal .action-button,
+html[data-theme="light"] body.client-portal .action-button span,
+html[data-theme="light"] body.client-portal .action-button a {
+    color: #4a4a4a !important;
+}
+
+html[data-theme="light"] body.client-portal .article-meta {
+    color: #5b6670;
 }
 
 .skip-link {
@@ -115,6 +250,17 @@ textarea {
 input[type="checkbox"],
 input[type="radio"] {
     accent-color: var(--ui-accent);
+}
+
+/* scp.css fija height:24px y line-height:24px en los select. Con una fuente
+   algo mayor (o con el text zoom del navegador) el texto se recorta por
+   abajo, como pasaba en «Default Time Zone». Se deja crecer. */
+select {
+    height: auto;
+    min-height: 24px;
+    line-height: 1.3;
+    padding-top: 2px;
+    padding-bottom: 2px;
 }
 
 input[disabled],

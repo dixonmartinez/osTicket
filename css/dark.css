@@ -891,6 +891,18 @@ html[data-theme="dark"] #nav > li.active > a {
     color: #fff;
 }
 
+/* Lo mismo en la barra de colas del panel: el hover de un ítem activo
+   conserva el blanco sobre el acento. */
+html[data-theme="dark"] #sub_nav > li.active > a:hover,
+html[data-theme="dark"] #nav > li.active > a:hover,
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary > li.active > a:hover,
+/* La regla del hover de la cola (más específica por .item) ganaba a la del
+   ítem activo: hay que nombrarla también. */
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item.active:hover > a,
+html[data-theme="dark"] #sub_nav li.item.active:hover > a {
+    color: #fff;
+}
+
 /* La cola activa/hover en la barra de colas (scp.css usa naranja #E65524) */
 html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item:hover > a,
 html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item > a.active,
@@ -898,10 +910,82 @@ html[data-theme="dark"] #sub_nav > li > a:hover {
     color: var(--dk-link-hover);
 }
 
-html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item:hover {
-    background-color: var(--dk-surface-2);
+/* El hover de un ítem de la barra de colas (scp.css: fondo #fff y texto
+   naranja). Se cubren las dos formas del contenedor: con el id del panel de
+   tickets y sin él (scp/settings.php y compañía usan #sub_nav a secas). */
+html[data-theme="dark"] #customQ_nav .jb-overflowmenu-menu-primary li.item:hover,
+html[data-theme="dark"] .jb-overflowmenu .jb-overflowmenu-menu-primary li.item:hover,
+html[data-theme="dark"] .jb-overflowmenu-menu-primary li.item:hover {
+    background-color: var(--dk-surface-3);
     border-color: var(--dk-border);
 }
+
+html[data-theme="dark"] .jb-overflowmenu-menu-primary li.item:hover > a {
+    color: var(--dk-link-hover);
+}
+
+/* Los iconos de las colas del panel son GIF/PNG de 16 px con fondo blanco
+   (open_tickets.gif, mine.gif, closed.gif, search.gif, new_ticket.gif...):
+   sobre oscuro dejan un cuadrado claro y se comen el texto. Se sustituyen
+   por el glifo de Font Awesome, que hereda el color y no pide otra petición.
+   El hueco lo marca el padding-left de scp.css (21 px). */
+html[data-theme="dark"] #sub_nav a.Ticket,
+html[data-theme="dark"] #sub_nav a.mine,
+html[data-theme="dark"] #sub_nav a.closed,
+html[data-theme="dark"] #sub_nav a.search,
+html[data-theme="dark"] #sub_nav a.new,
+html[data-theme="dark"] #sub_nav a.open,
+html[data-theme="dark"] #sub_nav a.answered,
+html[data-theme="dark"] #sub_nav a.kb,
+html[data-theme="dark"] #sub_nav a.faq-categories,
+html[data-theme="dark"] #sub_nav a.canned,
+html[data-theme="dark"] #sub_nav a.staff,
+html[data-theme="dark"] #sub_nav a.user,
+html[data-theme="dark"] #sub_nav a.userPref,
+html[data-theme="dark"] #sub_nav a.userPasswd,
+html[data-theme="dark"] #sub_nav a.newTicket,
+html[data-theme="dark"] #sub_nav a.assignedTickets,
+html[data-theme="dark"] #sub_nav a.overdueTickets,
+html[data-theme="dark"] #sub_nav a.answeredTickets,
+html[data-theme="dark"] #sub_nav a.closedTickets {
+    background-image: none;
+}
+
+html[data-theme="dark"] #sub_nav > li > a {
+    position: relative;
+}
+
+html[data-theme="dark"] #sub_nav > li > a[class]::before {
+    font-family: FontAwesome;
+    font-style: normal;
+    font-weight: normal;
+    position: absolute;
+    left: 4px;
+    top: 0;
+    line-height: 26px;
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+html[data-theme="dark"] #sub_nav a.Ticket::before,
+html[data-theme="dark"] #sub_nav a.open::before { content: "\f07c"; }
+html[data-theme="dark"] #sub_nav a.mine::before { content: "\f007"; }
+html[data-theme="dark"] #sub_nav a.closed::before,
+html[data-theme="dark"] #sub_nav a.closedTickets::before { content: "\f046"; }
+html[data-theme="dark"] #sub_nav a.search::before { content: "\f002"; }
+html[data-theme="dark"] #sub_nav a.new::before,
+html[data-theme="dark"] #sub_nav a.newTicket::before { content: "\f055"; }
+html[data-theme="dark"] #sub_nav a.answered::before,
+html[data-theme="dark"] #sub_nav a.answeredTickets::before { content: "\f075"; }
+html[data-theme="dark"] #sub_nav a.assignedTickets::before { content: "\f0c0"; }
+html[data-theme="dark"] #sub_nav a.overdueTickets::before { content: "\f071"; }
+html[data-theme="dark"] #sub_nav a.kb::before { content: "\f02d"; }
+html[data-theme="dark"] #sub_nav a.faq-categories::before { content: "\f07b"; }
+html[data-theme="dark"] #sub_nav a.canned::before { content: "\f016"; }
+html[data-theme="dark"] #sub_nav a.staff::before { content: "\f0c0"; }
+html[data-theme="dark"] #sub_nav a.user::before { content: "\f007"; }
+html[data-theme="dark"] #sub_nav a.userPref::before { content: "\f085"; }
+html[data-theme="dark"] #sub_nav a.userPasswd::before { content: "\f084"; }
 
 /* Contenedor del menú de colas (scp.css lo deja en #eee) */
 html[data-theme="dark"] #sub_nav .jb-overflowmenu-container,
@@ -1042,12 +1126,20 @@ html[data-theme="dark"] #clientLogin td em {
     color: var(--dk-text-muted);
 }
 
-/* .action-button del portal no pasaba por .button */
+/* .action-button del portal no pasaba por .button. theme.css fija el color
+   en #777 con !important (también en sus hijos), así que aquí hace falta la
+   misma fuerza. */
 html[data-theme="dark"] .action-button,
 html[data-theme="dark"] a.action-button {
     background: var(--dk-surface-3);
     border-color: var(--dk-border);
-    color: var(--dk-text);
+    color: var(--dk-text) !important;
+}
+
+html[data-theme="dark"] .action-button span,
+html[data-theme="dark"] .action-button a,
+html[data-theme="dark"] .action-button i {
+    color: var(--dk-text) !important;
 }
 
 html[data-theme="dark"] .action-button:hover,
@@ -1082,7 +1174,45 @@ html[data-theme="dark"] td.headline {
 }
 
 html[data-theme="dark"] #ticketTable caption {
-    color: var(--dk-text-muted);
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #ticketTable th {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #ticketTable th a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #ticketTable td {
+    border-color: var(--dk-border);
+}
+
+/* theme.css: .infoTable { background:#f4faff } y #reply { background:#f9f9f9 } */
+html[data-theme="dark"] .infoTable {
+    background: var(--dk-surface-2);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .infoTable th,
+html[data-theme="dark"] .infoTable td {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #reply {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #reply h2 {
+    border-bottom-color: var(--dk-border);
+    color: var(--dk-text);
 }
 
 html[data-theme="dark"] #ticketTable tr.alt td {
@@ -1094,6 +1224,176 @@ html[data-theme="dark"] #ticketTable th {
     border-color: var(--dk-border);
     color: var(--dk-text);
 }
+
+/* La portada y las páginas del portal usan .thread-body por herencia de la
+   plantilla, pero NO son el HTML de un correo: aquí no va el "papel" claro.
+   El papel se reserva a las entradas del ticket (.thread-entry). */
+html[data-theme="dark"] #landing_page .thread-body,
+html[data-theme="dark"] .main-content > .thread-body {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #landing_page .thread-body h1,
+html[data-theme="dark"] #landing_page .thread-body h2,
+html[data-theme="dark"] #landing_page .thread-body h3,
+html[data-theme="dark"] #landing_page .thread-body h4,
+html[data-theme="dark"] #landing_page .thread-body p,
+html[data-theme="dark"] #landing_page .thread-body li,
+html[data-theme="dark"] #landing_page .thread-body div,
+html[data-theme="dark"] #landing_page .thread-body span,
+html[data-theme="dark"] #landing_page .thread-body strong,
+html[data-theme="dark"] #landing_page .thread-body em {
+    color: inherit;
+}
+
+html[data-theme="dark"] #landing_page .thread-body table,
+html[data-theme="dark"] #landing_page .thread-body td,
+html[data-theme="dark"] #landing_page .thread-body th {
+    background-color: transparent;
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* El enlace del cuerpo lleva !important en la sección del hilo: aquí el
+   fondo es oscuro, así que el azul de papel no sirve. */
+html[data-theme="dark"] #landing_page .thread-body a {
+    color: var(--dk-link) !important;
+}
+
+/* Barra lateral de la portada (theme.css: .sidebar .content con #F7FBFE) */
+html[data-theme="dark"] .sidebar .content {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .sidebar section .header {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .sidebar .content a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] .search-form .search,
+html[data-theme="dark"] .searchbar .search {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* Base de conocimiento: kb/index.php (theme.css usa una imagen de fondo) */
+html[data-theme="dark"] #kb > li {
+    background: var(--dk-surface-2);
+    border-bottom-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #kb > li h4 a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] #kb > li h4 span {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] #kb-search #breadcrumbs,
+html[data-theme="dark"] #kb-search #breadcrumbs a {
+    color: var(--dk-text-muted);
+}
+
+/* Formulario de acceso del cliente: theme.css lo pinta con #f6f6f6 y una
+   imagen de candado. Se conserva el candado y se oscurece el fondo. */
+html[data-theme="dark"] #clientLogin {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="dark"] #clientLogin strong {
+    color: var(--dk-danger);
+}
+
+html[data-theme="dark"] #clientLogin .login-box {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #clientLogin input.btn,
+html[data-theme="dark"] #clientLogin input[type="submit"] {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #clientLogin input.btn:hover,
+html[data-theme="dark"] #clientLogin input[type="submit"]:hover {
+    background: var(--dk-surface-4);
+    color: #fff;
+}
+
+/* Barra de navegación del portal: el enlace (no el <li>) lleva la clase
+   active, y theme.css le pone la píldora #dbefff. */
+html[data-theme="dark"] #nav li a.active,
+html[data-theme="dark"] #nav li a:hover {
+    color: #fff;
+}
+
+html[data-theme="dark"] #nav li a.active {
+    background-color: var(--dk-accent);
+}
+
+html[data-theme="dark"] #nav li a:hover {
+    background-color: var(--dk-surface-4);
+    color: var(--dk-link-hover);
+}
+
+/* Si además está activo, el fondo es el acento azul: el texto va en blanco
+   (el azul claro del hover sólo llega a 3,2:1 sobre el acento). */
+html[data-theme="dark"] #nav li a.active:hover {
+    background-color: var(--dk-accent);
+    color: #fff;
+}
+
+/* Los iconos de la barra del portal son PNG con fondo blanco (home.png,
+   kb.png, new.png, status.png, tix.png): sobre oscuro dejan un cuadrado
+   claro. Se sustituyen por el glifo de Font Awesome, que hereda el color y
+   ocupa el mismo hueco (padding-left:32px del tema base). */
+html[data-theme="dark"] #nav li a.home,
+html[data-theme="dark"] #nav li a.kb,
+html[data-theme="dark"] #nav li a.new,
+html[data-theme="dark"] #nav li a.status,
+html[data-theme="dark"] #nav li a.tickets {
+    background-image: none;
+}
+
+html[data-theme="dark"] #nav li a.home::before,
+html[data-theme="dark"] #nav li a.kb::before,
+html[data-theme="dark"] #nav li a.new::before,
+html[data-theme="dark"] #nav li a.status::before,
+html[data-theme="dark"] #nav li a.tickets::before {
+    font-family: FontAwesome;
+    font-weight: normal;
+    font-style: normal;
+    position: absolute;
+    left: 10px;
+    top: 0;
+    line-height: 20px;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+html[data-theme="dark"] #nav li a {
+    position: relative;
+}
+
+html[data-theme="dark"] #nav li a.home::before { content: "\f015"; }
+html[data-theme="dark"] #nav li a.kb::before { content: "\f02d"; }
+html[data-theme="dark"] #nav li a.new::before { content: "\f055"; }
+html[data-theme="dark"] #nav li a.status::before { content: "\f002"; }
+html[data-theme="dark"] #nav li a.tickets::before { content: "\f022"; }
 
 /* --- 9sexies: analíticas y panel de inicio ---
    analytics.css define sus propios tokens en .an-page: basta redefinirlos
@@ -1186,6 +1486,19 @@ html[data-theme="dark"] .dashboard-kpis .kpi-note {
 html[data-theme="dark"] div.translations {
     background-color: var(--dk-surface-2);
     border-color: var(--dk-border);
+}
+
+/* El envoltorio del campo traducible lleva fondo blanco propio */
+html[data-theme="dark"] div.translatable,
+html[data-theme="dark"] div.translatable.textarea {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] button.translatable {
+    background: var(--dk-surface-4);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
 }
 
 html[data-theme="dark"] div.translations label.language,
@@ -1404,6 +1717,16 @@ html[data-theme="dark"] .skip-link:focus-visible {
 /* Títulos de sección (scp.css los pinta en azul oscuro fijo) */
 html[data-theme="dark"] h2 {
     color: var(--dk-link-hover);
+}
+
+/* scp.css pinta el icono de acción de los títulos en verde oscuro (#0a0) y
+   el texto secundario en gris: sobre la superficie oscura no se ven. */
+html[data-theme="dark"] h2 i {
+    color: var(--dk-success);
+}
+
+html[data-theme="dark"] h2 small {
+    color: var(--dk-text-muted);
 }
 
 /* Menú desplegable de la navegación principal (#nav li > ul) */

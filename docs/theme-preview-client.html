@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es" data-theme-default="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa del portal del cliente — osTicket</title>
+<meta name="theme-color" content="#12161b">
+<meta name="color-scheme" content="light dark">
+<!--
+  Vista previa del PORTAL DEL CLIENTE, separada de la del panel.
+
+  Por qué existe: el portal del cliente NO carga scp/css/scp.css (la del panel).
+  Si se mezclan las dos hojas en una sola maqueta, reglas de scp.css como
+  #nav .active { display:inline-block } falsean el resultado. Aquí se cargan
+  exactamente las hojas de include/client/header.inc.php, en el mismo orden.
+
+  Reproduce el marcado real de: barra de navegación (getNavLinks), portada
+  (index.php), lista de tickets (tickets.inc.php), ficha (view.inc.php),
+  formulario de respuesta, acceso (login.inc.php) y preguntas frecuentes.
+
+  También carga scp/css/login.css, pero NO se usa: sirve para comprobar que
+  los estilos del acceso del personal no se filtran al portal.
+-->
+<link rel="stylesheet" href="../css/osticket.css" media="screen">
+<link rel="stylesheet" href="../assets/default/css/theme.css" media="screen">
+<link rel="stylesheet" href="../css/thread.css" media="screen">
+<link rel="stylesheet" href="../css/font-awesome.min.css">
+<link rel="stylesheet" href="../css/ui.css" media="screen">
+<!-- Últimas, igual que en la aplicación: pueden corregir a las anteriores -->
+<link rel="stylesheet" href="../css/dark.css" media="screen">
+<link rel="stylesheet" href="../css/density.css" media="screen">
+<style>
+    /* Solo para la maqueta: separar las secciones y etiquetarlas */
+    body { padding-bottom: 40px; }
+    .demo-sec { margin: 24px 0; }
+    .demo-sec > h2 { font-size: 15px; margin: 0 0 8px; padding-bottom: 4px;
+        border-bottom: 1px dashed currentColor; opacity: .75; }
+    #container { width: 940px; margin: 0 auto; }
+</style>
+<script src="../js/theme.js"></script>
+<script src="../js/icons.js"></script>
+</head>
+<body class="client-portal">
+<a class="skip-link no-pjax" href="#content">Saltar al contenido</a>
+<div id="container">
+    <div id="header">
+        <div class="pull-right flush-right">
+            <p><button type="button" class="ost-icon-button ost-theme-toggle"
+                    data-ost-theme-toggle
+                    data-label-to-dark="Cambiar a tema oscuro"
+                    data-label-to-light="Cambiar a tema claro"
+                    title="Cambiar a tema oscuro" aria-pressed="false"><svg class="ost-theme-icon ost-icon-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1.2a6.8 6.8 0 0 0 8.3 8.3A6.8 6.8 0 1 1 6.5 1.2z"/></svg><svg class="ost-theme-icon ost-icon-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4.6A3.4 3.4 0 1 0 8 11.4 3.4 3.4 0 0 0 8 4.6z"/></svg><span class="sr-only">Cambiar tema</span></button>
+                <button type="button" class="ost-icon-button ost-density-toggle"
+                    data-ost-density-toggle
+                    data-label-compact="Cambiar a vista compacta"
+                    data-label-comfy="Cambiar a vista comoda"
+                    title="Cambiar a vista compacta" aria-pressed="false"><svg class="ost-theme-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2.6h12a.6.6 0 0 1 0 1.2H2a.6.6 0 0 1 0-1.2zm0 4.6h12a.6.6 0 0 1 0 1.2H2a.6.6 0 0 1 0-1.2zm0 4.6h12a.6.6 0 0 1 0 1.2H2a.6.6 0 0 1 0-1.2z"/></svg><span class="sr-only">Cambiar densidad</span></button>
+                &nbsp;|&nbsp; Invitado | <a href="#">Entrar</a>
+            </p>
+        </div>
+        <a class="pull-left" id="logo" href="#" title="Centro de soporte">
+            <span class="valign-helper"></span>
+            <span style="display:inline-block;background:#fff;color:#184E81;font:700 26px/1 sans-serif;padding:14px 16px;border-radius:4px;">osTicket</span>
+        </a>
+    </div>
+    <div class="clear"></div>
+
+    <div id="content" tabindex="-1">
+
+    <!-- Barra de navegacion del portal (include/client/header.inc.php) -->
+    <ul id="nav" class="flush-left">
+        <li><a class="home active" href="#">Inicio del centro de soporte</a></li>
+        <li><a class="new" href="#">Abrir un ticket</a></li>
+        <li><a class="status" href="#">Consultar estado</a></li>
+    </ul>
+
+    <!-- Portada (index.php): el cuerpo va en .thread-body pero no es un correo -->
+    <div id="landing_page" style="margin-top:14px;">
+        <div class="main-content">
+            <div class="thread-body">
+                <h1>Bienvenido al centro de soporte</h1>
+                <p>Para agilizar las solicitudes usamos un sistema de tickets. Cada
+                   solicitud recibe un numero unico con el que puedes seguir su
+                   progreso en linea.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de tickets (include/client/tickets.inc.php) -->
+    <table id="ticketTable" width="800" border="0" cellspacing="0" cellpadding="0">
+        <caption>5 tickets abiertos</caption>
+        <thead>
+            <tr>
+                <th><a href="#">Ticket # <i class="icon-sort"></i></a></th>
+                <th width="120">Fecha</th>
+                <th width="100">Estado</th>
+                <th width="320">Asunto</th>
+                <th width="120">Departamento</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="alt">
+                <td><a class="Icon emailTicket" href="#">4821</a></td>
+                <td>22/10/2026</td>
+                <td>Abierto</td>
+                <td><div class="link truncate">No puedo acceder al panel</div></td>
+                <td>Soporte</td>
+            </tr>
+            <tr>
+                <td><a class="Icon emailTicket" href="#">4820</a></td>
+                <td>21/10/2026</td>
+                <td>Resuelto</td>
+                <td><div class="link truncate">Factura de septiembre</div></td>
+                <td>Facturacion</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Ficha del ticket (include/client/view.inc.php) -->
+    <table class="infoTable" cellspacing="1" cellpadding="3" width="100%" border="0"
+           style="margin-top:14px;">
+        <thead>
+            <tr><td class="headline" colspan="2">Informacion basica del ticket</td></tr>
+        </thead>
+        <tbody>
+            <tr><th width="100">Estado:</th><td>Abierto</td></tr>
+            <tr><th>Departamento:</th><td>Soporte</td></tr>
+            <tr><th>Fecha de creacion:</th><td>22/10/2026 08:40</td></tr>
+        </tbody>
+    </table>
+
+    <!-- Respuesta del cliente -->
+    <form id="reply" action="#" style="margin-top:14px;">
+        <div id="response_options">
+            <div><label for="reply-subject">Asunto</label>
+                <input id="reply-subject" type="text" value="Re: No puedo acceder al panel"></div>
+            <div><label for="reply-body">Mensaje</label>
+                <textarea id="reply-body" rows="3">Sigue sin funcionar.</textarea></div>
+            <span class="action-button"><i class="icon-upload"></i> Adjuntar</span>
+            <button type="submit" class="button">Enviar respuesta</button>
+        </div>
+    </form>
+
+    <!-- Acceso del cliente: marcado real de include/client/login.inc.php -->
+    <form action="#" method="post" id="clientLogin" style="margin-top:14px;">
+        <div style="display:table-row">
+            <div class="login-box">
+                <strong>Usuario o contrasena incorrectos.</strong>
+                <div>
+                    <label class="sr-only" for="username">Correo o usuario</label>
+                    <input id="username" placeholder="Correo o usuario" type="text" value="cliente@ejemplo.com">
+                </div>
+                <div>
+                    <label class="sr-only" for="passwd">Contrasena</label>
+                    <input id="passwd" placeholder="Contrasena" type="password" value="secreto">
+                </div>
+                <p><input class="btn" type="submit" value="Entrar"></p>
+            </div>
+            <div style="display:table-cell;padding:15px;vertical-align:top">
+                <div style="margin-bottom:5px">Aun no tienes cuenta? <a href="#">Crear una cuenta</a></div>
+                <div>Soy agente - <a href="#">entrar aqui</a></div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Barra lateral de la portada (include/client/templates/sidebar.tmpl.php) -->
+    <div class="demo-sec" style="display:flex;gap:24px;align-items:flex-start;clear:both;">
+        <div class="sidebar pull-right" style="width:215px;">
+            <div class="front-page-button flush-right">
+                <p><a href="#" style="display:block" class="blue button">Abrir un ticket</a></p>
+                <p><a href="#" style="display:block" class="green button">Consultar estado</a></p>
+            </div>
+            <div class="content">
+                <section>
+                    <div class="header">Preguntas destacadas</div>
+                    <div><a href="#">Como cambio mi contrasena</a></div>
+                    <div><a href="#">Que adjuntos se aceptan</a></div>
+                </section>
+            </div>
+        </div>
+        <div style="flex:1;">
+            <div class="search-form">
+                <form method="get" action="#">
+                    <input type="text" name="q" class="search" placeholder="Buscar en la base de conocimiento">
+                    <button type="submit" class="green button">Buscar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Base de conocimiento (kb/index.php) -->
+    <div class="demo-sec">
+        <h2>Base de conocimiento</h2>
+        <ul id="kb">
+            <li>
+                <i></i>
+                <h4><a href="#">Cuenta y acceso</a> <span>4 articulos</span></h4>
+                <div>Como recuperar la contrasena, verificar el correo y cerrar sesion.</div>
+            </li>
+            <li>
+                <i></i>
+                <h4><a href="#">Tickets</a> <span>7 articulos</span></h4>
+                <div>Abrir un ticket, adjuntar archivos y seguir el estado.</div>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Preguntas frecuentes -->
+    <div id="faq" style="margin-top:14px;">
+        <ol>
+            <li><a href="#">Como creo un ticket nuevo</a>
+                <span class="article-meta">Actualizado el 22/10/2026</span></li>
+            <li><a href="#">Como adjunto un archivo</a>
+                <span class="article-meta">Actualizado el 02/09/2026</span></li>
+        </ol>
+    </div>
+
+        <div id="footer">
+            <p>Copyright &copy; 2026 Helpdesk ANCA - Todos los derechos reservados.</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>
