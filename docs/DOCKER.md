@@ -513,6 +513,19 @@ INSTALL_APCU=0 docker compose build php
 
 `INSTALL_APCU=0` en `.env` equivale a lo segundo de forma permanente.
 
+**`ci: line 0: make: not found` (o `bash: not found`) al usar `make docker-test`.**
+Los servicios `tools` y `cron` ejecutan `make` **dentro** del contenedor. La
+imagen `dev` ya instala `bash`, `make` y `findutils`; una imagen construida
+antes no los tiene, así que hay que reconstruirla:
+
+```bash
+docker compose build php tools
+make docker-test
+```
+
+Después de tocar el `Dockerfile` (o cualquier `conf.d/*.ini`) el contenedor no
+se actualiza solo: `docker compose up` reutiliza la imagen anterior.
+
 **Avisos `Unable to load dynamic library 'gd'` y `libfreetype.so.6`.**
 La extensión `gd` se compila con FreeType pero faltaba la librería en tiempo de
 ejecución. Corregido en la imagen (`apk add freetype`). En una copia anterior:

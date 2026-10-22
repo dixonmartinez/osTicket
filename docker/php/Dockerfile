@@ -105,6 +105,13 @@ FROM base AS dev
 
 ARG XDEBUG_VERSION
 
+# Herramientas de desarrollo dentro del contenedor:
+#   make       -> los servicios `tools` y `cron` ejecutan `make ci`, `make lint`…
+#   bash       -> tools/lint.sh usa arrays, BASH_SOURCE y export -f
+#   findutils  -> `find` de GNU (-not -path -print0) tal como lo usa lint.sh
+# Sin ellas, `make docker-test` muere con «make: not found» (exit 127).
+RUN apk add --no-cache bash make findutils
+
 RUN set -eux; \
     apk add --no-cache --virtual .build-deps $PHPIZE_DEPS linux-headers; \
     if [ -n "$XDEBUG_VERSION" ]; then \
