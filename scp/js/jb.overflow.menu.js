@@ -75,7 +75,8 @@ $.widget( "jb.overflowmenu", {
         //has to be set first
         this._setOption( 'label', this.options.label )
         this._setOption( 'refreshOn', this.options.refreshOn )
-        this.secondaryMenuContainer.find('i.icon-sort-down').remove('i.icon-sort-down');
+        this.secondaryMenuContainer.find('i.icon-sort-down, svg.icon-sort-down')
+            .remove();
     },
 
     destroy: function() {
@@ -138,7 +139,8 @@ $.widget( "jb.overflowmenu", {
                 });
 
         itemsToHide.appendTo( this.secondaryMenu )
-            .find('i.icon-sort-down').remove('i.icon-sort-down');
+            .find('i.icon-sort-down, svg.icon-sort-down')
+            .remove();
 
 
         if( itemsToHide.length == 0 ){

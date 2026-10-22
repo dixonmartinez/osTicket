@@ -45,7 +45,8 @@
 //     de ayuda sigan abriendo su texto.
 // v15: tercera tanda de acciones declarativas (borradores, recarga, mostrar
 //     y ocultar según el valor del control).
-const VERSION = 'ost-v15';
+// v16: el menú de desbordamiento reconoce los iconos convertidos a SVG.
+const VERSION = 'ost-v16';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

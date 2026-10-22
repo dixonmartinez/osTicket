@@ -410,6 +410,10 @@ check(strpos(read("$root/scp/js/tips.js"), 'elem.remove()') === false,
     'tips.js no borra el icono cuando no encuentra la ayuda',
     'scp/js/tips.js sigue haciendo elem.remove(): el icono de ayuda desaparece al pulsarlo');
 
+check(strpos(read("$root/scp/js/jb.overflow.menu.js"), 'svg.icon-sort-down') !== false,
+    'el menú de desbordamiento quita también los iconos ya convertidos a SVG',
+    'scp/js/jb.overflow.menu.js sólo busca i.icon-sort-down: los caret de la barra de colas se duplican');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {
