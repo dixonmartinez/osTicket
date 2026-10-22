@@ -41,7 +41,11 @@
 //     js/actions.js, que sustituye a los onclick más repetidos.
 // v13: avisos del sistema con máscara SVG y acciones nuevas de actions.js
 //     (borrar la fila más cercana, mostrar/ocultar, borradores).
-const VERSION = 'ost-v13';
+// v14: js/icons.js conserva href/data-* al pasar a SVG, para que los iconos
+//     de ayuda sigan abriendo su texto.
+// v15: tercera tanda de acciones declarativas (borradores, recarga, mostrar
+//     y ocultar según el valor del control).
+const VERSION = 'ost-v15';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

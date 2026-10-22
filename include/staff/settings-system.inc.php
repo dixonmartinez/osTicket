@@ -221,9 +221,7 @@ $gmtime = Misc::gmtime();
         </tr>
         <tr><td width="220" class="required"><?php echo __('Date and Time Format');?>:</td>
             <td>
-                <select name="date_formats" onchange="javascript:
-    $('#advanced-time').toggle($(this).find(':selected').val() == 'custom');
-">
+                <select name="date_formats" data-toggle-target="#advanced-time" data-toggle-when="custom">
 <?php foreach (array(
     '' => __('Locale Defaults'),
     '24' => __('Locale Defaults, 24-hour Time'),

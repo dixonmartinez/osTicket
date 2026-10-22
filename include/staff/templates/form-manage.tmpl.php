@@ -16,7 +16,7 @@ foreach ($forms as $e) { ?>
     $current_list[] = $e->get('form_id');
     if ($e->getDynamicForm()->get('type') == 'G') { ?>
     <div class="button-group">
-    <div class="delete"><a href="#" onclick="$(this).closest('div.row-item').remove();$('#delete-warning').show();"><i class="icon-trash"></i></a></div>
+    <div class="delete"><a href="#" data-toggle-target="#delete-warning" data-toggle-mode="show" data-remove-closest="div.row-item"><i class="icon-trash"></i></a></div>
     </div>
     <?php } ?>
 </div>

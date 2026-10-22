@@ -157,7 +157,9 @@ jQuery(function() {
                 section = {title: elem.data('title'), content: elem.data('content')};
             }
             else {
-                elem.remove();
+                /* Sin `href` ni `data-content` no hay ayuda que enseñar,
+                   pero el icono no se toca: antes se borraba del DOM y
+                   «desaparecía» al pulsarlo sin mostrar nada. */
                 clearTimeout(tip_timer);
                 return;
             }

@@ -25,8 +25,9 @@
  *   data-inherit-toggle        en un checkbox: muestra `.if-not-inherited`
  *                              de su tabla según el estado del checkbox
  *   data-save-draft            llama a `saveDraft()` (redactor de osTicket)
- *   data-discard-draft         descarta los borradores del editor del
- *                              formulario y recarga
+ *   data-discard-draft[="url"] descarta los borradores del editor del
+ *                              formulario y recarga (o va a `url`)
+ *   data-reload                recarga la página
  *
  * Todo se resuelve con delegación en `document`, así que funciona también con
  * el contenido que carga PJAX o los diálogos por AJAX. Si un elemento no tiene
@@ -36,7 +37,8 @@
     'use strict';
 
     var CLICKABLE = '[data-href],[data-go-back],[data-dialog],[data-confirm],'
-        + '[data-remove-closest],[data-save-draft],[data-discard-draft],[data-toggle-target]';
+        + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
+        + '[data-toggle-target],[data-reload]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -121,6 +123,16 @@
             return;
         }
 
+        /* Va antes del borrado: hay enlaces que quitan una fila y, además,
+           muestran un aviso (`data-toggle-target` + `data-remove-closest`). */
+        if (el.hasAttribute('data-toggle-target') && !el.matches('select')) {
+            event.preventDefault();
+            toggleTarget(el);
+
+            if (!el.hasAttribute('data-remove-closest'))
+                return;
+        }
+
         if (el.hasAttribute('data-remove-closest')) {
             var target = closest(el, el.getAttribute('data-remove-closest'));
 
@@ -143,17 +155,27 @@
             event.preventDefault();
 
             var form = el.form || closest(el, 'form');
+            var next = el.getAttribute('data-discard-draft');
 
-            if (form && window.jQuery)
-                window.jQuery('textarea.richtext', form).redactor('deleteDraft');
+            if (form && window.jQuery) {
+                try {
+                    window.jQuery('textarea.richtext', form).redactor('deleteDraft');
+                } catch (e) {
+                    /* Sin editor inicializado no hay borrador que borrar. */
+                }
+            }
 
-            window.location.reload();
+            if (next)
+                window.location.href = next;
+            else
+                window.location.reload();
+
             return;
         }
 
-        if (el.hasAttribute('data-toggle-target') && !el.matches('select')) {
+        if (el.hasAttribute('data-reload')) {
             event.preventDefault();
-            toggleTarget(el);
+            window.location.reload();
             return;
         }
 

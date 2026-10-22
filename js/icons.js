@@ -277,6 +277,20 @@
         if (icon.getAttribute('title'))
             svg.setAttribute('title', icon.getAttribute('title'));
 
+        // El resto de atributos se conserva. Los iconos «help-tip» y «.tip»
+        // llevan `href` (y a veces `data-content`), y scp/js/tips.js los lee
+        // del propio elemento: si se perdían, el icono de ayuda desaparecía
+        // al pulsarlo y no abría nada. También protege `id` y `data-*` de
+        // cualquier otro manejador.
+        for (var a = 0; a < icon.attributes.length; a++) {
+            var attr = icon.attributes[a];
+
+            if (attr.name === 'class' || svg.hasAttribute(attr.name))
+                continue;
+
+            svg.setAttribute(attr.name, attr.value);
+        }
+
         svg.setAttribute(PROCESSED, '1');
         icon.parentNode.replaceChild(svg, icon);
     }

@@ -110,12 +110,7 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <?php echo __('Template Set To Clone');?>:
             </td>
             <td>
-                <select name="tpl_id" onchange="javascript:
-    if ($(this).val() == 0)
-        $('#language').show();
-    else
-        $('#language').hide();
-">
+                <select name="tpl_id" data-toggle-target="#language" data-toggle-when="0">
                     <option value="0">&mdash; <?php echo __('Stock Templates'); ?> &mdash;</option>
                     <?php
                     $sql='SELECT tpl_id,name FROM '.EMAIL_TEMPLATE_GRP_TABLE.' ORDER by name';

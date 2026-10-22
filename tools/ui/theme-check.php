@@ -396,6 +396,20 @@ check(strpos($makefile, 'inline-budget') !== false
     'hay tope para los manejadores en línea (make inline-budget)',
     'falta el objetivo inline-budget: el número de onclick puede volver a subir sin que nadie lo note');
 
+/* 10. Iconos con comportamiento (ayuda, tips) ---------------------------- */
+check(strpos($guide, 'help-tip') !== false
+    && strpos($guide, 'desaparec') !== false,
+    'UI_GUIDE explica por qué los iconos de ayuda conservan sus atributos',
+    'docs/UI_GUIDE.md no documenta la conservación de href/data-* en los help-tip');
+
+check(strpos($icons, 'icon.attributes') !== false,
+    'js/icons.js copia los atributos del <i> al <svg> (href, data-*, id)',
+    'js/icons.js no copia los atributos: los help-tip pierden el href y la ayuda no abre');
+
+check(strpos(read("$root/scp/js/tips.js"), 'elem.remove()') === false,
+    'tips.js no borra el icono cuando no encuentra la ayuda',
+    'scp/js/tips.js sigue haciendo elem.remove(): el icono de ayuda desaparece al pulsarlo');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

@@ -337,6 +337,14 @@ Quedan en Font Awesome:
   `icon-large`…).
 - Los iconos de marca que osTicket no usa en ninguna plantilla.
 
+**Los atributos del `<i>` se conservan.** Los iconos de ayuda
+(`<i class="help-tip" href="#clave">`) y los de tipo `.tip` no son decorativos:
+`scp/js/tips.js` lee su `href` (o su `data-content`) para buscar el texto de
+ayuda. Al sustituir el `<i>` por un `<svg>` se copian **todos** los atributos
+que no sean `class` —`href`, `id`, `data-*`, `rel`— además de `title` y
+`style`. Si se pierden, tips.js no encuentra la sección, **borra el icono** y
+no muestra nada: el usuario ve que la ayuda «desaparece» al pulsarla.
+
 ### 3.5.1 Las barras `#nav` y `#sub_nav`
 
 Estas dos barras no usan `<i>`: el tema pinta el icono con un PNG/GIF de
@@ -491,10 +499,11 @@ con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
 | `data-toggle-target="#id"` | elemento o `<select>` | muestra u oculta el destino: `data-toggle-mode="show\|hide\|toggle"`, `data-toggle-when="valor"` (según el valor del control) y `data-toggle-speed="200"` |
 | `data-inherit-toggle` | checkbox | muestra u oculta `.if-not-inherited` de su tabla según el estado |
 | `data-save-draft` | cualquier elemento | llama a `saveDraft()` (borrador del editor de osTicket) |
-| `data-discard-draft` | cualquier elemento | descarta los borradores del editor del formulario y recarga |
+| `data-discard-draft[="url"]` | cualquier elemento | descarta los borradores del editor del formulario y recarga (o navega a `url`) |
+| `data-reload` | cualquier elemento | recarga la página |
 
 Se combinaron 48 plantillas en dos tandas y los manejadores en línea bajaron
-de **124 en 71 archivos a 59 en 39** (`make inline-audit`). `make
+de **124 en 71 archivos a 51 en 35** (`make inline-audit`). `make
 inline-budget` fija el tope actual y falla si vuelve a subir. Lo que queda
 tiene lógica propia (editores, ordenación de columnas, combos de la búsqueda
 avanzada, `$.userLookup`) y se migrará con `addEventListener` en su archivo,
@@ -612,11 +621,12 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 87 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 90 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
 | 15 | **Auditoría de manejadores inline** con umbral: `make inline-audit` lista, cuenta y falla si el número sube | ✅ Hecho | `tools/ui/inline-handlers.php` |
+| 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -629,7 +639,7 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **59** atributos en 39 archivos (`make inline-audit`), desde 124 en 71. Dos tandas hechas con `js/actions.js` (§3.9, §6.1-14); quedan los manejadores con lógica propia: `$.userLookup` (4), `redactor` (4), `$.pjax` y envíos por AJAX (4), `$.dialog` con `var colid`/`var pid` (3), combos de la búsqueda avanzada (`help-topic`, `topicId`), pestañas de idioma, y ~25 casos dispares que hay que resolver uno a uno con su propia función |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **51** atributos en 35 archivos (`make inline-audit`), desde 124 en 71. Tres tandas hechas con `js/actions.js` (§3.9, §6.1-14); quedan los manejadores con lógica propia: `$.userLookup` (6), `$.pjax` y envíos por AJAX (4), `$.dialog` con `var colid`/`var pid` (3), combos de la búsqueda avanzada (`help-topic`, `topicId`), selección de usuario y ~20 casos dispares que hay que resolver uno a uno con su propia función |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar

@@ -27,9 +27,7 @@ if (isset($options['entry']) && $options['mode'] == 'edit') { ?>
         <div class="pull-right">
     <?php if ($options['entry']
                 && $options['entry']->getDynamicForm()->get('type') == 'G') { ?>
-            <a href="#" title="Delete Entry" onclick="javascript:
-                $(this).closest('tbody').remove();
-                return false;"><i class="icon-trash"></i></a>&nbsp;
+            <a href="#" title="Delete Entry" data-remove-closest="tbody"><i class="icon-trash"></i></a>&nbsp;
     <?php } ?>
             <i class="icon-sort" title="Drag to Sort"></i>
         </div>
