@@ -27,6 +27,8 @@
 <link rel="stylesheet" href="../css/mobile.css" media="screen">
 <link rel="stylesheet" href="../css/font-awesome.min.css">
 <link rel="stylesheet" href="../css/thread.css" media="screen">
+<link rel="stylesheet" href="../css/redactor.css" media="screen">
+<link rel="stylesheet" href="../css/filedrop.css" media="screen">
 <link rel="stylesheet" href="../scp/css/dropdown.css" media="screen">
     <link rel="stylesheet" href="../scp/css/analytics.css" media="screen">
     <link rel="stylesheet" href="../scp/css/dashboard.css" media="screen">
@@ -41,6 +43,9 @@
     .demo-sec { margin: 28px 0; }
     .demo-sec > h2 { font-size: 15px; margin: 0 0 8px; padding-bottom: 4px;
         border-bottom: 1px dashed currentColor; opacity: .75; }
+    /* Redactor genera los <li> en línea; aquí van a mano */
+    .redactor-toolbar li { display: inline-block; margin: 0; padding: 0; }
+    .redactor-toolbar { padding: 4px; }
     .demo-grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
 </style>
 <script src="../js/theme.js"></script>
@@ -505,6 +510,10 @@
                                     <li><a href="#" rel="link"><i class="icon-link"></i></a></li>
                                 </ul>
                                 <div class="redactor-editor" contenteditable="true" style="min-height:60px;">Respuesta con <b>formato</b>.</div>
+                            </div>
+                            <div class="filedrop" style="width:520px;">
+                                <div class="dropzone">Arrastra archivos aqui o
+                                    <a href="#">el&iacute;gelos</a></div>
                             </div>
                         </td>
                     </tr>

@@ -139,6 +139,22 @@ html[data-theme="light"] .faded {
     color: #5b6670;
 }
 
+/* Zona de adjuntos: #999 sobre #f2f2f2 (3,75:1) y enlace al 70 % de opacidad */
+html[data-theme="light"] .filedrop .dropzone {
+    border-color: rgba(0, 0, 0, .25);
+    color: #5b6670;
+}
+
+html[data-theme="light"] .filedrop .dropzone a {
+    color: #2d6491;
+}
+
+/* La X de las filas: blanco sobre #fc9f41 (1,9:1) */
+html[data-theme="light"] .row-item .delete:hover {
+    background: #a3540a;
+    color: #fff !important;
+}
+
 /* ------------------------------------------------------------------ */
 /* Indicador de fuerza de la contraseña (js/password-strength.js)       */
 /* ------------------------------------------------------------------ */

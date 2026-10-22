@@ -31,10 +31,12 @@
 //     medidor de contraseña también en el panel.
 // v9: iconos de todos los menús del panel (correo, ajustes, gestión) y
 //     padding del hueco del icono.
+// v10: barra y menús de Redactor en oscuro, zona de adjuntos y estados de
+//     hover con fondo claro.
 // v8: los estáticos pasan a red-primero. Con caché-primero, tras un
 //     `git pull` el navegador servía una hoja vieja junto a un JS nuevo
 //     (iconos gigantes, CSS sin aplicar) hasta la segunda recarga.
-const VERSION = 'ost-v10';
+const VERSION = 'ost-v11';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -47,6 +49,8 @@ const PRECACHE = [
   'css/dark.css',
   'css/density.css',
   'css/thread.css',
+  'css/redactor.css',
+  'css/filedrop.css',
   'scp/css/scp.css',
   'scp/css/dashboard.css',
   'scp/css/analytics.css',

@@ -308,6 +308,11 @@ check(strpos($sw, "'css/density.css'") !== false,
     'el service worker precachea css/density.css',
     'sw.js no precachea css/density.css');
 
+check(strpos($sw, "'css/redactor.css'") !== false
+    && strpos($sw, "'css/filedrop.css'") !== false,
+    'el service worker precachea las hojas del editor y de adjuntos',
+    'sw.js no precachea css/redactor.css o css/filedrop.css (sin conexión el editor saldría sin estilos)');
+
 /* 6. getThemeDefault ----------------------------------------------------- */
 $core = read("$root/include/class.osticket.php");
 check(strpos($core, 'function getThemeDefault(') !== false,

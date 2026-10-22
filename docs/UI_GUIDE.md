@@ -381,6 +381,8 @@ corrige es lo que el tema dejaba a medias:
 | Controles dentro del HTML | Dibujados en oscuro | `color-scheme: light` en el papel |
 | Visor de PDF (`object`/`iframe`) | Hueco oscuro | Fondo blanco y borde del tema |
 | Editor enriquecido | Superficie oscura | Papel blanco: lo pegado desde Word/Outlook trae negro en línea y desaparecía |
+| Barra del editor (Redactor) | Botones blancos con iconos claros: parecía vacía | Botones `--dk-surface-4` con iconos del tema y `--dk-accent` al pasar; menús de formato y diálogos del editor incluidos |
+| Zona de adjuntos (`.dropzone`) | Borde y enlace azul oscuro sobre fondo oscuro | Borde del tema, texto atenuado y enlace `--dk-link` |
 
 En claro, `thread.css` dejaba la cita en `#777` (4,48:1) y el código en
 `#777` sobre `#f2f2f2` (4,01:1); `css/ui.css` los sube a `#4a4f55` y `#333`.
@@ -403,6 +405,8 @@ tema oscuro de `css/dark.css`:
 | `.action-dropdown li.active > a` | `#08C` sobre `#cce7f5` (3,03:1) | `#0b4f75` |
 | `.tip_content .links a`, `.thread-body a` | `#548dd4` / `#428bca` | `#2d6491` |
 | `.faded`, `.add-queue a` | `rgba(0,0,0,.5)` / `#666` al 40 % | `#5b6670` / `#444` al 85 % |
+| `.filedrop .dropzone` (texto y enlace) | `#999` (3,75:1) y azul al 70 % | `#5b6670` y `#2d6491` |
+| `.row-item .delete:hover` | Blanco sobre `#fc9f41` (1,9:1) | Fondo `#a3540a` |
 
 Y en el portal del cliente, `body.client-portal` (la clase la pone
 `include/client/header.inc.php`) agrupa los botones del tema:
@@ -469,6 +473,8 @@ Checklist manual (5 minutos):
       el medidor (se engancha solo, sin atributos).
 - [ ] Un correo con cita, tabla y bloque de código se lee entero en oscuro,
       y el visor de un PDF adjunto se ve sobre fondo blanco.
+- [ ] En oscuro, la barra del editor de respuesta muestra los iconos y el
+  area de adjuntos se lee (borde, texto y enlace "elegir").
 - [ ] La barra de menús del panel (Emails, Settings, Banlist, Templates,
       Diagnostic) usa iconos de un solo color, sin cuadros claros, y el texto
       no se solapa.

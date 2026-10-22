@@ -631,19 +631,115 @@ html[data-theme="dark"] .select2-container-multi .select2-choices .select2-searc
     color: var(--dk-text);
 }
 
-/* Editor Redactor */
+/* Editor Redactor: barra, desplegables y diálogos */
 html[data-theme="dark"] .redactor-box,
 html[data-theme="dark"] .redactor-toolbar {
     background: var(--dk-surface-3);
     border-color: var(--dk-border);
 }
 
-html[data-theme="dark"] .redactor-toolbar a {
+/* Cada botón de la barra trae su propio fondo casi blanco
+   (rgba(255,255,255,.97)). Sin cambiarlo, el texto claro que se le da en
+   oscuro se queda blanco sobre blanco: la barra parece vacía. */
+html[data-theme="dark"] .redactor-toolbar a,
+html[data-theme="dark"] .redactor-air a {
+    background: var(--dk-surface-4);
+    box-shadow: none;
     color: var(--dk-text);
 }
 
-html[data-theme="dark"] .redactor-toolbar a:hover {
+html[data-theme="dark"] .redactor-toolbar a:hover,
+html[data-theme="dark"] .redactor-air a:hover {
+    background: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .redactor-toolbar a.redactor-button-active {
+    background: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .redactor-toolbar a.redactor-button-disabled {
+    background: transparent;
+    box-shadow: none;
+    color: var(--dk-text-faint);
+    opacity: .6;
+}
+
+html[data-theme="dark"] .redactor-toolbar a.redactor-button-disabled:hover {
+    background: transparent;
+    color: var(--dk-text-faint);
+}
+
+/* Menús de formato y diálogos del editor (enlace, imagen, tabla) */
+html[data-theme="dark"] .redactor-dropdown,
+html[data-theme="dark"] .redactor-modal,
+html[data-theme="dark"] .redactor-link-tooltip,
+html[data-theme="dark"] .redactor-statusbar {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .redactor-dropdown a {
+    border-bottom-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .redactor-dropdown a.redactor-dropdown-item-disabled {
+    background: transparent;
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] .redactor-modal input,
+html[data-theme="dark"] .redactor-modal select,
+html[data-theme="dark"] .redactor-modal textarea {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .redactor-statusbar a {
+    color: var(--dk-link);
+}
+
+/* Zona de adjuntos del formulario de respuesta */
+html[data-theme="dark"] .filedrop .dropzone {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .filedrop .dropzone a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] .filedrop .files:not(:empty) {
+    border-color: var(--dk-border);
+}
+
+/* Superposiciones y estados de hover con fondo claro del tema base */
+html[data-theme="dark"] .dialog #popup-loading {
+    background: rgba(18, 22, 27, .8);
+}
+
+html[data-theme="dark"] .scroll-up {
+    background-color: rgba(255, 255, 255, .12);
+}
+
+html[data-theme="dark"] .scroll-up:hover {
+    background-color: rgba(255, 255, 255, .24);
+}
+
+html[data-theme="dark"] .muted-button:hover {
     background: var(--dk-surface-4);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .row-item .delete:hover {
+    background: #a3540a;
+    color: #fff !important;
 }
 
 html[data-theme="dark"] .redactor-editor,
@@ -751,10 +847,24 @@ html[data-theme="dark"] iframe.pdf-preview {
 html[data-theme="dark"] .redactor-box .redactor-editor,
 html[data-theme="dark"] .redactor-editor,
 html[data-theme="dark"] .redactor-box iframe {
-    background: #fff;
+    /* `!important` porque Redactor escribe el fondo en línea al inicializar;
+       sin él, el mismo editor sale blanco o negro según la pantalla. */
+    background-color: #fff !important;
     color: #1a1f24;
     border-color: var(--dk-border);
     color-scheme: light;
+}
+
+/* El texto de ayuda del editor tiene que leerse sobre ese papel blanco */
+html[data-theme="dark"] .redactor-editor.redactor-placeholder::before,
+html[data-theme="dark"] .redactor-editor[data-placeholder]::before,
+html[data-theme="dark"] .redactor-editor[placeholder]::before {
+    color: #6b7580;
+}
+
+html[data-theme="dark"] .redactor-editor,
+html[data-theme="dark"] .redactor-box .redactor-editor {
+    caret-color: #1a1f24;
 }
 
 html[data-theme="dark"] .quicknote .body,
