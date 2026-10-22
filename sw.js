@@ -51,7 +51,9 @@
 // v18: quinta tanda (escribir campos del formulario y llamar a funciones con
 //     nombre).
 // v19: sexta tanda (diálogo con el id de la fila y columnas heredadas).
-const VERSION = 'ost-v19';
+// v20: séptima tanda (tema de ayuda, zona horaria, ordenación y filtros por
+//     PJAX) y js/actions.js en el pie del panel.
+const VERSION = 'ost-v20';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

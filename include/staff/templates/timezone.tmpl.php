@@ -16,18 +16,9 @@ $TZ_TIMEZONE = @$TZ_TIMEZONE ?: '';
         ?>><?php echo str_replace('/',' / ',$zone); ?></option>
 <?php } ?>
     </select>
-    <button type="button" class="action-button" onclick="javascript:
-$('head').append($('<script>').attr('src', '<?php
-    echo ROOT_PATH; ?>js/jstz.min.js'));
-var recheck = setInterval(function() {
-    if (window.jstz !== undefined) {
-        clearInterval(recheck);
-        var zone = jstz.determine();
-        $('#timezone-dropdown').val(zone.name()).trigger('change');
-
-    }
-}, 100);
-return false;" style="vertical-align:middle"><i class="icon-map-marker"></i> <?php echo __('Auto Detect'); ?></button>
+    <button type="button" class="action-button" data-call="ostAutodetectTimezone"
+    data-timezone-target="#timezone-dropdown"
+    data-jstz-src="<?php echo ROOT_PATH; ?>js/jstz.min.js" style="vertical-align:middle"><i class="icon-map-marker"></i> <?php echo __('Auto Detect'); ?></button>
 
 <script type="text/javascript">
 $(function() {

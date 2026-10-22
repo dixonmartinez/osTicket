@@ -60,18 +60,8 @@ if ($info['topicId'] && ($topic=Topic::lookup($info['topicId']))) {
     </td></tr>
     <tr>
         <td colspan="2">
-            <select id="topicId" name="topicId" onchange="javascript:
-                    var data = $(':input[name]', '#dynamic-form').serialize();
-                    $.ajax(
-                      'ajax.php/form/help-topic/' + this.value,
-                      {
-                        data: data,
-                        dataType: 'json',
-                        success: function(json) {
-                          $('#dynamic-form').empty().append(json.html);
-                          $(document.head).append(json.media);
-                        }
-                      });">
+            <select id="topicId" name="topicId" data-call="ostHelpTopic" data-form="#dynamic-form"
+                    data-help-topic-url="ajax.php/form/help-topic/">
                 <option value="" selected="selected">&mdash; <?php echo __('Select a Help Topic');?> &mdash;</option>
                 <?php
                 if($topics=Topic::getPublicHelpTopics()) {
@@ -117,12 +107,6 @@ if ($info['topicId'] && ($topic=Topic::lookup($info['topicId']))) {
   <p class="buttons" style="text-align:center;">
         <input type="submit" value="<?php echo __('Create Ticket');?>">
         <input type="reset" name="reset" value="<?php echo __('Reset');?>">
-        <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" onclick="javascript:
-            $('.richtext').each(function() {
-                var redactor = $(this).data('redactor');
-                if (redactor && redactor.opts.draftDelete)
-                    redactor.plugin.draft.deleteDraft();
-            });
-            window.location.href='index.php';">
+        <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-discard-draft="index.php">
   </p>
 </form>

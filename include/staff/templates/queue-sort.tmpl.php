@@ -24,14 +24,7 @@ elseif (strpos($_GET['sort'], 'qs-') === 0) {
   <span><i class="icon-sort-by-attributes-alt <?php if ($sort_dir) echo 'icon-flip-vertical'; ?>"></i> <?php echo __('Sort');?></span>
 </span>
 <div id="sort-dropdown" class="action-dropdown anchor-right"
-onclick="javascript:
-var $et = $(event.target),
-    query = addSearchParam({'sort': $et.data('mode'), 'dir': $et.data('dir')});
-$.pjax({
-    url: '?' + query,
-    timeout: 2000,
-    container: '#pjax-container'});
-return false;">
+data-pjax-query="sort=mode&amp;dir=dir">
   <ul class="bleed-left">
     <?php foreach ($queue->getSortOptions() as $qs) {
     $desc = $qs->getName();

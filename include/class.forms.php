@@ -4904,18 +4904,9 @@ class TimezoneWidget extends ChoicesWidget {
         $config = $this->field->getConfiguration();
         if (@$config['autodetect']) {
         ?>
-        <button type="button" class="action-button" onclick="javascript:
-            $('head').append($('<script>').attr('src', '<?php
-            echo ROOT_PATH; ?>js/jstz.min.js'));
-            var recheck = setInterval(function() {
-                if (window.jstz !== undefined) {
-                    clearInterval(recheck);
-                    var zone = jstz.determine();
-                    $('#<?php echo $this->id; ?>').val(zone.name()).trigger('change');
-
-                }
-            }, 100);
-            return false;"
+        <button type="button" class="action-button" data-call="ostAutodetectTimezone"
+            data-timezone-target="#<?php echo $this->id; ?>"
+            data-jstz-src="<?php echo ROOT_PATH; ?>js/jstz.min.js"
             style="vertical-align:middle">
             <i class="icon-map-marker"></i> <?php echo __('Auto Detect'); ?>
         </button>

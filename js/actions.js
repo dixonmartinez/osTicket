@@ -33,13 +33,23 @@
  *                              padre); no cancela la acción propia
  *   data-pjax-submit[="sel"]   envía el formulario por PJAX al contenedor
  *                              indicado (por defecto `#pjax-container`)
+ *   data-pjax-query="a=x&b=y"  recarga la lista por PJAX añadiendo a la URL
+ *                              actual los parámetros `a`, `b`… tomados de
+ *                              los `data-x` / `data-y` del elemento pulsado
  *   data-set-name="campo"      escribe un campo del formulario antes de
  *                              enviarlo; el valor sale de `data-set-value`
  *                              (literal) o de `data-set-from="clave"` (el
  *                              `data-clave` del elemento o del que se pulsó).
  *                              Con `data-submit-form` se envía el formulario
  *   data-call="funcion"        llama a `window.funcion(event)`; si devuelve
- *                              `false` se cancela la acción (formularios)
+ *                              `false` se cancela la acción (formularios).
+ *                              Hay dos funciones incluidas:
+ *                                ostHelpTopic           recarga el formulario
+ *                                  dinámico al cambiar de tema de ayuda
+ *                                  (data-form="#dynamic-form")
+ *                                ostAutodetectTimezone  carga js/jstz.min.js y
+ *                                  pone la zona detectada en el <select> de
+ *                                  data-timezone-target
  *
  * Todo se resuelve con delegación en `document`, así que funciona también con
  * el contenido que carga PJAX o los diálogos por AJAX. Si un elemento no tiene
@@ -51,7 +61,7 @@
     var CLICKABLE = '[data-href],[data-go-back],[data-dialog],[data-confirm],'
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
         + '[data-toggle-target],[data-reload],[data-click-target],'
-        + '[data-set-name],[data-call],[data-dialog-row]';
+        + '[data-set-name],[data-call],[data-dialog-row],[data-pjax-query]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -110,6 +120,85 @@
 
         for (i = 0; i < nodes.length; i++)
             nodes[i].style.display = mode === 'hide' ? 'none' : '';
+    }
+
+    /* Busca `data-<name>` desde el elemento pulsado hacia arriba hasta el
+       contenedor que lleva el manejador. */
+    function attrFrom(el, event, name) {
+        var node = event && event.target ? event.target : el;
+        var attr = 'data-' + name;
+
+        while (node && node.nodeType === 1) {
+            if (node.getAttribute && node.getAttribute(attr) !== null)
+                return node.getAttribute(attr);
+            if (node === el)
+                break;
+            node = node.parentElement;
+        }
+
+        return '';
+    }
+
+    /* Recarga por PJAX añadiendo parámetros a la URL actual: el equivalente
+       declarativo de `addSearchParam(...)` + `$.pjax(...)`. */
+    function pjaxQuery(el, event) {
+        var spec = el.getAttribute('data-pjax-query') || '';
+        var params = {};
+        var pairs = spec.split('&');
+        var i;
+
+        for (i = 0; i < pairs.length; i++) {
+            var kv = pairs[i].split('=');
+
+            if (!kv[0])
+                continue;
+
+            params[decodeURIComponent(kv[0])] = attrFrom(el, event, kv[1] || kv[0]);
+        }
+
+        var query;
+
+        if (typeof window.addSearchParam === 'function') {
+            query = window.addSearchParam(params);
+        } else {
+            var search = window.location.search.substring(1);
+            var out = [];
+            var keys = Object.keys(params);
+            var seen = {};
+
+            if (search) {
+                var current = search.split('&');
+
+                for (i = 0; i < current.length; i++) {
+                    var name = decodeURIComponent(current[i].split('=')[0]);
+
+                    if (Object.prototype.hasOwnProperty.call(params, name)) {
+                        out.push(encodeURIComponent(name) + '='
+                            + encodeURIComponent(params[name]));
+                        seen[name] = true;
+                    } else {
+                        out.push(current[i]);
+                    }
+                }
+            }
+
+            for (i = 0; i < keys.length; i++) {
+                if (!seen[keys[i]])
+                    out.push(encodeURIComponent(keys[i]) + '='
+                        + encodeURIComponent(params[keys[i]]));
+            }
+
+            query = out.join('&');
+        }
+
+        if (!window.jQuery || !window.jQuery.pjax)
+            return;
+
+        window.jQuery.pjax({
+            url: '?' + query,
+            timeout: 2000,
+            container: el.getAttribute('data-pjax-container') || '#pjax-container'
+        });
     }
 
     /* Escribe un campo del formulario. El valor puede venir de otro `data-*`
@@ -205,6 +294,12 @@
         if (el.hasAttribute('data-href')) {
             event.preventDefault();
             window.location.href = el.getAttribute('data-href');
+            return;
+        }
+
+        if (el.hasAttribute('data-pjax-query')) {
+            event.preventDefault();
+            pjaxQuery(el, event);
             return;
         }
 
@@ -409,4 +504,65 @@
         if (message && !window.confirm(message))
             event.preventDefault();
     }, true);
+    /* ------------------------------------------------------------------ */
+    /* Dos acciones con lógica propia, movidas aquí desde las plantillas    */
+    /* ------------------------------------------------------------------ */
+
+    /* Cambio de tema de ayuda: pide el formulario dinámico nuevo y mete su
+       HTML (y los <script>/css que lo acompañan) en la página. */
+    window.ostHelpTopic = function () {
+        var el = this;
+        var form = el.getAttribute('data-form') || '#dynamic-form';
+        var base = el.getAttribute('data-help-topic-url') || 'ajax.php/form/help-topic/';
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        $.ajax(base + el.value, {
+            data: $(form).find(':input[name]').serialize(),
+            dataType: 'json',
+            success: function (json) {
+                $(form).empty().append(json.html);
+                $(document.head).append(json.media);
+            }
+        });
+    };
+
+    /* Auto-detección de zona horaria: carga jstz la primera vez, espera a que
+       esté y escribe la zona en el <select>. */
+    window.ostAutodetectTimezone = function () {
+        var el = this;
+        var target = el.getAttribute('data-timezone-target');
+        var src = el.getAttribute('data-jstz-src') || 'js/jstz.min.js';
+
+        if (!target)
+            return false;
+
+        var apply = function () {
+            var select = document.querySelector(target);
+
+            if (!select || !window.jstz)
+                return;
+
+            select.value = window.jstz.determine().name();
+
+            if (window.jQuery)
+                window.jQuery(select).trigger('change');
+            else
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        if (window.jstz) {
+            apply();
+            return false;
+        }
+
+        var script = document.createElement('script');
+        script.src = src;
+        script.onload = apply;
+        document.head.appendChild(script);
+
+        return false;
+    };
 })(window, document);

@@ -30,13 +30,7 @@ if (in_array($qf_field->getLabel(), DatetimeField::getPastPresentLabels()))
 
 
 <div id="quickfilter-dropdown" class="action-dropdown anchor-right"
-onclick="javascript:
-var query = addSearchParam({'<?php echo $param; ?>': $(event.target).data('value')});
-$.pjax({
-    url: '?' + query,
-    timeout: 2000,
-    container: '#pjax-container'});
-return false;">
+data-pjax-query="<?php echo $param; ?>=value">
 <ul <?php if ($choices && count($choices) > 20) echo 'style="height:500px;overflow-x:hidden;overflow-y:scroll;"'; ?>>
     <?php if ($choices) {
         foreach ($choices as $k=>$desc) {

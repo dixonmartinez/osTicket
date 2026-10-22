@@ -428,6 +428,27 @@ check(strpos($actions, 'data-dialog-row') !== false,
     'js/actions.js abre diálogos con el id de la fila (data-dialog-row)',
     'js/actions.js no implementa data-dialog-row');
 
+/* 11. Herramientas de revisión visual ------------------------------------- */
+check(file_exists("$root/tools/ui/dark-audit.js"),
+    'existe la auditoría de superficies claras (dark-audit)',
+    'falta tools/ui/dark-audit.js: las zonas claras del tema oscuro sólo se ven a ojo');
+
+check(strpos(read("$root/docs/theme-preview.html"), 'data-allow-light') !== false
+    && strpos(read("$root/docs/theme-preview-client.html"), 'data-allow-light') !== false,
+    'las vistas previas marcan el papel que debe seguir claro',
+    'las vistas previas no marcan data-allow-light: dark-audit marcaría el visor de PDF y el logo');
+
+check(strpos($actions, 'data-pjax-query') !== false
+    && strpos($actions, 'ostHelpTopic') !== false
+    && strpos($actions, 'ostAutodetectTimezone') !== false,
+    'js/actions.js cubre ordenación, filtros, tema de ayuda y zona horaria',
+    'js/actions.js no implementa data-pjax-query/ostHelpTopic/ostAutodetectTimezone');
+
+check(strpos(read("$root/include/staff/footer.inc.php"), 'js/actions.js') !== false
+    && strpos(read("$root/include/client/footer.inc.php"), 'js/actions.js') !== false,
+    'los dos pies de página cargan js/actions.js',
+    'alguna de las dos interfaces no carga js/actions.js: los data-* no harían nada');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

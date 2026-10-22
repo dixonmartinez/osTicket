@@ -4,13 +4,7 @@
   <span><i class="icon-sort-by-attributes-alt <?php if ($sort_dir) echo 'icon-flip-vertical'; ?>"></i> <?php echo __('Sort');?></span>
 </span>
 <div id="sort-dropdown" class="action-dropdown anchor-right"
-onclick="javascript:
-var query = addSearchParam({'sort': $(event.target).data('mode'), 'dir': $(event.target).data('dir')});
-$.pjax({
-    url: '?' + query,
-    timeout: 2000,
-    container: '#pjax-container'});
-return false;">
+data-pjax-query="sort=mode&amp;dir=dir">
   <ul class="bleed-left">
     <?php foreach ($queue_sort_options as $mode) {
     $desc = $sort_options[$mode];

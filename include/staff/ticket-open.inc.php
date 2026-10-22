@@ -225,18 +225,8 @@ if ($_POST)
                 <?php echo __('Help Topic'); ?>:
             </td>
             <td>
-                <select name="topicId" onchange="javascript:
-                        var data = $(':input[name]', '#dynamic-form').serialize();
-                        $.ajax(
-                          'ajax.php/form/help-topic/' + this.value,
-                          {
-                            data: data,
-                            dataType: 'json',
-                            success: function(json) {
-                              $('#dynamic-form').empty().append(json.html);
-                              $(document.head).append(json.media);
-                            }
-                          });">
+                <select name="topicId" data-call="ostHelpTopic" data-form="#dynamic-form"
+                        data-help-topic-url="ajax.php/form/help-topic/">
                     <?php
                     if ($topics=$thisstaff->getTopicNames(false, false)) {
                         if (count($topics) == 1)

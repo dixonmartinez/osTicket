@@ -59,7 +59,17 @@ inline-audit-json: ## Lo mismo, en JSON, para comparar antes/después
 	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --json
 
 inline-budget: ## Falla si los onclick/onchange vuelven a subir del tope actual
-	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --max=38
+	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --max=29
+
+dark-audit: ## Zonas claras en el tema oscuro (necesita node + playwright-core)
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Falta node: esta comprobación es opcional y no va en el contenedor."; exit 1; }
+	@node $(ROOT)/tools/ui/dark-audit.js "file://$(ROOT)/docs/theme-preview.html"
+
+dark-audit-client: ## Lo mismo con la vista previa del portal
+	@command -v node >/dev/null 2>&1 || { \
+		echo "Falta node: esta comprobación es opcional y no va en el contenedor."; exit 1; }
+	@node $(ROOT)/tools/ui/dark-audit.js "file://$(ROOT)/docs/theme-preview-client.html"
 
 icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (/tmp/ost-iconos.html)
 	@$(PHP) $(ROOT)/tools/ui/icon-sheet.php --out=/tmp/ost-iconos.html

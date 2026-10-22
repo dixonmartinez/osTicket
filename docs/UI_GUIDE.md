@@ -504,11 +504,12 @@ con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
 | `data-reload` | cualquier elemento | recarga la página |
 | `data-click-target="selector"` | cualquier elemento | pulsa los elementos que casen (no cancela la acción propia); `data-click-scope="parent"` limita la búsqueda al padre y `closest:sel` a un ancestro |
 | `data-pjax-submit[="selector"]` | `<form>` | envía por PJAX a `#pjax-container` (o al contenedor indicado) en vez de recargar |
+| `data-pjax-query="sort=mode&dir=dir"` | contenedor de enlaces | recarga la lista por PJAX añadiendo esos parámetros a la URL actual, con el valor tomado del `data-mode`/`data-dir` del enlace pulsado (equivale a `addSearchParam()`) |
 | `data-set-name="campo"` | cualquier elemento | escribe un campo del formulario antes de enviarlo: valor literal con `data-set-value` o tomado de otro `data-*` con `data-set-from`; `data-submit-form` envía después |
-| `data-call="funcion"` | elemento o `<form>` | llama a `window.funcion(event)`; si devuelve `false`, cancela la acción (en un `<form>`, al enviar) |
+| `data-call="funcion"` | elemento o `<form>` | llama a `window.funcion(event)`; si devuelve `false`, cancela la acción (en un `<form>`, al enviar). Incluye `ostHelpTopic` (recarga el formulario dinámico al cambiar de tema) y `ostAutodetectTimezone` (carga `jstz` y rellena el `<select>` de `data-timezone-target`) |
 
 Se combinaron 48 plantillas en dos tandas y los manejadores en línea bajaron
-de **124 en 71 archivos a 38 en 28** (`make inline-audit`). `make
+de **124 en 71 archivos a 29 en 21** (`make inline-audit`). `make
 inline-budget` fija el tope actual y falla si vuelve a subir. Lo que queda
 tiene lógica propia (editores, ordenación de columnas, combos de la búsqueda
 avanzada, `$.userLookup`) y se migrará con `addEventListener` en su archivo,
@@ -578,6 +579,7 @@ Checklist manual (5 minutos):
       Diagnostic) usa iconos de un solo color, sin cuadros claros, y el texto
       no se solapa.
 - [ ] `make theme` en verde.
+- [ ] `make dark-audit` no encuentra superficies claras (ver abajo).
 
 **Auditoría de contraste con navegador** (lo que encontró los huecos de la
 tabla anterior). `tools/ui/contrast-audit.js` abre una página, calcula el
@@ -601,6 +603,29 @@ node tools/ui/contrast-audit.js docs/theme-preview-client.html         # portal
 node tools/ui/contrast-audit.js docs/theme-preview.html --theme light
 node tools/ui/contrast-audit.js docs/theme-preview-client.html --theme light
 ```
+
+### 5.1 Buscar zonas claras en oscuro
+
+El contraste mide texto; esto mide **superficies**. `tools/ui/dark-audit.js`
+recorre la página en oscuro y lista los elementos visibles cuyo fondo sigue
+siendo claro: un `#fff` que se coló, una hoja que carga después de
+`css/dark.css`, una tabla de un plugin. Es la comprobación que evita el «aquí
+se ve un cuadro blanco» que sólo aparece a ojo.
+
+```bash
+npm install --no-save playwright-core
+make dark-audit                 # vista previa del panel
+make dark-audit-client          # vista previa del portal
+node tools/ui/dark-audit.js http://localhost:8090/scp/tickets.php \
+     --cookie "OSTSESSID=<tu-sesion>"
+```
+
+Hay superficies que **deben** ser claras: el cuerpo de un correo, el visor de
+un PDF y el editor enriquecido son «papel» a propósito. Se marcan en el HTML
+con `data-allow-light` y el auditor las ignora (también ignora imágenes,
+`iframe` y elementos translúcidos). Las dos maquetas dan **0 hallazgos**.
+
+Sale 0 si no hay hallazgos y 1 si los hay, así que se puede encadenar.
 
 Herramientas recomendadas además: Lighthouse (accesibilidad), axe DevTools,
 WAVE, y el modo de emulación de `prefers-reduced-motion` del navegador.
@@ -626,7 +651,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 94 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 98 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -644,7 +669,7 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **38** atributos en 28 archivos (`make inline-audit`), desde 124 en 71. Seis tandas hechas con `js/actions.js` (§3.9, §6.1-14); quedan los manejadores con lógica propia: `$.userLookup` (7), `$.pjax` con parámetros calculados (3), los combos de búsqueda avanzada (`help-topic`, `topicId`), carga de `jstz.min.js` (2), los filtros que reescriben un campo oculto y ~14 casos dispares que hay que resolver uno a uno con su propia función |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **29** atributos en 21 archivos (`make inline-audit`), desde 124 en 71. Siete tandas hechas con `js/actions.js` (§3.9, §6.1-14); quedan los manejadores con lógica propia: `$.userLookup` (7), los filtros que reescriben un campo oculto y confirman (2), los que encadenan varios `$.ajax` (4), cadenas de visibilidad (`staff.inc.php`, `user-register`) y ~14 casos sueltos |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar
