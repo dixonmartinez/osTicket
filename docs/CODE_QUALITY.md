@@ -207,6 +207,15 @@ comportamiento observable:
    `filter()`/`onCreate()` sin el tipo de retorno que exige
    `php_user_filter` desde PHP 8.0: dos avisos **en cada arranque** de la
    aplicación, no sólo en las pruebas.
+6. `Format::html_balance()` hacía `$doc->preserveWhitespace = false;`. La
+   propiedad de `DOMDocument` se llama `preserveWhiteSpace` (con S
+   mayúscula), así que esa línea creaba una propiedad dinámica: **nunca hizo
+   nada** y desde PHP 8.2 PHP avisa «Creation of dynamic property
+   DOMDocument::$preserveWhitespace is deprecated» en cada limpieza de HTML
+   (es decir, en cada mensaje guardado). Se quita la línea, que es lo único
+   que mantiene el comportamiento: activar de verdad la propiedad elimina
+   los nodos de sólo espacios y, con ellos, el espacio entre etiquetas en
+   línea.
 
 El aviso que originó el punto 4 salió en el log del contenedor, no en la
 salida de `make unit`. Por eso el ejecutor de pruebas ya no lo permite pasar:
@@ -217,6 +226,20 @@ salida de `make unit`. Por eso el ejecutor de pruebas ya no lo permite pasar:
 
 Así, un `null` que hoy sólo ensucia el log rompe la integración antes de
 llegar a producción. Lo silenciado con `@` se sigue respetando.
+
+**El entorno de referencia es el contenedor.** El ejecutor del equipo de
+desarrollo es php-wasm (PHP 8.3 **sin** `dom`, `mbstring`, `intl` ni
+`mysqli`); la imagen de `docker/php` es PHP 8.4.27 con `dom`. Por eso hay
+avisos —el de `preserveWhitespace` es el caso— que sólo aparecen en
+`make docker-test`. `tests/run.php` imprime ahora la versión de PHP y las
+extensiones cargadas al empezar, y las pruebas que necesitan `dom` se marcan
+como omitidas en vez de pasar en falso:
+
+```
+PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
+...
+160 pruebas correctas, 0 fallidas, 4 omitidas
+```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
 integración.

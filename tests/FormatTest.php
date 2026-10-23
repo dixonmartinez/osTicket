@@ -213,4 +213,67 @@ class FormatTest extends UnitTestCase {
         // Sin imágenes de archivo.php, el texto se queda igual
         $this->assertSame('hola', Format::localizeInlineImages('hola'));
     }
+
+    /* ------------------------------------------------------------------ */
+    /* DOM (sólo cuando la extensión está cargada)                         */
+    /* ------------------------------------------------------------------ */
+
+    /* El php-wasm con el que se ejecutan estas pruebas en el equipo de
+       desarrollo no trae la extensión dom, así que estas comprobaciones se
+       saltan ahí y se ejecutan en el contenedor (`make docker-test`), que es
+       el entorno de referencia: PHP 8.4 con dom. */
+
+    public function testHtmlBalanceConservaElEspacioEntreEtiquetas(): void {
+        if (!extension_loaded('dom'))
+            $this->markTestSkipped('la extensión dom no está cargada');
+
+        // No se activa preserveWhiteSpace: el espacio entre etiquetas en
+        // línea es texto que el usuario ve, y quitarlo cambia el mensaje.
+        $html = Format::html_balance('<b>uno</b> <i>dos</i>');
+
+        $this->assertStringContainsString('</b> <i>', $html);
+    }
+
+    public function testHtmlBalanceQuitaNodosVacios(): void {
+        if (!extension_loaded('dom'))
+            $this->markTestSkipped('la extensión dom no está cargada');
+
+        $html = Format::html_balance('<p>hola</p><p></p>');
+
+        $this->assertStringContainsString('hola', $html);
+        $this->assertSame(2, substr_count($html, '<p>') + substr_count($html, '<p '));
+    }
+
+    public function testSanitizeConDomNoEmiteAvisos(): void {
+        if (!extension_loaded('dom'))
+            $this->markTestSkipped('la extensión dom no está cargada');
+
+        // Regresión: `$doc->preserveWhitespace = false` creaba una propiedad
+        // dinámica en DOMDocument y PHP 8.2+ avisaba en cada llamada.
+        $avisos = array();
+        set_error_handler(function ($no, $str) use (&$avisos) {
+            $avisos[] = $str;
+            return true;
+        }, E_ALL);
+
+        try {
+            Format::sanitize('<p>hola</p>');
+            Format::sanitize('<b>uno</b> <i>dos</i>', true);
+            Format::html_balance('<p>hola</p>');
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame(array(), $avisos);
+    }
+
+    public function testSanitizeConDomSigueLimpiandoScripts(): void {
+        if (!extension_loaded('dom'))
+            $this->markTestSkipped('la extensión dom no está cargada');
+
+        $limpio = Format::sanitize('<p>hola</p><script>alert(1)</script>', true);
+
+        $this->assertFalse(strpos($limpio, '<script') !== false);
+        $this->assertStringContainsString('hola', $limpio);
+    }
 }

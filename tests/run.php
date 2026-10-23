@@ -37,9 +37,20 @@ foreach (array_slice($argv, 1) as $arg) {
 $files = glob(__DIR__ . '/*Test.php') ?: array();
 sort($files);
 
+/* Cobertura del entorno: las pruebas se saltan lo que dependa de una
+   extensión que no esté cargada. En el equipo de desarrollo el ejecutor es
+   php-wasm (sin dom ni mbstring); el entorno de referencia es el contenedor
+   (`make docker-test`, PHP 8.4 con dom). */
+$extensiones = array();
+foreach (array('dom', 'mbstring', 'intl', 'mysqli') as $ext)
+    $extensiones[] = $ext . ': ' . (extension_loaded($ext) ? 'sí' : 'no');
+
+printf("PHP %s — %s\n", PHP_VERSION, implode(', ', $extensiones));
+
 $passed = 0;
 $failed = 0;
 $skipped = 0;
+$omitted = 0;
 $failures = array();
 $started = microtime(true);
 
@@ -110,6 +121,11 @@ foreach ($files as $file) {
 
                 $passed++;
                 printf("  ok    %s::%s (%d)\n", $short, $method, $assertions);
+            } catch (TestSkipped $e) {
+                restore_error_handler();
+                $omitted++;
+                printf("  --    %s::%s (%s)\n", $short, $method,
+                    $e->getMessage() ?: 'omitida');
             } catch (AssertionFailed $e) {
                 restore_error_handler();
                 $failed++;
@@ -144,7 +160,8 @@ if ($failures) {
     echo "\n";
 }
 
-printf("%d pruebas correctas, %d fallidas (%d clases sin pruebas) en %.0f ms\n",
-    $passed, $failed, $skipped, $elapsed);
+printf("%d pruebas correctas, %d fallidas%s (%d clases sin pruebas) en %.0f ms\n",
+    $passed, $failed,
+    $omitted ? ", $omitted omitidas" : '', $skipped, $elapsed);
 
 exit($failed ? 1 : 0);

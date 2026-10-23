@@ -155,8 +155,12 @@ class Format {
             // Wrap the content in a <div> because libxml would use a <p>
             . "<div>$html</div>";
         $doc->encoding = 'utf-8';
-        $doc->preserveWhitespace = false;
         $doc->recover = true;
+        // Sin `preserveWhitespace = false`: esa propiedad no existe en
+        // DOMDocument (la real es `preserveWhiteSpace`, con S mayúscula), así
+        // que sólo creaba una propiedad dinámica y el aviso de PHP 8.2+
+        // «Creation of dynamic property ... is deprecated». El espacio en
+        // blanco se conserva, como hasta ahora (ver docs/CODE_QUALITY.md).
         if (false === @$doc->loadHTML($xhtml))
             return $html;
 

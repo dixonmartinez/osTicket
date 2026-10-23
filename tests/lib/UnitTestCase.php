@@ -10,6 +10,10 @@
  * Si PHPUnit está instalado, tests/bootstrap.php alía esta clase a la de
  * PHPUnit y este archivo no se carga.
  */
+/** Se lanza desde una prueba que no se puede ejecutar en este entorno. */
+class TestSkipped extends Exception {
+}
+
 class UnitTestCase {
 
     private $expectedException = null;
@@ -18,6 +22,14 @@ class UnitTestCase {
     /* ---------------------------------------------------------------- */
     /* Ejecución                                                        */
     /* ---------------------------------------------------------------- */
+
+    /**
+     * Omite la prueba. En PHPUnit lo hace la clase base; aquí se lanza esta
+     * excepción y el ejecutor la cuenta aparte (ni pasa ni falla).
+     */
+    public function markTestSkipped(string $message = ''): void {
+        throw new TestSkipped($message);
+    }
 
     protected function setUp(): void {
     }

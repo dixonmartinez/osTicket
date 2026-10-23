@@ -318,7 +318,10 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
 - **Pruebas unitarias**: `make unit` (o `make test`). Viven en `tests/` como
   `*Test.php` y extienden `UnitTestCase`. **Un aviso de PHP cuenta como
   fallo** (deprecaciones, índices sin definir): si tu prueba pasa pero el log
-  del contenedor tiene avisos, la prueba fallará con el mensaje y la línea. No necesitan base de datos ni
+  del contenedor tiene avisos, la prueba fallará con el mensaje y la línea.
+  El **entorno de referencia es el contenedor** (`make docker-test`, PHP 8.4
+  con `dom`); el ejecutor del equipo puede no tener esa extensión y entonces
+  esas pruebas salen como omitidas. No necesitan base de datos ni
   Composer: `tests/run.php` las ejecuta igual. Con `composer install`,
   `make unit` usa PHPUnit. Detalle en
   [`CODE_QUALITY.md`](CODE_QUALITY.md#frente-1--red-de-seguridad-antes-de-tocar-nada-imprescindible).
