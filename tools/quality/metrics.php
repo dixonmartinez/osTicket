@@ -66,79 +66,8 @@ function collect_php($root, array $areas, array $skipDirs) {
     return $files;
 }
 
-/**
- * Tamaño real de cada función, en líneas.
- *
- * Se recorre la lista de tokens: las llaves que importan son las del código,
- * no las que aparecen dentro de una cadena («Hola {nombre}»), un heredoc o
- * una expresión regular. Contando el texto a pelo, una función de 20 líneas
- * con un mensaje con llaves podía salir de 700.
- *
- * @return array<array{name:string,lines:int}>
- */
-function measure_functions(string $src): array {
-    if (!function_exists('token_get_all'))
-        return [];
-
-    $tokens = @token_get_all($src);
-    if (!is_array($tokens))
-        return [];
-
-    $out = array();
-    $pending = null;
-    $depth = 0;
-    $line = 1;
-    $count = count($tokens);
-
-    for ($i = 0; $i < $count; $i++) {
-        $token = $tokens[$i];
-
-        if (is_array($token)) {
-            $line = $token[2];
-
-            if ($token[0] === T_FUNCTION) {
-                $name = 'closure';
-
-                for ($j = $i + 1; $j < $count; $j++) {
-                    $next = $tokens[$j];
-
-                    if (is_array($next) && in_array($next[0], array(T_WHITESPACE,
-                            T_COMMENT, T_DOC_COMMENT)))
-                        continue;
-
-                    if (is_array($next) && $next[0] === T_STRING)
-                        $name = $next[1];
-
-                    break;
-                }
-
-                $pending = array('name' => $name, 'line' => $token[2], 'depth' => null);
-            }
-
-            $line += substr_count($token[1], "\n");
-            continue;
-        }
-
-        if ($token === '{') {
-            $depth++;
-
-            if ($pending && $pending['depth'] === null)
-                $pending['depth'] = $depth;
-        } else if ($token === '}') {
-            if ($pending && $pending['depth'] === $depth) {
-                $out[] = array('name' => $pending['name'],
-                    'lines' => $line - $pending['line'] + 1);
-                $pending = null;
-            }
-
-            $depth--;
-        }
-
-        $line += substr_count($token, "\n");
-    }
-
-    return $out;
-}
+/* El medidor vive en measure.php para poder probarlo por separado. */
+require_once __DIR__ . '/measure.php';
 
 $files = collect_php($root, $areas, $skipDirs);
 
@@ -189,7 +118,7 @@ foreach ($files as $rel) {
     // el texto (las llaves dentro de cadenas, heredocs o expresiones
     // regulares falseaban la medida y hacían parecer gigantes funciones
     // pequeñas).
-    foreach (measure_functions($src) as $fn)
+    foreach (CodeMeasure::functionsIn($src) as $fn)
         $functions[] = $fn + ['file' => $rel];
 }
 

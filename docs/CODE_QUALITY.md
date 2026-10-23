@@ -28,36 +28,51 @@ test: nunca falla, sólo informa.
 `accesos directos a $_POST` o el tamaño medio de función, se ha ido en la
 dirección contraria.
 
-> **La medida se corrigió el 2026-10-23.** Hasta entonces el tamaño de cada
-> función se calculaba contando `{` y `}` sobre el texto: una llave dentro de
-> una cadena (`'Hola {nombre}'`), de un heredoc o de una expresión regular
-> descuadraba la cuenta y hacía parecer gigantes funciones de 20 líneas. Por
-> eso `Queue::getCriteria()` «tenía» 1.414 líneas y `class.file.php` cuatro
-> funciones de 730. Ahora se recorre la lista de tokens de PHP
-> (`token_get_all`), donde las cadenas son un solo token, y las señales de
-> JavaScript en línea se cuentan sólo en las plantillas (`include/`, `scp/`)
-> y sólo como atributos reales (`onclick="…"`), no como `onsubmit =` de
-> JavaScript. Las cifras de abajo son las corregidas.
+> **La medida se ha corregido dos veces, y las dos importan.**
+>
+> 1. Hasta el 2026-10-23 se contaban `{` y `}` sobre el texto: una llave
+>    dentro de una cadena (`'Hola {nombre}'`), de un heredoc o de una
+>    expresión regular descuadraba la cuenta. Por eso `Queue::getCriteria()`
+>    «tenía» 1.414 líneas y `class.file.php` cuatro funciones de 730.
+> 2. Al pasar a `token_get_all` quedó otro error: se seguía una sola función
+>    a la vez. Si un método contiene un cierre (`function () {...}`), el
+>    cierre ocupaba el sitio del método y **el método desaparecía de la
+>    medida**; lo mismo con las llaves de interpolación (`"{$var}"`) y con
+>    las funciones de interfaz sin cuerpo. Resultado: `Ticket::create()`,
+>    con 536 líneas, no aparecía en ninguna lista, y faltaban 114 funciones
+>    del total.
+>
+> Ahora la medida vive en `tools/quality/measure.php`, lleva una pila de
+> funciones abiertas y tiene 13 pruebas propias (`tests/CodeMeasureTest.php`)
+> para que no vuelva a pasar. Las cifras de abajo son las buenas.
 
 ---
 
-## 2. Radiografía (corregida el 2026-10-23)
+## 2. Radiografía (medida el 2026-10-23)
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 511 |
-| Líneas | 133.280 |
-| Funciones | 5.924 |
-| Clases, interfaces y rasgos | 654 en 182 archivos |
-| Tamaño medio de función | 10,8 líneas |
+| Archivos PHP propios | 512 |
+| Líneas | 133.346 |
+| Funciones | 6.038 |
+| Clases, interfaces y rasgos | 654 en 186 archivos |
+| Tamaño medio de función | 12,1 líneas |
 | Archivo más grande | `include/class.ticket.php` — 4.844 líneas |
-| Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 407 líneas (herramienta de línea de comandos) |
-| Función más larga de la aplicación | `Ticket::postMessage()` — 178 líneas |
+| Función más larga del código propio | `Ticket::create()` — 536 líneas |
+| Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
 
-**No hay ninguna función de 1.400 líneas.** La más larga de la aplicación
-ronda las 180 y la media son 11. El problema de este código no es el tamaño de
-las funciones: es el tamaño de los **archivos** y la mezcla de
-responsabilidades dentro de ellos.
+**No hay ninguna función de 1.400 líneas**, pero sí una de **536**:
+`Ticket::create()`. La media son 12 líneas; el problema son los valores
+atípicos, y ahora se ven:
+
+| Función | Líneas | Archivo |
+|---|---|---|
+| `Ticket::create()` | 536 | `include/class.ticket.php` |
+| `massProcess()` | 377 | `include/ajax.tickets.php` |
+| `massProcess()` | 330 | `include/ajax.tasks.php` |
+| `Mailer::send()` | 297 | `include/class.mailer.php` |
+| `QuerySet::compileSelect()` | 222 | `include/class.orm.php` |
+| `Ticket::postMessage()` | 178 | `include/class.ticket.php` |
 
 | Señal | Ocurrencias |
 |---|---|
@@ -69,7 +84,7 @@ responsabilidades dentro de ellos.
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
 | `<script>` embebido en plantillas | 162 |
 
-La media de 10,8 líneas por función es **buena**. Los valores atípicos son de
+La media de 12,1 líneas por función es **buena**. Los valores atípicos son de
 dos tipos: siete archivos por encima de 2.000 líneas, y las funciones de la
 lista de arriba, que en su mayoría son de herramientas propias
 (`tools/`, `setup/`, `cli/`) o de librerías copiadas (`htmLawed`, `JSON.php`,
