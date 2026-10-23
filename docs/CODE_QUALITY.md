@@ -139,7 +139,9 @@ archivo es válido por separado:
 - dos archivos declaran la misma clase sin protección (error fatal según el
   orden de carga),
 - un `include`/`require` con ruta literal apunta a un archivo que no existe
-  (el error aparece sólo al ejecutar esa rama).
+  (el error aparece sólo al ejecutar esa rama). Se busca en el directorio
+  del archivo y en sus superiores, porque osTicket incluye `staff.inc.php`
+  desde `scp/apps/` contando con que el script de entrada vive en `scp/`.
 
 Los polyfills y dobles de prueba (`if (!class_exists(...))`) se listan aparte:
 no chocan nunca.

@@ -250,23 +250,38 @@ class ClassMap {
         return $targets;
     }
 
-    /** Includes literales que no llevan a ningún archivo existente. */
+    /**
+     * Includes literales que no llevan a ningún archivo existente.
+     *
+     * Se comprueban el directorio del archivo y sus superiores: osTicket
+     * incluye `staff.inc.php` desde `scp/apps/dispatcher.php` contando con
+     * que el script de entrada vive en `scp/` (PHP busca las rutas
+     * relativas en el directorio del script que se ejecuta, no en el del
+     * archivo que hace el include). Comprobar sólo el directorio del
+     * archivo daría un falso positivo.
+     */
     static function missingIncludes($root, array $files) {
         $missing = [];
+        $root = rtrim($root, '/');
         foreach ($files as $rel) {
             $source = @file_get_contents("$root/$rel");
             if ($source === false)
                 continue;
+
+            // Directorio del archivo y todos sus superiores hasta la raíz
             $dir = dirname("$root/$rel");
+            $candidatos = array();
+            for ($d = $dir; strlen($d) >= strlen($root); $d = dirname($d)) {
+                $candidatos[] = $d . '/';
+                if ($d === $root)
+                    break;
+            }
+            $candidatos[] = "$root/include/";
+
             foreach (self::includeTargets($source) as $target) {
-                $candidatos = [
-                    "$dir/" . $target['path'],
-                    "$root/include/" . $target['path'],
-                    "$root/" . $target['path'],
-                ];
                 $existe = false;
-                foreach ($candidatos as $c) {
-                    if (file_exists($c)) {
+                foreach ($candidatos as $base) {
+                    if (file_exists($base . $target['path'])) {
                         $existe = true;
                         break;
                     }

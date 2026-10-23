@@ -51,7 +51,7 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make test` | Alias de `make unit` | ~0,1 s |
 | `make test-legacy` | Suite histórica del instalador (`setup/test/`) | variable |
 | `make security` | Versión de PHP frente a php2shell (CVE-2026-109618/19) | ~1 s |
-| `make theme` | Integridad del tema claro/oscuro (sin navegador) | ~1 s |
+| `make theme` | Integridad del tema claro/oscuro (sin navegador). Alias: `make theme-check` | ~1 s |
 | `make metrics` | Radiografía del código: tamaño y deuda técnica | ~2 s |
 | `make classes` | Mapa de clases por archivo; falla si una clase se declara dos veces o un `include` literal apunta a un archivo que no existe | ~1 s |
 | `make ci` | lint + audit + security + theme + classes + unit (verificación previa al commit) | ~9 s |

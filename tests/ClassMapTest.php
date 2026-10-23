@@ -208,6 +208,42 @@ class ClassMapTest extends UnitTestCase {
         $this->assertSame(array(), $rotos);
     }
 
+    public function testUnIncludeQueSeResuelveEnElDirectorioPadreVale(): void {
+        // osTicket hace require('staff.inc.php') desde scp/apps/, contando
+        // con que el script de entrada vive en scp/
+        $dir = sys_get_temp_dir() . '/ost-classmap-padre-' . getmypid();
+        @mkdir($dir . '/scp/apps', 0777, true);
+        file_put_contents("$dir/scp/staff.inc.php", "<?php\n");
+        file_put_contents("$dir/scp/apps/dispatcher.php",
+            "<?php require('staff.inc.php');\n");
+
+        $rotos = ClassMap::missingIncludes($dir, array('scp/apps/dispatcher.php'));
+
+        @unlink("$dir/scp/apps/dispatcher.php");
+        @unlink("$dir/scp/staff.inc.php");
+        @rmdir("$dir/scp/apps");
+        @rmdir("$dir/scp");
+        @rmdir($dir);
+
+        $this->assertSame(array(), $rotos);
+    }
+
+    public function testUnIncludeQueNoExisteEnNingunSitioSeMarca(): void {
+        $dir = sys_get_temp_dir() . '/ost-classmap-nada-' . getmypid();
+        @mkdir($dir . '/scp/apps', 0777, true);
+        file_put_contents("$dir/scp/apps/dispatcher.php",
+            "<?php require('no-existe.inc.php');\n");
+
+        $rotos = ClassMap::missingIncludes($dir, array('scp/apps/dispatcher.php'));
+
+        @unlink("$dir/scp/apps/dispatcher.php");
+        @rmdir("$dir/scp/apps");
+        @rmdir($dir);
+
+        $this->assertSame(1, count($rotos));
+        $this->assertSame('no-existe.inc.php', $rotos[0]['path']);
+    }
+
     /* ------------------------------------------------------------------ */
     /* Reparto por archivo                                                 */
     /* ------------------------------------------------------------------ */

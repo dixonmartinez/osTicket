@@ -19,7 +19,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme metrics metrics-json classes ci clean perms serve browser-audit \
+.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme theme-check metrics metrics-json classes ci clean perms serve browser-audit \
 	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
@@ -77,6 +77,8 @@ security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19
 
 theme: ## Revisa que el tema claro/oscuro siga completo y conectado
 	@$(PHP) $(ROOT)/tools/ui/theme-check.php
+
+theme-check: theme ## Alias de `theme` (el script se llama theme-check)
 
 inline-audit: ## Cuenta los onclick/onchange en línea (trabajo pendiente de la CSP)
 	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php
