@@ -68,6 +68,7 @@ require_once INCLUDE_DIR . 'class.validator.php';
 require_once INCLUDE_DIR . 'class.ticket.post.php';
 require_once INCLUDE_DIR . 'class.ticket.create.php';
 require_once INCLUDE_DIR . 'class.massaction.php';
+require_once INCLUDE_DIR . 'class.mailer.message.php';
 require_once INCLUDE_DIR . 'class.thread.email.php';
 require_once INCLUDE_DIR . 'class.thread.entry.php';
 

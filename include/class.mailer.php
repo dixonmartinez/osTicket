@@ -17,6 +17,8 @@
 **********************************************************************/
 namespace osTicket\Mail;
 
+include_once(INCLUDE_DIR . 'class.mailer.message.php');
+
 class Mailer {
     private $from = null;
     var $email = null;
@@ -345,7 +347,7 @@ class Mailer {
         global $ost, $cfg;
 
         $messageId = $this->getMessageId($recipients, $options);
-        $subject = preg_replace("/(\r\n|\r|\n)/s",'', trim($subject));
+        $subject = MailerMessage::cleanSubject($subject);
         $from = $this->getFromAddress($options);
 
          // Create new ostTicket/Mail/Message object
@@ -412,24 +414,8 @@ class Mailer {
         elseif ($this->getEmail() instanceof \Email)
             $message->setReturnPath($this->getEmail()->getEmail());
 
-        // Bulk.
-        if (isset($options['bulk']) && $options['bulk'])
-            $headers+= array('Precedence' => 'bulk');
-
-        // Auto-reply - mark as autoreply and supress all auto-replies
-        if (isset($options['autoreply']) && $options['autoreply']) {
-            $headers+= array(
-                    'Precedence' => 'auto_reply',
-                    'X-Autoreply' => 'yes',
-                    'X-Auto-Response-Suppress' => 'DR, RN, OOF, AutoReply',
-                    'Auto-Submitted' => 'auto-replied');
-        }
-
-        // Notice (sort of automated - but we don't want auto-replies back
-        if (isset($options['notice']) && $options['notice'])
-            $headers+= array(
-                    'X-Auto-Response-Suppress' => 'OOF, AutoReply',
-                    'Auto-Submitted' => 'auto-generated');
+        // Cabeceras del tipo de aviso (boletín, automático, aviso)
+        $headers += MailerMessage::extraHeaders($options);
         // In-Reply-To
         if (isset($options['inreplyto']) && $options['inreplyto'])
             $message->addInReplyTo($options['inreplyto']);
@@ -508,16 +494,10 @@ class Mailer {
         if (!(isset($options['text']) && $options['text'])) {
             // Embed the data-mid in such a way that it should be included
             // in a response
-            if ($options['reply-tag'] || $mid_token) {
-                $body = sprintf('<div style="display:none"
-                        class="mid-%s">%s</div>%s',
-                        $mid_token,
-                        $options['reply-tag'],
-                        $body);
-            }
+            $body = MailerMessage::wrapMid($body, $mid_token,
+                $options['reply-tag']);
 
-            $txtbody = rtrim(\Format::html2text($body, 90, false))
-                . ($messageId ? "\nRef-Mid: $messageId\n" : '');
+            $txtbody = MailerMessage::textBody($body, $messageId);
             $message->setTextBody($txtbody);
         }
         else {
@@ -526,13 +506,8 @@ class Mailer {
         }
 
         if ($isHtml && $cfg && $cfg->isRichTextEnabled()) {
-            // Pick a domain compatible with pear Mail_Mime
-            $matches = array();
-            if (preg_match('#(@[0-9a-zA-Z\-\.]+)#', (string) $this->getFromAddress(), $matches)) {
-                $domain = $matches[1];
-            } else {
-                $domain = '@localhost';
-            }
+            // Dominio compatible con pear Mail_Mime
+            $domain = MailerMessage::contentIdDomain($this->getFromAddress());
             // Format content-ids with the domain, and add the inline images
             // to the email attachment list
             $self = $this;
