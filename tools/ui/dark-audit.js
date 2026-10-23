@@ -157,7 +157,17 @@ function audit() {
             || (typeof process.getuid === 'function' && process.getuid() === 0))
         launch.args.push('--no-sandbox');
 
-    const browser = await chromium.chromium.launch(launch);
+    let browser;
+    try {
+        browser = await chromium.chromium.launch(launch);
+    } catch (e) {
+        console.error('No se pudo abrir Chromium: '
+            + String(e && e.message ? e.message : e).split('\n')[0] + '\n'
+            + '  · Con Docker: make docker-dark-audit (los navegadores vienen en la imagen)\n'
+            + '  · En el equipo:  npx playwright install chromium\n'
+            + '  · Si ya está descargado: export CHROME_PATH=/ruta/al/chrome');
+        process.exit(2);
+    }
     const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
 
     if (flags.cookie) {

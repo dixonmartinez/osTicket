@@ -619,6 +619,18 @@ check(strpos(read("$root/Makefile"), 'browser-audit.sh') !== false,
     'make dark-audit/contrast-audit usan browser-audit.sh',
     'el Makefile llama a node directamente: sin Playwright el objetivo falla');
 
+/* La imagen oficial de Playwright no incluye el paquete de Node (solo los
+   navegadores): el lanzador tiene que instalarlo él mismo. */
+$browserAudit = read("$root/tools/ui/browser-audit.sh");
+check(strpos($browserAudit, 'playwright-core@') !== false
+    && strpos($browserAudit, '/pwnode') !== false,
+    'browser-audit.sh instala playwright-core en un volumen cacheado',
+    'la imagen de Playwright no trae el paquete: browser-audit.sh debe instalarlo en un volumen');
+
+check(strpos($browserAudit, 'host.docker.internal') !== false,
+    'browser-audit.sh traduce localhost a host.docker.internal',
+    'las URLs con localhost no llegarían al equipo desde el contenedor');
+
 check(strpos(read("$root/Makefile"), '--out=$(ROOT)/ost-iconos.html') !== false,
     'make icons escribe la hoja dentro del proyecto',
     'make icons escribe en /tmp: dentro del contenedor el archivo no llega al equipo');
