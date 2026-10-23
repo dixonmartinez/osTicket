@@ -18,7 +18,7 @@
 
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
-require_once 'bootstrap.php';
+require_once __DIR__.'/bootstrap.php';
 
 // Make sure the script is executed via CLI
 if (!osTicket::is_cli())

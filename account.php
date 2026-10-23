@@ -60,22 +60,28 @@ elseif ($_POST) {
         $_POST['email'] = $thisclient->getEmail();
     }
 
+    // Un alta desde un backend externo no trae contraseña
+    $backend = $_POST['backend'] ?? null;
+    $passwd1 = (string) ($_POST['passwd1'] ?? '');
+    $passwd2 = (string) ($_POST['passwd2'] ?? '');
+
     if (!$user_form->isValid(function($f) { return $f->isVisibleToUsers(); }))
         $errors['err'] = __('Incomplete client information');
-    elseif (!$_POST['backend'] && !$_POST['passwd1'])
+    elseif (!$backend && !$passwd1)
         $errors['passwd1'] = __('New password is required');
-    elseif (!$_POST['backend'] && $_POST['passwd2'] != $_POST['passwd1'])
+    elseif (!$backend && $passwd2 != $passwd1)
         $errors['passwd1'] = __('Passwords do not match');
     else {
         try {
-            UserAccount::checkPassword($_POST['passwd1']);
+            UserAccount::checkPassword($passwd1);
         } catch (BadPassword $ex) {
              $errors['passwd1'] = $ex->getMessage();
         }
     }
 
     if ($errors)
-        $errors['err'] = $errors['err'] ?: __('Unable to register account. See messages below');
+        $errors['err'] = !empty($errors['err']) ? $errors['err']
+            : __('Unable to register account. See messages below');
     // XXX: The email will always be in use already if a guest is logged in
     // and is registering for an account. Instead,
     elseif (($addr = $user_form->getField('email')->getClean())
@@ -108,14 +114,14 @@ elseif ($_POST) {
     }
 
     if (!$errors) {
-        switch ($_POST['do']) {
+        switch ($_POST['do'] ?? '') {
         case 'create':
             $content = Page::lookupByType('registration-confirm');
             $inc = 'register.confirm.inc.php';
             $acct->sendConfirmEmail();
             break;
         case 'import':
-            if ($bk = UserAuthenticationBackend::getBackend($_POST['backend'])) {
+            if ($bk = UserAuthenticationBackend::getBackend($backend)) {
                 $cl = new ClientSession(new EndUser($user));
                 if (!$bk->supportsInteractiveAuthentication())
                     $acct->set('backend', null);

@@ -34,6 +34,16 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   de `TicketCreate`, cada una con nombre y las cuatro primeras con pruebas.
 * Dos avisos de PHP del alta de tickets (`Validator` leía claves que podían
   no existir) corregidos; `make unit` falla si vuelve un aviso.
+* **Un filtro vacío ya no emite `WHERE`**: el listado de `scp/logs.php`
+  respondía 500 (`InconsistentModelException`) cuando no había ningún filtro
+  aplicado. `filter()`, `exclude()` y el compilador descartan las condiciones
+  vacías; cinco pruebas nuevas en `tests/QuerySqlTest.php`.
+* **Las 21 páginas de la raíz, revisadas**: enlaces de acceso que no llevaban
+  al ticket (`view.php`), descargas que devolvían al login a un cliente con
+  sesión (`file.php`), captcha sin cabeceras de imagen ni de caché, y
+  redirecciones con `header()` en vez de `Http::redirect()`. Código muerto
+  fuera de `bootstrap.php` y `main.inc.php`. Detalle en
+  `docs/CODE_QUALITY.md` (sección 7) y prueba en `tests/EntryPointTest.php`.
 
 ### Analytics
 * Nuevo panel `scp/analytics.php` (`Analytics` + `AnalyticsChart`):

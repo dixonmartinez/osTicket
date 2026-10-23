@@ -13,10 +13,10 @@ if($_POST) {
         Http::response(400, __('Valid CSRF Token Required'));
         exit;
     }
-    switch ($_POST['do']) {
+    switch ($_POST['do'] ?? '') {
         case 'sendmail':
             $start = microtime(true);
-            $userid = (string) $_POST['userid'];
+            $userid = (string) ($_POST['userid'] ?? '');
             if (Validator::is_userid($userid)
                     && ($acct=ClientAccount::lookupByUsername($userid))) {
                 if (!$acct->isPasswdResetEnabled()) {
@@ -56,11 +56,11 @@ if($_POST) {
             break;
     }
 }
-elseif ($_GET['token']) {
+elseif ($token = $_GET['token'] ?? null) {
     $banner = __('Re-enter your username or email');
     $inc = 'pwreset.login.php';
     $_config = new Config('pwreset');
-    if (($id = $_config->get($_GET['token']))
+    if (($id = $_config->get($token))
             && ($acct = ClientAccount::lookup(array('user_id'=>substr($id,1))))) {
         if (!$acct->isConfirmed()) {
             $inc = 'register.confirmed.inc.php';
@@ -75,7 +75,7 @@ elseif ($_GET['token']) {
                 }
                 // No password setup yet -- force one to be created
                 else {
-                    $_SESSION['_client']['reset-token'] = $_GET['token'];
+                    $_SESSION['_client']['reset-token'] = $token;
                     $acct->forcePasswdReset();
                 }
                 Http::redirect('account.php?confirmed');

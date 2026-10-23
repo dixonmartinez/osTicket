@@ -639,6 +639,27 @@ seguía leyéndose con SQL a mano.
   modelo es una columna suelta y, con `ONLY_FULL_GROUP_BY` (el valor por
   omisión en MySQL 5.7+), la consulta sería inválida.
 
+**Un filtro vacío ya no emite `WHERE`.** El error que llegó del contenedor en
+producción era éste:
+
+```
+PHP Fatal error: Uncaught InconsistentModelException: Unable to prepare query:
+SELECT COUNT(*) FROM (SELECT A1.log_id FROM ost_syslog A1 WHERE ) ___
+```
+
+`include/staff/syslogs.inc.php` arma el criterio del listado según los filtros
+de la petición. Cuando no hay ninguno queda un arreglo vacío; `filter()` lo
+guardaba igual y el compilador emitía `WHERE ` **sin condición**. MySQL
+responde con un error de sintaxis, el ORM lo convierte en
+`InconsistentModelException` y la página termina en un 500. `exclude()` con un
+`Q` vacío hacía lo mismo, con un `NOT` colgando.
+
+El arreglo está en el ORM y no en el llamador, porque cualquier lista puede
+llegar vacía: `filter()` y `exclude()` ignoran los filtros sin condiciones
+(`QuerySet::isEmptyFilter()`) y `getWhereHavingClause()` descarta las
+condiciones vacías antes de unirlas, tanto en `WHERE` como en `HAVING`. Cinco
+pruebas de `tests/QuerySqlTest.php` fijan el SQL resultante.
+
 **La regla automática.** `make sql-audit` compara con
 `tools/quality/sql-baseline.json` (13 llamadas en 6 archivos) y **falla** si:
 
@@ -809,3 +830,72 @@ alguien mire el informe— son:
 
 Un refactor está justificado si **baja** alguna señal sin que suba ninguna
 otra, y si `make ci` sigue en verde.
+
+## 7. Las 21 páginas de la raíz (revisión del 2026-10-23)
+
+La raíz del proyecto es el arranque de todo: 21 archivos `.php` y 1.881 líneas
+que mezclan páginas públicas (`open.php`, `tickets.php`, `view.php`), arranques
+compartidos (`client.inc.php`, `secure.inc.php`, `main.inc.php`,
+`bootstrap.php`), utilidades (`file.php`, `avatar.php`, `logo.php`,
+`captcha.php`, `manifest.php`) y el CLI (`manage.php`).
+
+**No se renombró nada.** Los nombres de estos archivos son las URL del
+producto —y están en los correos, en los enlaces de acceso y en la
+documentación—, así que la revisión se limitó a corregir lo que estaba mal y a
+quitar lo que no se ejecutaba.
+
+| Archivo | Papel | Qué se corrigió |
+|---|---|---|
+| `index.php` | portada del portal | sin cambios |
+| `open.php` | alta de ticket | `Http::redirect()` al crear (antes cabecera suelta sin `exit`); captcha sin avisos si falta el campo o la sesión |
+| `tickets.php` | ver el ticket y responder | lecturas de `$_REQUEST`/`$_POST` con valor por omisión; CRLF → LF |
+| `view.php` | enlaces de acceso del correo | comprobaba `id` y redirigía con `t`: el enlace no llevaba al ticket |
+| `login.php` | acceso y enlace por número | `lpasswd`, `lemail`, `bk` y el destino guardado, sin avisos |
+| `account.php` | alta de cuenta | `backend`, `passwd1`, `passwd2` y `do` con valor por omisión |
+| `profile.php` | perfil con sesión | `class.user.php` por `INCLUDE_DIR` |
+| `pwreset.php` | restablecer contraseña | `token`, `do` y `userid` con valor por omisión |
+| `logout.php` | cierre de sesión | `auth` opcional |
+| `file.php` | descarga de adjuntos | `$thisuser` no existe: un cliente con sesión volvía al login; `$_GET` con valores por omisión |
+| `avatar.php` | avatares generados | `size` opcional |
+| `logo.php` | logo del portal | `Http::redirect()` (antes cabecera sin `exit`) |
+| `captcha.php` | imagen del captcha | `image/png` y `no-store`; 500 explícito si falta GD |
+| `manifest.php` | manifiesto de la PWA | sin cambios |
+| `offline.php` | página de mantenimiento | `Http::redirect()` en vez de cabecera + `include` |
+| `ajax.php` | despachador del portal | sin cambios |
+| `client.inc.php` | arranque del portal | `SCRIPT_NAME`/`REQUEST_METHOD` con valor por omisión; `profile.php` por `ROOT_DIR` |
+| `secure.inc.php` | arranque con sesión | `dirname(__FILE__)` en vez de rutas relativas al directorio de trabajo |
+| `main.inc.php` | arranque común | `bootstrap.php` por `__DIR__`; fuera el bloque de «magic quotes» |
+| `bootstrap.php` | constantes, config y conexión | fuera el relleno de `exif_imagetype` duplicado y cuatro bloques de código muerto; aviso en el log si `SECRET_SALT` es el predecible |
+| `manage.php` | CLI | `bootstrap.php` por `__DIR__` |
+
+**Los tres defectos que no eran cosméticos:**
+
+1. **`view.php`** leía `$_GET['t']` pero comprobaba `isset($_GET['id'])`; con
+   el enlace de acceso (`view.php?t=…`) la redirección no ocurría nunca.
+2. **`file.php`** consultaba `$thisuser`, una variable que no existe en el
+   arranque del cliente. La condición «¿hay sesión?» era siempre verdadera y,
+   con «exigir sesión para los archivos» activado, un cliente con sesión
+   volvía al login en cada descarga.
+3. **`Http::redirect()` en lugar de `header('Location')`** en `open.php`,
+   `logo.php` y `offline.php`: una cabecera suelta no detiene el script, así
+   que la petición seguía ejecutándose (y en `offline.php` renderizaba la
+   portada entera después de la redirección).
+
+**Lo que se dejó como estaba, a propósito:**
+
+- **El valor de `SECRET_SALT`** cuando no está definido en `ost-config.php`.
+  Es predecible (`md5(prefijo + correo del administrador)`), pero cambiarlo
+  invalida las sesiones y los datos derivados de una instalación en marcha. Se
+  añadió un aviso en el log y la corrección sigue siendo declararlo en la
+  configuración (`docs/SECURITY_AUDIT.md`).
+- **`error_reporting`** del arranque (oculta avisos y deprecaciones). En el
+  contenedor los `php.ini` de `docker/php/conf.d/` sí los registran, que es
+  donde se diagnostica; cambiarlo en producción llenaría el log de avisos de
+  código heredado.
+- **La estructura de `bootstrap.php`.** Se podía mover su clase a
+  `include/class.bootstrap.php`, pero el archivo lo incluyen instalador,
+  actualizador, CLI y plugins con rutas ya escritas: el riesgo no compensa.
+
+La prueba `tests/EntryPointTest.php` fija lo anterior: que las 21 páginas
+parsean, que no hay BOM ni finales de línea mezclados, que ninguna manda una
+cabecera `Location` a mano, y las tres regresiones concretas.

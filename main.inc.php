@@ -17,10 +17,10 @@ vim: expandtab sw=4 ts=4 sts=4:
 
 #Disable direct access.
 if(isset($_SERVER['SCRIPT_NAME'])
-        && !strcasecmp(basename($_SERVER['SCRIPT_NAME']),basename(__FILE__)))
+        && !strcasecmp(basename($_SERVER['SCRIPT_NAME'] ?? ''),basename(__FILE__)))
     die('kwaheri rafiki!');
 
-require('bootstrap.php');
+require(__DIR__.'/bootstrap.php');
 Bootstrap::loadConfig();
 Bootstrap::defineTables(TABLE_PREFIX);
 Bootstrap::i18n_prep();
@@ -54,12 +54,8 @@ $session = $ost->getSession();
 #pagenation default - user can override it!
 define('DEFAULT_PAGE_LIMIT', $cfg->getPageSize()?$cfg->getPageSize():25);
 
-#Cleanup magic quotes crap.
-if(function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) {
-$_POST=Format::strip_slashes($_POST);
-$_GET=Format::strip_slashes($_GET);
-$_REQUEST=Format::strip_slashes($_REQUEST);
-}
+# Las «magic quotes» desaparecieron en PHP 5.4 y el proyecto exige PHP 8:
+# el bloque que las limpiaba no se ejecutaba nunca y sólo confundía.
 
 // extract system messages
 $errors = array();

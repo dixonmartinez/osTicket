@@ -13,7 +13,7 @@
 
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
-if(!strcasecmp(basename($_SERVER['SCRIPT_NAME']),basename(__FILE__))) die('kwaheri rafiki!');
+if(!strcasecmp(basename($_SERVER['SCRIPT_NAME'] ?? ''),basename(__FILE__))) die('kwaheri rafiki!');
 
 $thisdir=str_replace('\\', '/', dirname(__FILE__)).'/';
 if(!file_exists($thisdir.'main.inc.php')) die('Fatal Error.');
@@ -33,7 +33,7 @@ define('OSTCLIENTINC',TRUE);
 define('ASSETS_PATH',ROOT_PATH.'assets/default/');
 
 //Check the status of the HelpDesk.
-if (!in_array(strtolower(basename($_SERVER['SCRIPT_NAME'])), array('logo.php','file.php'))
+if (!in_array(strtolower(basename($_SERVER['SCRIPT_NAME'] ?? '')), array('logo.php','file.php'))
         && !(is_object($ost) && $ost->isSystemOnline())) {
     include(ROOT_DIR.'offline.php');
     exit;
@@ -68,7 +68,7 @@ if($thisclient && $thisclient->getId() && $thisclient->isValid()){
 
 /******* CSRF Protectin *************/
 // Enforce CSRF protection for state-changing methods
-if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH', 'DELETE'])
+if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['POST', 'PUT', 'PATCH', 'DELETE'])
         && !$ost->checkCSRFToken()) {
     Http::redirect('index.php');
     //just incase redirect fails
@@ -86,12 +86,14 @@ define('SESSION_MAXLIFE', $thisclient ? $thisclient->getMaxIdleTime() :
 require(INCLUDE_DIR.'class.nav.php');
 $nav = new UserNav($thisclient, 'home');
 
-$exempt = in_array(basename($_SERVER['SCRIPT_NAME']), array('logout.php', 'ajax.php', 'logs.php', 'upgrade.php'));
+$exempt = in_array(basename($_SERVER['SCRIPT_NAME'] ?? ''), array('logout.php', 'ajax.php', 'logs.php', 'upgrade.php'));
 
 if (!$exempt && $thisclient && ($acct = $thisclient->getAccount())
         && $acct->isPasswdResetForced()) {
     $warn = __('Password change required to continue');
-    require('profile.php'); //profile.php must request this file as require_once to avoid problems.
+    // Ruta absoluta: `require('profile.php')` dependía del directorio de
+    // trabajo y fallaba en las páginas servidas desde un subdirectorio
+    require(ROOT_DIR.'profile.php'); //profile.php must request this file as require_once to avoid problems.
     exit;
 }
 ?>

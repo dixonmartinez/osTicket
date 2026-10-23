@@ -16,7 +16,8 @@
 
 require('client.inc.php');
 //Check token: Make sure the user actually clicked on the link to logout.
-if ($thisclient && $_GET['auth'] && $ost->validateLinkToken($_GET['auth']))
+if ($thisclient && ($auth = $_GET['auth'] ?? null)
+        && $ost->validateLinkToken($auth))
    $thisclient->logOut();
 
 osTicketSession::destroyCookie();

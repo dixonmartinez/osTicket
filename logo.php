@@ -19,11 +19,12 @@
 define('NOOP_SESSION', true);
 require('client.inc.php');
 $ttl = 86400; // max-age
-if (($logo = $ost->getConfig()->getClientLogo())) {
+// Con logo configurado, display() envía la imagen y termina la petición.
+if (($logo = $ost->getConfig()->getClientLogo()))
     $logo->display(false, $ttl);
-}
 
+// Sin logo propio se sirve el de la distribución.
 header("Cache-Control: private, max-age=$ttl");
 header('Pragma: private');
-header('Location: '.ASSETS_PATH.'images/logo.png');
+Http::redirect(ASSETS_PATH.'images/logo.png');
 ?>

@@ -29,9 +29,11 @@ if ($_POST) {
     if ($thisclient) {
         $vars['uid']=$thisclient->getId();
     } elseif($cfg->isCaptchaEnabled()) {
-        if(!$_POST['captcha'])
+        $captcha = trim($_POST['captcha'] ?? '');
+        $expected = $_SESSION['captcha'] ?? '';
+        if (!$captcha)
             $errors['captcha']=__('Enter text shown on the image');
-        elseif(strcmp($_SESSION['captcha'], md5(strtoupper($_POST['captcha']))))
+        elseif (!$expected || strcmp($expected, md5(strtoupper($captcha))))
             $errors['captcha']=sprintf('%s - %s', __('Invalid'), __('Please try again!'));
     }
 
@@ -56,11 +58,11 @@ if ($_POST) {
         if ($thisclient && $thisclient->isValid()) {
             // Regenerate session id
             $thisclient->regenerateSession();
-            @header('Location: tickets.php?id='.$ticket->getId());
+            Http::redirect('tickets.php?id='.$ticket->getId());
         } else
             $ost->getCSRF()->rotate();
     }else{
-        $errors['err'] = $errors['err'] ?: sprintf('%s %s',
+        $errors['err'] = !empty($errors['err']) ? $errors['err'] : sprintf('%s %s',
             __('Unable to create a ticket.'),
             __('Correct any errors below and try again.'));
     }

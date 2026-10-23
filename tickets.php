@@ -23,7 +23,7 @@ if ($thisclient->isGuest())
 require_once(INCLUDE_DIR.'class.ticket.php');
 require_once(INCLUDE_DIR.'class.json.php');
 $ticket=null;
-if($_REQUEST['id']) {
+if (!empty($_REQUEST['id'])) {
     if (!($ticket = Ticket::lookup($_REQUEST['id']))) {
         $errors['err']=__('Unknown or invalid ticket ID.');
     } elseif(!$ticket->checkUserAccess($thisclient)) {
@@ -42,7 +42,7 @@ $attachments = $messageField->getWidget()->getAttachments();
 //Process post...depends on $ticket object above.
 if ($_POST && is_object($ticket) && $ticket->getId()) {
     $errors=array();
-    switch(strtolower($_POST['a'])){
+    switch(strtolower($_POST['a'] ?? '')){
     case 'edit':
         if(!$ticket->checkUserAccess($thisclient) //double check perm again!
                 || $thisclient->getId() != $ticket->getUserId())
@@ -76,7 +76,8 @@ if ($_POST && is_object($ticket) && $ticket->getId()) {
         if(!$ticket->checkUserAccess($thisclient)) //double check perm again!
             $errors['err']=__('Access Denied. Possibly invalid ticket ID');
 
-        $_POST['message'] = ThreadEntryBody::clean($_POST[$messageField->getFormName()]);
+        $_POST['message'] = ThreadEntryBody::clean(
+            $_POST[$messageField->getFormName()] ?? '');
         if (!$_POST['message'])
             $errors['message'] = __('Message required');
 
@@ -114,9 +115,9 @@ if ($_POST && is_object($ticket) && $ticket->getId()) {
     }
 }
 elseif (is_object($ticket) && $ticket->getId()) {
-    switch(strtolower($_REQUEST['a'])) {
+    switch(strtolower($_REQUEST['a'] ?? '')) {
     case 'print':
-        if (!$ticket || !$ticket->pdfExport($_REQUEST['psize']))
+        if (!$ticket || !$ticket->pdfExport($_REQUEST['psize'] ?? null))
             $errors['err'] = __('Unable to print to PDF.')
                 .' '.__('Internal error occurred');
         break;

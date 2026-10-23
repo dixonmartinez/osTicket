@@ -50,7 +50,7 @@ if ($_POST && isset($_POST['luser'])) {
         $errors['err'] = __('Valid username or email address is required');
     elseif (Validator::is_userid(trim($_POST['luser']), $errors['err'], false)
             && ($user = UserAuthenticationBackend::process(trim($_POST['luser']),
-                substr($_POST['lpasswd'], 0, 128), $errors))) {
+                substr($_POST['lpasswd'] ?? '', 0, 128), $errors))) {
         if ($user instanceof ClientCreateRequest) {
             if ($cfg && $cfg->isClientRegistrationEnabled()) {
                 // Attempt to automatically register
@@ -67,19 +67,21 @@ if ($_POST && isset($_POST['luser'])) {
             }
         }
         else {
-            Http::redirect($_SESSION['_client']['auth']['dest']
-                ?: 'tickets.php');
+            Http::redirect(!empty($_SESSION['_client']['auth']['dest'])
+                ? $_SESSION['_client']['auth']['dest'] : 'tickets.php');
         }
-    } elseif(!$errors['err']) {
+    } elseif(empty($errors['err'])) {
         $errors['err'] = sprintf('%s - %s', __('Invalid username or password'), __('Please try again!'));
     }
     $suggest_pwreset = true;
 }
 elseif ($_POST && isset($_POST['lticket'])) {
-    if (!Validator::is_email($_POST['lemail']))
+    $lemail = trim($_POST['lemail'] ?? '');
+    $lticket = (string) $_POST['lticket'];
+    if (!Validator::is_email($lemail))
         $errors['err'] = __('Valid email address and ticket number required');
-    elseif (($user = UserAuthenticationBackend::process($_POST['lemail'],
-            $_POST['lticket'], $errors))) {
+    elseif (($user = UserAuthenticationBackend::process($lemail,
+            $lticket, $errors))) {
 
         // If email address verification is not required, then provide
         // immediate access to the ticket!
@@ -87,7 +89,7 @@ elseif ($_POST && isset($_POST['lticket'])) {
             Http::redirect('tickets.php');
 
         // This will succeed as it is checked in the authentication backend
-        $ticket = Ticket::lookupByNumber($_POST['lticket'], $_POST['lemail']);
+        $ticket = Ticket::lookupByNumber($lticket, $lemail);
 
         // We're using authentication backend so we can guard aganist brute
         // force attempts (which doesn't buy much since the link is emailed)
@@ -101,7 +103,7 @@ elseif ($_POST && isset($_POST['lticket'])) {
                 __('Invalid email or ticket number'),
                 __('Please try again!'));
         }
-    } elseif(!$errors['err']) {
+    } elseif(empty($errors['err'])) {
         $errors['err'] = sprintf('%s - %s', __('Invalid email or ticket number'), __('Please try again!'));
     }
 }
@@ -109,7 +111,7 @@ elseif (isset($_GET['do'])) {
     switch($_GET['do']) {
     case 'ext':
         // Lookup external backend
-        if ($bk = UserAuthenticationBackend::getBackend($_GET['bk'])) {
+        if ($bk = UserAuthenticationBackend::getBackend($_GET['bk'] ?? null)) {
             $result = $bk->triggerAuth();
             if ($result instanceof AccessDenied) {
                 $errors['err'] = $result->getMessage();
@@ -138,8 +140,8 @@ elseif ($user = UserAuthenticationBackend::processSignOn($errors, false)) {
         }
     }
     elseif ($user instanceof AuthenticatedUser) {
-        Http::redirect($_SESSION['_client']['auth']['dest']
-                ?: 'tickets.php');
+        Http::redirect(!empty($_SESSION['_client']['auth']['dest'])
+                ? $_SESSION['_client']['auth']['dest'] : 'tickets.php');
     }
 }
 

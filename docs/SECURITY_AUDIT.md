@@ -299,7 +299,10 @@ reciben un salto aleatorio de 32 caracteres generado con
 
 **Mitigación aplicada**: aviso persistente en el panel de administración
 cuando se detecta el valor heredado, con instrucciones para definir un
-`SECRET_SALT` aleatorio en `include/ost-config.php`.
+`SECRET_SALT` aleatorio en `include/ost-config.php`. Además, el arranque
+(`Bootstrap::loadConfig()`) **deja constancia en el log del servidor** cada vez
+que tiene que derivar el valor, para que el aviso no dependa de que alguien
+entre al panel.
 
 **Acción recomendada** (§6): definir manualmente un `SECRET_SALT` de 32+
 caracteres aleatorios en instalaciones heredadas y planificar la

@@ -3,13 +3,8 @@
 class Bootstrap {
 
     static function init() {
-        #Disable Globals if enabled....before loading config info
-        if(ini_get('register_globals')) {
-           ini_set('register_globals',0);
-           foreach($_REQUEST as $key=>$val)
-               if(isset($$key))
-                   unset($$key);
-        }
+        // `register_globals` desapareció en PHP 5.4 y el proyecto exige PHP 8:
+        // el bloque que lo desactivaba nunca se ejecutaba.
 
         #Disable url fopen && url include
         ini_set('allow_url_fopen', 0);
@@ -54,15 +49,9 @@ class Bootstrap {
         }
         date_default_timezone_set('UTC');
 
-        if (!function_exists('exif_imagetype')) {
-            function exif_imagetype ($filename) {
-                if ((list($width,$height,$type,) = getimagesize($filename)) !== false)
-                    return $type;
-
-                return false;
-            }
-        }
-
+        // Relleno para instalaciones sin la extensión EXIF. Sólo puede
+        // declararse una vez: la segunda copia de este bloque era código
+        // muerto.
         if (!function_exists('exif_imagetype')) {
             function exif_imagetype ($filename) {
                 if ((list($width,$height,$type,) = getimagesize($filename)) !== false)
@@ -189,7 +178,7 @@ class Bootstrap {
         elseif(file_exists(INCLUDE_DIR.'settings.php')) { //OLD config file.. v 1.6 RC5
             $configfile=INCLUDE_DIR.'settings.php';
             //Die gracefully on upgraded v1.6 RC5 installation - otherwise script dies with confusing message.
-            if(!strcasecmp(basename($_SERVER['SCRIPT_NAME']), 'settings.php'))
+            if(!strcasecmp(basename($_SERVER['SCRIPT_NAME'] ?? ''), 'settings.php'))
                 Http::response(500,
                     'Please rename config file include/settings.php to include/ost-config.php to continue!');
         } elseif(file_exists(ROOT_DIR.'setup/'))
@@ -202,8 +191,15 @@ class Bootstrap {
         define('CONFIG_FILE',$configfile); //used in admin.php to check perm.
 
         # This is to support old installations. with no secret salt.
-        if (!defined('SECRET_SALT'))
+        if (!defined('SECRET_SALT')) {
+            # El valor es predecible (prefijo de tablas + correo del
+            # administrador). No se cambia aquí porque las sesiones emitidas
+            # dependen de él; la corrección es declarar SECRET_SALT en
+            # ost-config.php (ver docs/SECURITY_AUDIT.md).
+            error_log('osTicket: SECRET_SALT no está definido en ost-config.php;'
+                .' se está usando un valor predecible.');
             define('SECRET_SALT',md5(TABLE_PREFIX.ADMIN_EMAIL));
+        }
         #Session related
         define('SESSION_SECRET', MD5(SECRET_SALT)); //Not that useful anymore...
         define('SESSION_TTL', 86400); // Default 24 hours
@@ -338,12 +334,6 @@ class Bootstrap {
         if (extension_loaded('iconv'))
             iconv_set_encoding('internal_encoding', 'UTF-8');
 
-        if (intval(phpversion()) < 7) {
-            function random_int($a, $b) {
-                return rand($a, $b);
-            }
-        }
-
         function mb_str_wc($str) {
             return count(preg_split('~[^\p{L}\p{N}\'].+~u', trim($str)));
         }
@@ -381,13 +371,9 @@ define('CLI_DIR', INCLUDE_DIR.'cli/');
 define('GIT_VERSION','$git');
 define('MAJOR_VERSION', '1.18');
 define('THIS_VERSION', MAJOR_VERSION.'-git'); //Shown on admin panel
-//Path separator
-if(!defined('PATH_SEPARATOR')){
-    if(strpos($_ENV['OS'],'Win')!==false || !strcasecmp(substr(PHP_OS, 0, 3),'WIN'))
-        define('PATH_SEPARATOR', ';' ); //Windows
-    else
-        define('PATH_SEPARATOR',':'); //Linux
-}
+// `PATH_SEPARATOR` es una constante del núcleo desde PHP 4.3.0; la
+// detección manual que había aquí nunca llegaba a ejecutarse (y leía
+// `$_ENV['OS']`, que en Linux no existe).
 
 //Set include paths. Overwrite the default paths.
 ini_set('include_path', './'.PATH_SEPARATOR.INCLUDE_DIR.PATH_SEPARATOR.PEAR_DIR);

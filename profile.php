@@ -18,7 +18,7 @@
 **********************************************************************/
 require 'secure.inc.php';
 
-require_once 'class.user.php';
+require_once INCLUDE_DIR.'class.user.php';
 
 // Check if User is Guest. If so, redirect them back to ticket page to
 // prevent Account Takeover.

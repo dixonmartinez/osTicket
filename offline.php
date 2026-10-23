@@ -15,9 +15,10 @@
 **********************************************************************/
 require_once('client.inc.php');
 if(is_object($ost) && $ost->isSystemOnline()) {
-    @header('Location: index.php'); //Redirect if the system is online.
-    include('index.php');
-    exit;
+    // Redirect if the system is online. `Http::redirect()` termina la
+    // petición: antes se enviaba la cabecera y se seguía renderizando la
+    // portada dentro de la misma respuesta.
+    Http::redirect('index.php');
 }
 $nav=null;
 require(CLIENTINC_DIR.'header.inc.php');

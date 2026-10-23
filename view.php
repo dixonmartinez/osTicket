@@ -17,10 +17,11 @@
 require_once('client.inc.php');
 
 $errors = array();
+$auth = $_GET['auth'] ?? null;
 // Check if the client is already signed in. Don't corrupt their session!
-if ($_GET['auth']
+if ($auth
         && $thisclient
-        && ($u = TicketUser::lookupByToken($_GET['auth']))
+        && ($u = TicketUser::lookupByToken($auth))
         && ($u->getUserId() == $thisclient->getId())
 ) {
     // Switch auth keys ? (Otherwise the user can never use links for two
@@ -39,8 +40,10 @@ elseif (isset($_GET['auth']) || isset($_GET['t'])) {
 
 if (@$user && is_object($user) && $user->getTicketId())
     Http::redirect('tickets.php?id='.$user->getTicketId());
-elseif ($thisclient && isset($_GET['id']) && is_numeric($_GET['t']))
-    Http::redirect('tickets.php?id='.$_GET['id']);
+// `t` es el número de ticket de los enlaces de acceso; antes se comprobaba
+// `id` y se redirigía a `t`, así que el enlace nunca llevaba al ticket
+elseif ($thisclient && isset($_GET['t']) && is_numeric($_GET['t']))
+    Http::redirect('tickets.php?id='.$_GET['t']);
 
 $nav = new UserNav();
 $nav->setActiveNav('status');
