@@ -13,6 +13,7 @@
 
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
+include_once(INCLUDE_DIR.'class.ticket.post.php');
 include_once(INCLUDE_DIR.'class.thread.php');
 include_once(INCLUDE_DIR.'class.staff.php');
 include_once(INCLUDE_DIR.'class.client.php');
@@ -3081,12 +3082,9 @@ implements RestrictedAccess, Threadable, Searchable {
     function postMessage($vars, $origin='', $alerts=true) {
         global $cfg;
 
-        if ($origin)
-            $vars['origin'] = $origin;
-        if (isset($vars['ip']))
-            $vars['ip_address'] = $vars['ip'];
-        elseif (!$vars['ip_address'] && $_SERVER['REMOTE_ADDR'])
-            $vars['ip_address'] = $_SERVER['REMOTE_ADDR'];
+        // Origen e IP del mensaje: ver TicketPost::normalizeVars()
+        $vars = TicketPost::normalizeVars($vars, $origin,
+            $_SERVER['REMOTE_ADDR'] ?? null);
 
         //see if message should go to a parent ticket
         if ($this->isChild() && $this->getMergeType() != 'visual')
@@ -3121,16 +3119,9 @@ implements RestrictedAccess, Threadable, Searchable {
           $recipients = $ticket->getRecipients($vars['reply-to'], $vars['ccs']);
       // Messages from Web Portal
       elseif (strcasecmp($origin, 'email')) {
-          $recipients = $ticket->getRecipients('all');
-          foreach ($recipients as $key => $recipient) {
-              if (!$recipientContact = $recipient->getContact())
-                  continue;
-
-              $userId = $recipientContact->getUserId() ?: $recipientContact->getId();
-              // Do not list the poster as a recipient
-              if ($userId == $vars['userId'])
-                unset($recipients[$key]);
-          }
+          // Se escribe a todos y se descarta al autor: ver TicketPost
+          $recipients = TicketPost::withoutPoster($ticket->getRecipients('all'),
+              $vars['userId']);
       }
       if ($recipients && $recipients instanceof MailingList)
           $vars['thread_entry_recipients'] = $recipients->getEmailAddresses();
@@ -3183,9 +3174,7 @@ implements RestrictedAccess, Threadable, Searchable {
         }
 
         // Do not auto-respond to bounces and other auto-replies
-        $autorespond = isset($vars['mailflags'])
-                ? !$vars['mailflags']['bounce'] && !$vars['mailflags']['auto-reply']
-                : true;
+        $autorespond = TicketPost::shouldAutoRespond($vars);
         $reopen = $autorespond; // Do not reopen bounces
         if ($autorespond && $message->isBounceOrAutoReply())
             $autorespond = $reopen= false;

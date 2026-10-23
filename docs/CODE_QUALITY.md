@@ -28,33 +28,51 @@ test: nunca falla, sólo informa.
 `accesos directos a $_POST` o el tamaño medio de función, se ha ido en la
 dirección contraria.
 
+> **La medida se corrigió el 2026-10-23.** Hasta entonces el tamaño de cada
+> función se calculaba contando `{` y `}` sobre el texto: una llave dentro de
+> una cadena (`'Hola {nombre}'`), de un heredoc o de una expresión regular
+> descuadraba la cuenta y hacía parecer gigantes funciones de 20 líneas. Por
+> eso `Queue::getCriteria()` «tenía» 1.414 líneas y `class.file.php` cuatro
+> funciones de 730. Ahora se recorre la lista de tokens de PHP
+> (`token_get_all`), donde las cadenas son un solo token, y las señales de
+> JavaScript en línea se cuentan sólo en las plantillas (`include/`, `scp/`)
+> y sólo como atributos reales (`onclick="…"`), no como `onsubmit =` de
+> JavaScript. Las cifras de abajo son las corregidas.
+
 ---
 
-## 2. Radiografía (medida el 2026-10-22)
+## 2. Radiografía (corregida el 2026-10-23)
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 497 |
-| Líneas | 131.728 |
-| Funciones | 5.987 |
-| Tamaño medio de función | 14,7 líneas |
-| Archivo más grande | `include/class.forms.php` — 6.229 líneas |
-| Función más larga | `Queue::getCriteria()` — 1.414 líneas |
+| Archivos PHP propios | 502 |
+| Líneas | 132.607 |
+| Funciones | 5.902 |
+| Tamaño medio de función | 10,8 líneas |
+| Archivo más grande | `include/class.forms.php` — 6.220 líneas |
+| Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 407 líneas (herramienta de línea de comandos) |
+| Función más larga de la aplicación | `Ticket::postMessage()` — 178 líneas (eran 190) |
+
+**No hay ninguna función de 1.400 líneas.** La más larga de la aplicación
+ronda las 180 y la media son 11. El problema de este código no es el tamaño de
+las funciones: es el tamaño de los **archivos** y la mezcla de
+responsabilidades dentro de ellos.
 
 | Señal | Ocurrencias |
 |---|---|
 | SQL a mano (`db_query`) | 183 |
-| `db_input()` (escape manual) | 163 |
+| `db_input()` (escape manual) | 164 |
 | Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.269 |
 | `global $...` | 560 |
-| `eval()` | 13 |
+| `eval()` | 15 |
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
-| `<script>` embebido en plantillas | 166 |
+| `<script>` embebido en plantillas | 162 |
 
-La media de 14,7 líneas por función es **buena**. El problema no es el estilo
-general, son los valores atípicos: hay 5 archivos por encima de 2.000 líneas y
-unas pocas funciones de 500 a 1.400 líneas que concentran casi toda la
-dificultad de mantenimiento.
+La media de 10,8 líneas por función es **buena**. Los valores atípicos son de
+dos tipos: cinco archivos por encima de 2.000 líneas, y las funciones de la
+lista de arriba, que en su mayoría son de herramientas propias
+(`tools/`, `setup/`, `cli/`) o de librerías copiadas (`htmLawed`, `JSON.php`,
+`Spyc`), no de la aplicación.
 
 Los cinco archivos que más pesan:
 
@@ -66,9 +84,10 @@ Los cinco archivos que más pesan:
 | `include/class.thread.php` | 3.451 | Hilo de entradas, correo entrante, colaboradores |
 | `include/class.queue.php` | 3.233 | Colas, criterios y ordenación |
 
-`Queue::getCriteria()` con 1.414 líneas es el caso más claro: es la función
-que construye la consulta de una cola a partir de sus filtros, y mezcla
-construcción de SQL, validación, permisos y presentación.
+`Queue::getCriteria()` no es el problema que parecía: tiene 30 líneas y
+devuelve el criterio ya resuelto. Lo que pesa en `class.queue.php` son sus
+3.233 líneas repartidas en muchas clases (`Queue`, `CustomQueue`,
+`QueueColumn`, `QueueColumnCondition`…), cuatro de ellas en el mismo archivo.
 
 ---
 
@@ -120,16 +139,46 @@ comportamiento observable:
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
 integración.
 
-### Frente 2 — Partir las funciones gigantes (empezando por `getCriteria`)
+### Frente 2 — Reducir las funciones y archivos que concentran la dificultad 🔄 En curso
 
-- Qué hacer: extraer tramos con nombre propio (`applyStatusFilter()`,
-  `applyAssigneeFilter()`, `applyDateRange()`) manteniendo la firma pública.
-  Un método que sigue llamándose igual y devuelve lo mismo es un refactor
-  seguro si hay pruebas.
-- Por qué: es donde se concentra el miedo a tocar. 1.414 líneas se leen peor
-  que ocho métodos de 150.
-- Riesgo: medio. Necesita pruebas de la consulta generada (comparar SQL).
-- Éxito: ninguna función por encima de 400 líneas; `getCriteria()` delega.
+El plan original hablaba de partir `Queue::getCriteria()` (1.414 líneas). Esa
+cifra era un error de medida (§1): la función tiene 30 líneas. Con los números
+buenos, el frente cambia de objetivo:
+
+| Objetivo | Antes | Ahora |
+|---|---|---|
+| Funciones de la aplicación por encima de 150 líneas | 6 | 5 (`postMessage` ya está por debajo) |
+| `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost` + pruebas) |
+| Archivos por encima de 2.000 líneas | 5 | 5 |
+
+**Criterio:** sacar de las funciones largas los tramos que no tocan la base de
+datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
+tocan la base de datos se quedan donde están hasta que haya una prueba de
+integración con base de datos.
+
+Primer paso hecho:
+
+| Pieza | Qué contiene |
+|---|---|
+| `include/class.ticket.post.php` | `TicketPost::normalizeVars()` (origen e IP del mensaje), `withoutPoster()` (quita al autor de los destinatarios), `shouldAutoRespond()` (rebotes y respuestas automáticas) |
+| `tests/TicketPostTest.php` | 14 casos, sin base de datos: los destinatarios se simulan con objetos mínimos |
+
+`Ticket::postMessage()` ya usa esas tres funciones; no cambia nada de lo que
+hace, y ahora la parte que más se rompe (a quién se responde) tiene pruebas.
+
+Siguiente paso, por orden de riesgo:
+
+1. `Thread::postEmail()` (181) y `Thread::create()` (185): las piezas de
+   normalización de correo (asunto, remitente, cabeceras) son puras.
+2. `Dept::update()` (159), `Staff::update()` (131), `Organization::update()`
+   (128): separar la validación de la escritura.
+3. Los archivos grandes: `class.queue.php` tiene cuatro clases juntas; mover
+   `QueueColumnCondition*` a su propio archivo es mecánico y comprobable con
+   `class_exists()`.
+
+- Riesgo: bajo en el primer paso (código nuevo + pruebas, sin cambiar firmas).
+- Éxito: ninguna función de la aplicación por encima de 120 líneas y ningún
+  archivo por encima de 3.000 líneas.
 
 ### Frente 3 — Terminar la migración al ORM
 
@@ -181,10 +230,11 @@ integración.
 
 ## 4. Orden recomendado
 
-1. **Frente 1** (pruebas) — sin esto, lo demás es fe.
-2. **Frente 4** (fachada de entrada) — barato y frena el sangrado.
-3. **Frente 2** (`getCriteria` y funciones > 400 líneas).
-4. **Frente 5** (JS inline) — se puede hacer pantalla a pantalla.
+1. **Frente 1** (pruebas) — ✅ hecho.
+2. **Frente 2** (funciones largas → clases pequeñas con pruebas) — en curso.
+3. **Frente 4** (fachada de entrada) — barato y frena el sangrado.
+4. **Frente 5** (JS inline) — ✅ los `onclick` están a cero; quedan los
+   `<script>`.
 5. **Frente 3** (SQL a mano) — por áreas, con pruebas.
 6. **Frente 6** (archivos gigantes) — al final, con todo lo anterior en verde.
 

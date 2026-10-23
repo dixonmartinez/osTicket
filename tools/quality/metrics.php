@@ -66,6 +66,80 @@ function collect_php($root, array $areas, array $skipDirs) {
     return $files;
 }
 
+/**
+ * Tamaño real de cada función, en líneas.
+ *
+ * Se recorre la lista de tokens: las llaves que importan son las del código,
+ * no las que aparecen dentro de una cadena («Hola {nombre}»), un heredoc o
+ * una expresión regular. Contando el texto a pelo, una función de 20 líneas
+ * con un mensaje con llaves podía salir de 700.
+ *
+ * @return array<array{name:string,lines:int}>
+ */
+function measure_functions(string $src): array {
+    if (!function_exists('token_get_all'))
+        return [];
+
+    $tokens = @token_get_all($src);
+    if (!is_array($tokens))
+        return [];
+
+    $out = array();
+    $pending = null;
+    $depth = 0;
+    $line = 1;
+    $count = count($tokens);
+
+    for ($i = 0; $i < $count; $i++) {
+        $token = $tokens[$i];
+
+        if (is_array($token)) {
+            $line = $token[2];
+
+            if ($token[0] === T_FUNCTION) {
+                $name = 'closure';
+
+                for ($j = $i + 1; $j < $count; $j++) {
+                    $next = $tokens[$j];
+
+                    if (is_array($next) && in_array($next[0], array(T_WHITESPACE,
+                            T_COMMENT, T_DOC_COMMENT)))
+                        continue;
+
+                    if (is_array($next) && $next[0] === T_STRING)
+                        $name = $next[1];
+
+                    break;
+                }
+
+                $pending = array('name' => $name, 'line' => $token[2], 'depth' => null);
+            }
+
+            $line += substr_count($token[1], "\n");
+            continue;
+        }
+
+        if ($token === '{') {
+            $depth++;
+
+            if ($pending && $pending['depth'] === null)
+                $pending['depth'] = $depth;
+        } else if ($token === '}') {
+            if ($pending && $pending['depth'] === $depth) {
+                $out[] = array('name' => $pending['name'],
+                    'lines' => $line - $pending['line'] + 1);
+                $pending = null;
+            }
+
+            $depth--;
+        }
+
+        $line += substr_count($token, "\n");
+    }
+
+    return $out;
+}
+
 $files = collect_php($root, $areas, $skipDirs);
 
 $totalLines = 0;
@@ -100,31 +174,23 @@ foreach ($files as $rel) {
     $counters['global_var'] += preg_match_all('/^\s*global\s+\$/m', $src);
     $counters['eval'] += preg_match_all('/\beval\s*\(/', $src);
     $counters['extract'] += preg_match_all('/\bextract\s*\(/', $src);
-    $counters['inline_handler'] += preg_match_all('/\bon(?:click|change|submit|load)\s*=/', $src);
-    $counters['script_tag'] += preg_match_all('/<script\b/i', $src);
 
-    // Funciones: de "function nombre(" hasta su llave de cierre
-    if (preg_match_all('/\bfunction\s+(\w+)\s*\(/', $src, $m, PREG_OFFSET_CAPTURE)) {
-        foreach ($m[1] as $i => $capture) {
-            $name = $capture[0];
-            $start = $m[0][$i][1];
-            $pos = strpos($src, '{', $start);
-            if ($pos === false)
-                continue;
-            $depth = 0;
-            $len = strlen($src);
-            while ($pos < $len) {
-                if ($src[$pos] === '{') $depth++;
-                elseif ($src[$pos] === '}') {
-                    $depth--;
-                    if ($depth === 0) break;
-                }
-                $pos++;
-            }
-            $body = substr($src, $start, $pos - $start + 1);
-            $functions[] = ['name' => $name, 'file' => $rel, 'lines' => substr_count($body, "\n") + 1];
-        }
+    // JavaScript en línea: sólo tiene sentido en las plantillas que generan
+    // HTML (include/ y scp/). Antes se contaba también en tools/, donde las
+    // propias herramientas mencionan «onclick=» en sus comentarios, y se daba
+    // por bueno un `onsubmit =` de JavaScript, que no es un atributo HTML.
+    if (strpos($rel, 'include/') === 0 || strpos($rel, 'scp/') === 0) {
+        $counters['inline_handler'] += preg_match_all(
+            '/\bon(?:click|change|submit|load|error|focus|blur|keyup|keydown)\s*=\s*[\"\']/i', $src);
+        $counters['script_tag'] += preg_match_all('/<script\b/i', $src);
     }
+
+    // Funciones: se miden con el tokenizador de PHP, no contando llaves en
+    // el texto (las llaves dentro de cadenas, heredocs o expresiones
+    // regulares falseaban la medida y hacían parecer gigantes funciones
+    // pequeñas).
+    foreach (measure_functions($src) as $fn)
+        $functions[] = $fn + ['file' => $rel];
 }
 
 arsort($sizes);
