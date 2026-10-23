@@ -599,6 +599,30 @@ check(strpos(read("$root/Makefile"), 'tools/php.sh') !== false,
     'el Makefile usa tools/php.sh en vez de llamar a php a pelo',
     'el Makefile llama a php directamente: en un equipo sin PHP los objetivos fallan');
 
+/* El contenedor monta el proyecto en /var/www/html: si php.sh le pasa la ruta
+   del equipo, la respuesta es «Could not open input file». */
+$phpSh = read("$root/tools/php.sh");
+check(strpos($phpSh, 'OST_CONTAINER_DIR') !== false
+    && strpos($phpSh, '/var/www/html') !== false,
+    'tools/php.sh traduce las rutas del equipo al montaje del contenedor',
+    'tools/php.sh pasa rutas del equipo al contenedor: «Could not open input file»');
+
+check(strpos($phpSh, 'docker compose run --rm --no-deps tools php') !== false,
+    'tools/php.sh ejecuta dentro del servicio tools',
+    'tools/php.sh no usa el servicio tools de compose');
+
+check(file_exists("$root/tools/ui/browser-audit.sh"),
+    'existe tools/ui/browser-audit.sh (navegador propio o contenedor)',
+    'falta tools/ui/browser-audit.sh: las auditorías con navegador exigen instalar Playwright');
+
+check(strpos(read("$root/Makefile"), 'browser-audit.sh') !== false,
+    'make dark-audit/contrast-audit usan browser-audit.sh',
+    'el Makefile llama a node directamente: sin Playwright el objetivo falla');
+
+check(strpos(read("$root/Makefile"), '--out=$(ROOT)/ost-iconos.html') !== false,
+    'make icons escribe la hoja dentro del proyecto',
+    'make icons escribe en /tmp: dentro del contenedor el archivo no llega al equipo');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

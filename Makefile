@@ -18,7 +18,8 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test security theme metrics metrics-json ci clean perms serve \
+.PHONY: help php-version lint audit audit-all audit-json baseline test security theme metrics metrics-json ci clean perms serve browser-audit \
+	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
 	docker-bench docker-urls
@@ -71,18 +72,24 @@ inline-audit-json: ## Lo mismo, en JSON, para comparar antes/después
 inline-budget: ## Falla si los onclick/onchange vuelven a subir del tope actual
 	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --max=0
 
-dark-audit: ## Zonas claras en el tema oscuro (necesita node + playwright-core)
-	@command -v node >/dev/null 2>&1 || { \
-		echo "Falta node: esta comprobación es opcional y no va en el contenedor."; exit 1; }
-	@node $(ROOT)/tools/ui/dark-audit.js "file://$(ROOT)/docs/theme-preview.html"
+dark-audit: ## Zonas claras en el tema oscuro (navegador propio o contenedor)
+	@$(ROOT)/tools/ui/browser-audit.sh dark "file://$(ROOT)/docs/theme-preview.html"
 
 dark-audit-client: ## Lo mismo con la vista previa del portal
-	@command -v node >/dev/null 2>&1 || { \
-		echo "Falta node: esta comprobación es opcional y no va en el contenedor."; exit 1; }
-	@node $(ROOT)/tools/ui/dark-audit.js "file://$(ROOT)/docs/theme-preview-client.html"
+	@$(ROOT)/tools/ui/browser-audit.sh dark "file://$(ROOT)/docs/theme-preview-client.html"
 
-icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (/tmp/ost-iconos.html)
-	@$(PHP) $(ROOT)/tools/ui/icon-sheet.php --out=/tmp/ost-iconos.html
+contrast-audit: ## Contraste de texto en la vista previa del panel
+	@$(ROOT)/tools/ui/browser-audit.sh contrast "file://$(ROOT)/docs/theme-preview.html"
+
+contrast-audit-client: ## Contraste de texto en la vista previa del portal
+	@$(ROOT)/tools/ui/browser-audit.sh contrast "file://$(ROOT)/docs/theme-preview-client.html"
+
+docker-dark-audit: ## Lo mismo, dentro de la imagen de Playwright (no instala nada)
+	@OST_FORCE_DOCKER=1 $(ROOT)/tools/ui/browser-audit.sh dark "file://$(ROOT)/docs/theme-preview.html"
+
+icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (ost-iconos.html)
+	@$(PHP) $(ROOT)/tools/ui/icon-sheet.php --out=$(ROOT)/ost-iconos.html
+	@echo "  Abre $(ROOT)/ost-iconos.html en el navegador (no se versiona)."
 
 metrics: ## Radiografía del código propio (tamaño y deuda técnica)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php

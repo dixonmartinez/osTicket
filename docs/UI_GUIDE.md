@@ -323,7 +323,7 @@ primero los 107 más repetidos y después los 48 que quedaban con uso real
 estado). En total **155 iconos**. La hoja de revisión visual se genera con:
 
 ```bash
-make icons                                      # deja la hoja en /tmp/ost-iconos.html
+make icons                                      # deja la hoja en ost-iconos.html
 php tools/ui/icon-sheet.php --theme=dark --out=/tmp/iconos.html
 ```
 
@@ -617,12 +617,18 @@ contraste real de cada texto visible —incluidos los menús desplegables, que
 sólo se pueden medir abiertos— y lista los que no llegan a WCAG 2.1:
 
 ```bash
-npm install --no-save playwright-core
-node tools/ui/contrast-audit.js                    # la vista previa, en oscuro
+make contrast-audit                                # vista previa del panel
+make contrast-audit-client                         # vista previa del portal
 node tools/ui/contrast-audit.js --theme light      # comprobar que no se rompió el claro
 node tools/ui/contrast-audit.js http://localhost:8090/scp/tickets.php \
      --cookie "OSTSESSID=<tu-sesion>"              # contra la app real
 ```
+
+**No hace falta instalar nada.** `tools/ui/browser-audit.sh` usa el Node con
+Playwright del equipo si lo hay; si no, ejecuta la comprobación dentro de la
+imagen oficial de Playwright con Docker (`make docker-dark-audit` la fuerza).
+Sólo si no hay ninguna de las dos cosas se omite con un aviso: es opcional y
+no entra en `make ci`.
 
 Sale 0 si no hay hallazgos y 1 si los hay, así que se puede encadenar. Las
 dos maquetas están a **0 hallazgos en oscuro y en claro**:
@@ -643,12 +649,15 @@ siendo claro: un `#fff` que se coló, una hoja que carga después de
 se ve un cuadro blanco» que sólo aparece a ojo.
 
 ```bash
-npm install --no-save playwright-core
 make dark-audit                 # vista previa del panel
 make dark-audit-client          # vista previa del portal
+make docker-dark-audit          # lo mismo, siempre dentro de Docker
 node tools/ui/dark-audit.js http://localhost:8090/scp/tickets.php \
      --cookie "OSTSESSID=<tu-sesion>"
 ```
+
+Con Docker la URL `localhost:8090` se traduce a `host.docker.internal:8090`
+para que el contenedor llegue a tu instalación.
 
 Hay superficies que **deben** ser claras: el cuerpo de un correo, el visor de
 un PDF y el editor enriquecido son «papel» a propósito. Se marcan en el HTML
@@ -681,7 +690,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 124 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 129 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -708,6 +717,7 @@ respuesta, acceso y FAQ).
 | Síntoma | Causa | Arreglo |
 |---|---|---|
 | Se queda el recuadro **«Loading …»** encima de la página y la consola dice `e.indexOf is not a function` en `jquery` | Algún elemento lleva `data-dialog` con un número (p. ej. `data-dialog="201"`). Ese atributo es de osTicket y guarda una **URL**: jQuery convierte `"201"` a `Number` y `.load()` falla | Usa `data-ost-dialog="201"` en su lugar. Desde esta versión `scp.js` ignora los valores que no sean texto, así que el modal ya no se queda colgado |
+| `make theme` responde **`Could not open input file: /ruta/del/equipo/tools/ui/theme-check.php`** | `tools/php.sh` pasaba al contenedor la ruta del equipo, pero el proyecto está montado en `/var/www/html` | Corregido: `php.sh` traduce las rutas al montaje del contenedor (`OST_CONTAINER_DIR` para cambiarlo). Actualiza el repo |
 | `make theme` / `make inline-audit` responden `php: No such file or directory` | No hay PHP en el equipo | Ya no hace falta: `tools/php.sh` ejecuta el comando dentro del contenedor de herramientas (`docker compose run --rm tools …`). Basta con tener Docker y el stack levantado alguna vez |
 
 

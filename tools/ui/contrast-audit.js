@@ -145,19 +145,32 @@ function audit() {
     try {
         chromium = require('playwright-core');
     } catch (e) {
-        console.error('Falta playwright-core (comprobación opcional, sólo en el equipo).\n'
-            + '  npm install --no-save playwright-core\n'
-            + '  npx playwright install chromium\n'
-            + 'y, si el navegador no está en la ruta por defecto, apunta a él:\n'
-            + '  export CHROME_PATH=/ruta/al/chrome');
-        process.exit(2);
+        /* La imagen oficial de Playwright trae el paquete como `playwright`. */
+        try {
+            chromium = require('playwright');
+        } catch (e2) {
+            console.error('Falta playwright (comprobación opcional, necesita navegador).\n'
+                + '  Con Docker no hay que instalar nada: make docker-' + 'contrast-audit' + '\n'
+                + '  Sin Docker, en el equipo:\n'
+                + '    npm install --no-save playwright-core\n'
+                + '    npx playwright install chromium\n'
+                + '  y, si el navegador no está en la ruta por defecto:\n'
+                + '    export CHROME_PATH=/ruta/al/chrome\n'
+                + 'Esto no entra en make ci: make theme cubre la parte automática.');
+            process.exit(2);
+        }
     }
 
-    const launch = { headless: true };
-    if (process.env.CHROME_PATH) {
+    const launch = { headless: true, args: ['--disable-dev-shm-usage'] };
+
+    if (process.env.CHROME_PATH)
         launch.executablePath = process.env.CHROME_PATH;
-        launch.args = ['--no-sandbox', '--disable-dev-shm-usage'];
-    }
+
+    /* Dentro de un contenedor se ejecuta como root y Chromium no arranca con
+       el sandbox activado. */
+    if (process.env.OST_NO_SANDBOX === '1'
+            || (typeof process.getuid === 'function' && process.getuid() === 0))
+        launch.args.push('--no-sandbox');
 
     const browser = await chromium.chromium.launch(launch);
     const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });

@@ -34,3 +34,6 @@ nbproject/
 
 # Secretos locales (REST Client lee OST_KEY del .env de la raíz)
 .vscode/http/.env
+
+# Hoja de iconos generada por `make icons`
+ost-iconos.html
