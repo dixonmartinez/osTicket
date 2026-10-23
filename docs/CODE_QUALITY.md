@@ -56,12 +56,12 @@ dirección contraria.
 | Líneas | 133.687 |
 | Funciones | 6.061 |
 | Clases, interfaces y rasgos | 663 en 194 archivos |
-| Tamaño medio de función | 12,1 líneas |
+| Tamaño medio de función | 12 líneas |
 | Archivo más grande | `include/class.ticket.php` — 4.809 líneas |
 | Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
 | Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
 
-**No hay ninguna función de 1.400 líneas**, pero sí una de **536**:
+**No hay ninguna función de 1.400 líneas**, pero sí una de **500**:
 `Ticket::create()`. La media son 12 líneas; el problema son los valores
 atípicos, y ahora se ven:
 
@@ -84,7 +84,7 @@ atípicos, y ahora se ven:
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
 | `<script>` embebido en plantillas | 161 |
 
-La media de 12,1 líneas por función es **buena**. Los valores atípicos son de
+La media de 12 líneas por función es **buena**. Los valores atípicos son de
 dos tipos: siete archivos por encima de 2.000 líneas, y las funciones de la
 lista de arriba, que en su mayoría son de herramientas propias
 (`tools/`, `setup/`, `cli/`) o de librerías copiadas (`htmLawed`, `JSON.php`,
@@ -316,8 +316,8 @@ cuentas SMTP, envío por Sendmail y la traducción de destinatarios a
 prueban, y el `div` del identificador se comparó carácter a carácter con el
 que generaba el código anterior.
 
-`Ticket::create()` es la función más larga de la aplicación (536 líneas).
-Bajó a 500 con esas piezas; lo que queda es un flujo con base de datos
+`Ticket::create()` es la función más larga de la aplicación (500 líneas,
+eran 536). Bajó con esas piezas; lo que queda es un flujo con base de datos
 de punta a punta (buscar tema, departamento, correo, crear el usuario, guardar
 el formulario, los colaboradores y el mensaje) y no se puede trocear sin
 pruebas de integración.
