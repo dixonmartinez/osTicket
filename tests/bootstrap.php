@@ -61,6 +61,7 @@ require_once INCLUDE_DIR . 'class.validator.php';
 /* Piezas puras sacadas de las clases grandes (frente 2). Este archivo no
    depende de la aplicación: por eso se puede cargar aquí. */
 require_once INCLUDE_DIR . 'class.ticket.post.php';
+require_once INCLUDE_DIR . 'class.ticket.create.php';
 require_once INCLUDE_DIR . 'class.thread.email.php';
 require_once INCLUDE_DIR . 'class.thread.entry.php';
 

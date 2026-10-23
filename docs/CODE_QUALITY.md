@@ -52,13 +52,13 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 512 |
-| Líneas | 133.346 |
-| Funciones | 6.038 |
+| Archivos PHP propios | 513 |
+| Líneas | 133.439 |
+| Funciones | 6.042 |
 | Clases, interfaces y rasgos | 654 en 186 archivos |
 | Tamaño medio de función | 12,1 líneas |
 | Archivo más grande | `include/class.ticket.php` — 4.844 líneas |
-| Función más larga del código propio | `Ticket::create()` — 536 líneas |
+| Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
 | Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
 
 **No hay ninguna función de 1.400 líneas**, pero sí una de **536**:
@@ -67,7 +67,7 @@ atípicos, y ahora se ven:
 
 | Función | Líneas | Archivo |
 |---|---|---|
-| `Ticket::create()` | 536 | `include/class.ticket.php` |
+| `Ticket::create()` | 500 | `include/class.ticket.php` |
 | `massProcess()` | 377 | `include/ajax.tickets.php` |
 | `massProcess()` | 330 | `include/ajax.tasks.php` |
 | `Mailer::send()` | 297 | `include/class.mailer.php` |
@@ -167,10 +167,12 @@ Lo que hay ahora:
 | `tests/ThreadEmailTest.php` | 19 casos: qué correo se acepta, mensaje del cliente o nota del agente |
 | `tests/ThreadEntryInfoTest.php` | 22 casos: título, firma, respuesta a todos, adjuntos incrustados |
 | `tests/ClassMapTest.php` | 20 casos: lectura de clases e includes del propio código |
+| `tests/CodeMeasureTest.php` | 13 casos: el medidor de `make metrics` (cierres, heredoc, interpolación, HTML) |
+| `tests/TicketCreateTest.php` | 18 casos: campos por origen, validación por quién abre, fecha límite |
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 123 pruebas en ~0,15 s
+make unit          # 153 pruebas en ~0,2 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -224,11 +226,19 @@ Pasos hechos: hasta ahora, 55 casos nuevos sin base de datos.
 | `include/class.ticket.post.php` | `TicketPost::normalizeVars()` (origen e IP del mensaje), `withoutPoster()` (quita al autor de los destinatarios), `shouldAutoRespond()` (rebotes y respuestas automáticas) | `tests/TicketPostTest.php`, 14 casos |
 | `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()` y `receivedFrom()` | `tests/ThreadEmailTest.php`, 19 casos |
 | `include/class.thread.entry.php` | `ThreadEntryInfo::title()` y `poster()` (qué se guarda), `replyFlags()` (respuesta a todos / al usuario), `bodyFlags()` (HTML equilibrado y nota de sistema), `dropStrippedImages()` y `markInline()` (adjuntos incrustados) | `tests/ThreadEntryInfoTest.php`, 22 casos |
+| `include/class.ticket.create.php` | `TicketCreate::requiredFields()` (qué exige cada origen: web, staff, api, email), `fieldFilter()` (qué se valida según quién abre), `dueDateError()` y `source()` | `tests/TicketCreateTest.php`, 18 casos |
 
-Las tres clases ya están en uso (`Ticket::postMessage()`, `Thread::postEmail()`
-y `ThreadEntry::create()`). No cambia nada de lo que hacen, y ahora la parte
-que más se rompe —de quién es el correo, a quién se responde y cómo se marca la
-entrada— tiene pruebas.
+Las cuatro clases ya están en uso (`Ticket::postMessage()`,
+`Thread::postEmail()`, `ThreadEntry::create()` y `Ticket::create()`). No cambia
+nada de lo que hacen, y ahora la parte que más se rompe —de quién es el correo,
+a quién se responde, cómo se marca la entrada y qué se exige al abrir un
+ticket— tiene pruebas.
+
+`Ticket::create()` es la función más larga de la aplicación (536 líneas).
+Bajó a 500 con esas cuatro piezas; lo que queda es un flujo con base de datos
+de punta a punta (buscar tema, departamento, correo, crear el usuario, guardar
+el formulario, los colaboradores y el mensaje) y no se puede trocear sin
+pruebas de integración.
 
 Siguiente paso, por orden de riesgo:
 

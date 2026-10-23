@@ -14,6 +14,7 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 include_once(INCLUDE_DIR.'class.ticket.post.php');
+include_once(INCLUDE_DIR.'class.ticket.create.php');
 include_once(INCLUDE_DIR.'class.thread.php');
 include_once(INCLUDE_DIR.'class.staff.php');
 include_once(INCLUDE_DIR.'class.client.php');
@@ -4045,26 +4046,8 @@ implements RestrictedAccess, Threadable, Searchable {
             $alertstaff=true) {
         global $ost, $cfg, $thisstaff;
 
-        // Don't enforce form validation for email
-        $field_filter = function($type) use ($origin) {
-            return function($f) use ($origin, $type) {
-                // Ultimately, only offer validation errors for web for
-                // non-internal fields. For email, no validation can be
-                // performed. For other origins, validate as usual
-                switch (strtolower($origin)) {
-                case 'email':
-                    return false;
-                case 'staff':
-                    // Required 'Contact Information' fields aren't required
-                    // when staff open tickets
-                    return $f->isVisibleToStaff();
-                case 'web':
-                    return $f->isVisibleToUsers();
-                default:
-                    return true;
-                }
-            };
-        };
+        // Don't enforce form validation for email. Ver TicketCreate
+        $field_filter = TicketCreate::fieldFilter($origin);
 
         $reject_ticket = function($message) use (&$errors) {
             global $ost;
@@ -4094,38 +4077,20 @@ implements RestrictedAccess, Threadable, Searchable {
             $user = User::lookup($vars['uid']);
 
         $id=0;
-        $fields=array();
-        switch (strtolower($origin)) {
-            case 'web':
-                $fields['topicId']  = array('type'=>'int',  'required'=>1, 'error'=>__('Select a Help Topic'));
-                break;
-            case 'staff':
-                $fields['deptId']   = array('type'=>'int',  'required'=>0, 'error'=>__('Department selection is required'));
-                $fields['topicId']  = array('type'=>'int',  'required'=>1, 'error'=>__('Help topic selection is required'));
-                $fields['duedate']  = array('type'=>'date', 'required'=>0, 'error'=>__('Invalid date format - must be MM/DD/YY'));
-            case 'api':
-                $fields['source']   = array('type'=>'string', 'required'=>1, 'error'=>__('Indicate ticket source'));
-                break;
-            case 'email':
-                $fields['emailId']  = array('type'=>'int',  'required'=>1, 'error'=>__('Unknown system email'));
-                break;
-            default:
-                # TODO: Return error message
-                $errors['err']=$errors['origin'] = __('Invalid ticket origin given');
-        }
+        // Campos que exige cada origen. Ver TicketCreate::requiredFields()
+        $fields = TicketCreate::requiredFields($origin);
+        if ($fields === false)
+            $errors['err']=$errors['origin'] = __('Invalid ticket origin given');
 
-        if(!Validator::process($fields, $vars, $errors) && !$errors['err'])
+        if(!Validator::process($fields ?: array(), $vars, $errors) && !$errors['err'])
             $errors['err'] = sprintf('%s — %s',
                 __('Missing or invalid data'),
                 __('Correct any errors below and try again'));
 
-        // Make sure the due date is valid
-        if ($vars['duedate']) {
-            if (strtotime($vars['duedate']) === false)
-                $errors['duedate']=__('Invalid due date');
-            elseif (Misc::user2gmtime($vars['duedate']) <= Misc::user2gmtime())
-                $errors['duedate']=__('Due date must be in the future');
-        }
+        // Make sure the due date is valid. Ver TicketCreate::dueDateError()
+        if ($error = TicketCreate::dueDateError($vars['duedate'],
+                    array('Misc', 'user2gmtime')))
+            $errors['duedate'] = $error;
 
         $topic_forms = array();
         if (!$errors) {
@@ -4266,7 +4231,7 @@ implements RestrictedAccess, Threadable, Searchable {
         // OK...just do it.
         $statusId = $vars['statusId'];
         $deptId = $vars['deptId']; //pre-selected Dept if any.
-        $source = ucfirst($vars['source']);
+        $source = TicketCreate::source($vars['source']);
 
         // Apply email settings for emailed tickets. Email settings should
         // trump help topic settins if the email has an associated help
