@@ -24,10 +24,10 @@ switch(strtolower($_REQUEST['type'])){
         $title=__('All logs');
 }
 
-$qwhere =' WHERE 1';
+$criteria = array();
 //Type
 if($type)
-    $qwhere.=' AND log_type='.db_input($type);
+    $criteria['log_type'] = $type;
 
 //dates
 $startTime  =($_REQUEST['startDate'] && (strlen($_REQUEST['startDate'])>=8))?strtotime($_REQUEST['startDate']):0;
@@ -37,11 +37,12 @@ if( ($startTime && $startTime>time()) or ($startTime>$endTime && $endTime>0)){
     $startTime=$endTime=0;
 }else{
     if($startTime){
-        $qwhere.=' AND created>=FROM_UNIXTIME('.$startTime.')';
+        // FROM_UNIXTIME() usa la zona horaria del servidor, no la de PHP
+        $criteria['created__gte'] = SqlFunction::FROM_UNIXTIME($startTime);
         $qs += array('startDate' => $_REQUEST['startDate']);
     }
     if($endTime){
-        $qwhere.=' AND created<=FROM_UNIXTIME('.$endTime.')';
+        $criteria['created__lte'] = SqlFunction::FROM_UNIXTIME($endTime);
         $qs += array('endDate' => $_REQUEST['endDate']);
     }
 }
@@ -65,20 +66,26 @@ if($order_column && strpos($order_column,',')){
 }
 $x=$sort.'_sort';
 $$x=' class="'.strtolower($order).'" ';
-$order_by="$order_column $order ";
 
-$qselect = 'SELECT log.* ';
-$qfrom=' FROM '.SYSLOG_TABLE.' log ';
-$total=db_count("SELECT count(*) $qfrom $qwhere");
+$logs = SyslogModel::objects()->filter($criteria);
+$total = $logs->count();
 $page = ($_GET['p'] && is_numeric($_GET['p']))?$_GET['p']:1;
 //pagenate
 $pageNav=new Pagenate($total, $page, PAGE_LIMIT);
 $pageNav->setURL('logs.php',$qs);
 $qs += array('order' => ($order=='DESC' ? 'ASC' : 'DESC'));
 $qstr = '&amp;'. Http::build_query($qs);
-$query="$qselect $qfrom $qwhere ORDER BY $order_by LIMIT ".$pageNav->getStart().",".$pageNav->getLimit();
-$res=db_query($query);
-if($res && ($num=db_num_rows($res)))
+foreach (array_filter(array_map('trim', explode(',', $order_column))) as $column)
+    $logs->order_by(($order == 'DESC' ? '-' : '')
+        . preg_replace('/^\w+\./', '', $column));
+
+$rows = array();
+foreach ($logs->limit($pageNav->getLimit())->offset($pageNav->getStart())
+        ->values('log_id', 'title', 'log_type', 'created', 'ip_address')
+        as $row)
+    $rows[] = $row;
+
+if($num = count($rows))
     $showing=$pageNav->showing().' '.$title;
 else
     $showing=__('No logs found');
@@ -143,8 +150,8 @@ else
     <?php
         $total=0;
         $ids=($errors && is_array($_POST['ids']))?$_POST['ids']:null;
-        if($res && db_num_rows($res)):
-            while ($row = db_fetch_array($res)) {
+        if($rows):
+            foreach ($rows as $row) {
                 $sel=false;
                 if($ids && in_array($row['log_id'],$ids))
                     $sel=true;
@@ -165,7 +172,7 @@ else
     <tfoot>
      <tr>
         <td colspan="6">
-            <?php if($res && $num){ ?>
+            <?php if($num){ ?>
             <?php echo __('Select');?>:&nbsp;
             <a id="selectAll" href="#ckb"><?php echo __('All');?></a>&nbsp;&nbsp;
             <a id="selectNone" href="#ckb"><?php echo __('None');?></a>&nbsp;&nbsp;
@@ -178,7 +185,7 @@ else
     </tfoot>
 </table>
 <?php
-if($res && $num): //Show options..
+if($num): //Show options..
     echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
 ?>
 

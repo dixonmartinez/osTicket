@@ -32,6 +32,14 @@ class EmailTemplateGroupModel extends VerySimpleModel {
     static $meta = array(
         'table' => EMAIL_TEMPLATE_GRP_TABLE,
         'pk' => array('tpl_id'),
+        'joins' => array(
+            // Departamentos que usan el conjunto. `null` => LEFT JOIN, para
+            // que los conjuntos sin departamentos también salgan en la lista.
+            'depts' => array(
+                'constraint' => array('tpl_id' => 'Dept.tpl_id'),
+                'null' => true,
+            ),
+        ),
     );
 }
 

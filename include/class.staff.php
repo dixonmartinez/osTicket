@@ -435,14 +435,13 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
 
             // Departments the staff is "allowed" to access...
             // based on the group they belong to + user's primary dept + user's managed depts.
-            // sql-audit:legacy el ORM lo hace con OR sobre `path` y tarda unos
-            // 2 ms más (está medido en el comentario de abajo); esta consulta
-            // corre en cada carga de sesión del agente
             $sql='SELECT DISTINCT d.id FROM '.STAFF_TABLE.' s '
                 .' LEFT JOIN '.STAFF_DEPT_TABLE.' g ON (s.staff_id=g.staff_id) '
                 .' INNER JOIN '.DEPT_TABLE.' d ON (LOCATE(CONCAT("/", s.dept_id, "/"), d.path) OR d.manager_id=s.staff_id OR LOCATE(CONCAT("/", g.dept_id, "/"), d.path)) '
                 .' WHERE s.staff_id='.db_input($this->getId());
             $depts = array();
+            // sql-audit:legacy el ORM lo hace con OR sobre `path` y tarda unos
+            // 2 ms más (versión de abajo); corre en cada carga de sesión
             if (($res=db_query($sql)) && db_num_rows($res)) {
                 while(list($id)=db_fetch_row($res))
                     $depts[] = (int) $id;

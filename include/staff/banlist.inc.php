@@ -2,16 +2,16 @@
 if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$filter) die('Access Denied');
 
 $qs = array();
-$select='SELECT rule.* ';
-$from='FROM '.FILTER_RULE_TABLE.' rule ';
-$where='WHERE rule.filter_id='.db_input($filter->getId());
-$search=false;
+$search = false;
+$criteria = array('filter_id' => $filter->getId());
 if($_REQUEST['q'] && strlen($_REQUEST['q'])>3) {
-    $search=true;
+    $search = true;
     if(strpos($_REQUEST['q'],'@') && Validator::is_email($_REQUEST['q']))
-        $where.=' AND rule.val='.db_input($_REQUEST['q']);
+        $criteria['val'] = $_REQUEST['q'];
     else
-        $where.=' AND rule.val LIKE "%'.db_input($_REQUEST['q'],false).'%"';
+        // `__contains` escapa el `%` y el `_` del término, que antes viajaban
+        // como comodines de LIKE
+        $criteria['val__contains'] = $_REQUEST['q'];
 
 }elseif($_REQUEST['q']) {
     $errors['q']=__('Term too short!');
@@ -36,17 +36,26 @@ if($order_column && strpos($order_column,',')){
 }
 $x=$sort.'_sort';
 $$x=' class="'.strtolower($order).'" ';
-$order_by="$order_column $order ";
 
-$total=db_count('SELECT count(DISTINCT rule.id) '.$from.' '.$where);
+$rules = FilterRule::objects()->filter($criteria);
+$total = $rules->count();
 $page=($_GET['p'] && is_numeric($_GET['p']))?$_GET['p']:1;
 $pageNav=new Pagenate($total, $page, PAGE_LIMIT);
 $qstr = '&amp;'. Http::build_query($qs);
 $qs += array('sort' => $_REQUEST['sort'], 'order' => $_REQUEST['order']);
 $pageNav->setURL('banlist.php', $qs);
 $qstr.='&amp;order='.($order=='DESC'?'ASC':'DESC');
-$query="$select $from $where ORDER BY $order_by LIMIT ".$pageNav->getStart().",".$pageNav->getLimit();
-//echo $query;
+
+foreach (array_filter(array_map('trim', explode(',', $order_column))) as $column)
+    $rules->order_by(($order == 'DESC' ? '-' : '')
+        . preg_replace('/^\w+\./', '', $column));
+
+$rows = array();
+foreach ($rules->limit($pageNav->getLimit())->offset($pageNav->getStart())
+        ->values('id', 'val', 'isactive', 'created', 'updated') as $row)
+    $rows[] = $row;
+
+$num = count($rows);
 ?>
 <div id='basic_search'>
     <div style="height:25px">
@@ -94,7 +103,7 @@ $query="$select $from $where ORDER BY $order_by LIMIT ".$pageNav->getStart().","
     </div>
     <div class="clear"></div>
     <?php
-    if(($res=db_query($query)) && ($num=db_num_rows($res)))
+    if($num)
         $showing=$pageNav->showing();
     else
         $showing=__('No banned emails matching the query found!');
@@ -118,9 +127,9 @@ $query="$select $from $where ORDER BY $order_by LIMIT ".$pageNav->getStart().","
         </thead>
         <tbody>
         <?php
-            if($res && db_num_rows($res)):
+            if($rows):
                 $ids=($errors && is_array($_POST['ids']))?$_POST['ids']:null;
-                while ($row = db_fetch_array($res)) {
+                foreach ($rows as $row) {
                     $sel=false;
                     if($ids && in_array($row['id'],$ids))
                         $sel=true;
@@ -140,7 +149,7 @@ $query="$select $from $where ORDER BY $order_by LIMIT ".$pageNav->getStart().","
         <tfoot>
          <tr>
             <td colspan="5">
-                <?php if($res && $num){ ?>
+                <?php if($num){ ?>
                 <?php echo __('Select');?>:&nbsp;
                 <a id="selectAll" href="#ckb"><?php echo __('All');?></a>&nbsp;&nbsp;
                 <a id="selectNone" href="#ckb"><?php echo __('None');?></a>&nbsp;&nbsp;
@@ -153,7 +162,7 @@ $query="$select $from $where ORDER BY $order_by LIMIT ".$pageNav->getStart().","
         </tfoot>
     </table>
     <?php
-    if($res && $num): //Show options..
+    if($num): //Show options..
         echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
     ?>
     <?php

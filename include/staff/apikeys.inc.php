@@ -2,7 +2,6 @@
 if(!defined('OSTADMININC') || !$thisstaff->isAdmin()) die('Access Denied');
 
 $qs = array();
-$sql='SELECT * FROM '.API_KEY_TABLE.' WHERE 1';
 $sortOptions=array('key'=>'apikey','status'=>'isactive','ip'=>'ipaddr','date'=>'created','created'=>'created','updated'=>'updated');
 $orderWays=array('DESC'=>'DESC','ASC'=>'ASC');
 $sort=($_REQUEST['sort'] && $sortOptions[strtolower($_REQUEST['sort'])])?strtolower($_REQUEST['sort']):'key';
@@ -22,9 +21,9 @@ if($order_column && strpos($order_column,',')){
 }
 $x=$sort.'_sort';
 $$x=' class="'.strtolower($order).'" ';
-$order_by="$order_column $order ";
 
-$total=db_count('SELECT count(*) FROM '.API_KEY_TABLE.' ');
+$keys = ApiKeyModel::objects();
+$total = $keys->count();
 $page=($_GET['p'] && is_numeric($_GET['p']))?$_GET['p']:1;
 $pageNav=new Pagenate($total,$page,PAGE_LIMIT);
 $qstr = '&amp;'. Http::build_query($qs);
@@ -32,9 +31,19 @@ $qs += array('sort' => $_REQUEST['sort'], 'order' => $_REQUEST['order']);
 $pageNav->setURL('apikeys.php', $qs);
 
 $qstr.='&amp;order='.($order=='DESC'?'ASC':'DESC');
-$query="$sql ORDER BY $order_by LIMIT ".$pageNav->getStart().",".$pageNav->getLimit();
-$res=db_query($query);
-if($res && ($num=db_num_rows($res)))
+
+// `order_by()` añade al orden del modelo, que aquí no trae ninguno
+foreach (array_filter(array_map('trim', explode(',', $order_column))) as $column)
+    $keys->order_by(($order == 'DESC' ? '-' : '')
+        . preg_replace('/^\w+\./', '', $column));
+
+$rows = array();
+foreach ($keys->limit($pageNav->getLimit())->offset($pageNav->getStart())
+        ->values('id', 'apikey', 'ipaddr', 'isactive', 'created', 'updated')
+        as $row)
+    $rows[] = $row;
+
+if($num = count($rows))
     $showing=$pageNav->showing().' '.__('API Keys');
 else
     $showing=__('No API keys found');
@@ -96,8 +105,8 @@ else
     <?php
         $total=0;
         $ids=($errors && is_array($_POST['ids']))?$_POST['ids']:null;
-        if($res && db_num_rows($res)):
-            while ($row = db_fetch_array($res)) {
+        if($rows):
+            foreach ($rows as $row) {
                 $sel=false;
                 if($ids && in_array($row['id'],$ids))
                     $sel=true;
@@ -120,7 +129,7 @@ else
     <tfoot>
      <tr>
         <td colspan="7">
-            <?php if($res && $num){ ?>
+            <?php if($num){ ?>
             <?php echo __('Select');?>:&nbsp;
             <a id="selectAll" href="#ckb"><?php echo __('All');?></a>&nbsp;&nbsp;
             <a id="selectNone" href="#ckb"><?php echo __('None');?></a>&nbsp;&nbsp;
@@ -133,7 +142,7 @@ else
     </tfoot>
 </table>
 <?php
-if($res && $num): //Show options..
+if($num): //Show options..
     echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
 ?>
 

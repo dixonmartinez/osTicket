@@ -76,7 +76,7 @@ atípicos, y ahora se ven:
 
 | Señal | Ocurrencias |
 |---|---|
-| SQL a mano (`db_query`) | 123 reales (57 en la aplicación) |
+| SQL a mano (`db_query`) | 119 reales (53 en la aplicación) |
 | `db_input()` (escape manual) | 164 |
 | Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.248 (frente 4) |
 | `global $...` | 560 |
@@ -492,22 +492,22 @@ líneas) y separa cuatro cosas que no son lo mismo:
 
 | Categoría | Llamadas | Archivos | Qué es | ¿Se toca? |
 |---|---|---|---|---|
-| **aplicación** | **57** | 22 | El código de osTicket | es la deuda, y baja |
+| **aplicación** | **53** | 18 | El código de osTicket | es la deuda, y baja |
 | instalador | 5 | 2 | `setup/` e `include/class.setup.php`: corre antes de que exista el esquema | no |
 | actualizador (histórico) | 33 | 16 | `include/upgrader/streams/`: migraciones de esquemas viejos | no |
 | driver de base de datos | 6 | 1 | `include/mysqli.php`: ahí `db_query()` *es* el trabajo | no |
 | dobles de prueba | 22 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
 
-De las 57 de la aplicación, **22 están marcadas como no migrables** con su
-motivo (`sql-audit:legacy`), así que **quedan 35 por migrar**: el objetivo
-era bajar de 100 y se cumple con holgura. Quedan **23 `SELECT`, 3 DML, 2 DDL
-y 7 «otras»**; **ninguna concatenación de datos de la petición** (eso lo
+De las 53 de la aplicación, **23 están marcadas como no migrables** con su
+motivo (`sql-audit:legacy`), así que **quedan 30 por migrar**: el objetivo
+era bajar de 100 y se cumple con holgura. Quedan **21 `SELECT`, 3 DML, 2 DDL
+y 4 «otras»**; **ninguna concatenación de datos de la petición** (eso lo
 vigila `tools/audit` con OST-SQLI y también el propio `sql-audit`, que falla
-si aparece una en el punto de llamada). Lo que resta son, sobre todo, las
-listas paginadas de `include/staff/*.inc.php` —construyen el `SELECT` a mano
-alrededor de `Searchable` y de `Pagenate`, así que migrarlas exige antes un
-paginador que acepte un `QuerySet`— y las consultas de `class.analytics.php`,
-que agregan por `DATE()`, `HOUR()` y `DATE_FORMAT()`.
+si aparece una en el punto de llamada). Lo que resta son tres listas paginadas con `GROUP BY` que une la misma
+tabla dos veces (`filters.inc.php`), o que cuentan con condiciones dentro del
+`JOIN` (`cannedresponses.inc.php`, `templates/users.tmpl.php`), y las
+consultas de `class.analytics.php`, que agregan por `DATE()`, `HOUR()` y
+`DATE_FORMAT()`.
 
 **La marca, y por qué no es una salida.** Hay SQL que no puede pasar por el
 ORM y no por pereza:
@@ -538,8 +538,10 @@ fallar `make docker-test` por un mensaje de ayuda. La regla ignora ahora las
 apariciones escapadas; las que sí interpolan se siguen marcando, y está
 comprobado con los dos casos.
 
-Las 22 marcas son de siete archivos, y ninguna es una consulta de la
-aplicación que se pueda escribir con el ORM:
+Las 23 marcas son de ocho archivos, y ninguna es una consulta de la
+aplicación que se pueda escribir con el ORM (o, en el caso de `class.staff.php`,
+que se pueda escribir **sin coste**: la versión ORM está al lado, en el mismo
+método, y tarda 2 ms más en cada carga de sesión del agente):
 
 | Archivo | Marcas | Por qué |
 |---|---|---|
@@ -550,6 +552,7 @@ aplicación que se pueda escribir con el ORM:
 | `include/staff/system.inc.php` | 2 | tamaño en disco (`information_schema`, incluida la tabla de trozos de adjunto) |
 | `include/class.setup.php` | 2 | sentencias del esquema al instalar, antes de que el ORM tenga algo que describir |
 | `include/class.timezone.php` | 1 | `SELECT` de expresiones sin tabla: el ORM siempre añade `FROM` |
+| `include/class.staff.php` | 1 | `getDepartments()`: la versión ORM (al lado, comentada) hace un `OR` sobre `path` y tarda 2 ms más, y esto corre en cada carga de sesión |
 
 **Lo migrado**, por áreas y con la suite en verde después de cada tanda:
 
@@ -583,6 +586,10 @@ aplicación que se pueda escribir con el ORM:
 | `include/class.client.php` | 1 | 0 | tokens de restablecimiento del usuario |
 | `include/class.task.php` | 1 | 0 | estadísticas del agente: cuatro conteos con `Q::any`/`Q::not` |
 | `include/class.ticket.php` | 1 | 0 | `getUserStats()` |
+| `include/staff/apikeys.inc.php` | 1 | 0 | lista paginada: `ApiKeyModel::objects()` + `Pagenate` |
+| `include/staff/banlist.inc.php` | 1 | 0 | lista paginada con búsqueda (`val__contains`) |
+| `include/staff/syslogs.inc.php` | 1 | 0 | lista paginada con rango de fechas (`FROM_UNIXTIME()` como `SqlFunction`) |
+| `include/staff/templates.inc.php` | 1 | 0 | lista paginada con `COUNT()` anotado sobre el `LEFT JOIN` a departamentos |
 
 Ninguno sube. Lo que sigue en esos archivos es SQL de otra naturaleza (por
 ejemplo, en `settings-emails.inc.php` queda el `SELECT DISTINCT` que alimenta
@@ -606,9 +613,19 @@ seguía leyéndose con SQL a mano.
   PHP hay que `array_filter(..., 'strlen')` o cambia el texto.
 - **`count()` ejecuta** (`compileCount()` hace `$exec->getRow()`): sin
   `mysqli` revienta, y por eso las pruebas usan `compileSelect()`.
+- **Las listas paginadas no necesitan un paginador nuevo**: `Pagenate` sólo
+  calcula `start`/`limit`, así que basta `->limit($pageNav->getLimit())
+  ->offset($pageNav->getStart())`. Los totales salen de `count()`, y el orden
+  de `order_by()` hay que **limpiarlo del alias de la tabla** (`log.created`
+  → `created`), porque el ORM usa los nombres del modelo.
+- **`values()` devuelve arrays asociativos** con las columnas pedidas (más las
+  anotaciones), así que el bucle de la plantilla sigue leyendo `$row['campo']`.
+  Para contar filas de un `JOIN` con `GROUP BY` sirve
+  `annotate(['depts' => SqlAggregate::COUNT('depts__id')])`, que además añade
+  el `GROUP BY` de la clave primaria.
 
 **La regla automática.** `make sql-audit` compara con
-`tools/quality/sql-baseline.json` (35 llamadas en 15 archivos) y **falla** si:
+`tools/quality/sql-baseline.json` (30 llamadas en 10 archivos) y **falla** si:
 
 - un archivo nuevo trae SQL a mano,
 - cualquier archivo sube respecto de la línea base,
@@ -730,7 +747,7 @@ alguien mire el informe— son:
 | Regla | Línea base | Comando |
 |---|---|---|
 | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST` (frente 4) | 1.242 en 141 archivos | `make input-audit` |
-| SQL escrito a mano en la aplicación (frente 3) | 35 en 15 archivos, más 22 excepciones con motivo | `make sql-audit` |
+| SQL escrito a mano en la aplicación (frente 3) | 30 en 10 archivos, más 23 excepciones con motivo | `make sql-audit` |
 
 Un refactor está justificado si **baja** alguna señal sin que suba ninguna
 otra, y si `make ci` sigue en verde.

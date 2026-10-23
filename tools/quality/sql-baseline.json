@@ -5,13 +5,8 @@
     "include/class.i18n.php": 2,
     "include/class.orm.php": 1,
     "include/class.report.php": 2,
-    "include/class.staff.php": 1,
     "include/cli/modules/import.php": 2,
-    "include/staff/apikeys.inc.php": 1,
-    "include/staff/banlist.inc.php": 1,
     "include/staff/cannedresponses.inc.php": 1,
     "include/staff/filters.inc.php": 1,
-    "include/staff/syslogs.inc.php": 1,
-    "include/staff/templates.inc.php": 1,
     "include/staff/templates/users.tmpl.php": 1
 }
