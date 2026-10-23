@@ -260,6 +260,38 @@ class QuerySqlTest extends UnitTestCase {
             . ' FROM `probe` A1 ORDER BY A1.`name` ASC', $q['sql']);
     }
 
+    public function testValoresConAliasDeCampo(): void {
+        $q = $this->compile($this->probe()->values(array('ident' => 'id')));
+
+        $this->assertSame('SELECT A1.`id` AS `ident` FROM `probe` A1'
+            . ' ORDER BY A1.`name` ASC', $q['sql']);
+    }
+
+    public function testValoresConExpresionAgrupaPorLaExpresion(): void {
+        // Las series de analíticas agrupan por DATE()/HOUR(); el GROUP BY
+        // tiene que llevar la expresión, no el alias ni la clave primaria
+        $q = $this->compile($this->probe()->order_by(false)
+            ->values(array('day' => new \SqlFunction('DATE', new \SqlField('created'))))
+            ->annotate(array('n' => new \SqlAggregate('COUNT', new \SqlField('id')))));
+
+        $this->assertSame('SELECT DATE(A1.`created`) AS `day`,'
+            . ' COUNT(A1.`id`) AS `n` FROM `probe` A1'
+            . ' GROUP BY DATE(A1.`created`)', $q['sql']);
+    }
+
+    public function testValoresConExpresionYOrdenExplicito(): void {
+        // Un ORDER BY de columna suelta rompería ONLY_FULL_GROUP_BY, así que
+        // las agrupaciones por expresión van con order_by(false)
+        $q = $this->compile($this->probe()
+            ->values(array('h' => new \SqlFunction('HOUR', new \SqlField('created'))))
+            ->annotate(array('n' => new \SqlAggregate('COUNT', new \SqlField('id')))));
+
+        $this->assertStringContainsString('GROUP BY HOUR(A1.`created`)', $q['sql']);
+        $this->assertSame('SELECT HOUR(A1.`created`) AS `h`, COUNT(A1.`id`) AS `n`'
+            . ' FROM `probe` A1 GROUP BY HOUR(A1.`created`)'
+            . ' ORDER BY A1.`name` ASC', $q['sql']);
+    }
+
     public function testCamposDiferidos(): void {
         // Todo menos el campo diferido
         $q = $this->compile($this->probe()->defer('created'));

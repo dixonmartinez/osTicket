@@ -1,25 +1,34 @@
 <?php
 $qs = array();
-$select = 'SELECT user.*, email.address as email, account.status as status, account.id as account_id ';
+// Rutas del modelo (el ORM no conoce los alias del SQL anterior). El correo
+// y el estado se agregan con MIN() porque `emails` es uno-a-varios: agrupar
+// por la columna suelta multiplicaría las filas, que es lo que hacía el
+// GROUP BY user.id de antes.
+$users = User::objects()
+    ->filter(array('org_id' => $org->getId()))
+    // Los alias no pueden llamarse igual que el último campo de la ruta
+    // (`account__status` -> `status`): el compilador sustituiría el campo por
+    // la propia anotación y saldría `MIN(MIN(...))`. El nombre que ve la
+    // plantilla se pone en `values()`.
+    ->annotate(array(
+        'email_addr' => SqlAggregate::MIN('emails__address'),
+        'account_status' => SqlAggregate::MIN('account__status'),
+        'account_ref' => SqlAggregate::MIN('account__id'),
+        'ticket_count' => SqlAggregate::COUNT('tickets__ticket_id', true),
+    ));
 
-$from = 'FROM '.USER_TABLE.' user '
-      . 'LEFT JOIN '.USER_EMAIL_TABLE.' email ON (user.id = email.user_id) '
-      . 'LEFT JOIN '.USER_ACCOUNT_TABLE.' account ON (user.id = account.user_id) ';
-
-$where = ' WHERE user.org_id='.db_input($org->getId());
-
-$sortOptions = array('name' => 'user.name',
-                     'email' => 'email.address',
-                     'create' => 'user.created',
-                     'update' => 'user.updated',
-                     'status' => 'account.status');
+$sortOptions = array('name' => 'name',
+                     'email' => 'emails__address',
+                     'create' => 'created',
+                     'update' => 'updated',
+                     'status' => 'account__status');
 $orderWays = array('DESC'=>'DESC','ASC'=>'ASC');
 $sort= ($_REQUEST['sort'] && $sortOptions[strtolower($_REQUEST['sort'])]) ? strtolower($_REQUEST['sort']) : 'name';
 //Sorting options...
 if ($sort && $sortOptions[$sort])
     $order_column =$sortOptions[$sort];
 
-$order_column = $order_column ?: 'user.name';
+$order_column = $order_column ?: 'name';
 
 if ($_REQUEST['order'] && $orderWays[strtoupper($_REQUEST['order'])])
     $order = $orderWays[strtoupper($_REQUEST['order'])];
@@ -30,9 +39,7 @@ if ($order_column && strpos($order_column,','))
 
 $x=$sort.'_sort';
 $$x=' class="'.strtolower($order).'" ';
-$order_by="$order_column $order ";
-
-$total=db_count('SELECT count(DISTINCT user.id) '.$from.' '.$where);
+$total = User::objects()->filter(array('org_id' => $org->getId()))->count();
 $page=($_GET['p'] && is_numeric($_GET['p']))?$_GET['p']:1;
 $pageNav=new Pagenate($total,$page,PAGE_LIMIT);
 $qstr = '&amp;'. Http::build_query($qs);
@@ -45,17 +52,30 @@ else
 //Ok..lets roll...create the actual query
 $qstr .= '&amp;order='.($order=='DESC' ? 'ASC' : 'DESC');
 
-$select .= ', count(DISTINCT ticket.ticket_id) as tickets ';
+// El orden va después de conocer las anotaciones: `order_by()` sólo conoce
+// campos del modelo y relaciones.
+foreach (array_filter(array_map('trim', explode(',', $order_column))) as $column)
+    $users->order_by(($order == 'DESC' ? '-' : '') . $column);
 
-$from .= ' LEFT JOIN '.TICKET_TABLE.' ticket ON (ticket.user_id = user.id) ';
-
-
-$query="$select $from $where GROUP BY user.id ORDER BY $order_by LIMIT ".$pageNav->getStart().",".$pageNav->getLimit();
-//echo $query;
+$rows = array();
+foreach ($users->limit($pageNav->getLimit())->offset($pageNav->getStart())
+        ->values('id', 'name', 'org_id', 'created', 'updated') as $row)
+    // Las anotaciones llegan con su propio nombre: se renombran aquí a lo que
+    // espera la plantilla
+    $rows[] = array(
+        'id' => $row['id'],
+        'name' => $row['name'],
+        'org_id' => $row['org_id'],
+        'created' => $row['created'],
+        'updated' => $row['updated'],
+        'email' => $row['email_addr'],
+        'status' => $row['account_status'],
+        'account_id' => $row['account_ref'],
+        'tickets' => $row['ticket_count'],
+    );
 
 $showing = $search ? __('Search Results').': ' : '';
-$res = db_query($query);
-if($res && ($num=db_num_rows($res)))
+if($num = count($rows))
     $showing .= $pageNav->showing();
 else
     $showing .= __("This organization doesn't have any users yet");
@@ -93,9 +113,9 @@ if ($num) { ?>
     </thead>
     <tbody>
     <?php
-        if($res && db_num_rows($res)):
+        if($rows):
             $ids=($errors && is_array($_POST['ids']))?$_POST['ids']:null;
-            while ($row = db_fetch_array($res)) {
+            foreach ($rows as $row) {
 
                 $name = new UsersName($row['name']);
                 if (!$row['account_id'])
@@ -136,7 +156,7 @@ if ($num) { ?>
      <tr>
         <td colspan="5">
             <?php
-            if ($res && $num) {
+            if ($num) {
                 ?>
             <?php echo __('Select'); ?>:&nbsp;
             <a id="selectAll" href="#ckb"><?php echo __('All'); ?></a>&nbsp;&nbsp;
@@ -152,7 +172,7 @@ if ($num) { ?>
     </tfoot>
 </table>
 <?php
-if ($res && $num) { //Show options..
+if ($num) { //Show options..
     echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
 
     ?>
@@ -187,7 +207,7 @@ if ($res && $num) { //Show options..
     <div class="clear"></div>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click', 'a.add-user', function(e) {
         e.preventDefault();

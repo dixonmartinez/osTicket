@@ -1334,8 +1334,21 @@ class QuerySet implements IteratorAggregate, ArrayAccess, Serializable, Countabl
     }
 
     function values() {
-        foreach (func_get_args() as $A)
-            $this->values[$A] = $A;
+        $args = func_get_args();
+        // Un arreglo suelto permite alias explícito y expresiones calculadas,
+        // que no pueden ser claves de arreglo: values(array('day' => $expr))
+        if (count($args) == 1 && is_array($args[0]))
+            $args = $args[0];
+        foreach ($args as $k => $A) {
+            if (is_string($k)) {
+                if ($A instanceof SqlFunction)
+                    $A->setAlias($k);
+                $this->values[$k] = $A;
+            }
+            else {
+                $this->values[$A] = $A;
+            }
+        }
         $this->iter = self::ITER_HASH;
         // This disables related models
         $this->related = false;

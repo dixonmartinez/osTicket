@@ -10,17 +10,28 @@ foreach($thisstaff->dept_access as $da) {
     if ($da->role->hasPerm(Canned::PERM_MANAGE, false))
         $departments[] = $da->dept->getId();
 }
-$departments = implode(',', $departments);
+$departments = array_map('intval', $departments);
 
 $qs = array();
-$sql='SELECT canned.*, count(attach.file_id) as files, dept.name as department '.
-     ' FROM '.CANNED_TABLE.' canned '.
-     ' LEFT JOIN '.DEPT_TABLE.' dept ON (dept.id=canned.dept_id) '.
-     ' LEFT JOIN '.ATTACHMENT_TABLE.' attach
-            ON (attach.object_id=canned.canned_id AND attach.`type`=\'C\' AND NOT attach.inline)';
-$sql.= sprintf(' WHERE canned.dept_id = 0 OR dept.id IN (%s)', $departments);
+// Las condiciones del adjunto (`type='C'` y `NOT inline`) van en el ON, no
+// en el WHERE: si fueran al WHERE, las respuestas sin adjunto desaparecerían.
+$scope = array(Q::all(array('dept_id' => 0)));
+if ($departments)
+    $scope[] = Q::all(array('dept_id__in' => $departments));
 
-$sortOptions=array('title'=>'canned.title','status'=>'canned.isenabled','dept'=>'department','updated'=>'canned.updated');
+$canned = Canned::objects()
+    ->filter(Q::any($scope))
+    ->annotate(array(
+        // El `type='C'` ya va en el join del modelo; aquí sólo el `NOT inline`
+        'files' => SqlAggregate::COUNT('attachments__file_id', false,
+            new Q(array('attachments__inline' => 0))),
+        // MIN() y no la columna suelta: el nombre del departamento no forma
+        // parte de la clave, y así cada respuesta sale una sola vez
+        'department' => SqlAggregate::MIN('dept__name'),
+    ));
+
+// Rutas del modelo: el ORM no conoce los alias de tabla del SQL anterior
+$sortOptions=array('title'=>'title','status'=>'isenabled','dept'=>'dept__name','updated'=>'updated');
 $orderWays=array('DESC'=>'DESC','ASC'=>'ASC');
 $sort=($_REQUEST['sort'] && $sortOptions[strtolower($_REQUEST['sort'])])?strtolower($_REQUEST['sort']):'title';
 //Sorting options...
@@ -28,7 +39,7 @@ if($sort && $sortOptions[$sort]) {
     $order_column =$sortOptions[$sort];
 }
 
-$order_column=$order_column?$order_column:'canned.title';
+$order_column=$order_column?$order_column:'title';
 
 if($_REQUEST['order'] && $orderWays[strtoupper($_REQUEST['order'])]) {
     $order=$orderWays[strtoupper($_REQUEST['order'])];
@@ -42,9 +53,8 @@ if($order_column && strpos($order_column,',')){
 
 $x=$sort.'_sort';
 $$x=' class="'.strtolower($order).'" ';
-$order_by="$order_column $order ";
 
-$total=db_count('SELECT count(*) FROM '.CANNED_TABLE.' canned ');
+$total = Canned::objects()->count();
 $page=($_GET['p'] && is_numeric($_GET['p']))?$_GET['p']:1;
 $pageNav=new Pagenate($total, $page, PAGE_LIMIT);
 $qstr = '&amp;'. Http::build_query($qs);
@@ -52,9 +62,16 @@ $qs += array('sort' => $_REQUEST['sort'], 'order' => $_REQUEST['order']);
 $pageNav->setURL('canned.php', $qs);
 //Ok..lets roll...create the actual query
 $qstr .= '&order='.($order=='DESC'?'ASC':'DESC');
-$query="$sql GROUP BY canned.canned_id ORDER BY $order_by LIMIT ".$pageNav->getStart().",".$pageNav->getLimit();
-$res=db_query($query);
-if($res && ($num=db_num_rows($res)))
+foreach (array_filter(array_map('trim', explode(',', $order_column))) as $column)
+    $canned->order_by(($order == 'DESC' ? '-' : '')
+        . preg_replace('/^\w+\./', '', $column));
+
+$rows = array();
+foreach ($canned->limit($pageNav->getLimit())->offset($pageNav->getStart())
+        ->values('canned_id', 'title', 'isenabled', 'updated') as $row)
+    $rows[] = $row;
+
+if($num = count($rows))
     $showing=$pageNav->showing().' '._N('premade response', 'premade responses',
         $total);
 else
@@ -118,8 +135,8 @@ else
     <?php
         $total=0;
         $ids=($errors && is_array($_POST['ids']))?$_POST['ids']:null;
-        if($res && db_num_rows($res)):
-            while ($row = db_fetch_array($res)) {
+        if($rows):
+            foreach ($rows as $row) {
                 $sel=false;
                 if($ids && in_array($row['canned_id'],$ids))
                     $sel=true;
@@ -143,7 +160,7 @@ else
     <tfoot>
      <tr>
         <td colspan="5">
-            <?php if($res && $num){ ?>
+            <?php if($num){ ?>
             <?php echo __('Select');?>:&nbsp;
             <a id="selectAll" href="#ckb"><?php echo __('All');?></a>&nbsp;&nbsp;
             <a id="selectNone" href="#ckb"><?php echo __('None');?></a>&nbsp;&nbsp;
@@ -156,7 +173,7 @@ else
     </tfoot>
 </table>
 <?php
-if($res && $num): //Show options..
+if($num): //Show options..
     echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
 ?>
 

@@ -75,10 +75,17 @@ class SelectSql {
         elseif ($queryset->values) {
             $additional_group_by = array();
             foreach ($queryset->values as $alias=>$v) {
-                list($f) = $compiler->getField($v, $model);
+                // Una expresión calculada no pasa por getField(): no es una
+                // ruta de campo, y su alias ya viene del arreglo de values()
+                if ($v instanceof SqlFunction)
+                    $f = $v;
+                else
+                    list($f) = $compiler->getField($v, $model);
                 $unaliased = $f;
                 if ($f instanceof SqlFunction) {
                     $fields[$f->toSql($compiler, $model, $alias)] = true;
+                    // La expresión, sin alias, es la que va al GROUP BY
+                    $unaliased = $f->toSql($compiler, $model, false);
                     if ($f instanceof SqlAggregate) {
                         // Don't group_by aggregate expressions, but if there is an
                         // aggergate expression, then we need a GROUP BY clause.
@@ -132,8 +139,15 @@ class SelectSql {
             }
             // If no group by has been set yet, use the root model pk
             if (!$group_by && !$queryset->aggregated && !$queryset->distinct && $need_group_by) {
-                foreach ($meta['pk'] as $pk)
-                    $group_by[] = $rootAlias .'.'. $pk;
+                // Con `values()`, el GROUP BY son las columnas pedidas: agrupar
+                // por la clave primaria devolvería una fila por registro y
+                // dejaría las demás columnas a merced del motor (o sería un
+                // error con ONLY_FULL_GROUP_BY).
+                if (!empty($additional_group_by))
+                    $group_by = $additional_group_by;
+                else
+                    foreach ($meta['pk'] as $pk)
+                        $group_by[] = $rootAlias .'.'. $pk;
             }
         }
         // Add in SELECT extras

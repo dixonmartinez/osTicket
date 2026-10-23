@@ -145,20 +145,20 @@ class Analytics
         return sprintf("'%s'", gmdate('Y-m-d H:i:s', $this->end));
     }
 
-    /**
-     * Restricción de departamentos para las consultas directas.
-     * Devuelve '' si el agente puede verlo todo.
-     */
-    private function deptClause($column = 't.dept_id')
+    /** Filtro del periodo para el ORM, sobre la columna indicada. */
+    private function periodFilter($column = 'created')
     {
-        if ($this->depts === null)
-            return '';
+        return array(
+            $column . '__gte' => gmdate('Y-m-d H:i:s', $this->start),
+            $column . '__lte' => gmdate('Y-m-d H:i:s', $this->end),
+        );
+    }
 
-        if (!$this->depts)
-            return ' AND 1=0';
-
-        return sprintf(' AND %s IN (%s)', $column,
-            implode(',', array_map('intval', $this->depts)));
+    /** Suma condicional: cuenta las filas que cumplen el criterio. */
+    private static function countIf($criteria)
+    {
+        return SqlAggregate::COUNT(
+            SqlCase::N()->when(new Q($criteria), 1)->otherwise(0));
     }
 
     /** Equivalente para el ORM. */
@@ -195,32 +195,39 @@ class Analytics
         $dept0 = $this->deptClause('t0.dept_id');
 
         // Volumen del periodo
-        $sql = 'SELECT
-                COUNT(*) AS created,
-                SUM(t.closed IS NOT NULL
-                    AND t.closed BETWEEN '.$start.' AND '.$end.') AS closed,
-                SUM(t.reopened IS NOT NULL) AS reopened
-            FROM '.TICKET_TABLE.' t
-            WHERE t.created BETWEEN '.$start.' AND '.$end.$dept;
-        $row = db_fetch_array(db_query($sql)) ?: [];
+        $row = Ticket::objects()
+            ->filter($this->periodFilter(), $this->deptFilter())
+            ->aggregate(array(
+                'created_n' => SqlAggregate::COUNT(new SqlField('ticket_id')),
+                'closed_n' => SqlAggregate::SUM(SqlCase::N()
+                    ->when(Q::all(array(
+                        'closed__isnull' => false,
+                        'closed__gte' => gmdate('Y-m-d H:i:s', $this->start),
+                        'closed__lte' => gmdate('Y-m-d H:i:s', $this->end),
+                    )), 1)->otherwise(0)),
+                // COUNT() de una columna no cuenta los NULL: es exactamente
+                // `SUM(reopened IS NOT NULL)`
+                'reopened_n' => SqlAggregate::COUNT(new SqlField('reopened')),
+            ))->one() ?: [];
 
         // Estado actual: no se limita al periodo, porque "abierto ahora"
         // incluye también lo que viene de meses anteriores.
-        $sql = 'SELECT
-                COUNT(*) AS open_now,
-                SUM(t.isoverdue = 1) AS overdue,
-                SUM(t.isanswered = 0) AS unanswered
-            FROM '.TICKET_TABLE.' t
-            WHERE t.status_id IN (
-                    SELECT id FROM '.TABLE_PREFIX.'ticket_status
-                     WHERE state IN (\'open\', \'in_progress\'))'.$dept;
-        $current = db_fetch_array(db_query($sql)) ?: [];
+        $current = Ticket::objects()
+            ->filter(array('status__state__in' => array('open', 'in_progress')),
+                $this->deptFilter())
+            ->aggregate(array(
+                'open_now' => SqlAggregate::COUNT(new SqlField('ticket_id')),
+                'overdue' => self::countIf(array('isoverdue' => 1)),
+                'unanswered' => self::countIf(array('isanswered' => 0)),
+            ))->one() ?: [];
 
         // Tiempos: primera respuesta (agente) y resolución.
         //
         // La subconsulta se limita a los tickets del periodo antes de recorrer
         // thread/thread_entry: sin ese filtro la tabla derivada se
         // materializaría completa en instalaciones grandes.
+        // La primera respuesta es el MIN() por ticket: hace falta una tabla
+        // derivada, y el ORM no une vistas calculadas.
         $sql = 'SELECT
                 AVG(TIMESTAMPDIFF(MINUTE, t.created, e.first_response) / 60) AS frt,
                 AVG(TIMESTAMPDIFF(MINUTE, t.created, t.closed) / 60) AS mttr
@@ -237,27 +244,30 @@ class Analytics
                  GROUP BY th.object_id
             ) e ON e.ticket_id = t.ticket_id
             WHERE t.created BETWEEN '.$start.' AND '.$end.$dept;
+        // sql-audit:legacy la tabla derivada con el MIN() por ticket
         $times = db_fetch_array(db_query($sql)) ?: [];
 
-        // SLA: comparación entre la fecha de vencimiento y el cierre
+        // SLA: comparación entre la fecha de vencimiento y el cierre. El ORM
+        // compara columnas con valores, no dos columnas entre sí.
         $sql = 'SELECT
                 SUM(t.duedate IS NOT NULL AND (t.closed IS NULL OR t.closed <= t.duedate)) AS met,
                 SUM(t.duedate IS NOT NULL AND t.closed IS NOT NULL AND t.closed > t.duedate) AS breached
             FROM '.TICKET_TABLE.' t
             WHERE t.created BETWEEN '.$start.' AND '.$end.$dept;
+        // sql-audit:legacy `t.closed <= t.duedate` es columna contra columna
         $sla = db_fetch_array(db_query($sql)) ?: [];
 
         // Tendencia: mitad reciente contra mitad anterior del periodo
         $mid = gmdate('Y-m-d H:i:s', (int) (($this->start + $this->end) / 2));
-        $sql = 'SELECT
-                SUM(t.created >= \''.$mid.'\') AS recent,
-                SUM(t.created < \''.$mid.'\') AS previous
-            FROM '.TICKET_TABLE.' t
-            WHERE t.created BETWEEN '.$start.' AND '.$end.$dept;
-        $trend = db_fetch_array(db_query($sql)) ?: [];
+        $trend = Ticket::objects()
+            ->filter($this->periodFilter(), $this->deptFilter())
+            ->aggregate(array(
+                'recent' => self::countIf(array('created__gte' => $mid)),
+                'previous' => self::countIf(array('created__lt' => $mid)),
+            ))->one() ?: [];
 
-        $created = (int) ($row['created'] ?? 0);
-        $closed = (int) ($row['closed'] ?? 0);
+        $created = (int) ($row['created_n'] ?? 0);
+        $closed = (int) ($row['closed_n'] ?? 0);
         $met = (int) ($sla['met'] ?? 0);
         $breached = (int) ($sla['breached'] ?? 0);
         $days = max(1, (int) ceil(($this->end - $this->start) / 86400));
@@ -271,7 +281,7 @@ class Analytics
             'open' => (int) ($current['open_now'] ?? 0),
             'overdue' => (int) ($current['overdue'] ?? 0),
             'unanswered' => (int) ($current['unanswered'] ?? 0),
-            'reopened' => (int) ($row['reopened'] ?? 0),
+            'reopened' => (int) ($row['reopened_n'] ?? 0),
             'first_response_h' => isset($times['frt']) ? round((float) $times['frt'], 1) : null,
             'resolution_h' => isset($times['mttr']) ? round((float) $times['mttr'], 1) : null,
             'sla_met' => $met,
@@ -297,25 +307,23 @@ class Analytics
      */
     public function getDailySeries()
     {
-        $start = $this->sqlStart();
-        $end = $this->sqlEnd();
-        $dept = $this->deptClause();
-
-        $created = [];
-        $res = db_query('SELECT DATE(t.created) AS d, COUNT(*) AS n
-            FROM '.TICKET_TABLE.' t
-            WHERE t.created BETWEEN '.$start.' AND '.$end.$dept.'
-            GROUP BY DATE(t.created)');
-        while ($row = db_fetch_array($res))
-            $created[$row['d']] = (int) $row['n'];
-
-        $closed = [];
-        $res = db_query('SELECT DATE(t.closed) AS d, COUNT(*) AS n
-            FROM '.TICKET_TABLE.' t
-            WHERE t.closed BETWEEN '.$start.' AND '.$end.$dept.'
-            GROUP BY DATE(t.closed)');
-        while ($row = db_fetch_array($res))
-            $closed[$row['d']] = (int) $row['n'];
+        // Una fila por día con datos. Se agrupa por la expresión DATE(), que
+        // el ORM acepta como término de values() desde este frente
+        $series = array('created' => [], 'closed' => []);
+        foreach (array_keys($series) as $col) {
+            $rows = Ticket::objects()
+                ->filter($this->periodFilter($col), $this->deptFilter())
+                // Sin orden por defecto: agrupar por una expresión y ordenar
+                // por una columna suelta es inválido con ONLY_FULL_GROUP_BY
+                ->order_by(false)
+                ->values(array('day' => SqlFunction::DATE(new SqlField($col))))
+                ->annotate(array('n' => SqlAggregate::COUNT(new SqlField('ticket_id'))))
+                ->all();
+            foreach ($rows as $row)
+                $series[$col][$row['day']] = (int) $row['n'];
+        }
+        $created = $series['created'];
+        $closed = $series['closed'];
 
         // Relleno continuo (imprescindible para que las gráficas no mientan)
         $labels = $c = $cl = [];
@@ -338,14 +346,15 @@ class Analytics
      */
     public function getHourlyDistribution()
     {
-        $dept = $this->deptClause();
         $buckets = array_fill(0, 24, 0);
 
-        $res = db_query('SELECT HOUR(t.created) AS h, COUNT(*) AS n
-            FROM '.TICKET_TABLE.' t
-            WHERE t.created BETWEEN '.$this->sqlStart().' AND '.$this->sqlEnd().$dept.'
-            GROUP BY HOUR(t.created)');
-        while ($row = db_fetch_array($res))
+        $rows = Ticket::objects()
+            ->filter($this->periodFilter(), $this->deptFilter())
+            ->order_by(false)
+            ->values(array('h' => SqlFunction::HOUR(new SqlField('created'))))
+            ->annotate(array('n' => SqlAggregate::COUNT(new SqlField('ticket_id'))))
+            ->all();
+        foreach ($rows as $row)
             $buckets[(int) $row['h']] = (int) $row['n'];
 
         return $buckets;
@@ -363,32 +372,47 @@ class Analytics
      */
     public function getAgentBreakdown($limit = 20)
     {
-        $dept = $this->deptClause();
         $rows = [];
 
-        $sql = 'SELECT s.staff_id, CONCAT_WS(\' \', s.firstname, s.lastname) AS name,
-                COUNT(t.ticket_id) AS assigned,
-                SUM(t.closed IS NOT NULL AND t.closed BETWEEN '.$this->sqlStart()
-                    .' AND '.$this->sqlEnd().') AS closed,
-                SUM(t.isoverdue = 1) AS overdue,
-                ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.created, t.closed) / 60), 1) AS mttr
-            FROM '.TICKET_TABLE.' t
-            JOIN '.STAFF_TABLE.' s ON s.staff_id = t.staff_id
-            WHERE t.created BETWEEN '.$this->sqlStart().' AND '.$this->sqlEnd().$dept.'
-              AND t.staff_id > 0
-            GROUP BY s.staff_id, s.firstname, s.lastname
-            ORDER BY closed DESC, assigned DESC
-            LIMIT '.(int) $limit;
+        $start = gmdate('Y-m-d H:i:s', $this->start);
+        $end = gmdate('Y-m-d H:i:s', $this->end);
 
-        $res = db_query($sql);
-        while ($row = db_fetch_array($res)) {
+        // CONCAT_WS salta los vacíos igual que en el SQL anterior; va dentro
+        // de MIN() porque el nombre no forma parte de la agrupación
+        $query = Ticket::objects()
+            ->filter($this->periodFilter(), $this->deptFilter(),
+                array('staff_id__gt' => 0))
+            ->values('staff_id')
+            ->annotate(array(
+                'assigned' => SqlAggregate::COUNT(new SqlField('ticket_id')),
+                'closed_n' => SqlAggregate::SUM(SqlCase::N()
+                    ->when(Q::all(array(
+                        'closed__isnull' => false,
+                        'closed__gte' => $start,
+                        'closed__lte' => $end,
+                    )), 1)->otherwise(0)),
+                'overdue' => self::countIf(array('isoverdue' => 1)),
+                'mttr_min' => SqlAggregate::AVG(SqlFunction::timestampdiff(
+                    new SqlCode('MINUTE'), new SqlField('created'),
+                    new SqlField('closed'))),
+                'agent_name' => SqlAggregate::MIN(SqlFunction::CONCAT_WS(
+                    new SqlCode("' '"), new SqlField('staff__firstname'),
+                    new SqlField('staff__lastname'))),
+            ))
+            ->order_by('-closed_n', '-assigned')
+            ->limit((int) $limit);
+
+        foreach ($query as $row) {
             $rows[] = [
                 'id' => (int) $row['staff_id'],
-                'name' => $row['name'],
+                'name' => $row['agent_name'],
                 'assigned' => (int) $row['assigned'],
-                'closed' => (int) $row['closed'],
+                'closed' => (int) $row['closed_n'],
                 'overdue' => (int) $row['overdue'],
-                'avg_resolution_h' => $row['mttr'] !== null ? (float) $row['mttr'] : null,
+                // La media se pide en minutos y se pasa a horas aquí: el ORM
+                // no divide, y hacerlo en SQL obligaba a otro literal
+                'avg_resolution_h' => $row['mttr_min'] !== null
+                    ? round((float) $row['mttr_min'] / 60, 1) : null,
             ];
         }
 
@@ -407,32 +431,44 @@ class Analytics
      */
     public function getDepartmentBreakdown()
     {
-        $dept = $this->deptClause('t.dept_id');
         $rows = [];
 
-        $sql = 'SELECT d.id, d.name,
-                COUNT(t.ticket_id) AS created,
-                SUM(t.closed IS NOT NULL AND t.closed BETWEEN '.$this->sqlStart()
-                    .' AND '.$this->sqlEnd().') AS closed,
-                SUM(t.isoverdue = 1) AS overdue,
-                SUM(t.isanswered = 0) AS unanswered,
-                ROUND(AVG(TIMESTAMPDIFF(MINUTE, t.created, t.closed) / 60), 1) AS mttr
-            FROM '.TICKET_TABLE.' t
-            JOIN '.DEPT_TABLE.' d ON d.id = t.dept_id
-            WHERE t.created BETWEEN '.$this->sqlStart().' AND '.$this->sqlEnd().$dept.'
-            GROUP BY d.id, d.name
-            ORDER BY created DESC';
+        $start = gmdate('Y-m-d H:i:s', $this->start);
+        $end = gmdate('Y-m-d H:i:s', $this->end);
 
-        $res = db_query($sql);
-        while ($row = db_fetch_array($res)) {
+        $query = Ticket::objects()
+            // El SQL anterior hacía INNER JOIN con la tabla de departamentos,
+            // así que los tickets sin departamento no salían en el desglose
+            ->filter($this->periodFilter(), $this->deptFilter(),
+                array('dept_id__gt' => 0))
+            ->values('dept_id')
+            ->annotate(array(
+                'created_n' => SqlAggregate::COUNT(new SqlField('ticket_id')),
+                'closed_n' => SqlAggregate::SUM(SqlCase::N()
+                    ->when(Q::all(array(
+                        'closed__isnull' => false,
+                        'closed__gte' => $start,
+                        'closed__lte' => $end,
+                    )), 1)->otherwise(0)),
+                'overdue' => self::countIf(array('isoverdue' => 1)),
+                'unanswered' => self::countIf(array('isanswered' => 0)),
+                'mttr_min' => SqlAggregate::AVG(SqlFunction::timestampdiff(
+                    new SqlCode('MINUTE'), new SqlField('created'),
+                    new SqlField('closed'))),
+                'dept_name' => SqlAggregate::MIN(new SqlField('dept__name')),
+            ))
+            ->order_by('-created_n');
+
+        foreach ($query as $row) {
             $rows[] = [
-                'id' => (int) $row['id'],
-                'name' => $row['name'],
-                'created' => (int) $row['created'],
-                'closed' => (int) $row['closed'],
+                'id' => (int) $row['dept_id'],
+                'name' => $row['dept_name'],
+                'created' => (int) $row['created_n'],
+                'closed' => (int) $row['closed_n'],
                 'overdue' => (int) $row['overdue'],
                 'unanswered' => (int) $row['unanswered'],
-                'avg_resolution_h' => $row['mttr'] !== null ? (float) $row['mttr'] : null,
+                'avg_resolution_h' => $row['mttr_min'] !== null
+                    ? round((float) $row['mttr_min'] / 60, 1) : null,
             ];
         }
 
@@ -444,14 +480,15 @@ class Analytics
      */
     public function getSourceBreakdown()
     {
-        $dept = $this->deptClause();
         $rows = [];
 
-        $res = db_query('SELECT t.source, COUNT(*) AS n
-            FROM '.TICKET_TABLE.' t
-            WHERE t.created BETWEEN '.$this->sqlStart().' AND '.$this->sqlEnd().$dept.'
-            GROUP BY t.source ORDER BY n DESC');
-        while ($row = db_fetch_array($res))
+        $query = Ticket::objects()
+            ->filter($this->periodFilter(), $this->deptFilter())
+            ->values('source')
+            ->annotate(array('n' => SqlAggregate::COUNT(new SqlField('ticket_id'))))
+            ->order_by('-n');
+
+        foreach ($query as $row)
             $rows[] = ['source' => $row['source'] ?: 'Other', 'count' => (int) $row['n']];
 
         return $rows;
@@ -462,16 +499,17 @@ class Analytics
      */
     public function getTopicBreakdown($limit = 10)
     {
-        $dept = $this->deptClause();
         $rows = [];
 
-        $res = db_query('SELECT ht.topic AS name, COUNT(*) AS n
-            FROM '.TICKET_TABLE.' t
-            JOIN '.TOPIC_TABLE.' ht ON ht.topic_id = t.topic_id
-            WHERE t.created BETWEEN '.$this->sqlStart().' AND '.$this->sqlEnd().$dept.'
-            GROUP BY ht.topic ORDER BY n DESC LIMIT '.(int) $limit);
-        while ($row = db_fetch_array($res))
-            $rows[] = ['name' => $row['name'], 'count' => (int) $row['n']];
+        $query = Ticket::objects()
+            ->filter($this->periodFilter(), $this->deptFilter())
+            ->values('topic__topic')
+            ->annotate(array('n' => SqlAggregate::COUNT(new SqlField('ticket_id'))))
+            ->order_by('-n')
+            ->limit((int) $limit);
+
+        foreach ($query as $row)
+            $rows[] = ['name' => $row['topic'], 'count' => (int) $row['n']];
 
         return $rows;
     }
@@ -482,27 +520,34 @@ class Analytics
      */
     public function getBacklogAge()
     {
-        $dept = $this->deptClause();
         $buckets = [
             '< 1 day' => 0, '1-3 days' => 0, '3-7 days' => 0,
             '7-30 days' => 0, '> 30 days' => 0,
         ];
 
-        $sql = 'SELECT
-                SUM(DATEDIFF(NOW(), t.created) < 1) AS b1,
-                SUM(DATEDIFF(NOW(), t.created) BETWEEN 1 AND 2) AS b2,
-                SUM(DATEDIFF(NOW(), t.created) BETWEEN 3 AND 6) AS b3,
-                SUM(DATEDIFF(NOW(), t.created) BETWEEN 7 AND 29) AS b4,
-                SUM(DATEDIFF(NOW(), t.created) >= 30) AS b5
-            FROM '.TICKET_TABLE.' t
-            WHERE t.status_id IN (
-                SELECT id FROM '.TABLE_PREFIX.'ticket_status
-                 WHERE state IN (\'open\', \'in_progress\'))'.$dept;
-        $row = db_fetch_array(db_query($sql)) ?: [];
+        // DATEDIFF(NOW(), created) cuenta días de calendario, así que cada
+        // tramo equivale a un rango de fechas respecto de CURDATE() — que es
+        // la fecha del servidor de base de datos, como antes.
+        $open = array('status__state__in' => array('open', 'in_progress'));
+        $days = function ($n) {
+            return SqlExpression::minus(SqlFunction::CURDATE(),
+                SqlInterval::DAY($n));
+        };
+        $count = function (array $criteria) use ($open) {
+            return Ticket::objects()
+                ->filter($open, $criteria, $this->deptFilter())
+                ->count();
+        };
 
         $keys = array_keys($buckets);
-        $values = [(int) ($row['b1'] ?? 0), (int) ($row['b2'] ?? 0),
-            (int) ($row['b3'] ?? 0), (int) ($row['b4'] ?? 0), (int) ($row['b5'] ?? 0)];
+        $values = [
+            $count(array('created__gte' => SqlFunction::CURDATE())),
+            $count(array('created__gte' => $days(2),
+                'created__lt' => SqlFunction::CURDATE())),
+            $count(array('created__gte' => $days(6), 'created__lt' => $days(2))),
+            $count(array('created__gte' => $days(29), 'created__lt' => $days(6))),
+            $count(array('created__lt' => $days(29))),
+        ];
         $buckets = array_combine($keys, $values);
 
         return $buckets;
@@ -513,27 +558,26 @@ class Analytics
      */
     public function getWorkload()
     {
-        $dept = $this->deptClause();
         $rows = [];
 
-        $sql = 'SELECT s.staff_id, CONCAT_WS(\' \', s.firstname, s.lastname) AS name,
-                COUNT(t.ticket_id) AS open_tickets,
-                SUM(t.isoverdue = 1) AS overdue
-            FROM '.TICKET_TABLE.' t
-            JOIN '.STAFF_TABLE.' s ON s.staff_id = t.staff_id
-            WHERE t.status_id IN (
-                    SELECT id FROM '.TABLE_PREFIX.'ticket_status
-                     WHERE state IN (\'open\', \'in_progress\'))
-              AND t.staff_id > 0'.$dept.'
-            GROUP BY s.staff_id, s.firstname, s.lastname
-            ORDER BY open_tickets DESC
-            LIMIT 20';
+        $query = Ticket::objects()
+            ->filter(array('status__state__in' => array('open', 'in_progress')),
+                array('staff_id__gt' => 0), $this->deptFilter())
+            ->values('staff_id')
+            ->annotate(array(
+                'open_tickets' => SqlAggregate::COUNT(new SqlField('ticket_id')),
+                'overdue' => self::countIf(array('isoverdue' => 1)),
+                'agent_name' => SqlAggregate::MIN(SqlFunction::CONCAT_WS(
+                    new SqlCode("' '"), new SqlField('staff__firstname'),
+                    new SqlField('staff__lastname'))),
+            ))
+            ->order_by('-open_tickets')
+            ->limit(20);
 
-        $res = db_query($sql);
-        while ($row = db_fetch_array($res)) {
+        foreach ($query as $row) {
             $rows[] = [
                 'id' => (int) $row['staff_id'],
-                'name' => $row['name'],
+                'name' => $row['agent_name'],
                 'open' => (int) $row['open_tickets'],
                 'overdue' => (int) $row['overdue'],
             ];

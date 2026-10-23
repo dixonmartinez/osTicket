@@ -29,6 +29,24 @@ extends VerySimpleModel {
             'actions' => array(
                 'reverse' => 'FilterAction.filter',
             ),
+            // Acción de tipo `topic` y de tipo `dept`, cada una con su propia
+            // unión: el listado necesita las dos a la vez y el tipo va dentro
+            // del ON, no en el WHERE (si fuera al WHERE se perderían los
+            // filtros sin acción de ese tipo).
+            'topic_action' => array(
+                'constraint' => array(
+                    "'topic'" => 'FilterAction.type',
+                    'id' => 'FilterAction.filter_id',
+                ),
+                'null' => true,
+            ),
+            'dept_action' => array(
+                'constraint' => array(
+                    "'dept'" => 'FilterAction.type',
+                    'id' => 'FilterAction.filter_id',
+                ),
+                'null' => true,
+            ),
         ),
     );
 

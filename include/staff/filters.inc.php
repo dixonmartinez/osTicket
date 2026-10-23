@@ -2,13 +2,16 @@
 if(!defined('OSTADMININC') || !$thisstaff->isAdmin()) die('Access Denied');
 $targets = Filter::getTargets();
 $qs = array();
-$sql='SELECT filter.*,count(rule.id) as rules, topic.configuration AS topic, dept.configuration AS dept '.
-     'FROM '.FILTER_TABLE.' filter '.
-     'LEFT JOIN '.FILTER_RULE_TABLE.' rule ON(rule.filter_id=filter.id) '.
-     'LEFT JOIN '.FILTER_ACTION_TABLE.' topic ON (topic.filter_id = filter.id AND topic.type = \'topic\') '.
-     'LEFT JOIN '.FILTER_ACTION_TABLE.' dept ON (dept.filter_id = filter.id AND dept.type = \'dept\') '.
-     "WHERE filter.`name` <> 'SYSTEM BAN LIST' ".
-     'GROUP BY filter.id';
+// El tipo de la acción va dentro del ON (join `topic_action`/`dept_action`
+// del modelo). Se agrega con MIN() para que cada filtro salga una sola vez
+// aunque tenga más de una acción de ese tipo, como hacía el GROUP BY.
+$filters = Filter::objects()
+    ->exclude(array('name' => 'SYSTEM BAN LIST'))
+    ->annotate(array(
+        'rules' => SqlAggregate::COUNT('rules__id'),
+        'topic' => SqlAggregate::MIN('topic_action__configuration'),
+        'dept'  => SqlAggregate::MIN('dept_action__configuration'),
+    ));
 $sortOptions=array('name'=>'filter.name','status'=>'filter.isactive','order'=>'filter.execorder','rules'=>'rules',
                    'target'=>'filter.target', 'created'=>'filter.created','updated'=>'filter.updated');
 $orderWays=array('DESC'=>'DESC','ASC'=>'ASC');
@@ -29,18 +32,25 @@ if($order_column && strpos($order_column,',')){
 }
 $x=$sort.'_sort';
 $$x=' class="'.strtolower($order).'" ';
-$order_by="$order_column $order ";
 
-$total=db_count('SELECT count(*) FROM '.FILTER_TABLE.' filter ');
+$total = Filter::objects()->count();
 $page=($_GET['p'] && is_numeric($_GET['p']))?$_GET['p']:1;
 $pageNav=new Pagenate($total, $page, PAGE_LIMIT);
 $qstr = '&amp;'. Http::build_query($qs);
 $qs += array('sort' => $_REQUEST['sort'], 'order' => $_REQUEST['order']);
 $pageNav->setURL('filters.php', $qs);
 $qstr.='&amp;order='.($order=='DESC' ? 'ASC' : 'DESC');
-$query="$sql ORDER BY $order_by LIMIT ".$pageNav->getStart().",".$pageNav->getLimit();
-$res=db_query($query);
-if($res && ($num=db_num_rows($res)))
+foreach (array_filter(array_map('trim', explode(',', $order_column))) as $column)
+    $filters->order_by(($order == 'DESC' ? '-' : '')
+        . preg_replace('/^\w+\./', '', $column));
+
+$rows = array();
+foreach ($filters->limit($pageNav->getLimit())->offset($pageNav->getStart())
+        ->values('id', 'name', 'isactive', 'execorder', 'flags', 'target',
+            'created', 'updated') as $row)
+    $rows[] = $row;
+
+if($num = count($rows))
     $showing=$pageNav->showing().' '._N('filter', 'filters', $num);
 else
     $showing=__('No filters found');
@@ -104,8 +114,8 @@ else
     <?php
         $total=0;
         $ids=($errors && is_array($_POST['ids']))?$_POST['ids']:null;
-        if($res && db_num_rows($res)):
-            while ($row = db_fetch_array($res)) {
+        if($rows):
+            foreach ($rows as $row) {
                 $sel=false;
                 if($ids && in_array($row['id'],$ids))
                     $sel=true;
@@ -143,7 +153,7 @@ else
     <tfoot>
      <tr>
         <td colspan="8">
-            <?php if($res && $num){ ?>
+            <?php if($num){ ?>
             <?php echo __('Select');?>:&nbsp;
             <a id="selectAll" href="#ckb"><?php echo __('All');?></a>&nbsp;&nbsp;
             <a id="selectNone" href="#ckb"><?php echo __('None');?></a>&nbsp;&nbsp;
@@ -156,7 +166,7 @@ else
     </tfoot>
 </table>
 <?php
-if($res && $num): //Show options..
+if($num): //Show options..
     echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
 ?>
 

@@ -1,12 +1,8 @@
 {
     "include/ajax.tickets.php": 1,
-    "include/class.analytics.php": 14,
     "include/class.dynamic_forms.php": 5,
     "include/class.i18n.php": 2,
     "include/class.orm.php": 1,
     "include/class.report.php": 2,
-    "include/cli/modules/import.php": 2,
-    "include/staff/cannedresponses.inc.php": 1,
-    "include/staff/filters.inc.php": 1,
-    "include/staff/templates/users.tmpl.php": 1
+    "include/cli/modules/import.php": 2
 }
