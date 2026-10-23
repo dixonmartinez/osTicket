@@ -52,10 +52,10 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 515 |
-| Líneas | 133.687 |
-| Funciones | 6.061 |
-| Clases, interfaces y rasgos | 663 en 194 archivos |
+| Archivos PHP propios | 516 |
+| Líneas | 133.732 |
+| Funciones | 6.062 |
+| Clases, interfaces y rasgos | 669 en 196 archivos |
 | Tamaño medio de función | 12 líneas |
 | Archivo más grande | `include/class.ticket.php` — 4.809 líneas |
 | Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
@@ -71,8 +71,8 @@ atípicos, y ahora se ven:
 | `massProcess()` | 321 | `include/ajax.tickets.php` |
 | `massProcess()` | 285 | `include/ajax.tasks.php` |
 | `Mailer::send()` | 270 | `include/class.mailer.php` |
-| `QuerySet::compileSelect()` | 222 | `include/class.orm.php` |
 | `Ticket::postMessage()` | 178 | `include/class.ticket.php` |
+| `Schedule::buildFields()` | 175 | `include/class.schedule.php` |
 
 | Señal | Ocurrencias |
 |---|---|
@@ -176,7 +176,7 @@ Lo que hay ahora:
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 221 pruebas en ~0,2 s
+make unit          # 247 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -240,7 +240,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-221 pruebas correctas, 0 fallidas, 4 omitidas
+247 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -262,6 +262,7 @@ buenos, el frente cambia de objetivo:
 | `massProcess()` de tickets | 377 líneas | **321** (`MassAction`) |
 | `massProcess()` de tareas | 330 líneas | **285** (`MassAction`) |
 | `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |
+| `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`) |
 | Funciones de la aplicación por encima de 150 líneas | 10 | 10 |
 | Archivos por encima de 2.000 líneas | 7 | 7 (ninguno pasa de 4.809) |
 
@@ -270,7 +271,7 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: **134 casos nuevos** sin base de datos.
+Pasos hechos: **160 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -280,13 +281,16 @@ Pasos hechos: **134 casos nuevos** sin base de datos.
 | `include/class.ticket.create.php` | `TicketCreate::requiredFields()` (qué exige cada origen: web, staff, api, email), `fieldFilter()` (qué se valida según quién abre), `dueDateError()` y `source()` | `tests/TicketCreateTest.php`, 18 casos |
 | `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
 | `include/class.mailer.message.php` | `MailerMessage::cleanSubject()` (asunto en una línea, sin saltos), `extraHeaders()` (boletín, respuesta automática y aviso, con el orden de siempre), `wrapMid()` (el `div` invisible con el identificador del mensaje), `textBody()` (HTML a texto y `Ref-Mid`) y `contentIdDomain()` (dominio de las imágenes incrustadas) | `tests/MailerMessageTest.php`, 24 casos |
+| `include/class.orm.select.php` | `SelectSql::fields()`: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`) | `tests/QuerySqlTest.php`, 26 casos |
 
-Las seis clases ya están en uso (`Ticket::postMessage()`,
+Las siete clases ya están en uso (`Ticket::postMessage()`,
 `Thread::postEmail()`, `ThreadEntry::create()`, `Ticket::create()`, los dos
-`massProcess()` y `Mailer::send()`). No cambia nada de lo que hacen, y ahora
+`massProcess()`, `Mailer::send()` y `compileSelect()`). No cambia nada de lo
+que hacen, y ahora
 la parte que más se rompe —de quién es el correo, a quién se responde, cómo se
 marca la entrada, qué se exige al abrir un ticket, qué se hace en lote con los
-seleccionados y con qué cabeceras sale un aviso— tiene pruebas.
+seleccionados, con qué cabeceras sale un aviso y qué SELECT se genera— tiene
+pruebas.
 
 `MassAction` no toca la base de datos: es la tabla de acciones (con sus verbos:
 «assigned» en un ticket y «claimed» en una tarea; «reopen» en tickets y
@@ -310,6 +314,28 @@ compara byte a byte con el que había en cada archivo: es idéntico salvo el
 `form#tickets` / `form#tasks`. Así se refactoriza sin cambiar lo que ve el
 agente.
 
+`compileSelect()` compilaba la lista de columnas en el mismo método que arma
+el WHERE, el ORDER BY y los UNION. Ese tramo —el que decide si se piden
+`raíz.*`, unas columnas concretas o los campos de una relación— pasa a
+`SelectSql::fields()`, que no toca la base de datos: recibe la consulta, el
+compilador y el alias, y devuelve texto. La prueba compara el SQL completo
+(con sus `:1`, `:2` y sus parámetros) para 26 consultas: simple, filtros,
+orden, límite, bloqueos, `values()`, diferidos, `distinct`, anotaciones,
+columnas extra y JOIN.
+
+Esa prueba destapó cuatro defectos de PHP 8 que el ORM arrastraba y que sólo
+se veían al compilar según qué consulta:
+
+1. `SqlCompiler::$annotations` y `CompiledExpression::$type` no estaban
+   declaradas: **cada consulta** creaba una propiedad dinámica (deprecación de
+   PHP 8.2 en el log).
+2. `SqlField::$field`, igual, en cada ordenación por función.
+3. Los operadores `contains`, `in`, `range`… se declaraban como
+   `array('self', '__contains')`. PHP 8.2 deprecó `'self'` en callables; ahora
+   se resuelven a `[$this, '__contains']`.
+4. `QuerySet::extra()` leía `$this->extra[$section]` sin comprobar que
+   existiera: «Undefined array key» la primera vez que se usaba cada sección.
+
 En `Mailer::send()` lo que queda es lo que no se puede probar sin enviar:
 cuentas SMTP, envío por Sendmail y la traducción de destinatarios a
 `to`/`cc`/`bcc` según su clase. Las cabeceras, el asunto y los cuerpos sí se
@@ -324,12 +350,11 @@ pruebas de integración.
 
 Siguiente paso, por orden de riesgo:
 
-1. `QuerySet::compileSelect()` (222): generación de SQL, donde hace falta una
-   prueba que compare la consulta generada antes y después.
-2. `Ticket::create()` (500): lo que queda no se puede tocar con seguridad
+1. `Ticket::create()` (500): lo que queda no se puede tocar con seguridad
    hasta tener pruebas con base de datos. Ahí el siguiente paso del plan deja
    de ser mover código y pasa a ser **montar esa prueba de integración**
-   (contenedor con MySQL ya disponible: `make docker-up`).
+   (contenedor con MySQL ya disponible: `make docker-up`). Queda aplazado por
+   decisión del equipo; el frente 4 va antes.
 
 - Riesgo: bajo en el primer paso (código nuevo + pruebas, sin cambiar firmas).
 - Éxito: ninguna función de la aplicación por encima de 120 líneas y ningún

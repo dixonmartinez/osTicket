@@ -33,6 +33,14 @@ if (!function_exists('__')) {
     }
 }
 
+/* El ORM construye la clave de su caché de APCu con estas constantes. En
+   una instalación las define osTicket; aquí no hay instalación, y el
+   contenedor sí trae APCu, así que se dejan definidas. */
+if (!defined('SECRET_SALT'))
+    define('SECRET_SALT', 'tests');
+if (!defined('GIT_VERSION'))
+    define('GIT_VERSION', 'tests');
+
 /* Igual que arriba para las variantes que usan algunas clases. */
 if (!function_exists('_S')) {
     function _S($text) {
