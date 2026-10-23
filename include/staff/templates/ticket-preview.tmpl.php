@@ -224,7 +224,7 @@ if($options) {
 
 echo '</div>';
 ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     $('.thread-preview-entry').on('click', function(){
         if($(this).hasClass('collapsed')) {
             $(this).removeClass('collapsed', 500);

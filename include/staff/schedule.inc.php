@@ -91,7 +91,7 @@ if ($schedule->isBusinessHours()) {?>
 </p>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#entries, #schedule-actions').on('click', 'a.entry-action, a.schedule-action', function(e) {
         e.preventDefault();

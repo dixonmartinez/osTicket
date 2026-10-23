@@ -44,7 +44,7 @@
             </td>
         </tr>
     </tbody>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
 var Q = setInterval(function() {
   if ($('#append-sort-column').length == 0)

@@ -54,7 +54,7 @@ while (($E = $E->getParent()) && $E->type == $entry->type);
 
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
   var I = setInterval(function() {
     var A = $('#history.accordian');

@@ -423,7 +423,7 @@ foreach ($forms as $F) {
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="helptopics.php">
 </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     var request = null,
       update_example = function() {

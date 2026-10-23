@@ -123,7 +123,7 @@ if (osTicket::is_ie())
 <?php } else {
     header('X-PJAX-Version: ' . GIT_VERSION);
     if ($pjax = $ost->getExtraPjax()) { ?>
-    <script type="text/javascript">
+    <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     <?php foreach (array_filter($pjax) as $s) echo $s.";"; ?>
     </script>
     <?php }

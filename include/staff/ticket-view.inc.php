@@ -1307,7 +1307,7 @@ if ($errors['err'] && isset($_POST['a'])) {
     </form>
     <div class="clear"></div>
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click', 'a.change-user', function(e) {
         e.preventDefault();

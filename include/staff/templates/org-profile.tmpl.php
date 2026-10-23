@@ -174,7 +174,7 @@ echo $account ? 'cancel' : 'close'; ?>"  value="<?php echo __('Cancel'); ?>">
 </p>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('a#editorg').click( function(e) {
         e.preventDefault();

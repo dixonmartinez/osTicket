@@ -228,6 +228,9 @@ class MassAction {
         </script>
 JS;
 
-        return sprintf($tpl, $form);
+        // El texto se arma en PHP (heredoc sin interpolación), así que el
+        // nonce se pone después: el script se inyecta con jQuery y tiene que
+        // llevar el nonce de la página
+        return Http::nonceScripts(sprintf($tpl, $form));
     }
 }

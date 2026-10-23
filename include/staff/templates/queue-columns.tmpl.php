@@ -100,7 +100,7 @@ $hidden_cols = $queue->inheritColumns() || $queue->useStandardColumns();
   </tbody>
 </table>
 </div>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
 $('[name=inherit-columns]').on('click', function() {
     $('.standard-columns').toggle();

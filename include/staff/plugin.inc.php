@@ -103,7 +103,7 @@ $info= Format::htmlchars(($errors && $_POST) ? $_POST : array(), true);
     ?>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#instances').on('click', 'a.instance-config', function(e) {
         e.preventDefault();

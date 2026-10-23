@@ -88,7 +88,7 @@ if ($topics = $thisstaff->getTopicNames()) {
         ?>><?php echo $topic; ?></option>
     <?php } ?>
     </select>
-    <script type="text/javascript">
+    <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(function() { $("#help-topic-selection").select2(); });
     </script>
 <?php } ?>

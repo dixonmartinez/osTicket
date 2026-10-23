@@ -472,7 +472,7 @@ foreach ($staff->teams as $TM) {
   </p>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 var addAccess = function(daid, name, role, alerts, error) {
   if (!daid) return;
   var copy = $('#extended_access_template').clone();

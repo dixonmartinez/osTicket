@@ -255,7 +255,10 @@ class MassActionTest extends UnitTestCase {
             "form#tickets input[name=\"tids[]\"]:checkbox:checked", $script);
         $this->assertStringContainsString("appendTo('form.mass-action')",
             $script);
-        $this->assertStringContainsString('<script type="text/javascript">',
+        // La etiqueta lleva el nonce de la CSP: el script se inyecta con
+        // jQuery y el navegador sólo lo ejecuta si el nonce cuadra
+        $this->assertStringContainsString(
+            '<script nonce="' . Http::nonce() . '" type="text/javascript">',
             $script);
         // El mismo hueco que antes: una línea en blanco antes de la etiqueta
         $this->assertSame("\n", substr($script, 0, 1));

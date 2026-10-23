@@ -180,7 +180,7 @@ endif;
 ?>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('input#basic-org-search').typeahead({
         source: function (typeahead, query) {

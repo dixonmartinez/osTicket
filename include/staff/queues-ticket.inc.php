@@ -80,7 +80,7 @@ $emitLevel($all_queues->findAll(array('parent_id' => 0)));
     </tbody>
 </table>
 
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 $(function() {
   var goBaby = function(action) {
     var ids = [], that = this,

@@ -148,7 +148,7 @@ if ($actions && isset($options['status'])) {
 } ?>
 
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).off('.tasks-actions');
     $(document).on('click.tasks-actions', 'a.tasks-action', function(e) {

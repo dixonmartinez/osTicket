@@ -281,7 +281,7 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes');?>">
 </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     var request = null,
       update_example = function() {

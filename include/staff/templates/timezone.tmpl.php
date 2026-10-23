@@ -20,7 +20,7 @@ $TZ_TIMEZONE = @$TZ_TIMEZONE ?: '';
     data-timezone-target="#timezone-dropdown"
     data-jstz-src="<?php echo ROOT_PATH; ?>js/jstz.min.js" style="vertical-align:middle"><i class="icon-map-marker"></i> <?php echo __('Auto Detect'); ?></button>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#timezone-dropdown').select2({
         allowClear: <?php echo $TZ_ALLOW_DEFAULT ? 'true' : 'false'; ?>,

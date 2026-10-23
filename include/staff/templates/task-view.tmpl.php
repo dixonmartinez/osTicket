@@ -714,7 +714,7 @@ else
 <?php
 echo $reply_attachments_form->getMedia();
 ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).off('.tasks-content');
     $(document).on('click.tasks-content', '#all-ticket-tasks', function(e) {

@@ -283,7 +283,7 @@ class Form {
         if (!($fid=$this->getFormId()))
             return;
         ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
           $(function() {
             <?php
             //XXX: We ONLY want to watch field on this form. We'll only
@@ -4364,7 +4364,7 @@ class VisibilityConstraint {
         $func = 'recheck_'.$field->getWidget()->id;
         $form = $field->getForm();
 ?>
-    <script type="text/javascript">
+    <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
       !(function() {
         var <?php echo $func; ?> = function() {
           var target = $('#field<?php echo $field->getWidget()->id; ?>');

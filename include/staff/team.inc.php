@@ -183,7 +183,7 @@ foreach ($members as $m)
 </p>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 var addMember = function(staffid, name, alerts, error) {
   if (!staffid) return;
   var copy = $('#member_template').clone();

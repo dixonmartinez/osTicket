@@ -173,7 +173,7 @@ if ($_POST)
 <div style="display:none;" class="dialog draggable" id="user-lookup">
     <div class="body"></div>
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 +(function() {
   var I = setInterval(function() {
     if (!$.fn.sortable)

@@ -220,7 +220,7 @@ if ($email) { ?>
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="emails.php">
 </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('a.auth_config').on('click', function(e) {
         var target = $(this).attr('href').substr(1, $(this).attr('href').length);

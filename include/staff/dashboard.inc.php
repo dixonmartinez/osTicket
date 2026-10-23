@@ -210,7 +210,7 @@ foreach ($groups as $g=>$desc) {
 }
 ?>
 </form>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
     $.drawPlots(<?php echo JsonDataEncoder::encode($report->getPlotData()); ?>);
     // Set Selected Period For Dashboard Stats and Export
     <?php if ($report && $report->end) { ?>

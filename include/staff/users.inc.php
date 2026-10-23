@@ -236,7 +236,7 @@ if ($total) {
 ?>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('input#basic-user-search').typeahead({
         source: function (typeahead, query) {

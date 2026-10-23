@@ -157,7 +157,7 @@ if ($info['error']) {
     </p>
 </form>
 <div class="clear"></div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click', 'input#sendemail', function(e) {
         if ($(this).prop('checked'))

@@ -95,7 +95,7 @@ name="queue-export" id="queue-export">
 </form>
 </div>
 <div class="clear"></div>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
    // Return a helper with preserved width of cells
    var fixHelper = function(e, ui) {

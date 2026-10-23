@@ -329,7 +329,7 @@ if ($form && count($langs) > 1) { ?>
     <div class="body"></div>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $('form.manage-form').on('submit.inline', function(e) {
     var formObj = this, deleted = $('input.delete-box:checked', this);
     if (deleted.length) {

@@ -59,7 +59,7 @@ foreach (Internationalization::sortKeyedList($annotations) as $class=>$desc) {
       </select>
     </div>
 
-    <script>
+    <script nonce="<?php echo Http::nonce(); ?>">
       $(function() {
         var addAnnotation = function(type, desc, icon, pos) {
           var template = $('.annotation.template', '#annotations'),
@@ -132,7 +132,7 @@ if ($column->getConditions(false)) {
       }
 ?>
       </select>
-      <script>
+      <script nonce="<?php echo Http::nonce(); ?>">
       $(function() {
         var colid = <?php echo $colid ?: 0; ?>,
             nextid = <?php echo QueueColumnCondition::getUid(); ?>;

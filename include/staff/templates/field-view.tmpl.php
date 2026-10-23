@@ -49,7 +49,7 @@ $action = $info[':action'] ?: ('#');
 <div id="inline-edit-next" style="display:none;">
 </div>
 <div class="clear"></div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click.inline-edit', 'form#inline_update input#edit', function(e) {
         e.preventDefault();

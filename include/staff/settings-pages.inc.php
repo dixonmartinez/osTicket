@@ -316,7 +316,7 @@ $pages = Page::getPages();
     <div class="clear"></div>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#save input:submit.button').bind('click', function(e) {
         var formObj = $('#save');

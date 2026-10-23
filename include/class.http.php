@@ -216,6 +216,66 @@ class Http {
             header('Strict-Transport-Security: max-age=31536000');
     }
 
+    /** @var string|null Nonce de la CSP, uno por sesión (ver nonce()) */
+    private static $nonce = null;
+
+    /**
+     * Nonce de la CSP.
+     *
+     * El CSP de un documento se aplica también a los `<script>` que inserta
+     * el propio documento, así que los trozos de HTML que llegan por AJAX
+     * (diálogos, listas, respuestas) tienen que llevar **el mismo** nonce que
+     * la página que los recibe. Un nonce por respuesta no serviría: la
+     * respuesta AJAX trae el suyo y el navegador lo rechaza. Por eso el nonce
+     * vive en la sesión y se reutiliza mientras dure.
+     *
+     * Sin sesión (CLI, pruebas) se genera uno por proceso.
+     */
+    static function nonce() {
+        if (self::$nonce !== null)
+            return self::$nonce;
+
+        $session = function_exists('session_status')
+            && session_status() == PHP_SESSION_ACTIVE && isset($_SESSION);
+
+        if ($session && !empty($_SESSION['__csp_nonce'])
+                && is_string($_SESSION['__csp_nonce']))
+            return self::$nonce = $_SESSION['__csp_nonce'];
+
+        $nonce = rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
+        if ($session)
+            $_SESSION['__csp_nonce'] = $nonce;
+
+        return self::$nonce = $nonce;
+    }
+
+    /** Descarta el nonce en memoria (pruebas y cambio de sesión). */
+    static function resetNonce() {
+        self::$nonce = null;
+    }
+
+    /** Atributo `nonce="…"` listo para pegar dentro de un `<script>`. */
+    static function nonceAttr() {
+        return 'nonce="' . self::nonce() . '"';
+    }
+
+    /**
+     * Añade `nonce` a los `<script>` que no lo lleven.
+     *
+     * Se usa con el HTML que se arma en PHP (plantillas heredadas y
+     * `addExtraHeader()`), donde no hay una etiqueta literal que editar.
+     */
+    static function nonceScripts($html) {
+        if (!is_string($html) || stripos($html, '<script') === false)
+            return $html;
+
+        $attr = self::nonceAttr();
+        return preg_replace_callback('/<script\b(?![^>]*\bnonce=)([^>]*)>/i',
+            function ($m) use ($attr) {
+                return '<script ' . $attr . $m[1] . '>';
+            }, $html);
+    }
+
     /**
      * Build a well formed Content-Security-Policy header value.
      */
@@ -230,7 +290,21 @@ class Http {
             'style-src'   => "'self' 'unsafe-inline'",
         ];
         // The agent panel relies on eval() for a few legacy widgets
-        $script = "'self' 'unsafe-inline'";
+        //
+        // `script-src` va con nonce y **sin** `'unsafe-inline'`: los bloques
+        // `<script>` de las plantillas llevan el atributo que emite
+        // `nonceAttr()`. Un nonce desactiva `'unsafe-inline'` de todos modos,
+        // así que anunciarlo sólo invitaría a confiar en él.
+        $nonce = array_key_exists('nonce', $directives)
+            ? $directives['nonce'] : self::nonce();
+        unset($directives['nonce']);
+        $script = "'self'";
+        if ($nonce)
+            $script .= " 'nonce-{$nonce}'";
+        else
+            // Salida de emergencia documentada: instalaciones con plantillas
+            // propias que aún insertan scripts sin nonce
+            $script .= " 'unsafe-inline'";
         if (!empty($directives['unsafe-eval']))
             $script .= " 'unsafe-eval'";
         unset($directives['unsafe-eval']);

@@ -235,7 +235,7 @@ $info=Format::htmlchars(($errors && $_POST) ? array_merge($info,$_POST) : $info,
 </p>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#properties, #items').on('click', 'a.field-config', function(e) {
         e.preventDefault();

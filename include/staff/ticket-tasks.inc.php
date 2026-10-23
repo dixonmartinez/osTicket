@@ -153,7 +153,7 @@ if ($count) { ?>
 </div>
 <div id="task_content" style="display:none;">
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
 
     $(document).off('click.taskv');

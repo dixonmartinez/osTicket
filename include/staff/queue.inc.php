@@ -242,7 +242,7 @@ if ($queue->parent) { ?>
                   </td>
               </tr>
             </tbody>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
 var Q = setInterval(function() {
   if ($('#append-sort').length == 0)
@@ -327,7 +327,7 @@ $('select#parent-id').change(function() {
     <div id="preview">
     </div>
 
-    <script>
+    <script nonce="<?php echo Http::nonce(); ?>">
       $(function() {
         $('#preview-tab').on('afterShow', function() {
           $.ajax({
@@ -374,7 +374,7 @@ if ($queue->getConditions()) {
       }
 ?>
       </select>
-      <script>
+      <script nonce="<?php echo Http::nonce(); ?>">
       $(function() {
         var queueid = <?php echo $queue->id ?: 0; ?>,
             nextid = <?php echo 1000 + QueueColumnCondition::getUid(); ?>;

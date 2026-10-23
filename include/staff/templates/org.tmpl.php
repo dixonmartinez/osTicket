@@ -73,7 +73,7 @@ if ($ticket && $ticket->getOwnerId() == $user->getId())
 </form>
 </div>
 <div class="clear"></div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('a#editorg').click( function(e) {
         e.preventDefault();

@@ -104,7 +104,7 @@ foreach ($matches as $path => $F) {
 <?php }
 ?>
 </select>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 $(function() {
   $('#search-add-new-field').on('change', function() {
     var that=this;

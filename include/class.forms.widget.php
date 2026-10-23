@@ -381,7 +381,7 @@ class ChoicesWidget extends Widget {
         <?php
         if ($config['multiselect']) {
          ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(function() {
             $("#<?php echo $this->id; ?>")
             .select2({'minimumResultsForSearch':10, 'width': '350px'});
@@ -595,7 +595,7 @@ class TimezoneWidget extends ChoicesWidget {
         </button>
         <?php
         } ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
             $(function() {
                 $('#<?php echo $this->id; ?>').select2({
                     allowClear: true,
@@ -715,7 +715,7 @@ class DatetimePickerWidget extends Widget {
                     $datetime->format('T'));
         }
         ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
             $(function() {
                 $('input[name="<?php echo $this->name; ?>"]').<?php echo
                 $config['time'] ? 'datetimepicker':'datepicker';?>({
@@ -810,7 +810,7 @@ class TimePickerWidget extends Widget {
                     $datetime->format('T'));
         }
         ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
             $(function() {
                 $('input[name="<?php echo $this->name; ?>"]').timepicker({
                     <?php
@@ -1004,7 +1004,7 @@ class FileUploadWidget extends Widget {
             id="file-<?php echo $id; ?>" style="display:none;"
             accept="<?php echo implode(',', $config['__mimetypes']); ?>"/>
         </div></div>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(function(){$('#<?php echo $id; ?> .dropzone').filedropbox({
           url: 'ajax.php/form/upload/<?php echo $field_id; ?>',
           link: $('#<?php echo $id; ?>').find('a.manual'),

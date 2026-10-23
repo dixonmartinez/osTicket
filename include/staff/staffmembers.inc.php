@@ -267,7 +267,7 @@ if ($count) { //Show options..
     <div class="clear"></div>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(document).on('click', 'a.dialog-first', function(e) {
     e.preventDefault();
     var action = $(this).data('action'),

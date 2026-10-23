@@ -180,7 +180,7 @@
     </form>
     <div class="clear"></div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
    // Make translatable fields translatable
    $('input[data-translate-tag]').translatable();
 </script>

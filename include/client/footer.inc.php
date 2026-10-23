@@ -19,7 +19,7 @@ if (($lang = Internationalization::getCurrentLanguage()) && $lang != 'en_US') { 
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/icons.js"></script>
 <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/actions.js"></script>
 <?php include INCLUDE_DIR . 'templates/password-strength.inc.php'; ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     getConfig().resolve(<?php
         include INCLUDE_DIR . 'ajax.config.php';
         $api = new ConfigAjaxAPI();

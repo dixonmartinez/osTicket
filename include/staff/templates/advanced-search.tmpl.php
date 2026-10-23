@@ -173,7 +173,7 @@ if ($search->isSaved()) { ?>
  </div>
 </form>
 
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
    // Return a helper with preserved width of cells
    var fixHelper = function(e, ui) {

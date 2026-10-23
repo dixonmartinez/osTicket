@@ -101,7 +101,7 @@ if ($prop_fields) {
     <div><?php echo __('Page').':'.$pageNav->getPageLinks('items', $pjax_container); ?></div>
 <?php } ?>
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
   var last_req;
   $('input#items-search').typeahead({

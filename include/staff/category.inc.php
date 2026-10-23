@@ -124,7 +124,7 @@ if (count($langs) > 1) { ?>
             <?php
             } ?>
         </select>
-        <script>
+        <script nonce="<?php echo Http::nonce(); ?>">
             $('select[name=pid]').on('change', function() {
                 var val = this.value;
                 $('select[name=pid]').each(function() {

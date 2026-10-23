@@ -62,7 +62,7 @@ foreach ($forms as $e) { ?>
         </span>
      </p>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#ticket-entries').sortable({containment:'parent',tolerance:'pointer'});
 });

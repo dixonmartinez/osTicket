@@ -67,7 +67,7 @@ if ($agent->hasPerm(Ticket::PERM_DELETE, false)) {?>
 }
 
 ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
 
     $(document).off('.tickets');

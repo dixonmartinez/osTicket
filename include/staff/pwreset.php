@@ -36,7 +36,7 @@ $info = ($_POST && $errors)?Format::htmlchars($_POST):array();
         <img alt="osTicket" src="images/osticket-grey.png" class="osticket-logo">
     </a>
 </div>
-    <script>
+    <script nonce="<?php echo Http::nonce(); ?>">
     document.addEventListener('DOMContentLoaded', function() {
         if (undefined === window.getComputedStyle(document.documentElement).backgroundBlendMode) {
             document.getElementById('loginBox').style.backgroundColor = 'white';

@@ -36,7 +36,7 @@ if ($options) {
 }
 ?>
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click', 'a#managecollab', function (e) {
         e.preventDefault();

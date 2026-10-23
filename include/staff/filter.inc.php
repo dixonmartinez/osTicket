@@ -340,7 +340,7 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
         <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="filters.php">
     </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
    var fixHelper = function(e, ui) {
       ui.children().each(function() {
           $(this).width($(this).width());

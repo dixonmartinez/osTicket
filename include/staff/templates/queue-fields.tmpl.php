@@ -81,7 +81,7 @@ $hidden_cols = $queue->inheritExport();
   </tbody>
 </table>
 </div>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
 var Q = setInterval(function() {
   if ($('#append-field').length == 0)

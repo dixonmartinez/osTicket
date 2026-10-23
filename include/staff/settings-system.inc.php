@@ -342,7 +342,7 @@ $gmtime = Misc::gmtime();
             </div>
             </div>
 <?php   } ?>
-            <script type="text/javascript">
+            <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
             </script>
             </div>
             <i class="icon-plus-sign"></i>&nbsp;
@@ -445,7 +445,7 @@ $gmtime = Misc::gmtime();
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes');?>">
 </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#secondary_langs').sortable({
         cursor: 'move'

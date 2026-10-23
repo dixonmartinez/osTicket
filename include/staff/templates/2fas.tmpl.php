@@ -78,7 +78,7 @@ if ($auth && $form) {
 } ?>
 </div>
 <div class="clear"></div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     var ids = $('.verified').map(function() {
         id2fa = $(this).attr('id');

@@ -117,7 +117,7 @@ $action = $info['action'] ?: ('#tickets/status/'. $state);
     </form>
 </div>
 <div class="clear"></div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     // Copy checked tickets to status form.
     $('form#tickets input[name="tids[]"]:checkbox:checked')

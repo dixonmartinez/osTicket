@@ -40,7 +40,7 @@ $action = $info[':action'] ?: ('#');
 </form>
 </div>
 <div class="clear"></div>
-<script>
+<script nonce="<?php echo Http::nonce(); ?>">
 +function() {
     var $popup = $('.dialog#popup');
     var interval = setInterval(function() {

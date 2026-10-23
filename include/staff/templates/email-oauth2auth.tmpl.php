@@ -196,7 +196,7 @@ if (isset($errors['err'])) {
     </span>
 </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#oauth-tabs_container').on('click', 'a#token-delete', function(e) {
         e.preventDefault();

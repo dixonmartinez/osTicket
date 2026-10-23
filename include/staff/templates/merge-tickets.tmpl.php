@@ -206,7 +206,7 @@ id="msg_warning"><?php echo __('Are you sure you want to delete the child ticket
     <?php } ?>
  </p>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('#ticket-entries').sortable({items: "li:not(.ui-state-disabled)"});
     $( "#ticket-entries li" ).disableSelection();

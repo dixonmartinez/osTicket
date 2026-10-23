@@ -483,7 +483,7 @@ foreach ($dept->getMembers() as $member) {
 </p>
 </form>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 var addAccess = function(staffid, name, role, alerts, primary, error) {
 
   if (!staffid) return;

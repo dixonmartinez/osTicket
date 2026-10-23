@@ -15,7 +15,7 @@
 if (!defined('INCLUDE_DIR'))
     return;
 ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     // Textos del indicador de fuerza de la contraseña (js/password-strength.js)
     window.OST_PW_STRENGTH = {
         weak: <?php echo json_encode(__('Weak')); ?>,

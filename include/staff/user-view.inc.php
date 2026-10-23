@@ -203,7 +203,7 @@ if ($thisstaff->hasPerm(User::PERM_EDIT)) { ?>
     <div class="clear"></div>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click', 'a.user-action', function(e) {
         e.preventDefault();

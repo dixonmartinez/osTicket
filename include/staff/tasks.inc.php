@@ -473,7 +473,7 @@ if ($thisstaff->hasPerm(Task::PERM_DELETE, false)) {
      </p>
     <div class="clear"></div>
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
 
     $(document).off('.new-task');

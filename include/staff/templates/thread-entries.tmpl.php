@@ -73,7 +73,7 @@ if ($this->getObjectType() == 'T')
     ?>
     </div>
 </div>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     $(function() {
         var container = '<?php echo $htmlId; ?>';
 

@@ -198,7 +198,7 @@ echo $attrs; ?>><?php echo $draft ?: $info['message'];
 </form>
 <?php
 } ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 <?php
 // Hover support for all inline images
 $urls = array();

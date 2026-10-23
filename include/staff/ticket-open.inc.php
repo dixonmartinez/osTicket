@@ -462,7 +462,7 @@ print $response_form->getField('attachments')->render();
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-discard-draft="tickets.php" />
 </p>
 </form>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $('input#user-email').typeahead({
         source: function (typeahead, query) {

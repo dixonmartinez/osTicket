@@ -90,7 +90,7 @@ if ($_POST && $thread) {
           $thread->getNumActiveCollaborators(),
           $thread->getNumCollaborators());
     ?>
-    <script type="text/javascript">
+    <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(function() {
             $('#t<?php echo $thread->getId(); ?>-recipients').html('<?php echo JsonDataEncoder::encode($recipients); ?>');
             $('#t<?php echo $thread->getId(); ?>-collaborators').html('<?php echo $thread->getNumCollaborators(); ?>');
@@ -101,7 +101,7 @@ if ($_POST && $thread) {
 }
 ?>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
 
     $(document).on('click', 'form.collaborators a#addcollaborator', function (e) {

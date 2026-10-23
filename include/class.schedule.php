@@ -1375,7 +1375,7 @@ extends AbstractForm {
         }
         $id = $starts->getWidget()->id;
         ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
           $(function() {
             $('#<?php echo $id; ?>').on('change', function() {
                 var keys = <?php echo JsonDataEncoder::encode($keys); ?>;
@@ -1440,7 +1440,7 @@ extends AbstractForm {
         $date = $this->getField('date')->getWidget()->id;
         $hours = $this->getField('hours')->getWidget()->id;
         ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
           $(function() {
             $('#<?php echo $date; ?>, #<?php echo $hours; ?>').on('change',
                     function() {

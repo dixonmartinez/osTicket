@@ -155,6 +155,9 @@ class osTicket {
     }
 
     function addExtraHeader($header, $pjax_script=false) {
+        // El CSP va con nonce: cualquier `<script>` que se añada aquí (propio
+        // o de un complemento) tiene que llevarlo o el navegador no lo ejecuta
+        $header = Http::nonceScripts($header);
         $this->headers[md5($header)] = $header;
         $this->pjax_extra[md5($header)] = $pjax_script;
     }

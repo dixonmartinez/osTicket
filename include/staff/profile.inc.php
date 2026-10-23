@@ -482,7 +482,7 @@ if (($bks=Staff2FABackend::allRegistered())) {
 </form>
 <?php
 if ($staff->change_passwd) { ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     $(function() { $('#change-pw-button').trigger('click'); });
 </script>
 <?php

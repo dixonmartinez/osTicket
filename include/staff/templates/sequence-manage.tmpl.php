@@ -83,7 +83,7 @@ foreach ($sequences as $e) {
     </span>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
   var remove = function() {
     if (!$(this).parent().hasClass('new')) {

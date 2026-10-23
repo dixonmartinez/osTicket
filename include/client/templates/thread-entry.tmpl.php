@@ -68,7 +68,7 @@ if ($cfg->isAvatarsEnabled() && $user)
     </div>
 <?php
     if ($urls = $entry->getAttachmentUrls()) { ?>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
             $('#thread-id-<?php echo $entry->getId(); ?>')
                 .data('urls', <?php
                     echo JsonDataEncoder::encode($urls); ?>)

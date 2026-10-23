@@ -4,7 +4,7 @@ $clone = $form->getField('clone')->getWidget()->name;
 $permissions = $form->getField('perms')->getWidget()->name;
 $name = $form->getField('name')->getWidget()->name;
 ?>
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
   $('#_<?php echo $clone; ?>').change(function() {
     var $this = $(this),
         id = $this.val(),

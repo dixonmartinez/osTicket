@@ -28,7 +28,7 @@ header('Content-Security-Policy: '.Http::csp($cfg));
     <!-- Tema claro/oscuro: se aplica antes del primer pintado (sin destello) -->
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/theme.js"></script>
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
-    <script type="text/javascript">
+    <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(document).ready(function() {
             $("input:not(.dp):visible:enabled:first").focus();
          });

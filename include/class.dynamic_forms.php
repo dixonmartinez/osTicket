@@ -1968,7 +1968,7 @@ class TypeaheadSelectionWidget extends ChoicesWidget {
         <input type="hidden" name="<?php echo $this->name;
             ?>_id" id="<?php echo $this->name;
             ?>_id" value="<?php echo Format::htmlchars($value); ?>"/>
-        <script type="text/javascript">
+        <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(function() {
             $('input#<?php echo $this->name; ?>').typeahead({
                 source: <?php echo JsonDataEncoder::encode($source); ?>,

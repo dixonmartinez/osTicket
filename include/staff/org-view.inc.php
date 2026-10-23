@@ -102,7 +102,7 @@ include STAFFINC_DIR . 'templates/notes.tmpl.php';
 </div>
 </div>
 
-<script type="text/javascript">
+<script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
 $(function() {
     $(document).on('click', 'a.org-action', function(e) {
         e.preventDefault();
