@@ -92,17 +92,19 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                            echo sprintf('<option value="%s" %s>%s</option>',
                                    $k, (($k==$info['target'])?'selected="selected"':''), $v);
                         }
-                        $sql='SELECT email_id,email,name FROM '.EMAIL_TABLE.' email ORDER by name';
-                        if(($res=db_query($sql)) && db_num_rows($res)) {
-                            echo sprintf('<OPTGROUP label="%s">', __('System Emails'));
-                            while(list($id,$email,$name)=db_fetch_row($res)) {
-                                $selected=($info['email_id'] && $id==$info['email_id'])?'selected="selected"':'';
-                                if($name)
-                                    $email=Format::htmlchars("$name <$email>");
-                                echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$email);
-                            }
-                            echo '</OPTGROUP>';
+                        $emails = Email::objects()
+                            ->values_flat('email_id', 'email', 'name')
+                            ->order_by('name');
+                        echo sprintf('<OPTGROUP label="%s">', __('System Emails'));
+                        foreach ($emails as list($id, $email, $name)) {
+                            $selected=($info['email_id'] && $id==$info['email_id'])?'selected="selected"':'';
+                            if($name)
+                                $email=Format::htmlchars("$name <$email>");
+                            else
+                                $email=Format::htmlchars($email);
+                            echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$email);
                         }
+                        echo '</OPTGROUP>';
                         ?>
                     </select>
                     &nbsp;

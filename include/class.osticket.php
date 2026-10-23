@@ -316,14 +316,20 @@ class osTicket {
             return false;
 
         //Save log based on system log level settings.
-        $sql='INSERT INTO '.SYSLOG_TABLE.' SET created=NOW(), updated=NOW() '
-            .',title='.db_input(Format::sanitize($title, true))
-            .',log_type='.db_input($loglevel[$level])
-            .',log='.db_input(Format::sanitize($message, false))
-            .',ip_address='.db_input($_SERVER['REMOTE_ADDR'])
-            .',logger=""';
-
-        db_query($sql, false);
+        try {
+            $entry = new SyslogModel();
+            $entry->created = SqlFunction::NOW();
+            $entry->updated = SqlFunction::NOW();
+            $entry->title = Format::sanitize($title, true);
+            $entry->log_type = $loglevel[$level];
+            $entry->log = Format::sanitize($message, false);
+            $entry->ip_address = $_SERVER['REMOTE_ADDR'] ?? '';
+            $entry->logger = '';
+            $entry->save();
+        }
+        catch (Exception $e) {
+            // El registro de errores no puede tumbar la petición que lo llama
+        }
 
         // Alert admin if enabled...
         $alert = $alert && !$this->isUpgradePending();
@@ -338,9 +344,17 @@ class osTicket {
         if(!($gp=$this->getConfig()->getLogGracePeriod()) || !is_numeric($gp))
             return false;
 
-        //System logs
-        $sql='DELETE  FROM '.SYSLOG_TABLE.' WHERE DATE_ADD(created, INTERVAL '.$gp.' MONTH)<=NOW()';
-        db_query($sql);
+        //System logs: `DATE_ADD(created, INTERVAL n MONTH) <= NOW()` es lo
+        // mismo que `created <= DATE_SUB(NOW(), INTERVAL n MONTH)`
+        try {
+            SyslogModel::objects()
+                ->filter(array('created__lte' => new SqlCode(sprintf(
+                    'DATE_SUB(NOW(), INTERVAL %d MONTH)', (int) $gp))))
+                ->delete();
+        }
+        catch (Exception $e) {
+            // Sin tabla de registros no hay nada que purgar
+        }
 
         //TODO: Activity logs
 

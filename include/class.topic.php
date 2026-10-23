@@ -621,18 +621,16 @@ implements TemplateVariable, Searchable {
 
         $names = Internationalization::sortKeyedList($names);
 
-        $update = array_keys($names);
-        foreach ($update as $idx=>&$id) {
-            $id = sprintf("(%s,%s)", db_input($id), db_input($idx+1));
-        }
-        if (!count($update))
+        $ids = array_keys($names);
+        if (!count($ids))
             return;
 
-        // Thanks, http://stackoverflow.com/a/3466
-        $sql = sprintf('INSERT INTO `%s` (topic_id,`sort`) VALUES %s
-            ON DUPLICATE KEY UPDATE `sort`=VALUES(`sort`)',
-            TOPIC_TABLE, implode(',', $update));
-        db_query($sql);
+        // `sort` es una columna de la propia tabla, así que el UPSERT original
+        // equivale a un UPDATE por tema.
+        foreach ($ids as $idx => $id)
+            static::objects()
+                ->filter(array('topic_id' => $id))
+                ->update(array('sort' => $idx + 1));
     }
 }
 

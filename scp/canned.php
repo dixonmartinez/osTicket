@@ -123,9 +123,10 @@ if ($_POST) {
                 $count=count($_POST['ids']);
                 switch(strtolower($_POST['a'])) {
                     case 'enable':
-                        $sql='UPDATE '.CANNED_TABLE.' SET isenabled=1 '
-                            .' WHERE canned_id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())) {
+                        $num = Canned::objects()
+                            ->filter(array('canned_id__in' => Http::post('ids', array())))
+                            ->update(array('isenabled' => 1));
+                        if ($num) {
                             if($num==$count)
                                 $msg = sprintf(__('Successfully enabled %s'),
                                     _N('selected canned response', 'selected canned responses', $count));
@@ -138,9 +139,10 @@ if ($_POST) {
                         }
                         break;
                     case 'disable':
-                        $sql='UPDATE '.CANNED_TABLE.' SET isenabled=0 '
-                            .' WHERE canned_id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())) {
+                        $num = Canned::objects()
+                            ->filter(array('canned_id__in' => Http::post('ids', array())))
+                            ->update(array('isenabled' => 0));
+                        if ($num) {
                             if($num==$count)
                                 $msg = sprintf(__('Successfully disabled %s'),
                                     _N('selected canned response', 'selected canned responses', $count));

@@ -142,6 +142,8 @@ class DbTimezone {
             $dates[] = sprintf($fragment, $date, $date);
         }
 
+        // sql-audit:legacy SELECT de expresiones sin tabla; el ORM siempre
+        // añade FROM, y aquí no hay fila que leer
         $sql = 'SELECT '.implode(',', $dates);
         return db_fetch_row(db_query($sql));
     }

@@ -14,6 +14,8 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 include_once(INCLUDE_DIR.'class.file.php');
+// getFilters() consulta el modelo Filter (que a su vez trae FilterAction)
+require_once INCLUDE_DIR.'class.filter.php';
 
 class Canned
 extends VerySimpleModel {
@@ -67,17 +69,18 @@ extends VerySimpleModel {
 
         if (!isset($this->_filters)) {
             $this->_filters = array();
+            // La configuración de la acción es JSON; se busca la misma
+            // coincidencia textual que hacía el LIKE original.
             $cid = sprintf('"canned_id":%d', $this->getId());
-            $sql='SELECT filter.id, filter.name '
-                .' FROM '.FILTER_TABLE.' filter'
-                .' INNER JOIN '.FILTER_ACTION_TABLE.' action'
-                .'  ON (filter.id=action.filter_id)'
-                .' WHERE action.type="canned"'
-                ."  AND action.configuration LIKE '%$cid%'";
+            $filters = Filter::objects()
+                ->filter(array(
+                    'actions__type' => 'canned',
+                    'actions__configuration__contains' => $cid,
+                ))
+                ->values_flat('id', 'name');
 
-            if (($res=db_query($sql)) && db_num_rows($res))
-                while (list($id, $name) = db_fetch_row($res))
-                    $this->_filters[$id] = $name;
+            foreach ($filters as list($id, $name))
+                $this->_filters[$id] = $name;
         }
 
         return $this->_filters;

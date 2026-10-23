@@ -15,6 +15,11 @@
 **********************************************************************/
 require_once INCLUDE_DIR.'class.i18n.php';
 require_once INCLUDE_DIR.'class.yaml.php';
+// Este archivo define dos modelos del ORM, así que declara la dependencia.
+// (`Dept` y `Attachment` se usan en `load()` y `delete()`: los carga el resto
+// de la aplicación, y arrastrarlos aquí metería `class.ticket.php` —que a su
+// vez incluye este archivo— en el arranque.)
+require_once INCLUDE_DIR.'class.orm.php';
 
 /**
  * Una fila de `EMAIL_TEMPLATE_GRP_TABLE`.
@@ -27,6 +32,20 @@ class EmailTemplateGroupModel extends VerySimpleModel {
     static $meta = array(
         'table' => EMAIL_TEMPLATE_GRP_TABLE,
         'pk' => array('tpl_id'),
+    );
+}
+
+/**
+ * Una fila de `EMAIL_TEMPLATE_TABLE`.
+ *
+ * `EmailTemplate` no es un modelo de fila —compone el asunto y el cuerpo,
+ * resuelve variables y adjuntos— así que necesita su propio modelo para
+ * consultar sin escribir el SQL.
+ */
+class EmailTemplateModel extends VerySimpleModel {
+    static $meta = array(
+        'table' => EMAIL_TEMPLATE_TABLE,
+        'pk' => array('id'),
     );
 }
 
@@ -206,18 +225,16 @@ class EmailTemplateGroup {
         if(!$id && !($id=$this->getId()))
             return false;
 
-        $sql='SELECT tpl.*,count(dept.tpl_id) as depts '
-            .' FROM '.EMAIL_TEMPLATE_GRP_TABLE.' tpl '
-            .' LEFT JOIN '.DEPT_TABLE.' dept USING(tpl_id) '
-            .' WHERE tpl.tpl_id='.db_input($id)
-            .' GROUP BY tpl.tpl_id';
-
-        if(!($res=db_query($sql))|| !db_num_rows($res))
+        if (!($tpl = EmailTemplateGroupModel::lookup($id)))
             return false;
 
-
-        $this->ht=db_fetch_array($res);
-        $this->id=$this->ht['tpl_id'];
+        // El número de departamentos con este conjunto: `load()` lo guarda en
+        // `$ht['depts']` y `isInUse()` lo consulta.
+        $this->ht = $tpl->getDbFields();
+        $this->ht['depts'] = Dept::objects()
+            ->filter(array('tpl_id' => $this->ht['tpl_id']))
+            ->count();
+        $this->id = $this->ht['tpl_id'];
 
         return true;
     }
@@ -265,11 +282,18 @@ class EmailTemplateGroup {
     }
 
     function setStatus($status){
+        /* `update()` devuelve las filas que cambiaron de verdad, así que
+           activar un conjunto que ya estaba activo da 0 aunque el UPDATE se
+           haya ejecutado. `db_affected_rows()` hacía lo mismo, de ahí que se
+           compruebe el resultado con la fila ya en memoria. */
+        EmailTemplateGroupModel::objects()
+            ->filter(array('tpl_id' => $this->getId()))
+            ->update(array(
+                'updated' => SqlFunction::NOW(),
+                'isactive' => $status ? 1 : 0,
+            ));
 
-        $sql='UPDATE '.EMAIL_TEMPLATE_GRP_TABLE.' SET updated=NOW(), isactive='.db_input($status?1:0)
-            .' WHERE tpl_id='.db_input($this->getId());
-
-        return (db_query($sql) && db_affected_rows());
+        return true;
     }
 
     static function getTemplateDescription($name) {
@@ -291,15 +315,19 @@ class EmailTemplateGroup {
     }
 
     function getTemplates() {
-        if (!$this->_tempates) {
-            $this->_templates = array();
-            $sql = 'SELECT id, code_name FROM '.EMAIL_TEMPLATE_TABLE
-                .' WHERE tpl_id='.db_input($this->getId())
-                .' ORDER BY code_name';
-            $res = db_query($sql);
-            while (list($id, $cn)=db_fetch_row($res))
-                $this->_templates[$cn] = EmailTemplate::lookup($id, $this);
-        }
+        /* Se reconstruye en cada llamada, como antes: la caché que había
+           estaba mal escrita (`$this->_tempates`, con una letra de menos), así
+           que nunca se usó. Cambiarla por una caché de verdad alteraría el
+           caso de añadir una plantilla y volver a pedir la lista con el mismo
+           objeto, y eso no toca hacerlo aquí. */
+        $this->_templates = array();
+        $templates = EmailTemplateModel::objects()
+            ->filter(array('tpl_id' => $this->getId()))
+            ->values_flat('id', 'code_name')
+            ->order_by('code_name');
+        foreach ($templates as list($id, $cn))
+            $this->_templates[$cn] = EmailTemplate::lookup($id, $this);
+
         return $this->_templates;
     }
 
@@ -414,17 +442,30 @@ class EmailTemplateGroup {
         if($this->isInUse() || $cfg->getDefaultTemplateId()==$this->getId())
             return 0;
 
-        $sql='DELETE FROM '.EMAIL_TEMPLATE_GRP_TABLE
-            .' WHERE tpl_id='.db_input($this->getId()).' LIMIT 1';
-        if(db_query($sql) && ($num=db_affected_rows())) {
+        $num = EmailTemplateGroupModel::objects()
+            ->filter(array('tpl_id' => $this->getId()))
+            ->delete();
+        if ($num) {
             //isInuse check is enough - but it doesn't hurt make sure deleted tpl is not in-use.
-            db_query('UPDATE '.DEPT_TABLE.' SET tpl_id=0 WHERE tpl_id='.db_input($this->getId()));
-            // Drop attachments (images)
-            db_query('DELETE a.* FROM '.ATTACHMENT_TABLE.' a
-                JOIN '.EMAIL_TEMPLATE_TABLE.' t  ON (a.object_id=t.id AND a.type=\'T\')
-                WHERE t.tpl_id='.db_input($this->getId()));
-            db_query('DELETE FROM '.EMAIL_TEMPLATE_TABLE
-                .' WHERE tpl_id='.db_input($this->getId()));
+            Dept::objects()
+                ->filter(array('tpl_id' => $this->getId()))
+                ->update(array('tpl_id' => 0));
+
+            // Drop attachments (images) de las plantillas del conjunto
+            $templates = array();
+            foreach (EmailTemplateModel::objects()
+                    ->filter(array('tpl_id' => $this->getId()))
+                    ->values_flat('id') as list($id))
+                $templates[] = $id;
+
+            if ($templates)
+                Attachment::objects()
+                    ->filter(array('type' => 'T', 'object_id__in' => $templates))
+                    ->delete();
+
+            EmailTemplateModel::objects()
+                ->filter(array('tpl_id' => $this->getId()))
+                ->delete();
         }
 
         $type = array('type' => 'deleted');
@@ -443,11 +484,15 @@ class EmailTemplateGroup {
     }
 
     function getIdByName($name){
-        $sql='SELECT tpl_id FROM '.EMAIL_TEMPLATE_GRP_TABLE.' WHERE name='.db_input($name);
-        if(($res=db_query($sql)) && db_num_rows($res))
-            list($id)=db_fetch_row($res);
+        $ids = EmailTemplateGroupModel::objects()
+            ->filter(array('name' => $name))
+            ->values_flat('tpl_id')
+            ->limit(1);
 
-        return $id;
+        foreach ($ids as list($id))
+            return $id;
+
+        return null;
     }
 
     static function lookup($id){
@@ -480,50 +525,64 @@ class EmailTemplateGroup {
             }
         }
 
-        $sql=' updated=NOW() '
-            .' ,name='.db_input($vars['name'])
-            .' ,isactive='.db_input($vars['isactive'])
-            .' ,notes='.db_input(Format::sanitize($vars['notes']));
+        $fields = array(
+            'updated' => SqlFunction::NOW(),
+            'name' => $vars['name'],
+            'isactive' => $vars['isactive'] ?? 0,
+            'notes' => Format::sanitize($vars['notes']),
+        );
 
-        if ($vars['lang_id'])
+        if (!empty($vars['lang_id']))
             // TODO: Validation of lang_id
-            $sql .= ',lang='.db_input($vars['lang_id']);
+            $fields['lang'] = $vars['lang_id'];
 
         if($id) {
-            $sql='UPDATE '.EMAIL_TEMPLATE_GRP_TABLE.' SET '.$sql.' WHERE tpl_id='.db_input($id);
-            if(db_query($sql))
-                return true;
-
-            $errors['err']=sprintf(__('Unable to update %s.'), __('this template set'))
-               .' '.__('Internal error occurred');
-
-        } else {
-
-            if (isset($vars['id']))
-                $sql .= ', tpl_id='.db_input($vars['id']);
-            $sql='INSERT INTO '.EMAIL_TEMPLATE_GRP_TABLE
-                .' SET created=NOW(), '.$sql;
-            if(!db_query($sql) || !($new_id=db_insert_id())) {
-                $errors['err']=sprintf(__('Unable to create %s.'), __('this template set'))
+            try {
+                EmailTemplateGroupModel::objects()
+                    ->filter(array('tpl_id' => $id))
+                    ->update($fields);
+            }
+            catch (OrmException $e) {
+                $errors['err']=sprintf(__('Unable to update %s.'), __('this template set'))
                    .' '.__('Internal error occurred');
                 return false;
             }
 
-            if ($tpl && ($info=$tpl->getInfo())) {
-                $sql='INSERT INTO '.EMAIL_TEMPLATE_TABLE.'
-                    (created, updated, tpl_id, code_name, subject, body)
-                    SELECT NOW() as created, NOW() as updated, '.db_input($new_id)
-                    .' as tpl_id, code_name, subject, body
-                    FROM '.EMAIL_TEMPLATE_TABLE
-                    .' WHERE tpl_id='.db_input($tpl->getId());
-
-                if(!db_query($sql) || !db_insert_id())
-                    return false;
-            }
-            return $new_id;
+            return true;
         }
 
-        return false;
+        $group = new EmailTemplateGroupModel();
+        $group->created = SqlFunction::NOW();
+        if (isset($vars['id']))
+            $group->tpl_id = $vars['id'];
+        foreach ($fields as $field => $value)
+            $group->set($field, $value);
+
+        if (!$group->save() || !($new_id = $group->tpl_id)) {
+            $errors['err']=sprintf(__('Unable to create %s.'), __('this template set'))
+               .' '.__('Internal error occurred');
+            return false;
+        }
+
+        if ($tpl && $tpl->getId()) {
+            // Copia de las plantillas del conjunto de origen
+            $source = EmailTemplateModel::objects()
+                ->filter(array('tpl_id' => $tpl->getId()))
+                ->values_flat('code_name', 'subject', 'body');
+            foreach ($source as list($code_name, $subject, $body)) {
+                $copy = new EmailTemplateModel();
+                $copy->created = SqlFunction::NOW();
+                $copy->updated = SqlFunction::NOW();
+                $copy->tpl_id = $new_id;
+                $copy->code_name = $code_name;
+                $copy->subject = $subject;
+                $copy->body = $body;
+                if (!$copy->save())
+                    return false;
+            }
+        }
+
+        return $new_id;
     }
 }
 
@@ -544,14 +603,11 @@ class EmailTemplate {
         if(!$id && !($id=$this->getId()))
             return false;
 
-        $sql='SELECT * FROM '.EMAIL_TEMPLATE_TABLE
-            .' WHERE id='.db_input($id);
-
-        if(!($res=db_query($sql))|| !db_num_rows($res))
+        if (!($tpl = EmailTemplateModel::lookup($id)))
             return false;
 
-        $this->ht=db_fetch_array($res);
-        $this->id=$this->ht['id'];
+        $this->ht = $tpl->getDbFields();
+        $this->id = $this->ht['id'];
         $this->attachments = GenericAttachments::forIdAndType($this->id, 'T');
 
         return true;
@@ -665,19 +721,32 @@ class EmailTemplate {
                     Signal::send('object.edited', $this->getGroup(), $type);
                 }
             }
-            $sql='UPDATE '.EMAIL_TEMPLATE_TABLE.' SET updated=NOW() '
-                .', subject='.db_input($vars['subject'])
-                .', body='.db_input($vars['body'])
-                .' WHERE id='.db_input($this->getId());
+            try {
+                EmailTemplateModel::objects()
+                    ->filter(array('id' => $this->getId()))
+                    ->update(array(
+                        'updated' => SqlFunction::NOW(),
+                        'subject' => $vars['subject'],
+                        'body' => $vars['body'],
+                    ));
+            }
+            catch (OrmException $e) {
+                return false;
+            }
 
-            return (db_query($sql));
+            return true;
         } else {
-            $sql='INSERT INTO '.EMAIL_TEMPLATE_TABLE.' SET created=NOW(),
-                updated=NOW(), tpl_id='.db_input($vars['tpl_id'])
-                .', code_name='.db_input($vars['code_name'])
-                .', subject='.db_input($vars['subject'])
-                .', body='.db_input($vars['body']);
-            if (db_query($sql) && ($id=db_insert_id())) {
+            $template = new EmailTemplateModel();
+            $template->created = SqlFunction::NOW();
+            $template->updated = SqlFunction::NOW();
+            $template->setAll(array(
+                'tpl_id' => $vars['tpl_id'],
+                'code_name' => $vars['code_name'],
+                'subject' => $vars['subject'],
+                'body' => $vars['body'],
+            ));
+
+            if ($template->save() && ($id = $template->id)) {
                 $template = EmailTemplate::lookup($id);
                 foreach ($vars as $key => $value) {
                     if (isset($template->ht[$key]) && ($template->ht[$key] != $value)) {
@@ -707,10 +776,12 @@ class EmailTemplate {
     }
 
     static function lookupByName($tpl_id, $name, $group=null) {
-        $sql = 'SELECT id FROM '.EMAIL_TEMPLATE_TABLE
-            .' WHERE tpl_id='.db_input($tpl_id)
-            .' AND code_name='.db_input($name);
-        if (($res=db_query($sql)) && ($id=db_result($res)))
+        $ids = EmailTemplateModel::objects()
+            ->filter(array('tpl_id' => $tpl_id, 'code_name' => $name))
+            ->values_flat('id')
+            ->limit(1);
+
+        foreach ($ids as list($id))
             return self::lookup($id, $group);
 
         return false;

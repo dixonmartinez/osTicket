@@ -36,20 +36,16 @@ class Banlist {
         if (!($filter=self::getFilter()))
             return false;
 
-        $sql='SELECT filter.id '
-            .' FROM '.FILTER_TABLE.' filter'
-            .' INNER JOIN '.FILTER_RULE_TABLE.' rule'
-            .'  ON (filter.id=rule.filter_id)'
-            .' WHERE filter.id='.db_input($filter->getId())
-            .'   AND filter.isactive'
-            .'   AND rule.isactive '
-            .'   AND rule.what="email"'
-            .'   AND rule.val='.db_input($addr);
+        $rule = FilterRule::objects()
+            ->filter(array(
+                'filter_id' => $filter->getId(),
+                'filter__isactive' => 1,
+                'isactive' => 1,
+                'what' => 'email',
+                'val' => $addr,
+            ));
 
-        if (($res=db_query($sql)) && db_num_rows($res))
-            return $filter;
-
-        return false;
+        return $rule->exists() ? $filter : false;
     }
 
     static function includes($email) {

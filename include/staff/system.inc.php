@@ -161,10 +161,10 @@ if (!$lv) { ?>
     </tr>
     <tr><td><?php echo __('Space Used'); ?></td>
         <td><?php
-        // sql-audit:legacy information_schema no tiene modelo
         $sql = 'SELECT sum( data_length + index_length ) / 1048576 total_size
             FROM information_schema.TABLES WHERE table_schema = '
             .db_input(DBNAME);
+        // sql-audit:legacy information_schema no tiene modelo
         $space = db_result(db_query($sql));
         echo sprintf('%.2f MiB', $space); ?></td>
     <tr><td><?php echo __('Space for Attachments'); ?></td>

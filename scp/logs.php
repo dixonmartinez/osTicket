@@ -25,9 +25,10 @@ if($_POST){
                 $count=count($_POST['ids']);
                 if($_POST['a'] && !strcasecmp($_POST['a'], 'delete')) {
 
-                    $sql='DELETE FROM '.SYSLOG_TABLE
-                        .' WHERE log_id IN ('.implode(',', db_input($_POST['ids'])).')';
-                    if(db_query($sql) && ($num=db_affected_rows())){
+                    $num = SyslogModel::objects()
+                        ->filter(array('log_id__in' => Http::post('ids', array())))
+                        ->delete();
+                    if ($num) {
                         if($num==$count)
                             $msg=sprintf(__('Successfully deleted %s.'),
                                 _N('selected log entry', 'selected log entries', $count));

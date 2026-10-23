@@ -128,12 +128,13 @@ $info = Format::htmlchars(($errors && $_POST) ? $_POST : $info, true);
 			    <option value="0" selected="selected">&mdash; <?php
                 echo __('System Default'); ?> &mdash;</option>
 			    <?php
-			    $sql='SELECT priority_id, priority_desc FROM '.PRIORITY_TABLE.' pri ORDER by priority_urgency DESC';
-			    if(($res=db_query($sql)) && db_num_rows($res)){
-				while(list($id,$name)=db_fetch_row($res)){
-				    $selected=($info['priority_id'] && $id==$info['priority_id'])?'selected="selected"':'';
-				    echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$name);
-				}
+			    // El modelo ya ordena por `priority_urgency` descendente
+			    $priorities = Priority::objects()->values_flat('priority_id',
+			        'priority_desc');
+			    foreach ($priorities as list($id, $name)) {
+			        $selected=($info['priority_id'] && $id==$info['priority_id'])?'selected="selected"':'';
+			        echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,
+			            Format::htmlchars($name));
 			    }
 			    ?>
 			</select>

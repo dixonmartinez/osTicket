@@ -3942,15 +3942,19 @@ implements RestrictedAccess, Threadable, Searchable {
         if(!$user || !($user instanceof EndUser))
             return null;
 
-        $sql='SELECT count(open.ticket_id) as open, count(closed.ticket_id) as closed '
-            .' FROM '.TICKET_TABLE.' ticket '
-            .' LEFT JOIN '.TICKET_TABLE.' open
-                ON (open.ticket_id=ticket.ticket_id AND open.status=\'open\') '
-            .' LEFT JOIN '.TICKET_TABLE.' closed
-                ON (closed.ticket_id=ticket.ticket_id AND closed.status=\'closed\')'
-            .' WHERE ticket.user_id = '.db_input($user->getId());
+        // El SQL original unía la tabla consigo misma y filtraba por
+        // `ticket.status`, columna que desapareció en 1.10 (hoy el estado es
+        // `status_id` con `ticket_status.state`). Dos conteos equivalentes.
+        $stats = array('open' => 0, 'closed' => 0);
+        foreach (array_keys($stats) as $state)
+            $stats[$state] = Ticket::objects()
+                ->filter(array(
+                    'user_id' => $user->getId(),
+                    'status__state' => $state,
+                ))
+                ->count();
 
-        return db_fetch_array(db_query($sql));
+        return $stats;
     }
 
     protected static function filterTicketData($origin, $vars, $forms, $user=false, $postCreate=false) {

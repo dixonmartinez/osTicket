@@ -1637,49 +1637,39 @@ class Task extends TaskModel implements RestrictedAccess, Threadable {
                 || !$staff->isStaff())
             return null;
 
-        $where = array('(task.staff_id='.db_input($staff->getId())
-                    .sprintf(' AND task.flags & %d != 0 ', TaskModel::ISOPEN)
-                    .') ');
-        $where2 = '';
+        // Alcance del agente: asignadas a él o a alguno de sus equipos, y
+        // (salvo acceso restringido) las de sus departamentos.
+        // Las cláusulas anidadas de un Q tienen que ser objetos Q (un array
+        // suelto se compilaría como campos con nombre numérico).
+        $scope = array(Q::all(array(
+            'staff_id' => $staff->getId(),
+            'flags__hasbit' => TaskModel::ISOPEN,
+        )));
 
         if(($teams=$staff->getTeams()))
-            $where[] = ' ( task.team_id IN('.implode(',', db_input(array_filter($teams)))
-                        .') AND '
-                        .sprintf('task.flags & %d != 0 ', TaskModel::ISOPEN)
-                        .')';
+            $scope[] = Q::all(array(
+                'team_id__in' => array_filter($teams),
+                'flags__hasbit' => TaskModel::ISOPEN,
+            ));
 
         if(!$staff->showAssignedOnly() && ($depts=$staff->getDepts())) //Staff with limited access just see Assigned tasks.
-            $where[] = 'task.dept_id IN('.implode(',', db_input($depts)).') ';
+            $scope[] = Q::all(array('dept_id__in' => $depts));
 
-        $where = implode(' OR ', $where);
-        if ($where) $where = 'AND ( '.$where.' ) ';
+        $scope = Q::any($scope);
+        $open = array('flags__hasbit' => TaskModel::ISOPEN);
 
-        $sql =  'SELECT \'open\', count(task.id ) AS tasks '
-                .'FROM ' . TASK_TABLE . ' task '
-                . sprintf(' WHERE task.flags & %d != 0 ', TaskModel::ISOPEN)
-                . $where . $where2
-
-                .'UNION SELECT \'overdue\', count( task.id ) AS tasks '
-                .'FROM ' . TASK_TABLE . ' task '
-                . sprintf(' WHERE task.flags & %d != 0 ', TaskModel::ISOPEN)
-                . sprintf(' AND task.flags & %d != 0 ', TaskModel::ISOVERDUE)
-                . $where
-
-                .'UNION SELECT \'assigned\', count( task.id ) AS tasks '
-                .'FROM ' . TASK_TABLE . ' task '
-                . sprintf(' WHERE task.flags & %d != 0 ', TaskModel::ISOPEN)
-                .'AND task.staff_id = ' . db_input($staff->getId()) . ' '
-                . $where
-
-                .'UNION SELECT \'closed\', count( task.id ) AS tasks '
-                .'FROM ' . TASK_TABLE . ' task '
-                . sprintf(' WHERE task.flags & %d = 0 ', TaskModel::ISOPEN)
-                . $where;
-
-        $res = db_query($sql);
+        // filter() acepta varios criterios y los une con AND
         $stats = array();
-        while ($row = db_fetch_row($res))
-            $stats[$row[0]] = $row[1];
+        $stats['open'] = TaskModel::objects()
+            ->filter($scope, $open)->count();
+        $stats['overdue'] = TaskModel::objects()
+            ->filter($scope, $open,
+                array('flags__hasbit' => TaskModel::ISOVERDUE))->count();
+        $stats['assigned'] = TaskModel::objects()
+            ->filter($scope, $open,
+                array('staff_id' => $staff->getId()))->count();
+        $stats['closed'] = TaskModel::objects()
+            ->filter($scope, Q::not($open))->count();
 
         return $stats;
     }

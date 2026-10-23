@@ -50,9 +50,10 @@ if($_POST){
                 $count=count($_POST['ids']);
                 switch(strtolower($_POST['a'])) {
                     case 'enable':
-                        $sql='UPDATE '.API_KEY_TABLE.' SET isactive=1 '
-                            .' WHERE id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())) {
+                        $num = ApiKeyModel::objects()
+                            ->filter(array('id__in' => Http::post('ids', array())))
+                            ->update(array('isactive' => 1));
+                        if ($num) {
                             if($num==$count)
                                 $msg = sprintf(__('Successfully enabled %s'),
                                     _N('selected API key', 'selected API keys', $count));
@@ -65,9 +66,10 @@ if($_POST){
                         }
                         break;
                     case 'disable':
-                        $sql='UPDATE '.API_KEY_TABLE.' SET isactive=0 '
-                            .' WHERE id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())) {
+                        $num = ApiKeyModel::objects()
+                            ->filter(array('id__in' => Http::post('ids', array())))
+                            ->update(array('isactive' => 0));
+                        if ($num) {
                             if($num==$count)
                                 $msg = sprintf(__('Successfully disabled %s'),
                                     _N('selected API key', 'selected API keys', $count));

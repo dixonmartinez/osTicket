@@ -606,18 +606,19 @@ abstract class StaffAuthenticationBackend  extends AuthenticationBackend {
 
     static function getAllowedBackends($userid) {
 
-        $backends =array();
+        $backends = array();
         //XXX: Only one backend can be specified at the moment.
-        $sql = 'SELECT backend FROM '.STAFF_TABLE
-              .' WHERE backend IS NOT NULL ';
+        $staff = Staff::objects()->filter(array('backend__isnull' => false));
         if (is_numeric($userid))
-            $sql.= ' AND staff_id='.db_input($userid);
-        else {
-            $sql.= ' AND (username='.db_input($userid) .' OR email='.db_input($userid).')';
-        }
+            $staff->filter(array('staff_id' => $userid));
+        else
+            $staff->filter(Q::any(array(
+                'username' => $userid,
+                'email' => $userid,
+            )));
 
-        if (($res=db_query($sql, false)) && db_num_rows($res))
-            $backends[] = db_result($res);
+        foreach ($staff->values_flat('backend') as list($backend))
+            $backends[] = $backend;
 
         return array_filter($backends);
     }
@@ -818,19 +819,29 @@ abstract class UserAuthenticationBackend  extends AuthenticationBackend {
 
     static function getAllowedBackends($userid) {
         $backends = array();
-        $sql = 'SELECT A1.backend FROM '.USER_ACCOUNT_TABLE
-              .' A1 INNER JOIN '.USER_EMAIL_TABLE.' A2 ON (A2.user_id = A1.user_id)'
-              .' WHERE backend IS NOT NULL '
-              .' AND (A1.username='.db_input($userid)
-                  .' OR A2.`address`='.db_input($userid).')';
+        // Cuentas con backend cuyo nombre de usuario coincida…
+        foreach (UserAccount::objects()
+                ->filter(array('backend__isnull' => false,
+                    'username' => $userid))
+                ->values_flat('backend') as list($backend))
+            $backends[] = $backend;
 
-        if (!($res=db_query($sql, false)))
-            return $backends;
+        // …o cuyo correo coincida. La consulta original lo hacía con un JOIN
+        // y un OR; separarlo evita el producto de filas y se lee mejor.
+        $users = array();
+        foreach (UserEmail::objects()->filter(array('address' => $userid))
+                ->values_flat('user_id') as list($uid))
+            $users[] = $uid;
 
-        while (list($bk) = db_fetch_row($res))
-            $backends[] = $bk;
+        if ($users) {
+            foreach (UserAccount::objects()
+                    ->filter(array('backend__isnull' => false,
+                        'user_id__in' => $users))
+                    ->values_flat('backend') as list($backend))
+                $backends[] = $backend;
+        }
 
-        return array_filter($backends);
+        return array_filter(array_unique($backends));
     }
 
     function login($user, $bk) {

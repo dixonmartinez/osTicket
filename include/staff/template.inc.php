@@ -113,12 +113,13 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <select name="tpl_id" data-toggle-target="#language" data-toggle-when="0">
                     <option value="0">&mdash; <?php echo __('Stock Templates'); ?> &mdash;</option>
                     <?php
-                    $sql='SELECT tpl_id,name FROM '.EMAIL_TEMPLATE_GRP_TABLE.' ORDER by name';
-                    if(($res=db_query($sql)) && db_num_rows($res)){
-                        while(list($id,$name)=db_fetch_row($res)){
-                            $selected=($info['tpl_id'] && $id==$info['tpl_id'])?'selected="selected"':'';
-                            echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$name);
-                        }
+                    $groups = EmailTemplateGroupModel::objects()
+                        ->values_flat('tpl_id', 'name')
+                        ->order_by('name');
+                    foreach ($groups as list($id, $name)) {
+                        $selected=($info['tpl_id'] && $id==$info['tpl_id'])?'selected="selected"':'';
+                        echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,
+                            Format::htmlchars($name));
                     }
                     ?>
                 </select>

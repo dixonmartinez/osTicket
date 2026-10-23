@@ -289,14 +289,14 @@ class FA_AutoCannedResponse extends TriggerAction {
     }
 
     function getConfigurationOptions() {
-        $sql='SELECT canned_id, title, isenabled FROM '.CANNED_TABLE .' ORDER by title';
         $choices = array(false => '— '.__('None').' —');
-        if ($res=db_query($sql)) {
-            while (list($id, $title, $isenabled)=db_fetch_row($res)) {
-                if (!$isenabled)
-                    $title .= ' ' . __('(disabled)');
-                $choices[$id] = $title;
-            }
+        $canned = Canned::objects()
+            ->values_flat('canned_id', 'title', 'isenabled')
+            ->order_by('title');
+        foreach ($canned as list($id, $title, $isenabled)) {
+            if (!$isenabled)
+                $title .= ' ' . __('(disabled)');
+            $choices[$id] = $title;
         }
         return array(
             'canned_id' => new ChoiceField(array(
@@ -390,13 +390,11 @@ class FA_AssignPriority extends TriggerAction {
     }
 
     function getConfigurationOptions() {
-        $sql = 'SELECT priority_id, priority_desc FROM '.PRIORITY_TABLE
-              .' ORDER BY priority_urgency DESC';
+        // El modelo ya ordena por `priority_urgency` descendente
         $choices = array();
-        if ($res = db_query($sql)) {
-            while ($row = db_fetch_row($res))
-                $choices[$row[0]] = $row[1];
-        }
+        foreach (Priority::objects()->values_flat('priority_id',
+                'priority_desc') as list($id, $desc))
+            $choices[$id] = $desc;
         return array(
             'priority' => new ChoiceField(array(
                 'configuration' => array('prompt' => __('Unchanged')),

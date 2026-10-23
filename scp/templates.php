@@ -24,10 +24,9 @@ elseif($_REQUEST['id'] &&
         !($template=EmailTemplate::lookup($_REQUEST['id'])))
     $errors['err']=sprintf(__('%s: Unknown or invalid %s'), __('template'));
 elseif($_REQUEST['default_for']) {
-    $sql = 'SELECT id FROM '.EMAIL_TEMPLATE_TABLE
-        .' WHERE tpl_id='.db_input($cfg->getDefaultTemplateId())
-        .' AND code_name='.db_input($_REQUEST['default_for']);
-    if ($id = db_result(db_query($sql)))
+    $tpl = EmailTemplate::lookupByName($cfg->getDefaultTemplateId(),
+        $_REQUEST['default_for']);
+    if ($tpl && ($id = $tpl->getId()))
         Http::redirect('templates.php?a=manage&id='.db_input($id));
 }
 
@@ -98,9 +97,11 @@ if($_POST){
                 $count=count($_POST['ids']);
                 switch(strtolower($_POST['a'])) {
                     case 'enable':
-                        $sql='UPDATE '.EMAIL_TEMPLATE_GRP_TABLE.' SET isactive=1 '
-                            .' WHERE tpl_id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())){
+                        $ids = Http::post('ids', array());
+                        $num = EmailTemplateGroupModel::objects()
+                            ->filter(array('tpl_id__in' => $ids))
+                            ->update(array('isactive' => 1));
+                        if ($num) {
                             foreach ($_POST['ids'] as $k=>$v) {
                                 $tmpl = EmailTemplateGroup::lookup($v);
                                 $type = array('type' => 'edited', 'status' => 'Enabled');

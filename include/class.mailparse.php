@@ -18,6 +18,8 @@
 require_once(PEAR_DIR.'Mail/mimeDecode.php');
 require_once(PEAR_DIR.'Mail/RFC822.php');
 require_once(INCLUDE_DIR.'tnef_decoder.php');
+// El modelo Priority, para la urgencia del correo entrante
+require_once(INCLUDE_DIR.'class.priority.php');
 
 class Mail_Parse {
 
@@ -578,10 +580,13 @@ class Mail_Parse {
             $urgency = $priority + 1;
         }
         if ($urgency) {
-            $sql = 'SELECT `priority_id` FROM '.PRIORITY_TABLE
-                .' WHERE `priority_urgency`='.db_input($urgency)
-                .' LIMIT 1';
-            $id = db_result(db_query($sql));
+            $ids = Priority::objects()
+                ->filter(array('priority_urgency' => $urgency))
+                ->values_flat('priority_id')
+                ->limit(1);
+            $id = null;
+            foreach ($ids as list($id))
+                break;
             return $id;
         }
     }

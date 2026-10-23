@@ -14,6 +14,21 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 
+/**
+ * Una fila de `SYSLOG_TABLE`.
+ *
+ * `Log` es el envoltorio que lee un registro y lo expone con getters; el
+ * modelo es lo que permite escribir y borrar con el ORM en vez de con SQL a
+ * mano (y en el registro de errores, un fallo de SQL no puede tumbar la
+ * petición: se captura).
+ */
+class SyslogModel extends VerySimpleModel {
+    static $meta = array(
+        'table' => SYSLOG_TABLE,
+        'pk' => array('log_id'),
+    );
+}
+
 class Log {
 
     var $id;
@@ -26,12 +41,11 @@ class Log {
 
     function load($id){
 
-        $sql='SELECT * FROM '.SYSLOG_TABLE.' WHERE log_id='.db_input($id);
-        if(!($res=db_query($sql)) || !db_num_rows($res))
+        if (!($log = SyslogModel::lookup($id)))
             return false;
 
-        $this->info=db_fetch_array($res);
-        $this->id=$this->info['log_id'];
+        $this->info = $log->getDbFields();
+        $this->id = $this->info['log_id'];
         
         return $this->id;
     }

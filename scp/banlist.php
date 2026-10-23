@@ -74,10 +74,11 @@ if($_POST && !$errors && $filter){
                 $count=count($_POST['ids']);
                 switch(strtolower($_POST['a'])) {
                     case 'enable':
-                        $sql='UPDATE '.FILTER_RULE_TABLE.' SET isactive=1 '
-                            .' WHERE filter_id='.db_input($filter->getId())
-                            .' AND id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())){
+                        $num = FilterRule::objects()
+                            ->filter(array('filter_id' => $filter->getId(),
+                                'id__in' => Http::post('ids', array())))
+                            ->update(array('isactive' => 1));
+                        if ($num) {
                             if($num==$count)
                                 $msg = sprintf(__('Successfully enabled %s'),
                                     _N('selected ban rule', 'selected ban rules', $count));
@@ -90,10 +91,11 @@ if($_POST && !$errors && $filter){
                         }
                         break;
                     case 'disable':
-                        $sql='UPDATE '.FILTER_RULE_TABLE.' SET isactive=0 '
-                            .' WHERE filter_id='.db_input($filter->getId())
-                            .' AND id IN ('.implode(',', db_input($_POST['ids'])).')';
-                        if(db_query($sql) && ($num=db_affected_rows())) {
+                        $num = FilterRule::objects()
+                            ->filter(array('filter_id' => $filter->getId(),
+                                'id__in' => Http::post('ids', array())))
+                            ->update(array('isactive' => 0));
+                        if ($num) {
                             if($num==$count)
                                 $msg = sprintf(__('Successfully disabled %s'),
                                     _N('selected ban rule', 'selected ban rules', $count));

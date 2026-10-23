@@ -233,10 +233,18 @@ class FAQ extends VerySimpleModel {
             $topics = $this->getHelpTopicsIds();
             foreach($ids as $id) {
                 if($topics && in_array($id,$topics)) continue;
-                $sql='INSERT IGNORE INTO '.FAQ_TOPIC_TABLE
-                    .' SET faq_id='.db_input($this->getId())
-                    .', topic_id='.db_input($id);
-                db_query($sql);
+                // El original era INSERT IGNORE: si la fila ya existe (o el
+                // tema no existe), el ORM lanza OrmException y se ignora.
+                try {
+                    $link = new FaqTopic(array(
+                        'faq_id' => $this->getId(),
+                        'topic_id' => $id,
+                    ));
+                    $link->save();
+                }
+                catch (OrmException $e) {
+                    // INSERT IGNORE
+                }
             }
         }
 

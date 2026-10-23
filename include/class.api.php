@@ -15,6 +15,19 @@
 **********************************************************************/
 include_once INCLUDE_DIR.'class.controller.php';
 
+/**
+ * Una fila de `API_KEY_TABLE`.
+ *
+ * `API` es el envoltorio que valida y expone la clave; el modelo es lo que
+ * permite leerla, crearla y borrarla con el ORM.
+ */
+class ApiKeyModel extends VerySimpleModel {
+    static $meta = array(
+        'table' => API_KEY_TABLE,
+        'pk' => array('id'),
+    );
+}
+
 class API {
 
     var $id;
@@ -31,11 +44,10 @@ class API {
         if(!$id && !($id=$this->getId()))
             return false;
 
-        $sql='SELECT * FROM '.API_KEY_TABLE.' WHERE id='.db_input($id);
-        if(!($res=db_query($sql)) || !db_num_rows($res))
+        if (!($key = ApiKeyModel::lookup($id)))
             return false;
 
-        $this->ht = db_fetch_array($res);
+        $this->ht = $key->getDbFields();
         $this->id = $this->ht['id'];
 
         return true;
@@ -88,8 +100,9 @@ class API {
     }
 
     function delete() {
-        $sql='DELETE FROM '.API_KEY_TABLE.' WHERE id='.db_input($this->getId()).' LIMIT 1';
-        return (db_query($sql) && ($num=db_affected_rows()));
+        return ApiKeyModel::objects()
+            ->filter(array('id' => $this->getId()))
+            ->delete();
     }
 
     /** Static functions **/
@@ -103,14 +116,19 @@ class API {
 
     static function getIdByKey($key, $ip='') {
 
-        $sql='SELECT id FROM '.API_KEY_TABLE.' WHERE apikey='.db_input($key);
-        if($ip)
-            $sql.=' AND ipaddr='.db_input($ip);
+        $criteria = array('apikey' => $key);
+        if ($ip)
+            $criteria['ipaddr'] = $ip;
 
-        if(($res=db_query($sql)) && db_num_rows($res))
-            list($id) = db_fetch_row($res);
+        $ids = ApiKeyModel::objects()
+            ->filter($criteria)
+            ->values_flat('id')
+            ->limit(1);
 
-        return $id;
+        foreach ($ids as list($id))
+            return $id;
+
+        return null;
     }
 
     static function lookupByKey($key, $ip='') {
@@ -128,33 +146,43 @@ class API {
 
         if($errors) return false;
 
-        $sql=' updated=NOW() '
-            .',isactive='.db_input($vars['isactive'])
-            .',can_create_tickets='.db_input($vars['can_create_tickets'])
-            .',can_exec_cron='.db_input($vars['can_exec_cron'])
-            .',notes='.db_input(Format::sanitize($vars['notes']));
+        $fields = array(
+            'updated' => SqlFunction::NOW(),
+            'isactive' => $vars['isactive'] ?? 0,
+            'can_create_tickets' => $vars['can_create_tickets'] ?? 0,
+            'can_exec_cron' => $vars['can_exec_cron'] ?? 0,
+            'notes' => Format::sanitize($vars['notes']),
+        );
 
         if($id) {
-            $sql='UPDATE '.API_KEY_TABLE.' SET '.$sql.' WHERE id='.db_input($id);
-            if(db_query($sql))
-                return true;
+            try {
+                ApiKeyModel::objects()
+                    ->filter(array('id' => $id))
+                    ->update($fields);
+            }
+            catch (OrmException $e) {
+                $errors['err']=sprintf(__('Unable to update %s.'), __('this API key'))
+                   .' '.__('Internal error occurred');
+                return false;
+            }
 
-            $errors['err']=sprintf(__('Unable to update %s.'), __('this API key'))
-               .' '.__('Internal error occurred');
-
-        } else {
-            $sql='INSERT INTO '.API_KEY_TABLE.' SET '.$sql
-                .',created=NOW() '
-                .',ipaddr='.db_input($vars['ipaddr'])
-                .',apikey='.db_input(strtoupper(Misc::randCode(48, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')));
-
-            if(db_query($sql) && ($id=db_insert_id()))
-                return $id;
-
-            $errors['err']=sprintf('%s %s',
-                sprintf(__('Unable to add %s.'), __('this API key')),
-                __('Correct any errors below and try again.'));
+            return true;
         }
+
+        $key = new ApiKeyModel();
+        $key->created = SqlFunction::NOW();
+        $key->ipaddr = $vars['ipaddr'];
+        $key->apikey = strtoupper(Misc::randCode(48,
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'));
+        foreach ($fields as $field => $value)
+            $key->set($field, $value);
+
+        if ($key->save() && ($id = $key->id))
+            return $id;
+
+        $errors['err']=sprintf('%s %s',
+            sprintf(__('Unable to add %s.'), __('this API key')),
+            __('Correct any errors below and try again.'));
 
         return false;
     }

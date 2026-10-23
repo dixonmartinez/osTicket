@@ -56,9 +56,10 @@ if($_REQUEST['id'] && !($dept=Dept::lookup($_REQUEST['id'])))
                     $count=count($_POST['ids']);
                     switch(strtolower($_POST['a'])) {
                         case 'make_public':
-                            $sql='UPDATE '.DEPT_TABLE.' SET ispublic=1 '
-                                .' WHERE dept_id IN ('.implode(',', db_input($_POST['ids'])).')';
-                            if(db_query($sql) && ($num=db_affected_rows())){
+                            $num = Dept::objects()
+                                ->filter(array('id__in' => Http::post('ids', array())))
+                                ->update(array('ispublic' => 1));
+                            if ($num) {
                                 if($num==$count)
                                     $msg=sprintf(__('Successfully made %s PUBLIC'),
                                         _N('selected department', 'selected departments', $count));
@@ -74,10 +75,12 @@ if($_REQUEST['id'] && !($dept=Dept::lookup($_REQUEST['id'])))
                             }
                             break;
                         case 'make_private':
-                            $sql='UPDATE '.DEPT_TABLE.' SET ispublic=0  '
-                                .' WHERE dept_id IN ('.implode(',', db_input($_POST['ids'])).') '
-                                .' AND dept_id!='.db_input($cfg->getDefaultDeptId());
-                            if(db_query($sql) && ($num=db_affected_rows())) {
+                            // El departamento por omisión no puede dejar de ser público
+                            $num = Dept::objects()
+                                ->filter(array('id__in' => Http::post('ids', array())))
+                                ->exclude(array('id' => $cfg->getDefaultDeptId()))
+                                ->update(array('ispublic' => 0));
+                            if ($num) {
                                 if($num==$count)
                                     $msg = sprintf(__('Successfully made %s PRIVATE'),
                                         _N('selected department', 'selected epartments', $count));

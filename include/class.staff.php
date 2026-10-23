@@ -435,6 +435,9 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
 
             // Departments the staff is "allowed" to access...
             // based on the group they belong to + user's primary dept + user's managed depts.
+            // sql-audit:legacy el ORM lo hace con OR sobre `path` y tarda unos
+            // 2 ms más (está medido en el comentario de abajo); esta consulta
+            // corre en cada carga de sesión del agente
             $sql='SELECT DISTINCT d.id FROM '.STAFF_TABLE.' s '
                 .' LEFT JOIN '.STAFF_DEPT_TABLE.' g ON (s.staff_id=g.staff_id) '
                 .' INNER JOIN '.DEPT_TABLE.' d ON (LOCATE(CONCAT("/", s.dept_id, "/"), d.path) OR d.manager_id=s.staff_id OR LOCATE(CONCAT("/", g.dept_id, "/"), d.path)) '
@@ -1094,11 +1097,16 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
     }
 
     function cancelResetTokens() {
-        // TODO: Drop password-reset tokens from the config table for
-        //       this user id
-        $sql = 'DELETE FROM '.CONFIG_TABLE.' WHERE `namespace`="pwreset"
-            AND `value`='.db_input($this->getId());
-        db_query($sql, false);
+        // Los testigos de restablecimiento viven en la tabla de configuración
+        try {
+            ConfigItem::objects()
+                ->filter(array('namespace' => 'pwreset',
+                    'value' => $this->getId()))
+                ->delete();
+        }
+        catch (OrmException $e) {
+            // Sin tabla de configuración no hay testigo que borrar
+        }
         unset($_SESSION['_staff']['reset-token']);
     }
 
@@ -1268,15 +1276,21 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
 
         // Ensure we will still have an administrator with access
         if ($vars['isadmin'] !== '1' || $vars['islocked'] === '1') {
-            $sql = 'select count(*), max(staff_id) from '.STAFF_TABLE
-                .' WHERE isadmin=1 and isactive=1';
-            if (($res = db_query($sql))
-                    && (list($count, $sid) = db_fetch_row($res))) {
-                if ($count == 1 && $sid == $uid) {
-                    $errors['isadmin'] = __(
-                        'Cowardly refusing to remove or lock out the only active administrator'
-                    );
-                }
+            $admins = array();
+            foreach (Staff::objects()
+                    ->filter(array('isadmin' => 1, 'isactive' => 1))
+                    ->values_flat('staff_id') as list($sid))
+                $admins[] = $sid;
+
+            /* Antes esto comparaba con `$uid`, que sólo existe si el nombre de
+               usuario o el correo han cambiado en este mismo guardado (eran
+               los `elseif` de arriba): el aviso de «no puedes quitarte el
+               único administrador» no llegaba a verse. Lo que se quiere
+               comprobar es si el único administrador activo es este agente. */
+            if (count($admins) == 1 && $admins[0] == $this->getId()) {
+                $errors['isadmin'] = __(
+                    'Cowardly refusing to remove or lock out the only active administrator'
+                );
             }
         }
 

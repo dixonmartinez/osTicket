@@ -76,7 +76,7 @@ atípicos, y ahora se ven:
 
 | Señal | Ocurrencias |
 |---|---|
-| SQL a mano (`db_query`) | 176 reales (111 en la aplicación) |
+| SQL a mano (`db_query`) | 123 reales (57 en la aplicación) |
 | `db_input()` (escape manual) | 164 |
 | Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.248 (frente 4) |
 | `global $...` | 560 |
@@ -178,7 +178,7 @@ Lo que hay ahora:
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 352 pruebas en ~0,3 s
+make unit          # 368 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -242,7 +242,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-352 pruebas correctas, 0 fallidas, 4 omitidas
+368 pruebas correctas, 0 fallidas, 1 omitida
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -385,7 +385,7 @@ El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
 |---|---|
 | `tests/lib/Database.php` | Crea `<base>_test` (nunca la de la instalación), le carga `setup/inc/streams/core/install-mysql.sql` con el prefijo configurado y expone `query()`/`value()`/`rows()`. Si no puede conectar, explica por qué |
 | `tests/lib/IntegrationTestCase.php` | Base de esas pruebas: **omite con motivo** si no hay base y **falla** si se pidió `--require-db` (un verde silencioso sería peor que un error) |
-| `tests/integration/OrmIntegrationTest.php` | 13 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, y que el esquema del instalador se cargue entero |
+| `tests/integration/OrmIntegrationTest.php` | 19 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, `Q::any` con grupos anidados, `Q::not`, `contains`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, `NOW()` de la base y que el esquema del instalador se cargue entero |
 | `tests/OrmDirtyTest.php` | 10 casos sin base: qué cuenta como campo cambiado (una cadena vacía y un cero sí; un `'5'` de la base frente a un `5` asignado, no) y que el ORM tenga sus dependencias cargadas (`Signal`, `Misc`) |
 | `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
 | `tests/OrmPropertiesTest.php` | 3 casos sin base: recorre `class.orm.php`, `class.orm.select.php` y `class.util.php` y comprueba con `property_exists()` que cada `$this->propiedad = …` esté declarada. Detecta la propiedad **y la línea** |
@@ -401,8 +401,8 @@ de datos—.
 Las pruebas de integración quedan **fuera de `make unit` y de `make ci`** a
 propósito: `ci` tiene que seguir corriendo en cualquier sitio sin Docker.
 
-**La primera ejecución encontró tres cosas**, y la segunda una cuarta: es
-exactamente para lo que está.
+**La primera ejecución encontró tres cosas**, la segunda una cuarta y las
+tandas siguientes dos más: es exactamente para lo que está.
 
 1. **El banco no cargaba `Signal` ni `Misc`.** El ORM los necesita (`save()` y
    `delete()` emiten señales; `db_connect()` siembra el generador aleatorio con
@@ -452,6 +452,21 @@ exactamente para lo que está.
    Se comprobó quitando las declaraciones a propósito: el fallo aparece con el
    nombre y la línea de cada una.
 
+5. **El aviso «no puedes quitarte el único administrador» nunca se mostraba.**
+   `Staff::update()` comparaba los administradores activos con `$uid`, una
+   variable que sólo existe en la rama que cambia el usuario o el correo. En la
+   rama que quita el permiso de administrador, `$uid` no estaba definida: PHP
+   emitía un aviso, la comparación daba falso y el cambio se guardaba. Ahora la
+   lista se recoge con `Staff::objects()->filter(['isadmin' => 1, 'isactive' => 1])
+   ->values_flat('staff_id')` y se compara con `$this->getId()`. Mismo aviso,
+   misma condición, pero ahora se comprueba.
+6. **`Ticket::getUserStats()` filtraba por una columna que ya no existe.** El
+   SQL unía la tabla de tickets consigo misma y filtraba por `ticket.status`,
+   columna que en 1.18 es `status_id` con su estado en `ticket_status.state`.
+   La consulta fallaba siempre que se pedía, y el fallo sólo se veía en el log.
+   Ahora son dos conteos por el ORM (`status__state`), que además usan el
+   índice de `user_id`.
+
 **Organización de archivos.** Un archivo por familia de clases, con el nombre
 del archivo diciendo qué hay dentro y las dependencias declaradas arriba
 (`include_once`), no supuestas por el orden de carga de `bootstrap.php`. El
@@ -477,18 +492,22 @@ líneas) y separa cuatro cosas que no son lo mismo:
 
 | Categoría | Llamadas | Archivos | Qué es | ¿Se toca? |
 |---|---|---|---|---|
-| **aplicación** | **111** | 43 | El código de osTicket | es la deuda, y baja |
+| **aplicación** | **57** | 22 | El código de osTicket | es la deuda, y baja |
 | instalador | 5 | 2 | `setup/` e `include/class.setup.php`: corre antes de que exista el esquema | no |
 | actualizador (histórico) | 33 | 16 | `include/upgrader/streams/`: migraciones de esquemas viejos | no |
 | driver de base de datos | 6 | 1 | `include/mysqli.php`: ahí `db_query()` *es* el trabajo | no |
-| dobles de prueba | 21 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
+| dobles de prueba | 22 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
 
-De las 111 de la aplicación, **20 están marcadas como no migrables** con su
-motivo (`sql-audit:legacy`), así que **quedan 91 por migrar**: el objetivo
-era bajar de 100 y se cumple. Quedan **46 `SELECT`, 30 DML, 2 DDL y 13
-«otras»**; **ninguna concatenación de datos de la petición** (eso lo vigila
-`tools/audit` con OST-SQLI y también el propio `sql-audit`, que falla si
-aparece una en el punto de llamada).
+De las 57 de la aplicación, **22 están marcadas como no migrables** con su
+motivo (`sql-audit:legacy`), así que **quedan 35 por migrar**: el objetivo
+era bajar de 100 y se cumple con holgura. Quedan **23 `SELECT`, 3 DML, 2 DDL
+y 7 «otras»**; **ninguna concatenación de datos de la petición** (eso lo
+vigila `tools/audit` con OST-SQLI y también el propio `sql-audit`, que falla
+si aparece una en el punto de llamada). Lo que resta son, sobre todo, las
+listas paginadas de `include/staff/*.inc.php` —construyen el `SELECT` a mano
+alrededor de `Searchable` y de `Pagenate`, así que migrarlas exige antes un
+paginador que acepte un `QuerySet`— y las consultas de `class.analytics.php`,
+que agregan por `DATE()`, `HOUR()` y `DATE_FORMAT()`.
 
 **La marca, y por qué no es una salida.** Hay SQL que no puede pasar por el
 ORM y no por pereza:
@@ -506,16 +525,18 @@ ORM y no por pereza:
 - Hay un **tope de 25 marcas** (`SqlAudit::LEGACY_MAX`): si se pudiera marcar
   todo, el contador volvería a no significar nada.
 
-Las 20 marcas son de cinco sitios, y ninguna es una consulta de la
+Las 22 marcas son de siete archivos, y ninguna es una consulta de la
 aplicación que se pueda escribir con el ORM:
 
 | Archivo | Marcas | Por qué |
 |---|---|---|
-| `include/class.cron.php` | 3 | `OPTIMIZE TABLE` de las tablas de bloqueo, syslog y borradores |
 | `include/class.search.php` | 7 | índice `FULLTEXT`: `REPLACE`, borrado con `JOIN`, `CREATE TABLE`, `INSERT` por lotes, `SHOW STATUS` para elegir motor |
 | `include/class.config.php` | 4 | compatibilidad con esquemas anteriores a 1.7 (`namespace`, `schema_signature`, `ostversion`) |
+| `include/class.cron.php` | 3 | `OPTIMIZE TABLE` de las tablas de bloqueo, syslog y borradores |
 | `include/class.export.php` | 3 | volcado: pregunta por `information_schema` y recorre tablas arbitrarias en streaming |
-| `include/staff/system.inc.php`, `include/class.setup.php` | 3 + 2 | tamaño en disco (`information_schema`), sentencias del esquema al instalar |
+| `include/staff/system.inc.php` | 2 | tamaño en disco (`information_schema`, incluida la tabla de trozos de adjunto) |
+| `include/class.setup.php` | 2 | sentencias del esquema al instalar, antes de que el ORM tenga algo que describir |
+| `include/class.timezone.php` | 1 | `SELECT` de expresiones sin tabla: el ORM siempre añade `FROM` |
 
 **Lo migrado**, por áreas y con la suite en verde después de cada tanda:
 
@@ -523,13 +544,32 @@ aplicación que se pueda escribir con el ORM:
 |---|---|---|---|
 | `include/class.sla.php` | 4 | 0 | `delete()` completo por el ORM |
 | `include/staff/department.inc.php` | 4 | 0 | gerentes (`Staff`), correos (`Email`, dos veces) y grupos de plantillas (`EmailTemplateGroupModel`) |
-| `include/staff/settings-emails.inc.php` | 3 | 1 | dos `<select>` de correo y plantilla |
-| `scp/departments.php` | 3 | 2 | recuento de miembros con `Staff::objects()->filter(['dept_id__in' => ...])->count()` |
-| `include/class.topic.php` | 2 | 1 | desvincular tickets al borrar un tema, con `->update()` |
+| `include/staff/settings-emails.inc.php` | 3 | 0 | los dos `<select>` de correo y plantilla (el `SELECT DISTINCT` de tipos se queda) |
+| `scp/departments.php` | 3 | 0 | recuento de miembros y acciones en lote, excluyendo el departamento por omisión |
+| `include/class.topic.php` | 2 | 0 | desvincular tickets al borrar un tema y el orden de los temas |
 | `include/staff/settings-tasks.inc.php` | 1 | 0 | prioridades y plantillas |
 | `include/staff/settings-tickets.inc.php` | 1 | 0 | prioridades |
 | `include/staff/settings-agents.inc.php` | 1 | 0 | plantillas de respuesta |
 | `include/staff/settings-users.inc.php` | 1 | 0 | plantilla de bienvenida |
+| `include/class.template.php` | 15 | 0 | `EmailTemplateModel` nuevo: carga, alta, borrado y estado de grupos y plantillas |
+| `include/class.staff.php` | 3 | 1 | tokens de restablecimiento y aviso del último administrador |
+| `include/class.auth.php` | 2 | 0 | `getAllowedBackends()` de agentes y de usuarios, con `Q::any` |
+| `include/class.api.php` | 5 | 0 | `ApiKeyModel` nuevo: carga, alta, borrado y búsqueda por clave |
+| `include/class.osticket.php` | 2 | 0 | `logSystem()` y `purgeLogs()` (con `try/catch`: registrar no puede tumbar la petición) |
+| `include/class.log.php` | 1 | 0 | `SyslogModel` nuevo, para `Log::load()` |
+| `include/class.banlist.php` | 1 | 0 | `isBanned()` con filtro relacional `filter__isactive` |
+| `include/class.filter_action.php` | 2 | 0 | las dos `getConfigurationOptions()` |
+| `scp/apikeys.php`, `scp/canned.php`, `scp/logs.php` | 2 + 2 + 1 | 0 | acciones en lote por `filter(['id__in' => …])->update()` / `->delete()` |
+| `scp/banlist.php`, `scp/templates.php` | 2 + 2 | 0 | habilitar/deshabilitar en lote y el atajo `?default_for=` |
+| `include/staff/email.inc.php`, `filter.inc.php`, `settings-emails.inc.php`, `template.inc.php` | 1 cada uno | 0 | los `<select>` de prioridades, correos y conjuntos de plantillas |
+| `include/class.mailparse.php` | 1 | 0 | prioridad por urgencia, con `values_flat()->limit(1)` |
+| `include/class.draft.php` | 1 | 0 | `cleanup()` con `Q::any` sobre `created`/`updated` |
+| `include/class.canned.php` | 1 | 0 | `getFilters()` por `actions__type` + `actions__configuration__contains` |
+| `include/class.faq.php` | 1 | 0 | alta de la relación FAQ–tema (el `INSERT IGNORE` pasa a `try/catch OrmException`) |
+| `include/class.plugin.php` | 1 | 0 | `getPluginByName()` |
+| `include/class.client.php` | 1 | 0 | tokens de restablecimiento del usuario |
+| `include/class.task.php` | 1 | 0 | estadísticas del agente: cuatro conteos con `Q::any`/`Q::not` |
+| `include/class.ticket.php` | 1 | 0 | `getUserStats()` |
 
 Ninguno sube. Lo que sigue en esos archivos es SQL de otra naturaleza (por
 ejemplo, en `settings-emails.inc.php` queda el `SELECT DISTINCT` que alimenta
@@ -555,7 +595,7 @@ seguía leyéndose con SQL a mano.
   `mysqli` revienta, y por eso las pruebas usan `compileSelect()`.
 
 **La regla automática.** `make sql-audit` compara con
-`tools/quality/sql-baseline.json` (91 llamadas en 43 archivos) y **falla** si:
+`tools/quality/sql-baseline.json` (35 llamadas en 15 archivos) y **falla** si:
 
 - un archivo nuevo trae SQL a mano,
 - cualquier archivo sube respecto de la línea base,
@@ -677,7 +717,7 @@ alguien mire el informe— son:
 | Regla | Línea base | Comando |
 |---|---|---|
 | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST` (frente 4) | 1.242 en 141 archivos | `make input-audit` |
-| SQL escrito a mano en la aplicación (frente 3) | 91 en 43 archivos, más 20 excepciones con motivo | `make sql-audit` |
+| SQL escrito a mano en la aplicación (frente 3) | 35 en 15 archivos, más 22 excepciones con motivo | `make sql-audit` |
 
 Un refactor está justificado si **baja** alguna señal sin que suba ninguna
 otra, y si `make ci` sigue en verde.

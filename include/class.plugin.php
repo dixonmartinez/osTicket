@@ -230,13 +230,19 @@ class PluginManager {
     static function getPluginByName($name, $active=false) {
         // Escape the name. It is usually a constant, but plugins may pass
         // user supplied values — never interpolate raw data into SQL.
-        $sql = sprintf('SELECT * FROM %s WHERE name=%s', PLUGIN_TABLE, db_input($name));
+        $criteria = array('name' => $name);
         if ($active)
-            $sql = sprintf('%s AND isactive = true', $sql);
-        if (!($res = db_query($sql)))
-            return false;
-        $ht = db_fetch_array($res);
-        return $ht['name'];
+            $criteria['isactive'] = 1;
+
+        $names = Plugin::objects()
+            ->filter($criteria)
+            ->values_flat('name')
+            ->limit(1);
+
+        foreach ($names as list($found))
+            return $found;
+
+        return false;
     }
 
     static function auditPlugin() {

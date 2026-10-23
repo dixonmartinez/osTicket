@@ -433,11 +433,18 @@ class ClientAccount extends UserAccount {
     function cancelResetTokens() {
         // TODO: Drop password-reset tokens from the config table for
         //       this user id
-        $sql = 'DELETE FROM '.CONFIG_TABLE.' WHERE `namespace`="pwreset"
-            AND `value`='.db_input('c'.$this->getUserId());
-        if (!db_query($sql, false))
+        try {
+            ConfigItem::objects()
+                ->filter(array('namespace' => 'pwreset',
+                    'value' => 'c'.$this->getUserId()))
+                ->delete();
+        }
+        catch (OrmException $e) {
+            // Sin tabla de configuración no hay testigo que borrar
             return false;
+        }
 
+        // Igual que antes: se limpia la sesión aunque no hubiera fila
         unset($_SESSION['_client']['reset-token']);
     }
 

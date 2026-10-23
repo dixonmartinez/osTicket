@@ -183,11 +183,19 @@ class Draft extends VerySimpleModel {
     }
 
     static function cleanup() {
-        // Keep drafts for two weeks (14 days)
-        $sql = 'DELETE FROM '.DRAFT_TABLE
-            ." WHERE (updated IS NULL AND datediff(now(), created) > 14)
-                OR datediff(now(), updated) > 14";
-        return db_query($sql);
+        // Keep drafts for two weeks (14 days). La condición original usaba
+        // DATEDIFF, que cuenta días de calendario; con `created__lt` se
+        // comparan instantes, así que se resta el mismo margen (14 días) más
+        // el resto del día en curso para no borrar antes de tiempo.
+        $cutoff = new SqlCode("DATE_SUB(CURDATE(), INTERVAL 14 DAY)");
+        return static::objects()
+            ->filter(Q::any(array(
+                'updated__isnull' => true,
+                'created__lt' => $cutoff,
+            ), array(
+                'updated__lt' => $cutoff,
+            )))
+            ->delete();
     }
 }
 

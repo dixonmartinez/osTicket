@@ -46,6 +46,7 @@ class OrmIntegrationTest extends IntegrationTestCase {
             . '`qty` int not null default 0,'
             . '`flag` tinyint(1) not null default 0,'
             . '`notes` varchar(64) null,'
+            . '`stamp` datetime null,'
             . 'primary key (`id`),'
             . 'key `name` (`name`)'
             . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
@@ -153,6 +154,47 @@ class OrmIntegrationTest extends IntegrationTestCase {
             ->exclude(array('id' => $ids[1]))->count());
     }
 
+    public function testFiltroOConGruposAnidados(): void {
+        $this->seed();
+
+        // Dos grupos unidos con OR, cada uno con sus condiciones unidas con
+        // AND. Si los grupos se compilaran como campos sueltos, esto sería un
+        // error de SQL en vez de dos coincidencias.
+        $qs = OrmIntegrationRow::objects()->filter(Q::any(array(
+            Q::all(array('name' => 'uno', 'qty' => 1)),
+            Q::all(array('name' => 'dos', 'qty' => 2)),
+            Q::all(array('name' => 'tres', 'qty' => 99)),
+        )));
+
+        $this->assertSame(2, $qs->count());
+    }
+
+    public function testFiltroNegado(): void {
+        $ids = $this->seed();
+
+        OrmIntegrationRow::objects()
+            ->filter(array('id' => $ids[0]))
+            ->update(array('flag' => 1));
+
+        $this->assertSame(2, OrmIntegrationRow::objects()
+            ->filter(Q::not(array('flag' => 1)))->count());
+    }
+
+    public function testFiltroContainsSobreTexto(): void {
+        $this->seed();
+
+        OrmIntegrationRow::objects()
+            ->filter(array('name' => 'uno'))
+            ->update(array('notes' => 'hola mundo'));
+
+        $this->assertSame(1, OrmIntegrationRow::objects()
+            ->filter(array('notes__contains' => 'mundo'))->count());
+        // El guion bajo del patrón viaja escapado: no debe coincidir con
+        // cualquier carácter.
+        $this->assertSame(0, OrmIntegrationRow::objects()
+            ->filter(array('notes__contains' => 'mundo_'))->count());
+    }
+
     /* ------------------------------------------------------------------ */
     /* Modificación y borrado                                              */
     /* ------------------------------------------------------------------ */
@@ -192,6 +234,52 @@ class OrmIntegrationTest extends IntegrationTestCase {
         $this->assertSame(3, OrmIntegrationRow::objects()
             ->filter(array('qty__gte' => 0))->delete());
         $this->assertSame(0, OrmIntegrationRow::objects()->count());
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Valores que calcula la base                                         */
+    /* ------------------------------------------------------------------ */
+
+    public function testInsertaConLaFechaDeLaBase(): void {
+        // El frente 3 sustituyó `updated=NOW()` en el SQL a mano por
+        // `new SqlCode('NOW()')`: el valor tiene que ponerlo MariaDB, no PHP.
+        $row = new OrmIntegrationRow(array('name' => 'con-fecha'));
+        $row->stamp = new SqlCode('NOW()');
+
+        $this->assertTrue($row->save());
+        $this->assertNotNull($this->value(
+            'SELECT `stamp` FROM `ost_test_row` WHERE `id` = ' . $row->id));
+
+        // El valor que quedó en el modelo es el que devolvió la base
+        $leida = OrmIntegrationRow::lookup($row->id);
+        $this->assertNotNull($leida->stamp);
+    }
+
+    public function testActualizaEnBloqueConLaFechaDeLaBase(): void {
+        $ids = $this->seed();
+
+        $tocadas = OrmIntegrationRow::objects()
+            ->filter(array('id__in' => $ids))
+            ->update(array('stamp' => new SqlCode('NOW()')));
+
+        $this->assertSame(3, $tocadas);
+        $this->assertSame(3, (int) $this->value(
+            'SELECT COUNT(*) FROM `ost_test_row` WHERE `stamp` IS NOT NULL'));
+    }
+
+    public function testActualizarDosVecesElMismoValorDevuelveCero(): void {
+        // `update()` devuelve filas modificadas, no filas encontradas: asignar
+        // el valor que ya había da 0 aunque el UPDATE se ejecute. Es lo mismo
+        // que hacía `db_affected_rows()`, y por eso `setStatus()` ya no usa el
+        // número para decidir si falló.
+        $ids = $this->seed();
+
+        $this->assertSame(3, OrmIntegrationRow::objects()
+            ->filter(array('id__in' => $ids))
+            ->update(array('qty' => 4)));
+        $this->assertSame(0, OrmIntegrationRow::objects()
+            ->filter(array('id__in' => $ids))
+            ->update(array('qty' => 4)));
     }
 
     /* ------------------------------------------------------------------ */
