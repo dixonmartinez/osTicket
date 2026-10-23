@@ -68,8 +68,9 @@ class Http {
 
     static function redirect($url,$delay=0,$msg='') {
 
-        $iis = strpos($_SERVER['SERVER_SOFTWARE'], 'IIS') !== false;
-        @list($name, $version) = explode('/', $_SERVER['SERVER_SOFTWARE']);
+        $server = $_SERVER['SERVER_SOFTWARE'] ?? '';
+        $iis = strpos($server, 'IIS') !== false;
+        @list($name, $version) = explode('/', $server);
         // Legacy code for older versions of IIS that would not emit the
         // correct HTTP status and headers when using the `Location`
         // header alone
@@ -80,7 +81,10 @@ class Http {
         }
         print('<html></html>');
         flush();
-        ob_flush();
+        // Sin búfer activo `ob_flush()` avisa en cada redirección: la
+        // instalación por omisión no usa `output_buffering`.
+        if (ob_get_level())
+            @ob_flush();
         exit;
     }
 
