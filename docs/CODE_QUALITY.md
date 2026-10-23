@@ -178,7 +178,7 @@ Lo que hay ahora:
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 325 pruebas en ~0,3 s
+make unit          # 339 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -242,7 +242,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-325 pruebas correctas, 0 fallidas, 4 omitidas
+339 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -255,9 +255,14 @@ sacadas de las funciones más largas, con 160 pruebas nuevas y seis defectos
 reales corregidos—, y ninguna de esas funciones ha vuelto a crecer. El
 criterio de éxito del frente **no se cumple todavía**: sigue habiendo
 funciones de la aplicación por encima de 120 líneas y siete archivos por
-encima de 2.000. Lo que queda no es mover código, sino **tener la prueba de
-integración con base de datos** para poder trocear `Ticket::create()` (500
-líneas) sin cambiar lo que hace. Eso está aplazado por decisión del equipo.
+encima de 2.000.
+
+La segunda tanda necesitaba algo que no existía: **una base de datos contra la
+que probar**. Ya está montada («Prueba de integración», más abajo):
+`make docker-integration` crea una base
+desechable, le carga el esquema del instalador y ejecuta el ORM de verdad. Lo
+que queda del frente es usarla para trocear `Ticket::create()` con la base
+delante, no a ciegas.
 
 El plan original hablaba de partir `Queue::getCriteria()` (1.414 líneas). Esa
 cifra era un error de medida (§1): la función tiene 30 líneas. Con los números
@@ -361,15 +366,38 @@ pruebas de integración.
 
 Siguiente paso, por orden de riesgo:
 
-1. `Ticket::create()` (500): lo que queda no se puede tocar con seguridad
-   hasta tener pruebas con base de datos. Ahí el siguiente paso del plan deja
-   de ser mover código y pasa a ser **montar esa prueba de integración**
-   (contenedor con MySQL ya disponible: `make docker-up`). Queda aplazado por
-   decisión del equipo; el frente 4 va antes.
+1. **Usar el banco de integración que ya existe** para fijar `Ticket::create()`
+   con datos reales: un ticket web, uno de agente y uno por correo, con sus
+   colaboradores y su mensaje. En cuanto eso esté en verde, el flujo se puede
+   partir en los mismos términos que `TicketPost` o `ThreadEntryInfo`.
+2. `massProcess()` (321 y 287) y `Mailer::send()` (270): lo mismo, una prueba
+   de integración por rama antes de mover código.
 
 - Riesgo: bajo en el primer paso (código nuevo + pruebas, sin cambiar firmas).
 - Éxito: ninguna función de la aplicación por encima de 120 líneas y ningún
   archivo por encima de 3.000 líneas.
+
+#### Prueba de integración (lo que desbloquea el frente)
+
+El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
+
+| Pieza | Qué hace |
+|---|---|
+| `tests/lib/Database.php` | Crea `<base>_test` (nunca la de la instalación), le carga `setup/inc/streams/core/install-mysql.sql` con el prefijo configurado y expone `query()`/`value()`/`rows()`. Si no puede conectar, explica por qué |
+| `tests/lib/IntegrationTestCase.php` | Base de esas pruebas: **omite con motivo** si no hay base y **falla** si se pidió `--require-db` (un verde silencioso sería peor que un error) |
+| `tests/integration/OrmIntegrationTest.php` | 11 casos: guardar y releer, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, y que el esquema del instalador se cargue entero |
+| `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
+| `make integration` | `tests/run.php --integration --require-db`, o PHPUnit (`--testsuite integration`) si está instalado |
+| `make docker-integration` | Levanta `db` y ejecuta lo anterior dentro del contenedor `tools` |
+
+El separador de sentencias se prueba contra el archivo real del instalador:
+son **133 sentencias** y todas empiezan por `CREATE`, `DROP`, `ALTER`,
+`INSERT`, `REPLACE`, `SET`, `UPDATE` o `DELETE`. Si alguien añade una tabla y
+el separador se come la sentencia, `make unit` lo dice —sin necesidad de base
+de datos—.
+
+Las pruebas de integración quedan **fuera de `make unit` y de `make ci`** a
+propósito: `ci` tiene que seguir corriendo en cualquier sitio sin Docker.
 
 **Organización de archivos.** Un archivo por familia de clases, con el nombre
 del archivo diciendo qué hay dentro y las dependencias declaradas arriba

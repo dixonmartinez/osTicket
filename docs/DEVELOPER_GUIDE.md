@@ -56,6 +56,8 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make classes` | Mapa de clases por archivo; falla si una clase se declara dos veces o un `include` literal apunta a un archivo que no existe | ~1 s |
 | `make input-audit` | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST`; falla si el contador sube respecto a la línea base | ~1 s |
 | `make sql-audit` | SQL escrito a mano (`db_query`); falla si sube, si concatena datos de la petición o si una excepción no lleva motivo | ~1 s |
+| `make integration` | Pruebas contra MariaDB real; crea una base `<base>_test` y le carga el esquema del instalador | según la base |
+| `make docker-integration` | Lo mismo, levantando antes el servicio `db` de `compose.yaml` | según la base |
 | `make ci` | lint + audit + security + theme + classes + input-audit + sql-audit + unit (verificación previa al commit) | ~11 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
@@ -327,6 +329,15 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
   petición, si una marca `// sql-audit:legacy` no lleva motivo o si se pasa
   del tope de marcas. Detalle en [`CODE_QUALITY.md`](CODE_QUALITY.md),
   frente 3.
+- **Pruebas de integración**: `make docker-integration` (en WSL2: `make
+  docker-integration`, sin PHP en el equipo). Crea una base **desechable**
+  `<MYSQL_DATABASE>_test`, le carga el mismo `install-mysql.sql` del
+  instalador y ejecuta el ORM contra MariaDB de verdad. **Nunca toca la base
+  de la instalación**: el sufijo `_test` lo pone la herramienta, no una
+  variable. Si no hay base, las pruebas se omiten con el motivo; si se piden
+  con `--require-db` (lo que hace `make integration`), **fallan**, para que un
+  verde vacío no engañe. Quedan fuera de `make ci` a propósito: `ci` sigue
+  corriendo sin Docker ni base de datos.
 - **Pruebas unitarias**: `make unit` (o `make test`). Viven en `tests/` como
   `*Test.php` y extienden `UnitTestCase`. **Un aviso de PHP cuenta como
   fallo** (deprecaciones, índices sin definir): si tu prueba pasa pero el log

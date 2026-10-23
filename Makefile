@@ -8,6 +8,8 @@
 #   make theme      integridad del tema claro/oscuro (sin navegador)
 #   make metrics    tamaño y deuda técnica del código propio
 #   make classes    mapa de clases y duplicados
+#   make unit       pruebas unitarias (sin base de datos)
+#   make integration  pruebas de integración (necesitan MariaDB)
 #   make ci         lint + audit + security + theme + classes + unit
 # ---------------------------------------------------------------------------
 
@@ -19,10 +21,11 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme theme-check metrics metrics-json classes input-audit sql-audit ci clean perms serve browser-audit \
+.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme theme-check metrics metrics-json classes input-audit sql-audit integration ci clean perms serve browser-audit \
 	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
-	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
+	docker-reset docker-test docker-integration docker-security docker-prod \
+	docker-composer docker-qa \
 	docker-bench docker-urls
 
 help: ## Muestra esta ayuda
@@ -71,6 +74,15 @@ test: unit ## Pruebas unitarias (alias de `unit`)
 
 test-legacy: ## Suite del instalador (necesita base de datos configurada)
 	@$(PHP) $(ROOT)/setup/test/run-tests.php
+
+integration: ## Pruebas de integración contra MariaDB (crea <base>_test)
+	@if [ -x $(ROOT)/vendor/bin/phpunit ]; then \
+		echo "· PHPUnit (testsuite integration)"; \
+		$(PHP) $(ROOT)/vendor/bin/phpunit --testsuite integration --colors=never; \
+	else \
+		echo "· tests/run.php --integration (sin Composer)"; \
+		$(PHP) $(ROOT)/tests/run.php --integration --require-db; \
+	fi
 
 security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19)
 	@$(PHP) $(ROOT)/tools/security/php-cve-check.php
@@ -208,6 +220,10 @@ docker-install: ## Prepara la base de datos y dependencias tras un volumen nuevo
 
 docker-test: ## Ejecuta lint + auditoría dentro del contenedor
 	@docker compose run --rm tools make ci
+
+docker-integration: ## Pruebas de integración con MariaDB real (levanta `db`)
+	@docker compose up -d --wait db
+	@docker compose run --rm tools make integration
 
 docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 	@docker compose exec php php tools/security/php-cve-check.php

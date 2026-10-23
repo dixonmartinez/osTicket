@@ -93,10 +93,12 @@ required on the host):
     make security      # PHP version vs. php2shell (CVE-2026-109618/19)
     make theme         # light/dark theme integrity (no browser needed)
     make metrics       # code size and technical-debt report
+    make sql-audit     # hand-written SQL; fails if the count grows
     make ci            # lint + audit + security + theme (full pre-merge check)
 
-Inside containers: `make docker-test`, `make docker-security`,
-`make docker-composer`, `make docker-qa`.
+Inside containers: `make docker-test`, `make docker-integration` (ORM against
+a throwaway MariaDB database), `make docker-security`, `make docker-composer`,
+`make docker-qa`.
 
 Project documentation:
 

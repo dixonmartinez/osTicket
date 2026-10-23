@@ -216,7 +216,10 @@ function db_create_database($database, $charset='utf8',
 function db_query($query, $logError=true, $buffered=true) {
     global $ost, $__db;
 
-    if ($__db->unbuffered_result) {
+    // `isset()` y no la propiedad a secas: nadie la inicializa, y leerla
+    // cuando no existe es un aviso de PHP en cada consulta (oculto por el
+    // nivel de errores de la aplicación, pero ruido en las pruebas).
+    if (isset($__db->unbuffered_result) && $__db->unbuffered_result) {
         $__db->unbuffered_result->free();
         $__db->unbuffered_result = false;
     }
@@ -225,6 +228,8 @@ function db_query($query, $logError=true, $buffered=true) {
 
     $tries = 3;
     do {
+        // Si `query()` lanza, `$res` no llega a asignarse
+        $res = false;
         try {
             $res = $__db->query($query,
                 $buffered ? MYSQLI_STORE_RESULT : MYSQLI_USE_RESULT);

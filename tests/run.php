@@ -11,9 +11,12 @@
  * recién clonado y dentro del contenedor sin descargar nada.
  *
  * Uso:
- *   php tests/run.php                 # todo
+ *   php tests/run.php                 # pruebas unitarias (sin base de datos)
  *   php tests/run.php Format          # solo las clases cuyo nombre contenga
  *   php tests/run.php --list          # lista las pruebas
+ *   php tests/run.php --integration   # añade tests/integration/ (necesita BD)
+ *   php tests/run.php --integration --require-db
+ *                                     # ... y falla si no hay base de datos
  *
  * Código de salida: 0 todo bien, 1 algún fallo.
  */
@@ -27,14 +30,26 @@ require_once __DIR__ . '/bootstrap.php';
 
 $filter = null;
 $list = false;
+$integration = false;
+$requireDb = false;
 foreach (array_slice($argv, 1) as $arg) {
     if ($arg === '--list')
         $list = true;
+    elseif ($arg === '--integration')
+        $integration = true;
+    elseif ($arg === '--require-db')
+        $requireDb = true;
     elseif ($arg !== '' && $arg[0] !== '-')
         $filter = $arg;
 }
 
+/* Lo leen IntegrationTestCase y TestDatabase. */
+define('OST_TEST_REQUIRE_DB', $requireDb);
+
 $files = glob(__DIR__ . '/*Test.php') ?: array();
+if ($integration)
+    $files = array_merge($files,
+        glob(__DIR__ . '/integration/*Test.php') ?: array());
 sort($files);
 
 /* Cobertura del entorno: las pruebas se saltan lo que dependa de una
@@ -46,6 +61,8 @@ foreach (array('dom', 'mbstring', 'intl', 'mysqli') as $ext)
     $extensiones[] = $ext . ': ' . (extension_loaded($ext) ? 'sí' : 'no');
 
 printf("PHP %s — %s\n", PHP_VERSION, implode(', ', $extensiones));
+printf("Modo: %s%s\n", $integration ? 'unitarias + integración' : 'unitarias',
+    $requireDb ? ' (la base de datos es obligatoria)' : '');
 
 $passed = 0;
 $failed = 0;
