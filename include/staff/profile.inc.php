@@ -24,24 +24,7 @@ if ($avatar->isChangeable()) { ?>
           <div style="text-align: center">
             <a class="button no-pjax"
                 href="#ajax.php/staff/<?php echo $staff->getId(); ?>/avatar/change"
-                onclick="javascript:
-    event.preventDefault();
-    var $a = $(this),
-        form = $a.closest('form');
-    $.ajax({
-      url: $a.attr('href').substr(1),
-      dataType: 'json',
-      success: function(json) {
-        if (!json || !json.code)
-          return;
-        var code = form.find('[name=avatar_code]');
-        if (!code.length)
-          code = form.append($('<input>').attr({type: 'hidden', name: 'avatar_code'}));
-        code.val(json.code).trigger('change');
-        $a.closest('.avatar').find('img').replaceWith($(json.img));
-      }
-    });
-    return false;"><i class="icon-retweet"></i></a>
+                data-call="ostChangeAvatar"><i class="icon-retweet"></i></a>
           </div>
 <?php
 } ?>

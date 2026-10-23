@@ -487,6 +487,38 @@ check(!$withoutLookup,
     'las plantillas del buscador usan data-ost-user-lookup',
     'no usan data-ost-user-lookup: ' . implode(', ', $withoutLookup));
 
+/* Acciones de AJAX y de filas: sustituyen a los onclick de los ajustes, del
+   perfil y de los formularios dinámicos. */
+foreach (array('data-ost-ajax' => 'las peticiones AJAX',
+    'data-ost-mark-removed' => 'marcar una fila como quitada',
+    'data-ost-drop-row' => 'quitar los campos de un bloque') as $attr => $what) {
+    check(strpos($actions, $attr) !== false,
+        "js/actions.js implementa $attr ($what)",
+        "js/actions.js no implementa $attr: $what se queda en el onclick");
+}
+
+foreach (array('ostAuthenticationBackend' => 'elegir el backend de autenticación',
+    'ostAddFormEntry' => 'añadir un formulario a la lista',
+    'ostChangeAvatar' => 'cambiar el avatar del personal') as $fn => $what) {
+    check(strpos($actions, 'window.' . $fn . ' =') !== false,
+        "js/actions.js define $fn ($what)",
+        "falta window.$fn en js/actions.js");
+}
+
+$noInline = array();
+foreach (array('include/staff/profile.inc.php', 'include/staff/settings-system.inc.php',
+    'include/staff/staff.inc.php', 'include/staff/templates/dynamic-form.tmpl.php',
+    'include/staff/templates/user-register.tmpl.php',
+    'include/staff/templates/form-manage.tmpl.php',
+    'include/staff/templates/refer.tmpl.php') as $file) {
+    if (preg_match('/\bon(?:click|change|submit)\s*=/', read("$root/$file")))
+        $noInline[] = $file;
+}
+
+check(!$noInline,
+    'los ajustes, el perfil y los formularios ya no llevan onclick',
+    'siguen con manejadores en línea: ' . implode(', ', $noInline));
+
 /* 11. Herramientas de revisión visual ------------------------------------- */
 check(file_exists("$root/tools/ui/dark-audit.js"),
     'existe la auditoría de superficies claras (dark-audit)',

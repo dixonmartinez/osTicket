@@ -268,13 +268,13 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                         <input type="hidden" name="actions[]" value="<?php
                             echo $A->getId() ? "I".$A->getId() : "N".$A->getImpl()->getType(); ?>"/>
                         <div class="pull-right" style="position:absolute;top:2px;right:2px;">
-                            <a href="#" title="<?php echo __('clear'); ?>" onclick="javascript:
-                                if (!confirm(__('You sure?')))
-                                return false;
-                                $(this).closest('td').find('input[name=\'actions[]\']')
-                                    .val(function(i,v) { return 'D' + v.substring(1); });
-                                $(this).closest('tr').fadeOut(400, function() { $(this).hide(); });
-                                return false;"><i class="icon-trash"></i></a>
+                            <a href="#" title="<?php echo __('clear'); ?>"
+                                data-confirm="<?php echo __('You sure?'); ?>"
+                                data-ost-mark-removed
+                                data-ost-mark-removed-field="input[name='actions[]']"
+                                data-ost-mark-removed-prefix="D"
+                                data-ost-mark-removed-drop-first
+                                ><i class="icon-trash"></i></a>
                             </div>
                         </div>
                     </td>

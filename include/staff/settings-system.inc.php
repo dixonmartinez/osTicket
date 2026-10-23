@@ -335,14 +335,10 @@ $gmtime = Misc::gmtime();
             <?php echo Internationalization::getLanguageDescription($lang); ?>
             <input type="hidden" name="secondary_langs[]" value="<?php echo $lang; ?>"/>
             <div class="pull-right">
-            <a href="#<?php echo $lang; ?>" onclick="javascript:
-                if (confirm('<?php echo __('You sure?'); ?>')) {
-                    $(this).closest('.secondary_lang')
-                        .find('input').remove();
-                    $(this).closest('.secondary_lang').slideUp();
-                }
-                return false;
-                "><i class="icon-trash"></i></a>
+            <a href="#<?php echo $lang; ?>"
+                data-confirm="<?php echo __('You sure?'); ?>"
+                data-ost-drop-row=".secondary_lang"
+                ><i class="icon-trash"></i></a>
             </div>
             </div>
 <?php   } ?>

@@ -73,16 +73,10 @@ if (isset($options['entry']) && $options['mode'] == 'edit') { ?>
                 if ($field->isStorable() && ($a = $field->getAnswer()) && $a->isDeleted()) {
                     ?><a class="action-button float-right danger overlay" title="Delete this data"
                         href="#delete-answer"
-                        onclick="javascript:if (confirm('<?php echo __('You sure?'); ?>'))
-                            $.ajax({
-                                url: 'ajax.php/form/answer/'
-                                    +$(this).data('entryId') + '/' + $(this).data('fieldId'),
-                                type: 'delete',
-                                success: $.proxy(function() {
-                                    $(this).closest('tr').fadeOut();
-                                }, this)
-                            });
-                        return false;"
+                        data-confirm="<?php echo __('You sure?'); ?>"
+                        data-ost-ajax="ajax.php/form/answer/{@entry-id}/{@field-id}"
+                        data-ost-ajax-method="delete"
+                        data-ost-ajax-fade="tr"
                         data-field-id="<?php echo $field->getAnswer()->get('field_id');
                     ?>" data-entry-id="<?php echo $field->getAnswer()->get('entry_id');
                     ?>"> <i class="icon-trash"></i> </a></div><?php

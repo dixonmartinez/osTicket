@@ -55,7 +55,7 @@
 //     PJAX) y js/actions.js en el pie del panel.
 // v21: los diálogos pasan a data-ost-dialog (data-dialog es de osTicket y
 //     guarda una URL); sin subir la versión se sirve el actions.js viejo.
-const VERSION = 'ost-v21';
+const VERSION = 'ost-v22';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

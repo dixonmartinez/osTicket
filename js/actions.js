@@ -21,6 +21,25 @@
  *                              con «e.indexOf is not a function».
  *   data-confirm="¿Seguro?"    pide confirmación; si se cancela, no hace nada
  *                              (también en un <form>: confirma antes de enviar)
+ *   data-ost-ajax="url"        hace la petición AJAX y aplica el resultado:
+ *                              -method="post|delete" (por defecto GET),
+ *                              -data="a=1&b=2", -json (respuesta JSON),
+ *                              -reload (recarga al terminar) y
+ *                              -fade="tr" (desvanece el ancestro que case).
+ *                              En la URL, `{@attr}` se sustituye por el
+ *                              `data-attr` del propio elemento y `{#selector}`
+ *                              por el valor de ese campo del formulario
+ *   data-ost-drop-row=".caja"  quita los campos de la fila (para que no se
+ *                              envíen) y la desliza hacia arriba sin borrarla.
+ *                              Con -drop-row-field="input" se eligen los campos
+ *   data-ost-mark-removed      marca la fila como quitada en vez de borrarla:
+ *                              cambia el campo oculto de la fila y la desvanece
+ *                              sin quitarla del DOM, para que el formulario
+ *                              envíe la baja. Con -field="selector" (campo),
+ *                              -prefix="D" (prefijo nuevo), -drop-first
+ *                              (sustituye el primer carácter: I12 → D12),
+ *                              -row="tr" y -mark="save pending" (clase que
+ *                              se añade al botón de enviar del formulario)
  *   data-remove-closest="tr"   borra del DOM el ancestro que case con el
  *                              selector (filas, condiciones, idiomas…)
  *   data-toggle-target="#id"   muestra u oculta el destino; con
@@ -85,7 +104,8 @@
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
         + '[data-toggle-target],[data-reload],[data-click-target],'
         + '[data-set-name],[data-call],[data-ost-dialog-row],[data-pjax-query],'
-        + '[data-ost-user-lookup]';
+        + '[data-ost-user-lookup],[data-ost-mark-removed],'
+        + '[data-ost-ajax],[data-ost-drop-row]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -297,6 +317,119 @@
             nodes[i].click();
     }
 
+    /* Las filas de «quitar» de los filtros y de los destinatarios no se
+       borran: se quedan ocultas y su campo oculto cambia de valor (`D` para
+       filtrar, `-` para quitar el destinatario), que es lo que lee el
+       servidor al enviar el formulario. */
+    function markRemoved(el, event) {
+        var row = closest(el, el.getAttribute('data-ost-mark-removed-row') || 'tr');
+        var field = el.getAttribute('data-ost-mark-removed-field');
+        var prefix = el.getAttribute('data-ost-mark-removed-prefix') || '';
+        var node = row && field ? row.querySelector(field) : null;
+
+        event.preventDefault();
+
+        if (node) {
+            var value = node.value || '';
+
+            node.value = el.hasAttribute('data-ost-mark-removed-drop-first')
+                ? prefix + value.substring(1)
+                : prefix + value;
+        }
+
+        var mark = el.getAttribute('data-ost-mark-removed-mark');
+        var form = el.form || closest(el, 'form');
+
+        if (mark && form && window.jQuery)
+            window.jQuery('input[type=submit], button[type=submit]', form).addClass(mark);
+
+        if (row && window.jQuery)
+            window.jQuery(row).fadeOut(400, function () {
+                this.style.display = 'none';
+            });
+    }
+
+    /* Sustituye las marcas de una URL: `{#selector}` por el valor del campo
+       del formulario y `{@attr}` por el atributo `data-attr` del propio
+       elemento pulsado (`{@entry-id}` → data-entry-id). */
+    function resolveUrl(el, url) {
+        return String(url || '').replace(/\{([#@][^}]*)\}/g, function (match, token) {
+            token = token.replace(/^\s+|\s+$/g, '');
+
+            if (token.charAt(0) === '@') {
+                var attr = el.getAttribute('data-' + token.substring(1));
+
+                return attr === null ? '' : attr;
+            }
+
+            var node = document.querySelector(token);
+
+            return node && node.value ? node.value : '';
+        });
+    }
+
+    /* Petición AJAX declarativa. De momento la usan el reinicio del 2FA (POST
+       y recarga) y el borrado de una respuesta de un campo (DELETE y la fila
+       fuera). Si hiciera falta más lógica, se escribe una función con nombre
+       y se llama con `data-call`. */
+    function ajaxAction(el, event) {
+        var $ = window.jQuery;
+        var url = resolveUrl(el, el.getAttribute('data-ost-ajax'));
+
+        event.preventDefault();
+
+        if (!$ || !$.ajax || !url)
+            return;
+
+        var options = {
+            url: url,
+            type: (el.getAttribute('data-ost-ajax-method') || 'GET').toUpperCase()
+        };
+        var data = el.getAttribute('data-ost-ajax-data');
+        var fade = el.getAttribute('data-ost-ajax-fade');
+
+        if (data)
+            options.data = data;
+
+        if (el.hasAttribute('data-ost-ajax-json'))
+            options.dataType = 'json';
+
+        options.success = function () {
+            if (el.hasAttribute('data-ost-ajax-reload')) {
+                window.location.reload();
+                return;
+            }
+
+            var row = fade ? closest(el, fade) : null;
+
+            if (row)
+                $(row).fadeOut(400, function () {
+                    this.style.display = 'none';
+                });
+        };
+
+        $.ajax(options);
+    }
+
+    /* Quita los campos de un bloque y lo esconde deslizándolo: así el
+       formulario no envía el valor pero el bloque sigue en el DOM. */
+    function dropRow(el, event) {
+        var box = closest(el, el.getAttribute('data-ost-drop-row') || 'tr');
+        var fields = el.getAttribute('data-ost-drop-row-field') || 'input';
+
+        event.preventDefault();
+
+        if (!box)
+            return;
+
+        if (window.jQuery) {
+            window.jQuery(box).find(fields).remove();
+            window.jQuery(box).slideUp(400);
+        } else if (box.parentNode) {
+            box.parentNode.removeChild(box);
+        }
+    }
+
     /* `$.userLookup(url, callback)` devuelve el usuario elegido. Lo que cada
        onclick hacía con él se describe con los atributos data-ost-user-lookup-*:
        así el marcado no lleva JavaScript y el comportamiento se prueba solo.
@@ -393,11 +526,7 @@
             return;
 
         /* `ajax.php/users/select/{#uid}`: el id sale del campo del formulario. */
-        url = url.replace(/\{([#.][^}]*)\}/g, function (match, selector) {
-            var node = document.querySelector(selector.replace(/^\s+|\s+$/g, ''));
-
-            return node && node.value ? node.value : '';
-        });
+        url = resolveUrl(el, url);
 
         if (el.hasAttribute('data-ost-user-lookup-save-draft')
                 && typeof window.saveDraft === 'function')
@@ -492,6 +621,11 @@
                 return;
         }
 
+        if (el.hasAttribute('data-ost-mark-removed')) {
+            markRemoved(el, event);
+            return;
+        }
+
         if (el.hasAttribute('data-remove-closest')) {
             var target = closest(el, el.getAttribute('data-remove-closest'));
 
@@ -551,6 +685,16 @@
 
             openDialog(el.getAttribute('data-ost-dialog-row') + id,
                 parseInt(el.getAttribute('data-ost-dialog'), 10) || 201);
+            return;
+        }
+
+        if (el.hasAttribute('data-ost-ajax')) {
+            ajaxAction(el, event);
+            return;
+        }
+
+        if (el.hasAttribute('data-ost-drop-row')) {
+            dropRow(el, event);
             return;
         }
 
@@ -671,6 +815,110 @@
     /* ------------------------------------------------------------------ */
     /* Dos acciones con lógica propia, movidas aquí desde las plantillas    */
     /* ------------------------------------------------------------------ */
+
+    /* El backend de autenticación decide si se piden contraseña y activación.
+       -data-ost-backend-fields: se muestran sólo si el valor es «local»;
+       -data-ost-backend-conditional: se muestran si es «local» y el checkbox
+       de -unless no está marcado;
+       -data-ost-backend-local: valores que cuentan como «local», separados por
+       `|` (por defecto `|local`). */
+    window.ostAuthenticationBackend = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        var values = (this.getAttribute('data-ost-backend-local') || '|local').split('|');
+        var local = values.indexOf(this.value) !== -1;
+        var unless = this.getAttribute('data-ost-backend-unless');
+        var blocked = unless ? $(unless).is(':checked') : false;
+        var fields = this.getAttribute('data-ost-backend-fields');
+        var conditional = this.getAttribute('data-ost-backend-conditional');
+
+        if (fields)
+            $(fields)[local ? 'show' : 'hide']();
+
+        if (conditional)
+            $(conditional)[local && !blocked ? 'show' : 'hide']();
+    };
+
+    /* Añade un formulario a la lista de «Manage Forms»: copia la fila con el
+       nombre del formulario, su campo oculto y el botón de borrar. */
+    window.ostAddFormEntry = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        var button = $(this);
+        var select = button.parent().find('select');
+        var selected = select.find('option:selected');
+        var id = selected.val();
+
+        if (!id || !parseInt(id, 10) || selected.prop('disabled'))
+            return;
+
+        $('#ticket-entries').append($('<div></div>').addClass('sortable row-item')
+            .text(' ' + selected.text())
+            .data('id', id)
+            .prepend($('<i>').addClass('icon-reorder'))
+            .append($('<input/>').attr({name: 'forms[]', type: 'hidden'}).val(id))
+            .append($('<div></div>').addClass('button-group')
+                .append($('<div></div>').addClass('delete')
+                    .append($('<a href="#">')
+                        .append($('<i>').addClass('icon-trash'))
+                        .click(function () {
+                            selected.prop('disabled', false);
+                            $(this).closest('div.row-item').remove();
+                            $('#delete-warning').show();
+
+                            return false;
+                        })
+                    )
+                )
+            )
+        );
+
+        selected.prop('disabled', true);
+    };
+
+    /* Cambio de avatar del personal: pide un código nuevo, lo guarda en el
+       campo oculto `avatar_code` del formulario y sustituye la imagen. */
+    window.ostChangeAvatar = function (event) {
+        var $ = window.jQuery;
+        var el = this;
+
+        if (event && event.preventDefault)
+            event.preventDefault();
+
+        if (!$ || !$.ajax)
+            return false;
+
+        var href = el.getAttribute('href') || '';
+        var url = href.charAt(0) === '#' ? href.substring(1) : href;
+        var form = el.form || closest(el, 'form');
+
+        $.ajax({
+            url: url,
+            dataType: 'json',
+            success: function (json) {
+                if (!json || !json.code || !form)
+                    return;
+
+                var code = $(form).find('[name=avatar_code]');
+
+                /* El campo se crea si el formulario no lo tiene ya. */
+                if (!code.length)
+                    code = $('<input>').attr({type: 'hidden', name: 'avatar_code'})
+                        .appendTo(form);
+
+                code.val(json.code).trigger('change');
+                $(el).closest('.avatar').find('img').replaceWith($(json.img));
+            }
+        });
+
+        return false;
+    };
 
     /* Cambio de tema de ayuda: pide el formulario dinámico nuevo y mete su
        HTML (y los <script>/css que lo acompañan) en la página. */

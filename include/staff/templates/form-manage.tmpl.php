@@ -38,33 +38,8 @@ foreach ($forms as $e) { ?>
     echo $f->getTitle(); ?></option><?php
 } ?>
 </select>
-<button type="button" class="inline green button" onclick="javascript:
-    var select = $(this).parent().find('select'),
-        $sel = select.find('option:selected'),
-        id = $sel.val();
-    if (!id || !parseInt(id))
-        return;
-    if ($sel.prop('disabled'))
-        return;
-    $('#ticket-entries').append($('<div></div>').addClass('sortable row-item')
-        .text(' '+$sel.text())
-        .data('id', id)
-        .prepend($('<i>').addClass('icon-reorder'))
-        .append($('<input/>').attr({name:'forms[]', type:'hidden'}).val(id))
-        .append($('<div></div>').addClass('button-group')
-          .append($('<div></div>').addClass('delete')
-            .append($('<a href=\'#\'>')
-              .append($('<i>').addClass('icon-trash'))
-              .click(function() {
-                $sel.prop('disabled',false);
-                $(this).closest('div.row-item').remove();
-                $('#delete-warning').show();
-                return false;
-              })
-            )
-        ))
-    );
-    $sel.prop('disabled',true);"><i class="icon-plus-sign"></i>
+<button type="button" class="inline green button" data-call="ostAddFormEntry"
+    ><i class="icon-plus-sign"></i>
 <?php echo __('Add'); ?></button>
 </div>
 

@@ -140,13 +140,10 @@ if (($bks = StaffAuthenticationBackend::getInteractive())) {
         <tr>
           <td><?php echo __('Authentication Backend'); ?>:</td>
           <td>
-            <select name="backend" id="backend-selection"
-              style="width:300px" onchange="javascript:
-                if (this.value != '' && this.value != 'local')
-                    $('#password-fields').hide();
-                else if (!$('#welcome-email').is(':checked'))
-                    $('#password-fields').show();
-                ">
+            <select name="backend" id="backend-selection" style="width:300px"
+              data-call="ostAuthenticationBackend"
+              data-ost-backend-conditional="#password-fields"
+              data-ost-backend-unless="#welcome-email">
               <option value="">&mdash; <?php echo __('Use any available backend'); ?> &mdash;</option>
 <?php foreach ($bks as $ab) {
                 $id = $ab->getBkId(); ?>
@@ -170,18 +167,12 @@ if ($bks=Staff2FABackend::allRegistered() && $current = $staff->get2FABackend())
               <input type="text" size="40" style="width:300px"
                 name="default_2fa" disabled value="<?php echo $current->getName(); ?>" />
             &nbsp;
-            <button type="button" id="reset-2fa" class="action-button" onclick="javascript:
-                if (confirm('<?php echo __('You sure?'); ?>')) {
-                    $.ajax({
-                        url: 'ajax.php/staff/'+<?php echo $staff->getId(); ?>+'/reset-2fa',
-                        type: 'POST',
-                        data: {'staffId':<?php echo $staff->getId(); ?>},
-                        success: function(data) {
-                            location.reload();
-                        }
-                    });
-                }
-                return false;">
+            <button type="button" id="reset-2fa" class="action-button"
+                data-confirm="<?php echo __('You sure?'); ?>"
+                data-ost-ajax="ajax.php/staff/<?php echo $staff->getId(); ?>/reset-2fa"
+                data-ost-ajax-method="post"
+                data-ost-ajax-data="staffId=<?php echo $staff->getId(); ?>"
+                data-ost-ajax-reload>
               <i class="icon-gear"></i> <?php echo __('Reset 2FA'); ?>
             </button>
             <i class="offset help-tip icon-question-sign" href="#reset2fa"></i>

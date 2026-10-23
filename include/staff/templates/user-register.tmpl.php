@@ -39,19 +39,12 @@ echo sprintf(__(
             <tr>
                 <td><?php echo __('Authentication Sources'); ?>:</td>
                 <td>
-            <select name="backend" id="backend-selection" onchange="javascript:
-                if (this.value != '' && this.value != 'client') {
-                    $('#activation').hide();
-                    $('#password').hide();
-                }
-                else {
-                    $('#activation').show();
-                    if ($('#sendemail').is(':checked'))
-                        $('#password').hide();
-                    else
-                        $('#password').show();
-                }
-                ">
+            <select name="backend" id="backend-selection"
+                data-call="ostAuthenticationBackend"
+                data-ost-backend-local="|client"
+                data-ost-backend-fields="#activation"
+                data-ost-backend-conditional="#password"
+                data-ost-backend-unless="#sendemail">
                 <option value="">&mdash; <?php echo __('Use any available backend'); ?> &mdash;</option>
             <?php foreach (UserAuthenticationBackend::allRegistered() as $ab) {
                 if (!$ab->supportsInteractiveAuthentication()) continue; ?>

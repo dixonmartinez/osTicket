@@ -91,15 +91,13 @@ $manage = (!$target);
                     <div style="position:relative">
                     <input type="hidden" name="referrals[]" value="<?php echo $r->getId(); ?>"/>
                     <div class="pull-right" style="right:2px;">
-                        <a href="#" title="<?php echo __('clear'); ?>" onclick="javascript:
-                            if (!confirm(__('You sure?')))
-                            return false;
-                            $(this).closest('td').find('input[name=\'referrals[]\']')
-                                .val(function(i,v) { return '-'+ v; });
-                            $(this).closest('tr').fadeOut(400, function() { $(this).hide(); });
-                            $('input[type=submit], button[type=submit]',
-                                    $(this).closest('form')).addClass('save pending');
-                            return false;"><i class="icon-trash"></i></a>
+                        <a href="#" title="<?php echo __('clear'); ?>"
+                            data-confirm="<?php echo __('You sure?'); ?>"
+                            data-ost-mark-removed
+                            data-ost-mark-removed-field="input[name='referrals[]']"
+                            data-ost-mark-removed-prefix="-"
+                            data-ost-mark-removed-mark="save pending"
+                            ><i class="icon-trash"></i></a>
                         </div>
                     </div>
                 </td>
