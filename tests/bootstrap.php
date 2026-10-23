@@ -39,9 +39,14 @@ if (!function_exists('_S')) {
         return __($text);
     }
 }
+/* `_N` es la forma de singular/plural: sin traducción, elige la que toca
+   según el número, que es lo que comprueban las pruebas de los mensajes. */
 if (!function_exists('_N')) {
-    function _N($text) {
-        return $text;
+    function _N($singular, $plural = null, $count = 1) {
+        if ($plural === null)
+            return $singular;
+
+        return (is_numeric($count) && (int) $count === 1) ? $singular : $plural;
     }
 }
 if (!function_exists('dgettext')) {
@@ -62,6 +67,7 @@ require_once INCLUDE_DIR . 'class.validator.php';
    depende de la aplicación: por eso se puede cargar aquí. */
 require_once INCLUDE_DIR . 'class.ticket.post.php';
 require_once INCLUDE_DIR . 'class.ticket.create.php';
+require_once INCLUDE_DIR . 'class.massaction.php';
 require_once INCLUDE_DIR . 'class.thread.email.php';
 require_once INCLUDE_DIR . 'class.thread.entry.php';
 

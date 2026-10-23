@@ -52,12 +52,12 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 513 |
-| Líneas | 133.439 |
-| Funciones | 6.042 |
-| Clases, interfaces y rasgos | 654 en 186 archivos |
+| Archivos PHP propios | 514 |
+| Líneas | 133.606 |
+| Funciones | 6.056 |
+| Clases, interfaces y rasgos | 661 en 192 archivos |
 | Tamaño medio de función | 12,1 líneas |
-| Archivo más grande | `include/class.ticket.php` — 4.844 líneas |
+| Archivo más grande | `include/class.ticket.php` — 4.809 líneas |
 | Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
 | Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
 
@@ -68,9 +68,9 @@ atípicos, y ahora se ven:
 | Función | Líneas | Archivo |
 |---|---|---|
 | `Ticket::create()` | 500 | `include/class.ticket.php` |
-| `massProcess()` | 377 | `include/ajax.tickets.php` |
-| `massProcess()` | 330 | `include/ajax.tasks.php` |
+| `massProcess()` | 321 | `include/ajax.tickets.php` |
 | `Mailer::send()` | 297 | `include/class.mailer.php` |
+| `massProcess()` | 285 | `include/ajax.tasks.php` |
 | `QuerySet::compileSelect()` | 222 | `include/class.orm.php` |
 | `Ticket::postMessage()` | 178 | `include/class.ticket.php` |
 
@@ -78,11 +78,11 @@ atípicos, y ahora se ven:
 |---|---|
 | SQL a mano (`db_query`) | 183 |
 | `db_input()` (escape manual) | 164 |
-| Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.269 |
+| Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.260 |
 | `global $...` | 560 |
 | `eval()` | 15 |
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
-| `<script>` embebido en plantillas | 162 |
+| `<script>` embebido en plantillas | 161 |
 
 La media de 12,1 líneas por función es **buena**. Los valores atípicos son de
 dos tipos: siete archivos por encima de 2.000 líneas, y las funciones de la
@@ -94,7 +94,7 @@ Los archivos que más pesan:
 
 | Archivo | Líneas | Clases | Qué contiene | Antes |
 |---|---|---|---|---|
-| `include/class.ticket.php` | 4.844 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | igual |
+| `include/class.ticket.php` | 4.809 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | igual |
 | `include/class.forms.php` | 4.516 | 37 | Núcleo de formularios y campos | 6.220 líneas, 64 clases |
 | `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) | igual |
 | `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación | 3.232 líneas, 38 clases |
@@ -163,7 +163,7 @@ Lo que hay ahora:
 | `tests/bootstrap.php` | Entorno mínimo: define `ROOT_DIR`, `INCLUDE_DIR`, `PEAR_DIR`, sustituye `__()` y carga `Format` y `Validator`. Sin base de datos, sin configuración, sin sesión |
 | `tests/lib/UnitTestCase.php` | Clase base con la API de PHPUnit que usan las pruebas (asserts, `expectException`), para poder ejecutarlas sin `vendor/` |
 | `tests/run.php` | Ejecutor propio: recorre `tests/*Test.php` y llama a los métodos `test*`. Es lo que se usa cuando no hay Composer |
-| `tests/FormatTest.php` | 23 casos: tamaños, teléfonos, `truncate`, `mask`, `slugify`, escapado de HTML, cadenas de consulta… |
+| `tests/FormatTest.php` | 32 casos: tamaños, teléfonos, `truncate`, `mask`, `slugify`, escapado de HTML, cadenas de consulta… |
 | `tests/ValidatorTest.php` | 25 casos: correo (incluido el modo lista y `localhost`), IP y redes CIDR (v4 y v6), URL, teléfono, usuario, fórmula y el validador de formularios |
 | `tests/TicketPostTest.php` | 14 casos: origen e IP del mensaje, destinatarios sin el autor, rebotes |
 | `tests/ThreadEmailTest.php` | 19 casos: qué correo se acepta, mensaje del cliente o nota del agente |
@@ -171,10 +171,11 @@ Lo que hay ahora:
 | `tests/ClassMapTest.php` | 20 casos: lectura de clases e includes del propio código |
 | `tests/CodeMeasureTest.php` | 13 casos: el medidor de `make metrics` (cierres, heredoc, interpolación, HTML) |
 | `tests/TicketCreateTest.php` | 18 casos: campos por origen, validación por quién abre, fecha límite |
+| `tests/MassActionTest.php` | 37 casos: tabla de acciones de tickets y tareas, verbos, identificadores, mensajes, script del diálogo |
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 153 pruebas en ~0,2 s
+make unit          # 197 pruebas en ~0,2 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -238,7 +239,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-160 pruebas correctas, 0 fallidas, 4 omitidas
+197 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -257,15 +258,17 @@ buenos, el frente cambia de objetivo:
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
 | `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
-| Funciones de la aplicación por encima de 150 líneas | 6 | 6 |
-| Archivos por encima de 2.000 líneas | 7 | 7 (ninguno pasa de 4.844) |
+| `massProcess()` de tickets | 377 líneas | **321** (`MassAction`) |
+| `massProcess()` de tareas | 330 líneas | **285** (`MassAction`) |
+| Funciones de la aplicación por encima de 150 líneas | 10 | 10 |
+| Archivos por encima de 2.000 líneas | 7 | 7 (ninguno pasa de 4.809) |
 
 **Criterio:** sacar de las funciones largas los tramos que no tocan la base de
 datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: 73 casos nuevos sin base de datos.
+Pasos hechos: **110 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -273,30 +276,49 @@ Pasos hechos: 73 casos nuevos sin base de datos.
 | `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()` y `receivedFrom()` | `tests/ThreadEmailTest.php`, 19 casos |
 | `include/class.thread.entry.php` | `ThreadEntryInfo::title()` y `poster()` (qué se guarda), `replyFlags()` (respuesta a todos / al usuario), `bodyFlags()` (HTML equilibrado y nota de sistema), `dropStrippedImages()` y `markInline()` (adjuntos incrustados) | `tests/ThreadEntryInfoTest.php`, 22 casos |
 | `include/class.ticket.create.php` | `TicketCreate::requiredFields()` (qué exige cada origen: web, staff, api, email), `fieldFilter()` (qué se valida según quién abre), `dueDateError()` y `source()` | `tests/TicketCreateTest.php`, 18 casos |
+| `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
 
-Las cuatro clases ya están en uso (`Ticket::postMessage()`,
-`Thread::postEmail()`, `ThreadEntry::create()` y `Ticket::create()`). No cambia
-nada de lo que hacen, y ahora la parte que más se rompe —de quién es el correo,
-a quién se responde, cómo se marca la entrada y qué se exige al abrir un
-ticket— tiene pruebas.
+Las cinco clases ya están en uso (`Ticket::postMessage()`,
+`Thread::postEmail()`, `ThreadEntry::create()`, `Ticket::create()` y los dos
+`massProcess()`). No cambia nada de lo que hacen, y ahora la parte que más se
+rompe —de quién es el correo, a quién se responde, cómo se marca la entrada,
+qué se exige al abrir un ticket y qué se hace en lote con los seleccionados—
+tiene pruebas.
+
+`MassAction` no toca la base de datos: es la tabla de acciones (con sus verbos:
+«assigned» en un ticket y «claimed» en una tarea; «reopen» en tickets y
+«reopened» en tareas, diferencias que ya existían y se conservan), la lectura
+de los identificadores marcados y los mensajes. El resto de `massProcess()`
+—permisos, consultas y correo— se queda donde estaba.
+
+De paso se corrigieron tres defectos reales de los despachadores:
+
+1. `explode(',', $_POST['tids'])` reventaba si el formulario enviaba una lista
+   (`tids[]`), que es justo lo que arma el diálogo. `MassAction::ids()` acepta
+   las dos formas.
+2. Al combinar tickets, el `new SqlField('ticket_id')` se añadía **dentro** del
+   bucle que quitaba los campos, así que el identificador del padre entraba en
+   la lista de campos a borrar.
+3. `$expr` podía quedar sin definir, y se usaba `$ticket[0]` sin comprobar que
+   el ticket existiera.
+
+El script que copia las casillas marcadas al diálogo (`selectedScript()`) se
+compara byte a byte con el que había en cada archivo: es idéntico salvo el
+`form#tickets` / `form#tasks`. Así se refactoriza sin cambiar lo que ve el
+agente.
 
 `Ticket::create()` es la función más larga de la aplicación (536 líneas).
-Bajó a 500 con esas cuatro piezas; lo que queda es un flujo con base de datos
+Bajó a 500 con esas piezas; lo que queda es un flujo con base de datos
 de punta a punta (buscar tema, departamento, correo, crear el usuario, guardar
 el formulario, los colaboradores y el mensaje) y no se puede trocear sin
 pruebas de integración.
 
 Siguiente paso, por orden de riesgo:
 
-1. `massProcess()` de `include/ajax.tickets.php` (377) y de
-   `include/ajax.tasks.php` (330): son dos despachadores con la misma forma
-   (tabla de acciones, lectura de los identificadores seleccionados,
-   permisos). La tabla de acciones y el parseo de identificadores son puros;
-   el resto es base de datos.
-2. `Mailer::send()` (297) y `QuerySet::compileSelect()` (222): el primero es
+1. `Mailer::send()` (297) y `QuerySet::compileSelect()` (222): el primero es
    sobre todo envío y plantillas; el segundo, generación de SQL, donde hace
    falta una prueba que compare la consulta generada antes y después.
-3. `Ticket::create()` (500): lo que queda no se puede tocar con seguridad
+2. `Ticket::create()` (500): lo que queda no se puede tocar con seguridad
    hasta tener pruebas con base de datos. Ahí el siguiente paso del plan deja
    de ser mover código y pasa a ser **montar esa prueba de integración**
    (contenedor con MySQL ya disponible: `make docker-up`).
@@ -309,7 +331,7 @@ Siguiente paso, por orden de riesgo:
 del archivo diciendo qué hay dentro y las dependencias declaradas arriba
 (`include_once`), no supuestas por el orden de carga de `bootstrap.php`. El
 mapa se consulta con `make classes`; los candidatos que quedan son
-`class.forms.php` (64 clases) y `class.thread.php` (35).
+`class.forms.php` (37 clases) y `class.thread.php` (11).
 
 ### Frente 3 — Terminar la migración al ORM
 
@@ -367,7 +389,7 @@ mapa se consulta con `make classes`; los candidatos que quedan son
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
 - Éxito: ningún archivo por encima de 2.000 líneas. De momento ninguno pasa
-  de 5.000 (el mayor, `class.ticket.php`, tiene 4.844), y los que estaban por
+  de 5.000 (el mayor, `class.ticket.php`, tiene 4.809), y los que estaban por
   encima de 3.200 se han reducido un 30 %.
 
 ---

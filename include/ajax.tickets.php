@@ -17,6 +17,7 @@
 if(!defined('INCLUDE_DIR')) die('403');
 
 include_once(INCLUDE_DIR.'class.ticket.php');
+include_once(INCLUDE_DIR.'class.massaction.php');
 require_once(INCLUDE_DIR.'class.ajax.php');
 require_once(INCLUDE_DIR.'class.note.php');
 include_once INCLUDE_DIR . 'class.thread_actions.php';
@@ -981,35 +982,8 @@ class TicketsAjaxAPI extends AjaxController {
     function massProcess($action, $w=null)  {
         global $thisstaff, $cfg;
 
-        $actions = array(
-                'transfer' => array(
-                    'verbed' => __('transferred'),
-                    ),
-                'assign' => array(
-                    'verbed' => __('assigned'),
-                    ),
-                'refer' => array(
-                    'verbed' => __('referred'),
-                    ),
-                'merge' => array(
-                    'verbed' => __('merged'),
-                    ),
-                'link' => array(
-                    'verbed' => __('linked'),
-                    ),
-                'claim' => array(
-                    'verbed' => __('assigned'),
-                    ),
-                'delete' => array(
-                    'verbed' => __('deleted'),
-                    ),
-                'reopen' => array(
-                    'verbed' => __('reopen'),
-                    ),
-                'close' => array(
-                    'verbed' => __('closed'),
-                    ),
-                );
+        // Tabla de acciones y textos: ver MassAction
+        $actions = MassAction::actions('ticket');
 
         if (!isset($actions[$action]))
             Http::response(404, __('Unknown action'));
@@ -1017,24 +991,22 @@ class TicketsAjaxAPI extends AjaxController {
 
         $info = $errors = $e = array();
         $inc = null;
-        $i = $count = 0;
-        if ($_POST) {
-            if (!$_POST['tids'] || !($count=count($_POST['tids'])))
-                $errors['err'] = sprintf(
-                        __('You must select at least %s.'),
-                        __('one ticket'));
-        } else {
-            $count  =  $_REQUEST['count'];
-        }
+        $i = 0;
+        // Cuántos se han seleccionado y aviso si no hay ninguno
+        $selection = MassAction::selection($_POST, $_REQUEST, 'ticket');
+        $count = $selection['count'];
+        if ($selection['error'])
+            $errors['err'] = $selection['error'];
         switch ($action) {
         case 'merge':
         case 'link':
             $inc = 'merge-tickets.tmpl.php';
-            $ticketIds = $_GET ? explode(',', $_GET['tids']) : explode(',', $_POST['tids']);
+            $ticketIds = MassAction::ids($_GET, $_POST, $_REQUEST);
             $tickets = array();
-            $title = strpos($_SERVER['PATH_INFO'], 'link') !== false ? 'link' : 'merge';
-            $eventName = ($title && $title == 'link') ? 'linked' : 'merged';
-            $permission = ($title && $title == 'link') ? (Ticket::PERM_LINK) : (Ticket::PERM_MERGE);
+            $merge = MassAction::mergeAction($_SERVER['PATH_INFO'] ?? '');
+            $title = $merge['title'];
+            $eventName = $merge['event'];
+            $permission = ($title == 'link') ? (Ticket::PERM_LINK) : (Ticket::PERM_MERGE);
             $hasPermission = array();
             $parent = false;
 
@@ -1079,13 +1051,9 @@ class TicketsAjaxAPI extends AjaxController {
             if (count($ticketIds) > 1) {
                 $ticketIdsSorted = $ticketIds;
                 if ($parent && $parentMergeType != 'visual') {
-                    foreach ($ticketIdsSorted as $key => $value) {
-                        if ($value == $parent[0]) {
-                            unset($ticketIdsSorted[$key]);
-                            array_unshift($ticketIdsSorted, $value);
-                            array_unshift($ticketIdsSorted, new SqlField('ticket_id'));
-                        }
-                    }
+                    $ticketIdsSorted = MassAction::moveToFront($ticketIds,
+                        $parent[0]);
+                    array_unshift($ticketIdsSorted, new SqlField('ticket_id'));
                 }
 
                 $expr = call_user_func_array(array('SqlFunction', 'FIELD'), $ticketIdsSorted);
@@ -1128,7 +1096,7 @@ class TicketsAjaxAPI extends AjaxController {
             switch ($w) {
                 case 'agents':
                     $depts = array();
-                    $tids = $_POST['tids'] ?: array_filter(explode(',', $_REQUEST['tids']));
+                    $tids = MassAction::ids($_POST, $_POST, $_REQUEST);
                     if ($tids) {
                         $tickets = Ticket::objects()
                             ->distinct('dept_id')
@@ -1310,22 +1278,11 @@ class TicketsAjaxAPI extends AjaxController {
 
             // Assume success
             if ($i==$count) {
-                $msg = sprintf(__('Successfully %1$s %2$s.' /* Tokens are <actioned> <x selected ticket(s)> */ ),
-                        $actions[$action]['verbed'],
-                        sprintf('%1$d %2$s',
-                            $count,
-                            _N('selected ticket', 'selected tickets', $count))
-                        );
-                $_SESSION['::sysmsgs']['msg'] = $msg;
+                $_SESSION['::sysmsgs']['msg'] = MassAction::successMessage(
+                    $actions[$action]['verbed'], $count, 'ticket');
             } else {
-                $warn = sprintf(
-                        __('%1$d of %2$d %3$s %4$s'
-                        /* Tokens are <x> of <y> <selected ticket(s)> <actioned> */),
-                        $i, $count,
-                        _N('selected ticket', 'selected tickets',
-                            $count),
-                        $actions[$action]['verbed']);
-                $_SESSION['::sysmsgs']['warn'] = $warn;
+                $_SESSION['::sysmsgs']['warn'] = MassAction::partialMessage(
+                    $i, $count, $actions[$action]['verbed'], 'ticket');
             }
             Http::response(201, 'processed');
         } elseif($_POST && !isset($info['error'])) {
@@ -1340,19 +1297,7 @@ class TicketsAjaxAPI extends AjaxController {
 
         include STAFFINC_DIR . "templates/$inc";
         //  Copy checked tickets to the form.
-        echo "
-        <script type=\"text/javascript\">
-        $(function() {
-            $('form#tickets input[name=\"tids[]\"]:checkbox:checked')
-            .each(function() {
-                $('<input>')
-                .prop('type', 'hidden')
-                .attr('name', 'tids[]')
-                .val($(this).val())
-                .appendTo('form.mass-action');
-            });
-        });
-        </script>";
+        echo MassAction::selectedScript('tickets');
 
     }
 

@@ -17,6 +17,7 @@
 if(!defined('INCLUDE_DIR')) die('403');
 
 include_once(INCLUDE_DIR.'class.ticket.php');
+include_once(INCLUDE_DIR.'class.massaction.php');
 require_once(INCLUDE_DIR.'class.ajax.php');
 require_once(INCLUDE_DIR.'class.task.php');
 include_once INCLUDE_DIR . 'class.thread_actions.php';
@@ -298,26 +299,8 @@ class TasksAjaxAPI extends AjaxController {
     function massProcess($action, $w=null)  {
         global $thisstaff, $cfg;
 
-        $actions = array(
-                'transfer' => array(
-                    'verbed' => __('transferred'),
-                    ),
-                'assign' => array(
-                    'verbed' => __('assigned'),
-                    ),
-                'claim' => array(
-                    'verbed' => __('claimed'),
-                    ),
-                'delete' => array(
-                    'verbed' => __('deleted'),
-                    ),
-                'reopen' => array(
-                    'verbed' => __('reopened'),
-                    ),
-                'close' => array(
-                    'verbed' => __('closed'),
-                    ),
-                );
+        // Tabla de acciones y textos: ver MassAction
+        $actions = MassAction::actions('task');
 
         if (!isset($actions[$action]))
             Http::response(404, __('Unknown action'));
@@ -325,16 +308,12 @@ class TasksAjaxAPI extends AjaxController {
 
         $info = $errors = $e = array();
         $inc = null;
-        $i = $count = 0;
-        if ($_POST) {
-            if (!$_POST['tids'] || !($count=count($_POST['tids'])))
-                $errors['err'] = sprintf(
-                        __('You must select at least %s.'),
-                        __('one task'));
-        } else {
-            $count  =  $_REQUEST['count'];
-        }
-
+        $i = 0;
+        // Cuántos se han seleccionado y aviso si no hay ninguno
+        $selection = MassAction::selection($_POST, $_REQUEST, 'task');
+        $count = $selection['count'];
+        if ($selection['error'])
+            $errors['err'] = $selection['error'];
         switch ($action) {
         case 'claim':
             $w = 'me';
@@ -354,8 +333,7 @@ class TasksAjaxAPI extends AjaxController {
             switch ($w) {
             case 'agents':
                 $depts = array();
-                $tids = $_POST['tids'] ?: array_filter(
-                        explode(',', @$_REQUEST['tids'] ?: ''));
+                $tids = MassAction::ids($_POST, $_POST, $_REQUEST);
                 if ($tids) {
                     $tasks = Task::objects()
                         ->distinct('dept_id')
@@ -482,11 +460,10 @@ class TasksAjaxAPI extends AjaxController {
             }
             break;
         case 'reopen':
-            $info['status'] = 'open';
         case 'close':
             $inc = 'task-status.tmpl.php';
             $info[':action'] = "#tasks/mass/$action";
-            $info['status'] = $info['status'] ?: 'closed';
+            $info['status'] = MassAction::statusFor($action);
             $perm = '';
             switch ($info['status']) {
             case 'open':
@@ -582,20 +559,11 @@ class TasksAjaxAPI extends AjaxController {
 
             // Assume success
             if ($i==$count) {
-                $msg = sprintf(__('Successfully %1$s %2$s.' /* Tokens are <actioned> <x selected task(s)> */),
-                        $actions[$action]['verbed'],
-                        sprintf('%1$d %2$s',
-                            $count,
-                            _N('selected task', 'selected tasks', $count))
-                        );
-                $_SESSION['::sysmsgs']['msg'] = $msg;
+                $_SESSION['::sysmsgs']['msg'] = MassAction::successMessage(
+                    $actions[$action]['verbed'], $count, 'task');
             } else {
-                $warn = sprintf(
-                        __('%1$d of %2$d %3$s %4$s'), $i, $count,
-                        _N('selected task', 'selected tasks',
-                            $count),
-                        $actions[$action]['verbed']);
-                $_SESSION['::sysmsgs']['warn'] = $warn;
+                $_SESSION['::sysmsgs']['warn'] = MassAction::partialMessage(
+                    $i, $count, $actions[$action]['verbed'], 'task');
             }
             Http::response(201, 'processed');
         } elseif($_POST && !isset($info['error'])) {
@@ -611,19 +579,7 @@ class TasksAjaxAPI extends AjaxController {
 
         include STAFFINC_DIR . "templates/$inc";
         //  Copy checked tasks to the form.
-        echo "
-        <script type=\"text/javascript\">
-        $(function() {
-            $('form#tasks input[name=\"tids[]\"]:checkbox:checked')
-            .each(function() {
-                $('<input>')
-                .prop('type', 'hidden')
-                .attr('name', 'tids[]')
-                .val($(this).val())
-                .appendTo('form.mass-action');
-            });
-        });
-        </script>";
+        echo MassAction::selectedScript('tasks');
     }
 
     function transfer($tid) {
