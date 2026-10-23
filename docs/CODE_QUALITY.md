@@ -525,6 +525,19 @@ ORM y no por pereza:
 - Hay un **tope de 25 marcas** (`SqlAudit::LEGACY_MAX`): si se pudiera marcar
   todo, el contador volvería a no significar nada.
 
+**Un falso positivo del escáner, corregido.** `tools/audit/scan.php` marcaba
+como XSS cualquier `echo` cuyo texto contuviera `$_GET`, aunque fuera una
+cadena **escapada** que sólo nombra la variable:
+
+```php
+echo "input-audit — accesos directos a \$_GET, \$_POST y \$_REQUEST\n\n";
+```
+
+Eso es texto literal (la barra invertida impide la interpolación) y hacía
+fallar `make docker-test` por un mensaje de ayuda. La regla ignora ahora las
+apariciones escapadas; las que sí interpolan se siguen marcando, y está
+comprobado con los dos casos.
+
 Las 22 marcas son de siete archivos, y ninguna es una consulta de la
 aplicación que se pueda escribir con el ORM:
 

@@ -241,18 +241,55 @@ class OrmIntegrationTest extends IntegrationTestCase {
     /* ------------------------------------------------------------------ */
 
     public function testInsertaConLaFechaDeLaBase(): void {
-        // El frente 3 sustituyó `updated=NOW()` en el SQL a mano por
+        // El frente 3 sustituyó `updated=NOW()` del SQL a mano por
         // `new SqlCode('NOW()')`: el valor tiene que ponerlo MariaDB, no PHP.
+        // Si viajara como parámetro, la columna `datetime` recibiría la
+        // cadena 'NOW()' o NULL (con sql_mode estricto).
         $row = new OrmIntegrationRow(array('name' => 'con-fecha'));
         $row->stamp = new SqlCode('NOW()');
 
-        $this->assertTrue($row->save());
-        $this->assertNotNull($this->value(
-            'SELECT `stamp` FROM `ost_test_row` WHERE `id` = ' . $row->id));
+        // El SQL que se va a ejecutar, sin ejecutarlo: si algo falla, el
+        // mensaje dice exactamente qué se envió (compilar no consume los
+        // parámetros del guardado porque usa otro compilador).
+        $enviado = DbEngine::getCompiler()->compileInsert($row)->sql;
 
-        // El valor que quedó en el modelo es el que devolvió la base
-        $leida = OrmIntegrationRow::lookup($row->id);
-        $this->assertNotNull($leida->stamp);
+        $this->assertTrue($row->save(),
+            'no se guardó la fila con NOW(); SQL: ' . $enviado);
+        $this->assertNotNull($row->id, 'el modelo no recibió el id de la base');
+
+        // Se busca por nombre y no por id: así un fallo en la propagación
+        // del id no se confunde con un fallo en la fecha.
+        $filas = $this->rows(
+            "SELECT `id`, `stamp`, NOW() AS `ahora` FROM `ost_test_row`"
+            . " WHERE `name` = 'con-fecha'");
+        $this->assertCount(1, $filas,
+            'filas guardadas: ' . var_export($filas, true));
+        if (!$filas)
+            return;
+
+        $fila = $filas[0];
+        $this->assertNotNull($fila['stamp'],
+            'la base dejó la fecha vacía: ' . var_export($fila, true)
+            . '; SQL: ' . $enviado);
+        // La fecha tiene que ser la del servidor de base de datos: no puede
+        // diferir de su propio NOW() en más de dos minutos.
+        $this->assertLessThan(120,
+            abs(strtotime($fila['ahora']) - strtotime($fila['stamp'])),
+            'la fecha no la calculó la base: ' . var_export($fila, true));
+
+        // Y al releerla por el ORM, el campo llega con valor. Se usa
+        // `values_flat()`, que siempre consulta: `lookup()` puede devolver la
+        // instancia en caché del propio insert y entonces no probaría nada.
+        $leido = array();
+        foreach (OrmIntegrationRow::objects()
+                ->filter(array('id' => $row->id))
+                ->values_flat('stamp') as list($stamp))
+            $leido[] = $stamp;
+
+        $this->assertCount(1, $leido, 'la fila no se pudo releer por el ORM');
+        if ($leido)
+            $this->assertNotNull($leido[0],
+                'el ORM devolvió stamp vacío: ' . var_export($leido, true));
     }
 
     public function testActualizaEnBloqueConLaFechaDeLaBase(): void {

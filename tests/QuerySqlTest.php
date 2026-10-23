@@ -96,6 +96,21 @@ class QuerySqlTest extends UnitTestCase {
     /* La consulta más simple                                              */
     /* ------------------------------------------------------------------ */
 
+    public function testElInsertLlevaLaFuncionDeLaBase(): void {
+        // `new SqlCode('NOW()')` tiene que viajar como SQL, no como
+        // parámetro: si se enviara como valor, la columna `datetime`
+        // recibiría la cadena 'NOW()' (o NULL, con sql_mode estricto).
+        $this->prepare();
+        $row = new \QuerySqlProbe(array('name' => 'con-fecha'));
+        $row->created = new \SqlCode('NOW()');
+
+        $ex = \DbEngine::getCompiler()->compileInsert($row);
+
+        $this->assertSame(
+            'INSERT INTO `probe` SET `name` = :1, `created` = NOW()', $ex->sql);
+        $this->assertSame(array('con-fecha'), $ex->params);
+    }
+
     public function testConsultaSimple(): void {
         $q = $this->compile($this->probe());
 

@@ -318,6 +318,12 @@ class Scanner {
     }
 
     private function isTaintedEcho($expr) {
+        // `"\$_GET"` es texto literal dentro de la cadena, no la variable: la
+        // barra invertida la escapa. Sin esto, un mensaje de ayuda que nombra
+        // las superglobales se marca como XSS (le pasó a
+        // tools/quality/input-audit.php).
+        $expr = str_replace('\\$', '', $expr);
+
         $tainted = false;
         foreach (self::$superglobals as $sg)
             if (strpos($expr, $sg) !== false)
