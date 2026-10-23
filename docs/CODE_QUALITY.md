@@ -178,7 +178,7 @@ Lo que hay ahora:
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 349 pruebas en ~0,3 s
+make unit          # 352 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -242,7 +242,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-349 pruebas correctas, 0 fallidas, 4 omitidas
+352 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -388,6 +388,7 @@ El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
 | `tests/integration/OrmIntegrationTest.php` | 13 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, y que el esquema del instalador se cargue entero |
 | `tests/OrmDirtyTest.php` | 10 casos sin base: qué cuenta como campo cambiado (una cadena vacía y un cero sí; un `'5'` de la base frente a un `5` asignado, no) y que el ORM tenga sus dependencias cargadas (`Signal`, `Misc`) |
 | `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
+| `tests/OrmPropertiesTest.php` | 3 casos sin base: recorre `class.orm.php`, `class.orm.select.php` y `class.util.php` y comprueba con `property_exists()` que cada `$this->propiedad = …` esté declarada. Detecta la propiedad **y la línea** |
 | `make integration` | `tests/run.php --integration --require-db`, o PHPUnit (`--testsuite integration`) si está instalado |
 | `make docker-integration` | Levanta `db` y ejecuta lo anterior dentro del contenedor `tools` |
 
@@ -400,8 +401,8 @@ de datos—.
 Las pruebas de integración quedan **fuera de `make unit` y de `make ci`** a
 propósito: `ci` tiene que seguir corriendo en cualquier sitio sin Docker.
 
-**La primera ejecución encontró tres cosas**, que es exactamente para lo que
-está:
+**La primera ejecución encontró tres cosas**, y la segunda una cuarta: es
+exactamente para lo que está.
 
 1. **El banco no cargaba `Signal` ni `Misc`.** El ORM los necesita (`save()` y
    `delete()` emiten señales; `db_connect()` siembra el generador aleatorio con
@@ -421,6 +422,35 @@ está:
    sin comprobar que existiera (en cada consulta, oculto por el nivel de
    errores de la aplicación) y `$res` podía quedarse sin asignar si `query()`
    lanzaba.
+4. **Siete propiedades sin declarar en el ORM**, que PHP 8.2 marca como
+   obsoletas —una deprecación por consulta—:
+
+   | Clase | Propiedad | Por qué |
+   |---|---|---|
+   | `QuerySet` | `$_iterator` | el iterador ya creado; cada primera vuelta de una consulta lo creaba |
+   | `ModelInstanceManager` | `$annotations` | **errata**: estaba declarada como `$annnotations`, con tres enes |
+   | `MySqlExecutor` | `$types` | tipos de columna que `_setupCast()` rellena para convertir los valores |
+   | `ModelMeta` | `$parent` | sólo existe cuando el modelo hereda de otro |
+   | `SqlFunction` | `$func`, `$args` | los pone el constructor |
+   | `SqlCode` | `$code` | ídem |
+   | `ModelResultSet` | `$model`, `$queryset` | los rellena `InstrumentedList` |
+
+   La errata es la que más escuece: el nombre correcto no existía, así que
+   **cada** modelo instanciado creaba la propiedad al vuelo, y la declaración
+   con la errata no servía absolutamente para nada.
+
+   Para que no vuelva, `tests/OrmPropertiesTest.php` analiza los tres archivos
+   del ORM con el tokenizador, se queda con cada escritura `$this->propiedad`
+   y comprueba que esté declarada (en la clase o en un padre). No ejecuta
+   nada, así que funciona sin base de datos y dice clase y línea:
+
+   ```
+   propiedades dinámicas (PHP 8.2 las marca obsoletas):
+   ModelInstanceManager::$annotations (línea 1883), MySqlExecutor::$types (línea 3409)
+   ```
+
+   Se comprobó quitando las declaraciones a propósito: el fallo aparece con el
+   nombre y la línea de cada una.
 
 **Organización de archivos.** Un archivo por familia de clases, con el nombre
 del archivo diciendo qué hay dentro y las dependencias declaradas arriba

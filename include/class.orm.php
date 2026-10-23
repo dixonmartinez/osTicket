@@ -53,6 +53,9 @@ class ModelMeta implements ArrayAccess {
     var $model;
     var $meta = array();
     var $new;
+    /* Sólo se rellena cuando el modelo hereda de otro; sin declararla, cada
+       modelo con padre creaba una propiedad dinámica (deprecación en PHP 8.2) */
+    var $parent;
     var $subclasses = array();
     var $fields;
 
@@ -876,6 +879,8 @@ trait WriteableAnnotatedModelTrait {
 
 class SqlFunction {
     var $alias;
+    var $func;
+    var $args = array();
 
     function __construct($name) {
         $this->func = $name;
@@ -1062,6 +1067,8 @@ class SqlField extends SqlExpression {
 }
 
 class SqlCode extends SqlFunction {
+    var $code;
+
     function __construct($code) {
         $this->code = $code;
     }
@@ -1178,6 +1185,10 @@ class QuerySet implements IteratorAggregate, ArrayAccess, Serializable, Countabl
 
     var $query;
     var $count;
+    /* Iterador ya creado: `getIterator()` lo guarda para no repetir la
+       consulta. Sin declararlo, la primera vuelta de cada QuerySet creaba
+       una propiedad dinámica. */
+    var $_iterator;
     var $total;
 
     function __construct($model) {
@@ -1802,6 +1813,11 @@ implements ArrayAccess {
 
 class ModelResultSet
 extends CachedResultSet {
+    /* Los rellena InstrumentedList (listas de relaciones); se declaran aquí
+       para que no sean propiedades dinámicas. */
+    var $model;
+    var $queryset;
+
     /**
      * Find the first item in the current set which matches the given criteria.
      * This would be used in favor of ::filter() which might trigger another
@@ -1854,7 +1870,7 @@ implements IteratorAggregate {
     var $model;
     var $map;
     var $resource;
-    var $annnotations;
+    var $annotations;
     var $defer;
 
     static $objectCache = array();
@@ -3197,6 +3213,9 @@ class MySqlPreparedExecutor {
     var $map;
 
     var $unbuffered = false;
+    /* Tipos de columna del resultado, que `_setupCast()` rellena para
+       convertir los valores que devuelve MySQL. */
+    var $types = array();
 
     function __construct($sql, $params, $map=null) {
         $this->sql = $sql;

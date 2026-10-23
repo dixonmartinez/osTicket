@@ -130,7 +130,8 @@ class OrmIntegrationTest extends IntegrationTestCase {
             $vistos[] = $name;
 
         sort($vistos);
-        $this->assertSame(array('dos', 'uno'), $vistos);
+        // Los ids pedidos son el primero y el tercero: uno y tres
+        $this->assertSame(array('tres', 'uno'), $vistos);
     }
 
     public function testOrdenaYLimita(): void {

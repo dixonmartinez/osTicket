@@ -176,8 +176,20 @@ class UnitTestCase {
             return $value ? 'true' : 'false';
         if ($value === null)
             return 'null';
-        if (is_array($value))
-            return 'array(' . count($value) . ')';
+        if (is_array($value)) {
+            // Con el contenido, no sólo el tamaño: dos arrays del mismo
+            // tamaño y distinto contenido decían exactamente lo mismo
+            // («esperado: array(2), recibido: array(2)») y el fallo no se
+            // podía leer.
+            $items = array();
+            foreach (array_slice($value, 0, 6) as $key => $item)
+                $items[] = (is_int($key) ? '' : $key . ' => ')
+                    . $this->describe($item);
+            if (count($value) > 6)
+                $items[] = '… ' . (count($value) - 6) . ' más';
+
+            return 'array(' . count($value) . ') [' . implode(', ', $items) . ']';
+        }
         if (is_object($value))
             return get_class($value);
 
