@@ -34,6 +34,11 @@ if (!function_exists('__')) {
 }
 
 /* Igual que arriba para las variantes que usan algunas clases. */
+if (!function_exists('_S')) {
+    function _S($text) {
+        return __($text);
+    }
+}
 if (!function_exists('_N')) {
     function _N($text) {
         return $text;
@@ -56,6 +61,7 @@ require_once INCLUDE_DIR . 'class.validator.php';
 /* Piezas puras sacadas de las clases grandes (frente 2). Este archivo no
    depende de la aplicación: por eso se puede cargar aquí. */
 require_once INCLUDE_DIR . 'class.ticket.post.php';
+require_once INCLUDE_DIR . 'class.thread.email.php';
 
 /* Clase base: PHPUnit si se ha instalado con Composer; si no, la de lib/. */
 if (class_exists('PHPUnit\Framework\TestCase'))

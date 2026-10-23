@@ -45,13 +45,13 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 502 |
-| Líneas | 132.607 |
-| Funciones | 5.902 |
+| Archivos PHP propios | 503 |
+| Líneas | 132.689 |
+| Funciones | 5.907 |
 | Tamaño medio de función | 10,8 líneas |
 | Archivo más grande | `include/class.forms.php` — 6.220 líneas |
 | Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 407 líneas (herramienta de línea de comandos) |
-| Función más larga de la aplicación | `Ticket::postMessage()` — 178 líneas (eran 190) |
+| Función más larga de la aplicación | `ThreadEntry::create()` — 185 líneas |
 
 **No hay ninguna función de 1.400 líneas.** La más larga de la aplicación
 ronda las 180 y la media son 11. El problema de este código no es el tamaño de
@@ -147,8 +147,9 @@ buenos, el frente cambia de objetivo:
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Funciones de la aplicación por encima de 150 líneas | 6 | 5 (`postMessage` ya está por debajo) |
-| `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost` + pruebas) |
+| Funciones de la aplicación por encima de 150 líneas | 5 | **4** |
+| `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
+| `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
 | Archivos por encima de 2.000 líneas | 5 | 5 |
 
 **Criterio:** sacar de las funciones largas los tramos que no tocan la base de
@@ -158,20 +159,22 @@ integración con base de datos.
 
 Primer paso hecho:
 
-| Pieza | Qué contiene |
-|---|---|
-| `include/class.ticket.post.php` | `TicketPost::normalizeVars()` (origen e IP del mensaje), `withoutPoster()` (quita al autor de los destinatarios), `shouldAutoRespond()` (rebotes y respuestas automáticas) |
-| `tests/TicketPostTest.php` | 14 casos, sin base de datos: los destinatarios se simulan con objetos mínimos |
+| Pieza | Qué contiene | Pruebas |
+|---|---|---|
+| `include/class.ticket.post.php` | `TicketPost::normalizeVars()` (origen e IP del mensaje), `withoutPoster()` (quita al autor de los destinatarios), `shouldAutoRespond()` (rebotes y respuestas automáticas) | `tests/TicketPostTest.php`, 14 casos |
+| `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()` y `receivedFrom()` | `tests/ThreadEmailTest.php`, 19 casos |
 
-`Ticket::postMessage()` ya usa esas tres funciones; no cambia nada de lo que
-hace, y ahora la parte que más se rompe (a quién se responde) tiene pruebas.
+`Ticket::postMessage()` y `Thread::postEmail()` ya usan esas funciones. No
+cambia nada de lo que hacen, y ahora la parte que más se rompe (de quién es el
+correo, a quién se responde) tiene pruebas.
 
 Siguiente paso, por orden de riesgo:
 
-1. `Thread::postEmail()` (181) y `Thread::create()` (185): las piezas de
-   normalización de correo (asunto, remitente, cabeceras) son puras.
-2. `Dept::update()` (159), `Staff::update()` (131), `Organization::update()`
-   (128): separar la validación de la escritura.
+1. `ThreadEntry::create()` (185): la preparación del cuerpo, el título, la
+   firma y las banderas (responder a todos / nota de sistema) son puras; el
+   guardado y los adjuntos no.
+2. `Schedule::buildFields()` (175) y `Dept::update()` (159): separar la
+   validación de la escritura.
 3. Los archivos grandes: `class.queue.php` tiene cuatro clases juntas; mover
    `QueueColumnCondition*` a su propio archivo es mecánico y comprobable con
    `class_exists()`.

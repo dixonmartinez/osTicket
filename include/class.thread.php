@@ -15,6 +15,7 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 include_once(INCLUDE_DIR.'class.ticket.php');
+include_once(INCLUDE_DIR.'class.thread.email.php');
 include_once(INCLUDE_DIR.'class.draft.php');
 include_once(INCLUDE_DIR.'class.role.php');
 
@@ -448,44 +449,14 @@ implements Searchable {
         // | Message (M)      | Response (R)      | From: Staff |
         // +------------------+-------------------+-------------+
 
-        if (!$object = $this->getObject()) {
-            // How should someone find this thread?
+        // Hilo sin objeto, o ticket cerrado que no se puede reabrir y correo
+        // que no viene de un agente: no se guarda nada. Ver ThreadEmailInfo
+        $object = $this->getObject();
+        if (!ThreadEmailInfo::accepts($object, $mailinfo['staffId'] ?? null))
             return false;
-        }
-        elseif ($object instanceof Ticket && (
-               !$mailinfo['staffId']
-            && $object->isClosed()
-            && !$object->isReopenable()
-        )) {
-            // Ticket is closed, not reopenable, and email was not submitted
-            // by an agent. Email cannot be submitted
-            return false;
-        }
 
-        $vars = array(
-            'mid' =>    $mailinfo['mid'],
-            'header' => $mailinfo['header'],
-            'poster' => $mailinfo['name'],
-            'origin' => 'Email',
-            'source' => 'Email',
-            'ip' =>     '',
-            'reply_to' => $entry,
-            'recipients' => $mailinfo['recipients'],
-            'thread_entry_recipients' => $mailinfo['thread_entry_recipients'],
-            'to-email-id' => $mailinfo['to-email-id'],
-            'autorespond' => !isset($mailinfo['passive']),
-        );
-
-        // XXX: Is this necessary?
-        if ($object instanceof Ticket)
-            $vars['ticketId'] = $object->getId();
-        if ($object instanceof Task)
-            $vars['taskId'] = $object->getId();
-
+        $vars = ThreadEmailInfo::varsFromMail($mailinfo, $entry, $object);
         $errors = array();
-
-        if (isset($mailinfo['attachments']))
-            $vars['attachments'] = $mailinfo['attachments'];
 
         $body = $mailinfo['message'];
 
@@ -514,27 +485,26 @@ implements Searchable {
         // Attempt to determine the user posting the entry and the
         // corresponding entry type by the information determined by the
         // mail parser (via the In-Reply-To header)
-        switch ($mailinfo['userClass']) {
-        case 'C': # Thread collaborator
-            $vars['flags'] = ThreadEntry::FLAG_COLLABORATOR;
-        case 'U': # Ticket owner
-            $vars['thread-type'] = 'M';
-            $vars['userId'] = $mailinfo['userId'];
-            break;
-
-        case 'A': # System administrator
-        case 'S': # Staff member (agent)
-            $vars['thread-type'] = 'N';
-            $vars['staffId'] = $mailinfo['staffId'];
-            if ($vars['staffId'])
-                $vars['poster'] = Staff::lookup($mailinfo['staffId']);
-            break;
-
-        // The user type was not identified by the mail parsing system. It
-        // is likely that the In-Reply-To and References headers were not
-        // properly brokered by the user's mail client. Use the old logic to
-        // determine the post type.
-        default:
+        // Clase de remitente deducida por el analizador de correo. Ver
+        // ThreadEmailInfo::entryTypeForUserClass()
+        if ($type = ThreadEmailInfo::entryTypeForUserClass(
+                    $mailinfo['userClass'] ?? null)) {
+            $vars['thread-type'] = $type['thread-type'];
+            if (isset($type['flags']))
+                $vars['flags'] = $type['flags'];
+            if ($type['poster'] == 'staff') {
+                $vars['staffId'] = $mailinfo['staffId'] ?? null;
+                if ($vars['staffId'])
+                    $vars['poster'] = Staff::lookup($vars['staffId']);
+            }
+            else
+                $vars['userId'] = $mailinfo['userId'] ?? null;
+        }
+        else {
+            // The user type was not identified by the mail parsing system. It
+            // is likely that the In-Reply-To and References headers were not
+            // properly brokered by the user's mail client. Use the old logic to
+            // determine the post type.
             // Disambiguate if the user happens also to be a staff member of
             // the system. The current ticket owner should _always_ post
             // messages instead of notes or responses
@@ -552,7 +522,7 @@ implements Searchable {
             ))->first()) {
                 $vars['thread-type'] = 'M';
                 // XXX: There's no way that mailinfo[userId] would be set
-                $vars['userId'] = $mailinfo['userId'] ?: $C->getUserId();
+                $vars['userId'] = ($mailinfo['userId'] ?? null) ?: $C->getUserId();
                 $vars['flags'] = ThreadEntry::FLAG_COLLABORATOR;
             }
             // Don't process the email -- it came FROM this system
@@ -562,17 +532,16 @@ implements Searchable {
         }
 
         // Ensure we record the name of the person posting
-        $vars['poster'] = $vars['poster']
-            ?: $mailinfo['name'] ?: $mailinfo['email'];
+        $vars['poster'] = ThreadEmailInfo::poster($vars['poster'],
+            $mailinfo['name'] ?? null, $mailinfo['email'] ?? null);
 
         // TODO: Consider security constraints
         if (!$vars['thread-type']) {
             //XXX: Are we potentially leaking the email address to
             // collaborators?
             // Try not to destroy the format of the body
-            $header = sprintf(
-                _S('Received From: %1$s <%2$s>') . "\n\n",
-                $mailinfo['name'], $mailinfo['email']);
+            $header = ThreadEmailInfo::receivedFrom($mailinfo['name'],
+                $mailinfo['email']);
             if ($body instanceof HtmlThreadEntryBody)
                 $header = nl2br(Format::htmlchars($header));
             // Add the banner to the top of the message
