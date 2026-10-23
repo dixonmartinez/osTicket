@@ -189,7 +189,7 @@ Son **pruebas de caracterización**: no dicen «esto es lo correcto», dicen
 «esto es lo que hace hoy». Si un refactor cambia el resultado, la prueba falla
 y obliga a decidir si el cambio era intencionado.
 
-Al escribirlas aparecieron tres defectos reales, corregidos sin cambiar el
+Al escribirlas aparecieron cinco defectos reales, corregidos sin cambiar el
 comportamiento observable:
 
 1. `Format::filesize2bytes()` desplazaba la cadena en vez del entero y PHP 8
@@ -198,6 +198,25 @@ comportamiento observable:
    un campo opcional ausente llenaba el log de «Undefined array key».
 3. `Validator::is_url()` hacía lo mismo con `$info['host']` en las URLs
    relativas.
+4. `Format::sanitize()`, `striptags()`, `htmldecode()`, `strip_emoticons()` y
+   `localizeInlineImages()` pasaban el texto tal cual a `preg_replace()`,
+   `strip_tags()` y `htmlspecialchars_decode()`. Con un texto nulo, PHP 8.1
+   escribe en el log una deprecación por llamada (y PHP 9 lo convierte en
+   error). Ahora un texto nulo es un texto vacío.
+5. El filtro `transcode_filter` de `class.charset.php` declaraba
+   `filter()`/`onCreate()` sin el tipo de retorno que exige
+   `php_user_filter` desde PHP 8.0: dos avisos **en cada arranque** de la
+   aplicación, no sólo en las pruebas.
+
+El aviso que originó el punto 4 salió en el log del contenedor, no en la
+salida de `make unit`. Por eso el ejecutor de pruebas ya no lo permite pasar:
+
+- `tests/run.php` instala un manejador de errores alrededor de cada prueba y
+  **cuenta cualquier aviso de PHP como fallo**, con el mensaje y la línea.
+- `phpunit.xml.dist` añade `failOnDeprecation` y `failOnNotice`.
+
+Así, un `null` que hoy sólo ensucia el log rompe la integración antes de
+llegar a producción. Lo silenciado con `@` se sigue respetando.
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
 integración.

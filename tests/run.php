@@ -82,15 +82,41 @@ foreach ($files as $file) {
 
             $instance = $reflection->newInstance();
 
+            // Cualquier aviso de PHP durante una prueba es un fallo. Asi se
+            // detecta en el acto lo que si no solo aparece en el log del
+            // servidor: null pasado a una funcion de cadena (PHP 8.1),
+            // indices sin definir, conversiones obsoletas...
+            $diagnostics = array();
+            set_error_handler(function ($no, $str, $file, $line) use (&$diagnostics) {
+                // Lo silenciado con @ se respeta
+                if (!(error_reporting() & $no))
+                    return true;
+                $diagnostics[] = sprintf('%s (%s:%d)', $str,
+                    basename($file), $line);
+                return true;
+            }, E_ALL);
+
             try {
                 $assertions = $instance->runTest($method);
+                restore_error_handler();
+
+                if ($diagnostics) {
+                    $failed++;
+                    $failures[] = array("$short::$method",
+                        "PHP: " . implode("\n        PHP: ", $diagnostics));
+                    printf("  FALLO %s::%s (aviso de PHP)\n", $short, $method);
+                    continue;
+                }
+
                 $passed++;
                 printf("  ok    %s::%s (%d)\n", $short, $method, $assertions);
             } catch (AssertionFailed $e) {
+                restore_error_handler();
                 $failed++;
                 $failures[] = array("$short::$method", $e->getMessage());
                 printf("  FALLO %s::%s\n", $short, $method);
             } catch (Throwable $e) {
+                restore_error_handler();
                 $failed++;
                 $failures[] = array("$short::$method",
                     get_class($e) . ': ' . $e->getMessage());

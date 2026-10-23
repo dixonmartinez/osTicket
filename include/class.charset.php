@@ -83,7 +83,9 @@ class transcode_filter extends php_user_filter {
   var $from;
   var $to;
 
-  function filter($in, $out, &$consumed, $closing) {
+  // Los tipos de retorno son los que declara php_user_filter desde PHP 8.0:
+  // sin ellos, PHP 8.1 avisa en cada arranque (y PHP 9 lo rechaza).
+  function filter($in, $out, &$consumed, $closing): int {
       while ($bucket = stream_bucket_make_writeable($in)) {
         $bucket->data = Charset::transcode($bucket->data, $this->from,
                 $this->to);
@@ -93,7 +95,7 @@ class transcode_filter extends php_user_filter {
       return PSFS_PASS_ON;
   }
 
-  function onCreate() {
+  function onCreate(): bool {
       switch ($this->filtername) {
       case 'transcode.utf8-ascii':
           $this->from ='utf-8';

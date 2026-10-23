@@ -376,6 +376,8 @@ class Format {
     }
 
     static function localizeInlineImages($text) {
+        $text = (string) $text;
+
         // Change file.php urls back to content-id's
         return preg_replace(
             '`<img src="(?:https?:/)?(?:/[^/"]+)*?/file\\.php\\?(?:\w+=[^&"]+&(?:amp;)?)*?key=([^&]+)[^"]*`',
@@ -383,6 +385,9 @@ class Format {
     }
 
     static function sanitize($text, $striptags=false, $spec=false) {
+        // Un texto nulo se trata como vacio (ver htmldecode)
+        $text = (string) $text;
+
         // Localize inline images before sanitizing content
         $text = self::localizeInlineImages($text);
 
@@ -422,6 +427,10 @@ class Format {
     }
 
     static function htmldecode($var) {
+
+        // PHP 8.1 marca como obsoleto pasar null a las funciones de cadena
+        // (en PHP 9 sera un error). Un texto nulo es un texto vacio.
+        $var = (string) $var;
 
         if(is_array($var))
             return array_map(array('Format','htmldecode'), $var);
@@ -526,6 +535,8 @@ class Format {
 
     // Strip all Emoticon/Emoji characters until we support them
     static function strip_emoticons($text) {
+        $text = (string) $text;
+
         return preg_replace(array(
                 '/[\x{1F601}-\x{1F64F}]/u', # Emoticons
                 '/[\x{1F680}-\x{1F6C0}]/u', # Transport/Map

@@ -157,4 +157,60 @@ class FormatTest extends UnitTestCase {
         $this->assertSame('a=hola+mundo',
             Format::http_query_string('a=hola mundo'));
     }
+
+    /* ------------------------------------------------------------------ */
+    /* Valores nulos y vacíos                                              */
+    /* ------------------------------------------------------------------ */
+
+    public function testLosTextosNulosSeTratanComoVacios(): void {
+        // Regresión: Format::sanitize(null) llegaba a preg_replace() con null,
+        // que PHP 8.1 marca como obsoleto y PHP 9 rechazará.
+        $this->assertSame('', Format::sanitize(null));
+        $this->assertSame('', Format::sanitize(null, true));
+        $this->assertSame('', Format::strip_emoticons(null));
+        $this->assertSame('', Format::striptags(null));
+        $this->assertSame('', Format::htmldecode(null));
+        $this->assertSame('', Format::htmlchars(null));
+    }
+
+    public function testNingunTextoNuloEmiteAvisosDePhp(): void {
+        $avisos = array();
+
+        set_error_handler(function ($no, $str) use (&$avisos) {
+            $avisos[] = $str;
+            return true;
+        }, E_ALL);
+
+        try {
+            Format::sanitize(null);
+            Format::sanitize(null, true);
+            Format::strip_emoticons(null);
+            Format::striptags(null);
+            Format::htmldecode(null);
+            Format::localizeInlineImages(null);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame(array(), $avisos);
+    }
+
+    public function testElCeroNoSeConfundeConVacio(): void {
+        // (string) 0 es '0', que es un texto válido y no un valor perdido
+        $this->assertSame('0', Format::sanitize(0));
+        $this->assertSame('0', Format::strip_emoticons(0));
+    }
+
+    public function testSanitizeSigueQuitandoLoPeligroso(): void {
+        // El cambio de arriba no debe relajar el escapado
+        $limpio = Format::sanitize('<script>alert(1)</script>Hola', true);
+
+        $this->assertFalse(strpos($limpio, '<script') !== false);
+        $this->assertTrue(strpos($limpio, 'Hola') !== false);
+    }
+
+    public function testLocalizeInlineImagesConTextoNormal(): void {
+        // Sin imágenes de archivo.php, el texto se queda igual
+        $this->assertSame('hola', Format::localizeInlineImages('hola'));
+    }
 }

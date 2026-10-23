@@ -6,7 +6,11 @@
     make unit                 # usa PHPUnit si está; si no, tests/run.php
 
   Las pruebas no necesitan base de datos ni red: cargan sólo las clases puras
-  de include/ (Format, Validator) con el entorno mínimo de tests/bootstrap.php.
+  de include/ con el entorno mínimo de tests/bootstrap.php.
+
+  Un aviso de PHP (deprecación, índice sin definir, conversión obsoleta)
+  cuenta como fallo: es un error latente que en la siguiente versión de PHP
+  será una excepción. `tests/run.php` hace lo mismo cuando no hay PHPUnit.
 -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
@@ -15,6 +19,8 @@
          cacheDirectory=".phpunit.cache"
          failOnWarning="true"
          failOnRisky="true"
+         failOnDeprecation="true"
+         failOnNotice="true"
          beStrictAboutOutputDuringTests="true">
 
     <testsuites>

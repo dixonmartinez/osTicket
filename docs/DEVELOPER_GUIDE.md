@@ -316,7 +316,9 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
 - **Seguridad**: `make audit` (falla con hallazgos altos nuevos). Cualquier
   excepción deliberada se anota con `// audit:ignore <REGLA> -- motivo`.
 - **Pruebas unitarias**: `make unit` (o `make test`). Viven en `tests/` como
-  `*Test.php` y extienden `UnitTestCase`. No necesitan base de datos ni
+  `*Test.php` y extienden `UnitTestCase`. **Un aviso de PHP cuenta como
+  fallo** (deprecaciones, índices sin definir): si tu prueba pasa pero el log
+  del contenedor tiene avisos, la prueba fallará con el mensaje y la línea. No necesitan base de datos ni
   Composer: `tests/run.php` las ejecuta igual. Con `composer install`,
   `make unit` usa PHPUnit. Detalle en
   [`CODE_QUALITY.md`](CODE_QUALITY.md#frente-1--red-de-seguridad-antes-de-tocar-nada-imprescindible).
