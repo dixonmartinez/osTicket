@@ -453,6 +453,40 @@ check(!$numericDialog,
     'ninguna plantilla usa data-dialog con un código de estado',
     'hay plantillas con data-dialog numérico: ' . implode(', ', array_slice($numericDialog, 0, 5)));
 
+/* Buscador de usuarios: los onclick llamaban a $.userLookup con un callback
+   distinto en cada sitio. Ahora el callback se describe con atributos, así
+   que el marcado no lleva JavaScript y el resultado se puede comprobar. */
+check(strpos($actions, 'data-ost-user-lookup') !== false
+    && strpos($actions, '$.userLookup') !== false,
+    'js/actions.js abre el buscador de usuarios (data-ost-user-lookup)',
+    'js/actions.js no implementa data-ost-user-lookup');
+
+check(strpos($actions, 'data-ost-user-lookup-fill') !== false
+    && strpos($actions, 'data-ost-user-lookup-value') !== false
+    && strpos($actions, 'data-ost-user-lookup-add') !== false,
+    'el resultado del buscador se aplica con atributos (texto, campos, opciones)',
+    'js/actions.js no aplica el usuario elegido con data-ost-user-lookup-fill/-value/-add');
+
+$lookupFiles = array('include/staff/ticket-edit.inc.php',
+    'include/staff/ticket-open.inc.php', 'include/staff/ticket-view.inc.php');
+$inlineLookup = array();
+$withoutLookup = array();
+foreach ($lookupFiles as $file) {
+    $source = read("$root/$file");
+    if (preg_match('/\bon(?:click|change|submit)\s*=/', $source))
+        $inlineLookup[] = $file;
+    if (strpos($source, 'data-ost-user-lookup') === false)
+        $withoutLookup[] = $file;
+}
+
+check(!$inlineLookup,
+    'el buscador de usuarios ya no usa onclick en las plantillas',
+    'siguen con manejadores en línea: ' . implode(', ', $inlineLookup));
+
+check(!$withoutLookup,
+    'las plantillas del buscador usan data-ost-user-lookup',
+    'no usan data-ost-user-lookup: ' . implode(', ', $withoutLookup));
+
 /* 11. Herramientas de revisión visual ------------------------------------- */
 check(file_exists("$root/tools/ui/dark-audit.js"),
     'existe la auditoría de superficies claras (dark-audit)',

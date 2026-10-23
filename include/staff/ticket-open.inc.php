@@ -96,14 +96,10 @@ if ($_POST)
                     <div id="user-info">
                       <input type="hidden" name="uid" id="uid" value="<?php echo $user->getId(); ?>" />
                       <?php if ($thisstaff->hasPerm(User::PERM_EDIT)) { ?>
-                      <a href="#" onclick="javascript:
-                      $.userLookup('ajax.php/users/<?php echo $user->getId(); ?>/edit',
-                      function (user) {
-                        $('#user-name').text(user.name);
-                        $('#user-email').text(user.email);
-                      });
-                      return false;
-                      ">
+                      <a href="#"
+                      data-ost-user-lookup="ajax.php/users/<?php echo $user->getId(); ?>/edit"
+                      data-ost-user-lookup-fill="#user-name=name,#user-email=email"
+                      >
                       <?php } else { ?>
                       <a href="#">
                       <?php } ?>
@@ -112,15 +108,10 @@ if ($_POST)
                       &lt;<span id="user-email"><?php echo $user->getEmail(); ?></span>&gt;
                     </a>
                     <a class="inline button" style="overflow:inherit" href="#"
-                    onclick="javascript:
-                    $.userLookup('ajax.php/users/select/'+$('input#uid').val(),
-                    function(user) {
-                      $('input#uid').val(user.id);
-                      $('#user-name').text(user.name);
-                      $('#user-email').text('<'+user.email+'>');
-                    });
-                    return false;
-                    "><i class="icon-retweet"></i> <?php echo __('Change'); ?></a>
+                    data-ost-user-lookup="ajax.php/users/select/{#uid}"
+                    data-ost-user-lookup-value="input#uid=id"
+                    data-ost-user-lookup-fill="#user-name=name,#user-email=email|angle"
+                    ><i class="icon-retweet"></i> <?php echo __('Change'); ?></a>
                   </div>
                 </td>
               </tr>
@@ -137,13 +128,10 @@ if ($_POST)
                 </span>
 
                 <a class="inline button" style="overflow:inherit" href="#"
-                onclick="javascript:
-                $.userLookup('ajax.php/users/lookup/form', function (user) {
-                  var newUser = new Option(user.email + ' - ' + user.name, user.id, true, true);
-                  return $(&quot;#user-name&quot;).append(newUser).trigger('change');
-                });
-                return false;
-                "><i class="icon-plus"></i> <?php echo __('Add New'); ?></a>
+                data-ost-user-lookup="ajax.php/users/lookup/form"
+                data-ost-user-lookup-add="#user-name"
+                data-ost-user-lookup-add-format="email-name"
+                ><i class="icon-plus"></i> <?php echo __('Add New'); ?></a>
 
                 <span class="error">*</span>
                 <br/><span class="error"><?php echo $errors['name']; ?></span>
@@ -166,13 +154,9 @@ if ($_POST)
             </span>
 
             <a class="inline button" style="overflow:inherit" href="#"
-            onclick="javascript:
-            $.userLookup('ajax.php/users/lookup/form', function (user) {
-              var newUser = new Option(user.name, user.id, true, true);
-              return $(&quot;#cc_users_open&quot;).append(newUser).trigger('change');
-            });
-            return false;
-            "><i class="icon-plus"></i> <?php echo __('Add New'); ?></a>
+            data-ost-user-lookup="ajax.php/users/lookup/form"
+            data-ost-user-lookup-add="#cc_users_open"
+            ><i class="icon-plus"></i> <?php echo __('Add New'); ?></a>
 
             <br/><span class="error"><?php echo $errors['ccs']; ?></span>
           </td>

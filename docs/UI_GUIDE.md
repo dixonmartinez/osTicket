@@ -517,14 +517,21 @@ con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
 | `data-pjax-submit[="selector"]` | `<form>` | envía por PJAX a `#pjax-container` (o al contenedor indicado) en vez de recargar |
 | `data-pjax-query="sort=mode&dir=dir"` | contenedor de enlaces | recarga la lista por PJAX añadiendo esos parámetros a la URL actual, con el valor tomado del `data-mode`/`data-dir` del enlace pulsado (equivale a `addSearchParam()`) |
 | `data-set-name="campo"` | cualquier elemento | escribe un campo del formulario antes de enviarlo: valor literal con `data-set-value` o tomado de otro `data-*` con `data-set-from`; `data-submit-form` envía después |
+| `data-ost-user-lookup="url"` | cualquier elemento | abre el buscador de usuarios (`$.userLookup`) y aplica el elegido: `-fill="#a=campo[\|formato]"` escribe texto (`angle` → `<email>`, `name-email` → `Nombre <email>`, `{id}` en el selector), `-value="#campo=id"` rellena un campo oculto, `-add="#select"` añade la opción y dispara `change` (`-add-format="email-name"`), `-redirect="url"` navega y `-save-draft` llama antes a `saveDraft()`. En la URL, `{#campo}` se sustituye por el valor de ese campo |
 | `data-call="funcion"` | elemento o `<form>` | llama a `window.funcion(event)`; si devuelve `false`, cancela la acción (en un `<form>`, al enviar). Incluye `ostHelpTopic` (recarga el formulario dinámico al cambiar de tema) y `ostAutodetectTimezone` (carga `jstz` y rellena el `<select>` de `data-timezone-target`) |
 
-Se combinaron 48 plantillas en dos tandas y los manejadores en línea bajaron
-de **124 en 71 archivos a 29 en 21** (`make inline-audit`). `make
+Se combinaron más de 50 plantillas en ocho tandas y los manejadores en línea
+bajaron de **124 en 71 archivos a 21 en 18** (`make inline-audit`). `make
 inline-budget` fija el tope actual y falla si vuelve a subir. Lo que queda
-tiene lógica propia (editores, ordenación de columnas, combos de la búsqueda
-avanzada, `$.userLookup`) y se migrará con `addEventListener` en su archivo,
-no con un atributo más.
+tiene lógica propia (ordenación de columnas y filas, combos de la búsqueda
+avanzada, importadores que cambian el `action` del formulario, fusionar
+tickets) y se migrará con `addEventListener` en su archivo, no con un
+atributo más.
+
+El buscador de usuarios (`$.userLookup`) fue el grupo más grande: los ocho
+`onclick` hacían cosas distintas con el usuario elegido, así que el callback
+se describe con atributos (`data-ost-user-lookup-fill`, `-value`, `-add`,
+`-redirect`) y la lógica vive una sola vez en `js/actions.js`.
 
 ## 4. Reglas para no romper nada
 
@@ -662,7 +669,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 103 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 107 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -680,7 +687,7 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **29** atributos en 21 archivos (`make inline-audit`), desde 124 en 71. Siete tandas hechas con `js/actions.js` (§3.9, §6.1-14); quedan los manejadores con lógica propia: `$.userLookup` (7), los filtros que reescriben un campo oculto y confirman (2), los que encadenan varios `$.ajax` (4), cadenas de visibilidad (`staff.inc.php`, `user-register`) y ~14 casos sueltos |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **21** atributos en 18 archivos (`make inline-audit`), desde 124 en 71. Ocho tandas hechas con `js/actions.js` (§3.9, §6.1-14); la última migró el buscador de usuarios (`$.userLookup`, 8 manejadores). Quedan los manejadores con lógica propia: los filtros que reescriben un campo oculto y confirman (2), los que encadenan varios `$.ajax` (4), cadenas de visibilidad (`staff.inc.php`, `user-register`, `form-manage`), fusionar tickets (2) y los sueltos de importadores, columnas y respuestas (13) |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar

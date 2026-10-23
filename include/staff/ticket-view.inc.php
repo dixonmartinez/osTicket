@@ -370,17 +370,10 @@ if($ticket->isOverdue())
                 <tr>
                     <th width="100"><?php echo __('User'); ?>:</th>
                     <td><a href="#tickets/<?php echo $ticket->getId(); ?>/user"
-                        onclick="javascript:
-                            saveDraft();
-                            $.userLookup('ajax.php/tickets/<?php echo $ticket->getId(); ?>/user',
-                                    function (user) {
-                                        $('#user-'+user.id+'-name').text(user.name);
-                                        $('#user-'+user.id+'-email').text(user.email);
-                                        $('#user-'+user.id+'-phone').text(user.phone);
-                                        $('select#emailreply option[value=1]').text(user.name+' <'+user.email+'>');
-                                    });
-                            return false;
-                            "><i class="icon-user"></i> <span id="user-<?php echo $ticket->getOwnerId(); ?>-name"
+                        data-ost-user-lookup="ajax.php/tickets/<?php echo $ticket->getId(); ?>/user"
+                        data-ost-user-lookup-save-draft
+                        data-ost-user-lookup-fill="#user-{id}-name=name,#user-{id}-email=email,#user-{id}-phone=phone,select#emailreply option[value=1]=email|name-email"
+                        ><i class="icon-user"></i> <span id="user-<?php echo $ticket->getOwnerId(); ?>-name"
                             ><?php echo Format::htmlchars($ticket->getName());
                         ?></span></a>
                         <?php
@@ -858,13 +851,9 @@ if ($errors['err'] && isset($_POST['a'])) {
                     <label><strong><?php echo __('Recipients'); ?>:</strong></label>
                 </td>
                 <td><a href="#tickets/<?php echo $ticket->getId(); ?>/user"
-                    onclick="javascript:
-                        $.userLookup('ajax.php/tickets/<?php echo $ticket->getId(); ?>/user',
-                                function (user) {
-                                    window.location = 'tickets.php?id='<?php $ticket->getId(); ?>
-                                });
-                        return false;
-                        "><span ><?php
+                    data-ost-user-lookup="ajax.php/tickets/<?php echo $ticket->getId(); ?>/user"
+                    data-ost-user-lookup-redirect="tickets.php?id=<?php echo $ticket->getId(); ?>"
+                    ><span ><?php
                             echo Format::htmlchars($ticket->getOwner()->getEmail()->getAddress());
                     ?></span></a>
                 </td>

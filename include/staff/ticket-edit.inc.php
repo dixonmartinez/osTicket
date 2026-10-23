@@ -33,27 +33,18 @@ if ($_POST)
     ?>
     <tr><td><?php echo __('User'); ?>:</td><td>
         <div id="client-info">
-            <a href="#" onclick="javascript:
-                $.userLookup('ajax.php/users/<?php echo $ticket->getOwnerId(); ?>/edit',
-                        function (user) {
-                            $('#client-name').text(user.name);
-                            $('#client-email').text(user.email);
-                        });
-                return false;
-                "><i class="icon-user"></i>
+            <a href="#"
+                data-ost-user-lookup="ajax.php/users/<?php echo $ticket->getOwnerId(); ?>/edit"
+                data-ost-user-lookup-fill="#client-name=name,#client-email=email"
+                ><i class="icon-user"></i>
             <span id="client-name"><?php echo Format::htmlchars($user->getName()); ?></span>
             &lt;<span id="client-email"><?php echo $user->getEmail(); ?></span>&gt;
             </a>
             <a class="inline action-button" style="overflow:inherit" href="#"
-                onclick="javascript:
-                    $.userLookup('ajax.php/tickets/<?php echo $ticket->getId(); ?>/change-user',
-                            function(user) {
-                                $('input#user_id').val(user.id);
-                                $('#client-name').text(user.name);
-                                $('#client-email').text('<'+user.email+'>');
-                    });
-                    return false;
-                "><i class="icon-edit"></i> <?php echo __('Change'); ?></a>
+                data-ost-user-lookup="ajax.php/tickets/<?php echo $ticket->getId(); ?>/change-user"
+                data-ost-user-lookup-value="input#user_id=id"
+                data-ost-user-lookup-fill="#client-name=name,#client-email=email|angle"
+                ><i class="icon-edit"></i> <?php echo __('Change'); ?></a>
             <input type="hidden" name="user_id" id="user_id"
                 value="<?php echo $info['user_id']; ?>" />
         </div>

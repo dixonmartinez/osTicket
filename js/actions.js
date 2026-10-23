@@ -47,6 +47,23 @@
  *                              (literal) o de `data-set-from="clave"` (el
  *                              `data-clave` del elemento o del que se pulsó).
  *                              Con `data-submit-form` se envía el formulario
+ *   data-ost-user-lookup="url" abre el buscador de usuarios (`$.userLookup`)
+ *                              y aplica el usuario elegido según los atributos:
+ *                              -data-ost-user-lookup-fill="#a=campo" escribe
+ *                                el texto (`#a=campo|angle` → «<email>»,
+ *                                `|name-email` → «Nombre <email>»). Se separan
+ *                                por comas y `{id}` en el selector se cambia
+ *                                por el id del usuario elegido
+ *                              -data-ost-user-lookup-value="#campo=id" pone el
+ *                                value de un campo (los <input hidden>)
+ *                              -data-ost-user-lookup-add="#select" añade una
+ *                                <option> y dispara `change` (formato con
+ *                                -add-format="email-name")
+ *                              -data-ost-user-lookup-redirect="url" navega
+ *                              -data-ost-user-lookup-save-draft llama antes a
+ *                                `saveDraft()`
+ *                              En la url, `{#selector}` se sustituye por el
+ *                              value de ese campo (p. ej. el usuario buscado)
  *   data-call="funcion"        llama a `window.funcion(event)`; si devuelve
  *                              `false` se cancela la acción (formularios).
  *                              Hay dos funciones incluidas:
@@ -67,7 +84,8 @@
     var CLICKABLE = '[data-href],[data-go-back],[data-ost-dialog],[data-ost-dialog-url],[data-confirm],'
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
         + '[data-toggle-target],[data-reload],[data-click-target],'
-        + '[data-set-name],[data-call],[data-ost-dialog-row],[data-pjax-query]';
+        + '[data-set-name],[data-call],[data-ost-dialog-row],[data-pjax-query],'
+        + '[data-ost-user-lookup]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -279,6 +297,125 @@
             nodes[i].click();
     }
 
+    /* `$.userLookup(url, callback)` devuelve el usuario elegido. Lo que cada
+       onclick hacía con él se describe con los atributos data-ost-user-lookup-*:
+       así el marcado no lleva JavaScript y el comportamiento se prueba solo.
+
+       Las listas (`-fill`, `-value`) se escriben como `selector=campo` y, si
+       hace falta dar formato, `selector=campo|formato`. El separador se busca
+       al final para no confundirlo con los `=` de un selector de atributos
+       (`select#emailreply option[value="1"]=email|name-email`). */
+    function userSpec(spec, user) {
+        var out = [];
+
+        if (!spec)
+            return out;
+
+        spec.split(',').forEach(function (entry) {
+            entry = entry.replace(/^\s+|\s+$/g, '');
+
+            var at = entry.lastIndexOf('=');
+
+            if (at < 1)
+                return;
+
+            var parts = entry.substring(at + 1).split('|');
+            var field = parts[0];
+            var value = user[field];
+
+            out.push({
+                selector: entry.substring(0, at).replace(/\{id\}/g, user.id || ''),
+                field: field,
+                format: parts[1] || '',
+                value: value === undefined || value === null ? '' : String(value)
+            });
+        });
+
+        return out;
+    }
+
+    function applyUser(el, user) {
+        var $ = window.jQuery;
+
+        userSpec(el.getAttribute('data-ost-user-lookup-fill'), user)
+            .forEach(function (item) {
+                var value = item.value;
+
+                if (item.format === 'angle')
+                    value = '<' + value + '>';
+                else if (item.format === 'name-email')
+                    value = (user.name || '') + ' <' + (user.email || '') + '>';
+
+                try {
+                    $(item.selector).text(value);
+                } catch (e) {
+                    /* Un selector que ya no está en la página no es un fallo. */
+                }
+            });
+
+        userSpec(el.getAttribute('data-ost-user-lookup-value'), user)
+            .forEach(function (item) {
+                try {
+                    $(item.selector).val(item.value);
+                } catch (e) {
+                    /* idem */
+                }
+            });
+
+        var select = el.getAttribute('data-ost-user-lookup-add');
+
+        if (select) {
+            var label = el.getAttribute('data-ost-user-lookup-add-format') === 'email-name'
+                ? (user.email || '') + ' - ' + (user.name || '')
+                : (user.name || '');
+
+            try {
+                $(select).append(new Option(label, user.id, true, true))
+                    .trigger('change');
+            } catch (e) {
+                /* idem */
+            }
+        }
+    }
+
+    function userLookup(el, event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        var $ = window.jQuery;
+
+        if (!$ || typeof $.userLookup !== 'function')
+            return;
+
+        var url = el.getAttribute('data-ost-user-lookup') || '';
+
+        if (!url)
+            return;
+
+        /* `ajax.php/users/select/{#uid}`: el id sale del campo del formulario. */
+        url = url.replace(/\{([#.][^}]*)\}/g, function (match, selector) {
+            var node = document.querySelector(selector.replace(/^\s+|\s+$/g, ''));
+
+            return node && node.value ? node.value : '';
+        });
+
+        if (el.hasAttribute('data-ost-user-lookup-save-draft')
+                && typeof window.saveDraft === 'function')
+            window.saveDraft();
+
+        $.userLookup(url, function (user) {
+            if (!user)
+                return;
+
+            applyUser(el, user);
+
+            var redirect = el.getAttribute('data-ost-user-lookup-redirect');
+
+            if (redirect)
+                window.location.href = redirect;
+        });
+    }
+
     /* `$.dialog` muestra el overlay «Loading» antes de pedir la URL: si la
        petición falla con una excepción, el overlay se queda encima de la
        página y no hay forma de cerrarlo. Se recoge el fallo y se limpia. */
@@ -414,6 +551,11 @@
 
             openDialog(el.getAttribute('data-ost-dialog-row') + id,
                 parseInt(el.getAttribute('data-ost-dialog'), 10) || 201);
+            return;
+        }
+
+        if (el.hasAttribute('data-ost-user-lookup')) {
+            userLookup(el, event);
             return;
         }
 
