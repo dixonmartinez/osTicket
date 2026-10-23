@@ -62,6 +62,7 @@ require_once INCLUDE_DIR . 'class.validator.php';
    depende de la aplicación: por eso se puede cargar aquí. */
 require_once INCLUDE_DIR . 'class.ticket.post.php';
 require_once INCLUDE_DIR . 'class.thread.email.php';
+require_once INCLUDE_DIR . 'class.thread.entry.php';
 
 /* Clase base: PHPUnit si se ha instalado con Composer; si no, la de lib/. */
 if (class_exists('PHPUnit\Framework\TestCase'))

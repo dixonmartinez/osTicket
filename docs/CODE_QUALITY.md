@@ -45,13 +45,13 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 503 |
-| Líneas | 132.689 |
-| Funciones | 5.907 |
+| Archivos PHP propios | 504 |
+| Líneas | 132.780 |
+| Funciones | 5.913 |
 | Tamaño medio de función | 10,8 líneas |
 | Archivo más grande | `include/class.forms.php` — 6.220 líneas |
 | Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 407 líneas (herramienta de línea de comandos) |
-| Función más larga de la aplicación | `ThreadEntry::create()` — 185 líneas |
+| Función más larga de la aplicación | `Ticket::postMessage()` — 178 líneas |
 
 **No hay ninguna función de 1.400 líneas.** La más larga de la aplicación
 ronda las 180 y la media son 11. El problema de este código no es el tamaño de
@@ -147,9 +147,10 @@ buenos, el frente cambia de objetivo:
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Funciones de la aplicación por encima de 150 líneas | 5 | **4** |
+| Funciones de la aplicación por encima de 150 líneas | 5 | **4** (ninguna pasa de 178) |
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
+| `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
 | Archivos por encima de 2.000 líneas | 5 | 5 |
 
 **Criterio:** sacar de las funciones largas los tramos que no tocan la base de
@@ -157,25 +158,24 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Primer paso hecho:
+Pasos hechos: hasta ahora, 55 casos nuevos sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
 | `include/class.ticket.post.php` | `TicketPost::normalizeVars()` (origen e IP del mensaje), `withoutPoster()` (quita al autor de los destinatarios), `shouldAutoRespond()` (rebotes y respuestas automáticas) | `tests/TicketPostTest.php`, 14 casos |
 | `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()` y `receivedFrom()` | `tests/ThreadEmailTest.php`, 19 casos |
+| `include/class.thread.entry.php` | `ThreadEntryInfo::title()` y `poster()` (qué se guarda), `replyFlags()` (respuesta a todos / al usuario), `bodyFlags()` (HTML equilibrado y nota de sistema), `dropStrippedImages()` y `markInline()` (adjuntos incrustados) | `tests/ThreadEntryInfoTest.php`, 22 casos |
 
-`Ticket::postMessage()` y `Thread::postEmail()` ya usan esas funciones. No
-cambia nada de lo que hacen, y ahora la parte que más se rompe (de quién es el
-correo, a quién se responde) tiene pruebas.
+Las tres clases ya están en uso (`Ticket::postMessage()`, `Thread::postEmail()`
+y `ThreadEntry::create()`). No cambia nada de lo que hacen, y ahora la parte
+que más se rompe —de quién es el correo, a quién se responde y cómo se marca la
+entrada— tiene pruebas.
 
 Siguiente paso, por orden de riesgo:
 
-1. `ThreadEntry::create()` (185): la preparación del cuerpo, el título, la
-   firma y las banderas (responder a todos / nota de sistema) son puras; el
-   guardado y los adjuntos no.
-2. `Schedule::buildFields()` (175) y `Dept::update()` (159): separar la
+1. `Schedule::buildFields()` (175) y `Dept::update()` (159): separar la
    validación de la escritura.
-3. Los archivos grandes: `class.queue.php` tiene cuatro clases juntas; mover
+2. Los archivos grandes: `class.queue.php` tiene cuatro clases juntas; mover
    `QueueColumnCondition*` a su propio archivo es mecánico y comprobable con
    `class_exists()`.
 

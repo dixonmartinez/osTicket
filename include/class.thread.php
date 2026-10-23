@@ -16,6 +16,7 @@
 **********************************************************************/
 include_once(INCLUDE_DIR.'class.ticket.php');
 include_once(INCLUDE_DIR.'class.thread.email.php');
+include_once(INCLUDE_DIR.'class.thread.entry.php');
 include_once(INCLUDE_DIR.'class.draft.php');
 include_once(INCLUDE_DIR.'class.role.php');
 
@@ -1628,35 +1629,23 @@ implements TemplateVariable {
         // Ensure valid external images
         $body = Format::stripExternalImages($body);
 
-        $poster = $vars['poster'];
-        if ($poster && is_object($poster))
-            $poster = (string) $poster;
-
         $entry = new static(array(
             'created' => SqlFunction::NOW(),
             'updated' => SqlFunction::NOW(),
             'type' => $vars['type'],
             'thread_id' => $vars['threadId'],
-            'title' => Format::strip_emoticons(Format::sanitize($vars['title'], true)),
+            'title' => ThreadEntryInfo::title($vars['title']),
             'format' => $vars['body']->getType(),
             'staff_id' => $vars['staffId'],
             'user_id' => $vars['userId'],
-            'poster' => Format::sanitize($poster),
+            'poster' => ThreadEntryInfo::poster($vars['poster']),
             'source' => $vars['source'],
             'flags' => $vars['flags'] ?: 0,
         ));
 
         //add recipients to thread entry
         if ($vars['thread_entry_recipients']) {
-            $count = 0;
-            foreach ($vars['thread_entry_recipients'] as $key => $value)
-                $count = $count + count($value);
-
-            if ($count > 1)
-                $entry->flags |= ThreadEntry::FLAG_REPLY_ALL;
-            else
-                $entry->flags |= ThreadEntry::FLAG_REPLY_USER;
-
+            $entry->flags |= ThreadEntryInfo::replyFlags($vars['thread_entry_recipients']);
             $entry->recipients = json_encode($vars['thread_entry_recipients']);
         }
 
@@ -1664,13 +1653,9 @@ implements TemplateVariable {
         if (Collaborator::getIdByUserId($vars['userId'], $vars['threadId']))
           $entry->flags |= ThreadEntry::FLAG_COLLABORATOR;
 
-        if ($entry->format == 'html')
-            // The current codebase properly balances html
-            $entry->flags |= self::FLAG_BALANCED;
-
-        // Flag system messages
-        if (!($vars['staffId'] || $vars['userId']))
-            $entry->flags |= self::FLAG_SYSTEM;
+        // HTML equilibrado y notas del sistema. Ver ThreadEntryInfo
+        $entry->flags |= ThreadEntryInfo::bodyFlags($entry->format,
+            $vars['staffId'], $vars['userId']);
 
         if (isset($vars['pid']))
             $entry->pid = $vars['pid'];
@@ -1686,16 +1671,9 @@ implements TemplateVariable {
 
         /************* ATTACHMENTS *****************/
         // Drop stripped email inline images
-        if ($vars['attachments']) {
-            foreach ($vars['body']->getStrippedImages() as $cid) {
-                foreach ($vars['attachments'] as $i=>$a) {
-                    if (@$a['cid'] && $a['cid'] == $cid) {
-                        // Inline referenced attachment was stripped
-                        unset($vars['attachments'][$i]);
-                    }
-                }
-            }
-        }
+        if ($vars['attachments'])
+            $vars['attachments'] = ThreadEntryInfo::dropStrippedImages(
+                $vars['attachments'], $vars['body']->getStrippedImages());
 
         // Handle extracted embedded images (<img src="data:base64,..." />).
         // The extraction has already been performed in the ThreadEntryBody
@@ -1720,11 +1698,7 @@ implements TemplateVariable {
         ) {
             if (is_array($files)) {
                 // Detect *inline* email attachments
-                foreach ($files as $i=>$a) {
-                    if (isset($a['cid']) && $a['cid']
-                            && strpos($body, 'cid:'.$a['cid']) !== false)
-                        $files[$i]['inline'] = true;
-                }
+                $files = ThreadEntryInfo::markInline($files, $body);
                 foreach ($entry->normalizeFileInfo($files) as $F) {
                     if (!empty($F['inline'])
                             && (!isset($F['file']) || !$F['file']->isInlineSafeImage()))

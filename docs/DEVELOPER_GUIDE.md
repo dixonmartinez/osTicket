@@ -47,7 +47,7 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make lint` | Sintaxis de todos los PHP (paralelo) | ~2 s |
 | `make audit` | Análisis de seguridad, falla con hallazgos nuevos altos | ~2 s |
 | `make audit-all` | Informe completo con severidad baja | ~2 s |
-| `make unit` | Pruebas unitarias de `Format`, `Validator`, `TicketPost` y `ThreadEmailInfo` (sin base de datos) | ~0,1 s |
+| `make unit` | Pruebas unitarias de `Format`, `Validator`, `TicketPost`, `ThreadEmailInfo` y `ThreadEntryInfo` (sin base de datos) | ~0,2 s |
 | `make test` | Alias de `make unit` | ~0,1 s |
 | `make test-legacy` | Suite histórica del instalador (`setup/test/`) | variable |
 | `make security` | Versión de PHP frente a php2shell (CVE-2026-109618/19) | ~1 s |
