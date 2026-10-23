@@ -45,9 +45,10 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 504 |
-| Líneas | 132.780 |
-| Funciones | 5.913 |
+| Archivos PHP propios | 507 |
+| Líneas | 133.188 |
+| Funciones | 5.924 |
+| Clases, interfaces y rasgos | 654 en 182 archivos |
 | Tamaño medio de función | 10,8 líneas |
 | Archivo más grande | `include/class.forms.php` — 6.220 líneas |
 | Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 407 líneas (herramienta de línea de comandos) |
@@ -69,25 +70,38 @@ responsabilidades dentro de ellos.
 | `<script>` embebido en plantillas | 162 |
 
 La media de 10,8 líneas por función es **buena**. Los valores atípicos son de
-dos tipos: cinco archivos por encima de 2.000 líneas, y las funciones de la
+dos tipos: siete archivos por encima de 2.000 líneas, y las funciones de la
 lista de arriba, que en su mayoría son de herramientas propias
 (`tools/`, `setup/`, `cli/`) o de librerías copiadas (`htmLawed`, `JSON.php`,
 `Spyc`), no de la aplicación.
 
-Los cinco archivos que más pesan:
+Los archivos que más pesan:
 
-| Archivo | Líneas | Qué contiene |
-|---|---|---|
-| `include/class.forms.php` | 6.229 | Formularios dinámicos, campos, validación y widgets |
-| `include/class.ticket.php` | 4.855 | Ticket: creación, edición, correo, SLA, adjuntos |
-| `include/class.orm.php` | 3.663 | ORM propio (consultas, joins, instrumentación) |
-| `include/class.thread.php` | 3.451 | Hilo de entradas, correo entrante, colaboradores |
-| `include/class.queue.php` | 3.233 | Colas, criterios y ordenación |
+| Archivo | Líneas | Clases | Qué contiene |
+|---|---|---|---|
+| `include/class.forms.php` | 6.220 | 64 | Formularios dinámicos, campos, validación y widgets |
+| `include/class.ticket.php` | 4.844 | 2 | Ticket: creación, edición, correo, SLA, adjuntos |
+| `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) |
+| `include/class.thread.php` | 3.405 | 35 | Hilo de entradas, correo entrante, colaboradores |
+| `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación (eran 3.232 y 38 clases) |
+| `include/ajax.tickets.php` | 2.077 | 2 | Punto de entrada AJAX de tickets |
+| `include/class.dynamic_forms.php` | 2.027 | 12 | Campos dinámicos y datos de formulario |
 
 `Queue::getCriteria()` no es el problema que parecía: tiene 30 líneas y
-devuelve el criterio ya resuelto. Lo que pesa en `class.queue.php` son sus
-3.233 líneas repartidas en muchas clases (`Queue`, `CustomQueue`,
-`QueueColumn`, `QueueColumnCondition`…), cuatro de ellas en el mismo archivo.
+devuelve el criterio ya resuelto. Lo que pesaba en `class.queue.php` eran sus
+3.232 líneas con **38 clases** (columnas, decoraciones, condiciones, filtros y
+formularios) en el mismo archivo. Ya está repartido:
+
+| Archivo | Clases | Qué contiene |
+|---|---|---|
+| `include/class.queue.php` | 11 | `CustomQueue`, `QueueColumn`, `QueueConfig`, `QueueExport`, `QueueSort` y sus *glue* |
+| `include/class.queue.column.php` | 17 | `QueueColumnAnnotation` y sus 13 decoraciones (contadores, iconos), `DataSourceField`, las condiciones y `LazyDisplayWrapper` |
+| `include/class.queue.filter.php` | 10 | `QueueColumnFilter` y los filtros de enlace y fecha, más sus formularios de configuración |
+
+El reparto se comprueba con `make classes`, que lista qué clase vive en qué
+archivo y falla si dos archivos declaran la misma clase sin protección. Ese
+choque no lo ve `make lint`: cada archivo es válido por separado y el error
+sólo aparece al cargarlos en el orden equivocado.
 
 ---
 
@@ -183,6 +197,12 @@ Siguiente paso, por orden de riesgo:
 - Éxito: ninguna función de la aplicación por encima de 120 líneas y ningún
   archivo por encima de 3.000 líneas.
 
+**Organización de archivos.** Un archivo por familia de clases, con el nombre
+del archivo diciendo qué hay dentro y las dependencias declaradas arriba
+(`include_once`), no supuestas por el orden de carga de `bootstrap.php`. El
+mapa se consulta con `make classes`; los candidatos que quedan son
+`class.forms.php` (64 clases) y `class.thread.php` (35).
+
 ### Frente 3 — Terminar la migración al ORM
 
 - Qué hacer: los 183 `db_query()` restantes son SQL escrito a mano que evita
@@ -219,11 +239,19 @@ Siguiente paso, por orden de riesgo:
 - Éxito: `script-src` sin `'unsafe-inline'` en el portal del cliente (hoy
   `onclick=` ya está a cero; falta el nonce de los `<script>`).
 
-### Frente 6 — Partir los archivos de más de 2.000 líneas
+### Frente 6 — Partir los archivos de más de 2.000 líneas 🔄 Empezado
 
-- Qué hacer: `class.forms.php` y `class.ticket.php` en rasgos (`trait`) o
-  clases colaboradoras, sin cambiar nombres públicos. Aquí sí conviene ir con
-  calma: es donde más se rompe.
+- Qué hacer: `class.forms.php` (6.220 líneas, **64 clases**) y
+  `class.ticket.php` en rasgos (`trait`) o clases colaboradoras, sin cambiar
+  nombres públicos. Aquí sí conviene ir con calma: es donde más se rompe.
+- Lo hecho: `class.queue.php` bajó de 3.232 a 2.341 líneas al separar sus
+  columnas y sus filtros (ver frente 2). El patrón es siempre el mismo:
+  mover clases enteras a un archivo con nombre propio, incluir ese archivo
+  desde el original y comprobar con `make classes` que no falta ni sobra
+  ninguna.
+- Siguiente, por relación riesgo/beneficio: `class.forms.php`, que es el
+  mayor y el que más clases tiene; dentro de él, los widgets de campo
+  (`include/class.forms.php`, a partir de `FormField`).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
@@ -239,7 +267,8 @@ Siguiente paso, por orden de riesgo:
 4. **Frente 5** (JS inline) — ✅ los `onclick` están a cero; quedan los
    `<script>`.
 5. **Frente 3** (SQL a mano) — por áreas, con pruebas.
-6. **Frente 6** (archivos gigantes) — al final, con todo lo anterior en verde.
+6. **Frente 6** (archivos gigantes) — empezado por `class.queue.php`;
+   sigue `class.forms.php`, con calma.
 
 ## 5. Lo que NO conviene hacer
 

@@ -7,7 +7,8 @@
 #   make test       suite de pruebas estáticas del proyecto
 #   make theme      integridad del tema claro/oscuro (sin navegador)
 #   make metrics    tamaño y deuda técnica del código propio
-#   make ci         lint + audit + security + theme (antes de integrar)
+#   make classes    mapa de clases y duplicados
+#   make ci         lint + audit + security + theme + classes + unit
 # ---------------------------------------------------------------------------
 
 # Si el equipo no tiene PHP, tools/php.sh lo ejecuta en el contenedor de
@@ -18,7 +19,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme metrics metrics-json ci clean perms serve browser-audit \
+.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme metrics metrics-json classes ci clean perms serve browser-audit \
 	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
@@ -108,10 +109,13 @@ icons: ## Hoja con los 155 iconos SVG para revisarlos a ojo (ost-iconos.html)
 metrics: ## Radiografía del código propio (tamaño y deuda técnica)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php
 
+classes: ## Mapa de clases y duplicados (falla si una clase se declara dos veces)
+	@$(PHP) $(ROOT)/tools/quality/class-map.php --check
+
 metrics-json: ## Lo mismo, en JSON (para comparar antes/después)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php --json
 
-ci: lint audit security theme unit ## Verificación completa para integración continua
+ci: lint audit security theme classes unit ## Verificación completa para integración continua
 
 clean: ## Elimina artefactos temporales de desarrollo
 	@rm -rf $(ROOT)/vendor/.phpunit.result.cache
