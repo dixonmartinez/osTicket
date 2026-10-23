@@ -45,8 +45,8 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 507 |
-| Líneas | 133.188 |
+| Archivos PHP propios | 509 |
+| Líneas | 133.234 |
 | Funciones | 5.924 |
 | Clases, interfaces y rasgos | 654 en 182 archivos |
 | Tamaño medio de función | 10,8 líneas |
@@ -82,7 +82,7 @@ Los archivos que más pesan:
 | `include/class.forms.php` | 6.220 | 64 | Formularios dinámicos, campos, validación y widgets |
 | `include/class.ticket.php` | 4.844 | 2 | Ticket: creación, edición, correo, SLA, adjuntos |
 | `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) |
-| `include/class.thread.php` | 3.405 | 35 | Hilo de entradas, correo entrante, colaboradores |
+| `include/class.thread.php` | 2.318 | 11 | Hilo de entradas, correo entrante, colaboradores (eran 3.405 y 35 clases) |
 | `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación (eran 3.232 y 38 clases) |
 | `include/ajax.tickets.php` | 2.077 | 2 | Punto de entrada AJAX de tickets |
 | `include/class.dynamic_forms.php` | 2.027 | 12 | Campos dinámicos y datos de formulario |
@@ -97,6 +97,17 @@ formularios) en el mismo archivo. Ya está repartido:
 | `include/class.queue.php` | 11 | `CustomQueue`, `QueueColumn`, `QueueConfig`, `QueueExport`, `QueueSort` y sus *glue* |
 | `include/class.queue.column.php` | 17 | `QueueColumnAnnotation` y sus 13 decoraciones (contadores, iconos), `DataSourceField`, las condiciones y `LazyDisplayWrapper` |
 | `include/class.queue.filter.php` | 10 | `QueueColumnFilter` y los filtros de enlace y fecha, más sus formularios de configuración |
+
+`class.thread.php` estaba en la misma situación: mezclaba el hilo, la entrada
+de correo y todo el historial de cambios. Ahora:
+
+| Archivo | Clases | Qué contiene |
+|---|---|---|
+| `include/class.thread.php` | 11 | `Thread`, `ThreadEntry`, `ObjectThread`, `TicketThread`, `ThreadActivity`… |
+| `include/class.thread.event.php` | 18 | `ThreadEvent` y sus eventos (asignación, cierre, edición, enlaces) |
+| `include/class.thread.body.php` | 6 | `ThreadEntryBody` (texto y HTML) y las entradas de mensaje, respuesta y nota |
+| `include/class.thread.email.php` | — | piezas puras de `postEmail()` (ver frente 2) |
+| `include/class.thread.entry.php` | — | piezas puras de `create()` (ver frente 2) |
 
 El reparto se comprueba con `make classes`, que lista qué clase vive en qué
 archivo y falla si dos archivos declaran la misma clase sin protección. Ese
@@ -244,8 +255,9 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 - Qué hacer: `class.forms.php` (6.220 líneas, **64 clases**) y
   `class.ticket.php` en rasgos (`trait`) o clases colaboradoras, sin cambiar
   nombres públicos. Aquí sí conviene ir con calma: es donde más se rompe.
-- Lo hecho: `class.queue.php` bajó de 3.232 a 2.341 líneas al separar sus
-  columnas y sus filtros (ver frente 2). El patrón es siempre el mismo:
+- Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
+  de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
+  cambios y cuerpos de entrada. El patrón es siempre el mismo:
   mover clases enteras a un archivo con nombre propio, incluir ese archivo
   desde el original y comprobar con `make classes` que no falta ni sobra
   ninguna.
