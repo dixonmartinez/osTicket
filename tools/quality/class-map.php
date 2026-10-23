@@ -206,6 +206,79 @@ class ClassMap {
      * pueden dar un error fatal según el orden de carga. Los polyfills
      * (`if (!class_exists())`) se devuelven aparte.
      */
+    /**
+     * Includes con ruta literal: 'class.x.php' o INCLUDE_DIR . 'class.x.php'.
+     * Las plantillas y las rutas construidas con variables se ignoran.
+     *
+     * @return array  lista de ['line' => int, 'path' => string]
+     */
+    static function includeTargets($source) {
+        $targets = [];
+        $tokens = token_get_all($source);
+        $count = count($tokens);
+        $tipos = [T_INCLUDE, T_INCLUDE_ONCE, T_REQUIRE, T_REQUIRE_ONCE];
+
+        for ($i = 0; $i < $count; $i++) {
+            if (!is_array($tokens[$i]) || !in_array($tokens[$i][0], $tipos, true))
+                continue;
+
+            $literales = [];
+            for ($j = $i + 1; $j < $count && $tokens[$j] !== ';'; $j++) {
+                $t = $tokens[$j];
+                if ($t === '(' || $t === ')' || $t === '.')
+                    continue;
+                if (is_array($t) && $t[0] === T_WHITESPACE)
+                    continue;
+                if (is_array($t) && $t[0] === T_CONSTANT_ENCAPSED_STRING)
+                    $literales[] = trim($t[1], "'\"");
+                elseif (is_array($t) && $t[0] === T_STRING
+                        && strtoupper($t[1]) === 'INCLUDE_DIR')
+                    continue;
+                else
+                    $literales[] = null; // expresión que no sabemos resolver
+            }
+
+            if (count($literales) !== 1 || $literales[0] === null)
+                continue;
+            $path = $literales[0];
+            if (substr($path, -4) !== '.php')
+                continue;
+
+            $targets[] = ['line' => $tokens[$i][2], 'path' => $path];
+        }
+
+        return $targets;
+    }
+
+    /** Includes literales que no llevan a ningún archivo existente. */
+    static function missingIncludes($root, array $files) {
+        $missing = [];
+        foreach ($files as $rel) {
+            $source = @file_get_contents("$root/$rel");
+            if ($source === false)
+                continue;
+            $dir = dirname("$root/$rel");
+            foreach (self::includeTargets($source) as $target) {
+                $candidatos = [
+                    "$dir/" . $target['path'],
+                    "$root/include/" . $target['path'],
+                    "$root/" . $target['path'],
+                ];
+                $existe = false;
+                foreach ($candidatos as $c) {
+                    if (file_exists($c)) {
+                        $existe = true;
+                        break;
+                    }
+                }
+                if (!$existe)
+                    $missing[] = ['file' => $rel, 'line' => $target['line'],
+                        'path' => $target['path']];
+            }
+        }
+        return $missing;
+    }
+
     static function duplicates(array $map) {
         $found = [];
         foreach ($map as $name => $sites) {
@@ -279,6 +352,8 @@ function classmap_main($root, array $argv) {
         'plugins', 'lib', 'test/tests'];
     $map = ClassMap::scan($root, $areas, $skipDirs);
     $duplicates = ClassMap::duplicates($map);
+    $missing = ClassMap::missingIncludes($root,
+        ClassMap::phpFiles($root, $areas, $skipDirs));
     $byFile = ClassMap::byFile($map);
     $top = $options['top'] ?? 10;
 
@@ -299,6 +374,7 @@ function classmap_main($root, array $argv) {
             'files' => count($byFile),
             'duplicates' => array_keys($duplicates),
             'guarded' => array_keys(ClassMap::guarded($map)),
+            'missing_includes' => $missing,
             'map' => $map,
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n";
         return $duplicates ? 1 : 0;
@@ -318,6 +394,12 @@ function classmap_main($root, array $argv) {
 
     $guarded = ClassMap::guarded($map);
 
+    if ($missing) {
+        echo "\nIncludes con ruta literal que no llevan a ningún archivo\n";
+        foreach ($missing as $m)
+            printf("  %s:%d  %s\n", $m['file'], $m['line'], $m['path']);
+    }
+
     if ($duplicates) {
         echo "\nClases declaradas más de una vez (error fatal según el orden de carga)\n";
         foreach ($duplicates as $name => $sites) {
@@ -327,11 +409,11 @@ function classmap_main($root, array $argv) {
         }
     }
 
-    if (isset($options['check']) && $duplicates)
+    if (isset($options['check']) && ($duplicates || $missing))
         return 1;
 
-    if (!$duplicates)
-        echo "\nSin clases duplicadas.\n";
+    if (!$duplicates && !$missing)
+        echo "\nSin clases duplicadas ni includes rotos.\n";
 
     if ($guarded && !isset($options['json'])) {
         printf("\n%d clase(s) declaradas más de una vez pero protegidas con class_exists() (polyfills y dobles):\n",

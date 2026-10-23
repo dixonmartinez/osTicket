@@ -118,9 +118,16 @@ Y `class.forms.php` era el mayor del proyecto con diferencia. Ahora:
 | `include/class.forms.assignment.php` | 6 | Formularios de asignación, reclamo, liberación, marcado, referencia y transferencia |
 
 El reparto se comprueba con `make classes`, que lista qué clase vive en qué
-archivo y falla si dos archivos declaran la misma clase sin protección. Ese
-choque no lo ve `make lint`: cada archivo es válido por separado y el error
-sólo aparece al cargarlos en el orden equivocado.
+archivo y falla en dos casos que `make lint` no puede ver, porque cada
+archivo es válido por separado:
+
+- dos archivos declaran la misma clase sin protección (error fatal según el
+  orden de carga),
+- un `include`/`require` con ruta literal apunta a un archivo que no existe
+  (el error aparece sólo al ejecutar esa rama).
+
+Los polyfills y dobles de prueba (`if (!class_exists(...))`) se listan aparte:
+no chocan nunca.
 
 ---
 

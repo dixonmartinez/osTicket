@@ -154,6 +154,61 @@ class ClassMapTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Includes                                                           */
+    /* ------------------------------------------------------------------ */
+
+    public function testExtraeLosIncludesConRutaLiteral(): void {
+        $src = "<?php\nrequire_once(INCLUDE_DIR . 'class.thread.php');\n"
+            . "include_once(INCLUDE_DIR.'class.ticket.php');\n";
+
+        $rutas = ClassMap::includeTargets($src);
+
+        $this->assertSame('class.thread.php', $rutas[0]['path']);
+        $this->assertSame('class.ticket.php', $rutas[1]['path']);
+        $this->assertSame(2, $rutas[0]['line']);
+    }
+
+    public function testIgnoraLasRutasConVariables(): void {
+        // Las plantillas llevan la ruta en una variable: no se comprueban
+        $src = "<?php include(STAFFINC_DIR . 'templates/' . \$template);\n"
+            . "require_once \$ruta;\n";
+
+        $this->assertSame(array(), ClassMap::includeTargets($src));
+    }
+
+    public function testDetectaUnIncludeQueNoExiste(): void {
+        $dir = sys_get_temp_dir() . '/ost-classmap-' . getmypid();
+        @mkdir($dir, 0777, true);
+        file_put_contents("$dir/prueba.php",
+            "<?php require_once(INCLUDE_DIR . 'class.no-existe.php');\n");
+
+        $rotos = ClassMap::missingIncludes($dir, array('prueba.php'));
+
+        @unlink("$dir/prueba.php");
+        @rmdir($dir);
+
+        $this->assertSame(1, count($rotos));
+        $this->assertSame('class.no-existe.php', $rotos[0]['path']);
+    }
+
+    public function testNoMarcaUnIncludeQueExiste(): void {
+        $dir = sys_get_temp_dir() . '/ost-classmap-ok-' . getmypid();
+        @mkdir($dir . '/include', 0777, true);
+        file_put_contents("$dir/include/class.existe.php", "<?php\n");
+        file_put_contents("$dir/prueba.php",
+            "<?php require_once(INCLUDE_DIR . 'class.existe.php');\n");
+
+        $rotos = ClassMap::missingIncludes($dir, array('prueba.php'));
+
+        @unlink("$dir/prueba.php");
+        @unlink("$dir/include/class.existe.php");
+        @rmdir("$dir/include");
+        @rmdir($dir);
+
+        $this->assertSame(array(), $rotos);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Reparto por archivo                                                 */
     /* ------------------------------------------------------------------ */
 
