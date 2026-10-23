@@ -178,7 +178,7 @@ Lo que hay ahora:
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 285 pruebas en ~0,3 s
+make unit          # 325 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -242,13 +242,22 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-285 pruebas correctas, 0 fallidas, 4 omitidas
+325 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
 integración.
 
 ### Frente 2 — Reducir las funciones y archivos que concentran la dificultad 🔄 En curso
+
+**Dónde está:** la primera tanda está hecha y en uso —siete piezas puras
+sacadas de las funciones más largas, con 160 pruebas nuevas y seis defectos
+reales corregidos—, y ninguna de esas funciones ha vuelto a crecer. El
+criterio de éxito del frente **no se cumple todavía**: sigue habiendo
+funciones de la aplicación por encima de 120 líneas y siete archivos por
+encima de 2.000. Lo que queda no es mover código, sino **tener la prueba de
+integración con base de datos** para poder trocear `Ticket::create()` (500
+líneas) sin cambiar lo que hace. Eso está aplazado por decisión del equipo.
 
 El plan original hablaba de partir `Queue::getCriteria()` (1.414 líneas). Esa
 cifra era un error de medida (§1): la función tiene 30 líneas. Con los números
@@ -262,7 +271,7 @@ buenos, el frente cambia de objetivo:
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
 | `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
 | `massProcess()` de tickets | 377 líneas | **321** (`MassAction`) |
-| `massProcess()` de tareas | 330 líneas | **285** (`MassAction`) |
+| `massProcess()` de tareas | 330 líneas | **287** (`MassAction`) |
 | `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |
 | `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`) |
 | Funciones de la aplicación por encima de 150 líneas | 10 | 10 |
