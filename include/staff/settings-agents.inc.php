@@ -175,12 +175,17 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
             <table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
                 <tbody>
                     <?php
-                        $res = db_query('select distinct(`type`), id, notes, name, updated from '
-                        .PAGE_TABLE
-                        .' where isactive=1 group by `type`');
+                        // Una página por tipo: la que esté activa
+                        $pages = Page::objects()
+                            ->filter(array('isactive' => 1))
+                            ->values_flat('type', 'id', 'notes', 'name', 'updated')
+                            ->distinct('type')
+                            ->order_by(false);
                         $contents = array();
-                        while (list($type, $id, $notes, $name, $u) = db_fetch_row($res))
-                        $contents[$type] = array($id, $name, $notes, $u);
+                        foreach ($pages as $row) {
+                            list($type, $id, $notes, $name, $u) = $row;
+                            $contents[$type] = array($id, $name, $notes, $u);
+                        }
 
                         $manage_content = function($title, $content) use ($contents) {
                         list($id, $name, $notes, $upd) = $contents[$content];

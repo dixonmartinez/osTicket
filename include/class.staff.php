@@ -1062,7 +1062,7 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
             $fields = array("{$path}lastname", "{$path}firstname");
             break;
         default:
-            $fields = array("${path}firstname", "${path}lastname");
+            $fields = array("{$path}firstname", "{$path}lastname");
         }
 
         return $fields;

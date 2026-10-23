@@ -182,9 +182,10 @@ if($_REQUEST['id'] && !($dept=Dept::lookup($_REQUEST['id'])))
                             break;
                         case 'delete':
                             //Deny all deletes if one of the selections has members in it.
-                            $sql='SELECT count(staff_id) FROM '.STAFF_TABLE
-                                .' WHERE dept_id IN ('.implode(',', db_input($_POST['ids'])).')';
-                            list($members)=db_fetch_row(db_query($sql));
+                            $members = Staff::objects()
+                                ->filter(array('dept_id__in' =>
+                                    Http::post('ids', array())))
+                                ->count();
                             if($members)
                                 $errors['err']=__('Departments with agents can not be deleted. Move the agents first.');
                             else {

@@ -265,6 +265,7 @@ class OsticketConfig extends Config {
 
         if (count($this->config) == 0) {
             // Fallback for osticket < 1.7@852ca89e
+            // sql-audit:legacy lee el esquema anterior a 1.7, que el ORM no describe
             $sql='SELECT * FROM '.$this->table.' WHERE id = 1';
             $meta = ConfigItem::getMeta();
             if (($res=db_query($sql)) && db_num_rows($res))
@@ -320,6 +321,7 @@ class OsticketConfig extends Config {
 
         // 1.7 after namespaced configuration, other namespace
         if ($section) {
+            // sql-audit:legacy columna `namespace`, anterior a 1.7
             $sql='SELECT value FROM '.$this->table
                 .' WHERE `key` = "schema_signature" and namespace='.db_input($section);
             if (($res=db_query($sql, false)) && db_num_rows($res))
@@ -327,6 +329,7 @@ class OsticketConfig extends Config {
         }
 
         // 1.7 before namespaced configuration
+        // sql-audit:legacy columna `schema_signature`, anterior a 1.7
         $sql='SELECT `schema_signature` FROM '.$this->table
             .' WHERE id=1';
         if (($res=db_query($sql, false)) && db_num_rows($res))
@@ -1792,6 +1795,7 @@ class OsticketConfig extends Config {
 
     //Used to detect version prior to 1.7 (useful during upgrade)
     static function getDBVersion() {
+        // sql-audit:legacy columna `ostversion`, de 1.6
         $sql='SELECT `ostversion` FROM '.TABLE_PREFIX.'config '
             .'WHERE id=1';
         return db_result(db_query($sql));

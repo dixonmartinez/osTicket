@@ -64,8 +64,11 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
                 <td>
                     <select name="default_task_priority_id">
                         <?php
-                        $priorities= db_query('SELECT priority_id,priority_desc FROM '.TICKET_PRIORITY_TABLE);
-                        while (list($id,$tag) = db_fetch_row($priorities)){ ?>
+                        // Sin orden explícito: es el que tenía la consulta a mano
+                        $priorities = Priority::objects()->order_by(false)
+                            ->values_flat('priority_id', 'priority_desc');
+                        foreach ($priorities as $row) {
+                            list($id, $tag) = $row; ?>
                             <option value="<?php echo $id; ?>"<?php echo
                                 ($config['default_task_priority_id']==$id)?'selected':''; ?>><?php echo $tag; ?></option>
                         <?php

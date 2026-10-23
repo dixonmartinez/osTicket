@@ -16,6 +16,20 @@
 require_once INCLUDE_DIR.'class.i18n.php';
 require_once INCLUDE_DIR.'class.yaml.php';
 
+/**
+ * Una fila de `EMAIL_TEMPLATE_GRP_TABLE`.
+ *
+ * `EmailTemplateGroup` no es un modelo de fila —es la clase que compone y
+ * cachea las plantillas— sino el grupo cargado desde disco. Este modelo
+ * permite consultar los grupos con el ORM en lugar de escribir el SELECT.
+ */
+class EmailTemplateGroupModel extends VerySimpleModel {
+    static $meta = array(
+        'table' => EMAIL_TEMPLATE_GRP_TABLE,
+        'pk' => array('tpl_id'),
+    );
+}
+
 class EmailTemplateGroup {
 
     var $id;

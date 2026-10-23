@@ -39,14 +39,14 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
                 <select name="default_email_id">
                     <option value=0 disabled><?php echo __('Select One');?></option>
                     <?php
-                    $sql='SELECT email_id,email,name FROM '.EMAIL_TABLE;
-                    if(($res=db_query($sql)) && db_num_rows($res)){
-                        while (list($id,$email,$name) = db_fetch_row($res)){
-                            $email=$name?"$name &lt;$email&gt;":$email;
-                            ?>
-                            <option value="<?php echo $id; ?>"<?php echo ($config['default_email_id']==$id)?'selected="selected"':''; ?>><?php echo $email; ?></option>
+                    $emails = Email::objects()
+                        ->values_flat('email_id', 'email', 'name');
+                    foreach ($emails as $row) {
+                        list($id, $email, $name) = $row;
+                        $email = $name?"$name &lt;$email&gt;":$email;
+                        ?>
+                        <option value="<?php echo $id; ?>"<?php echo ($config['default_email_id']==$id)?'selected="selected"':''; ?>><?php echo $email; ?></option>
                         <?php
-                        }
                     } ?>
                  </select>
                  &nbsp;<font class="error">*&nbsp;<?php echo $errors['default_email_id']; ?></font>
@@ -59,14 +59,16 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
                 <select name="alert_email_id">
                     <option value="0" selected="selected"><?php echo __('Use Default System Email (above)');?></option>
                     <?php
-                    $sql='SELECT email_id,email,name FROM '.EMAIL_TABLE.' WHERE email_id != '.db_input($config['default_email_id']);
-                    if(($res=db_query($sql)) && db_num_rows($res)){
-                        while (list($id,$email,$name) = db_fetch_row($res)){
-                            $email=$name?"$name &lt;$email&gt;":$email;
-                            ?>
-                            <option value="<?php echo $id; ?>"<?php echo ($config['alert_email_id']==$id)?'selected="selected"':''; ?>><?php echo $email; ?></option>
+                    // Todas menos la de arriba
+                    $emails = Email::objects()
+                        ->exclude(array('email_id' => $config['default_email_id']))
+                        ->values_flat('email_id', 'email', 'name');
+                    foreach ($emails as $row) {
+                        list($id, $email, $name) = $row;
+                        $email = $name?"$name &lt;$email&gt;":$email;
+                        ?>
+                        <option value="<?php echo $id; ?>"<?php echo ($config['alert_email_id']==$id)?'selected="selected"':''; ?>><?php echo $email; ?></option>
                         <?php
-                        }
                     } ?>
                  </select>
                  &nbsp;<font class="error">*&nbsp;<?php echo $errors['alert_email_id']; ?></font>

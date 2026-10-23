@@ -2937,7 +2937,7 @@ implements RestrictedAccess, Threadable, Searchable {
         return true;
     }
 
-    function release(?array $info=array(), &$errors) {
+    function release(?array $info=array(), &$errors=null) {
         if (isset($info['sid']) && isset($info['tid']))
             return $this->unassign();
         elseif (isset($info['sid']) && $this->setStaffId(0))

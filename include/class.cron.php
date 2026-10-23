@@ -66,12 +66,15 @@ class Cron {
         $chance = rand(1,2000);
         switch ($chance) {
         case 42:
+            // sql-audit:legacy OPTIMIZE TABLE es mantenimiento, no hay ORM
             @db_query('OPTIMIZE TABLE `'.LOCK_TABLE.'`');
             break;
         case 242:
+            // sql-audit:legacy OPTIMIZE TABLE es mantenimiento, no hay ORM
             @db_query('OPTIMIZE TABLE '.SYSLOG_TABLE);
             break;
         case 442:
+            // sql-audit:legacy OPTIMIZE TABLE es mantenimiento, no hay ORM
             @db_query('OPTIMIZE TABLE '.DRAFT_TABLE);
             break;
 

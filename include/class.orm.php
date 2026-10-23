@@ -2968,10 +2968,10 @@ class MySqlCompiler extends SqlCompiler {
     function compileCount($queryset) {
         $q = clone $queryset;
         // Drop extra fields from the queryset
-        $q->related = $q->anotations = false;
+        // Sin anotaciones ni relaciones: sólo la clave, para contar filas
+        $q->related = $q->annotations = false;
         $model = $q->model;
         $q->values = $model::getMeta('pk');
-        $q->annotations = false;
         $exec = $q->getQuery(array('nosort' => true));
         $exec->sql = 'SELECT COUNT(*) FROM ('.$exec->sql.') __';
         try {

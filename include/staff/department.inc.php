@@ -171,14 +171,16 @@ $info = Format::htmlchars(($errors && $_POST) ? $_POST : $info, true);
                 <select name="manager_id">
                     <option value="0">&mdash; <?php echo __('None'); ?> &mdash;</option>
                     <?php
-                    $sql='SELECT staff_id,CONCAT_WS(", ",lastname, firstname) as name '
-                        .' FROM '.STAFF_TABLE.' staff '
-                        .' ORDER by name';
-                    if(($res=db_query($sql)) && db_num_rows($res)) {
-                        while(list($id,$name)=db_fetch_row($res)){
-                            $selected=($info['manager_id'] && $id==$info['manager_id'])?'selected="selected"':'';
-                            echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$name);
-                        }
+                    $staff = Staff::objects()
+                        ->values_flat('staff_id', 'lastname', 'firstname')
+                        ->order_by('lastname', 'firstname');
+                    foreach ($staff as list($id, $last, $first)) {
+                        // CONCAT_WS(", ", ...) saltaba los vacíos: igual aquí
+                        $name = implode(', ', array_filter(array($last, $first),
+                            'strlen'));
+                        $selected=($info['manager_id'] && $id==$info['manager_id'])?'selected="selected"':'';
+                        echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,
+                            Format::htmlchars($name));
                     }
                     ?>
                 </select>
@@ -241,14 +243,16 @@ $info = Format::htmlchars(($errors && $_POST) ? $_POST : $info, true);
                 <select name="email_id">
                     <option value="0">&mdash; <?php echo __('System Default'); ?> &mdash;</option>
                     <?php
-                    $sql='SELECT email_id,email,name FROM '.EMAIL_TABLE.' email ORDER by name';
-                    if(($res=db_query($sql)) && db_num_rows($res)){
-                        while(list($id,$email,$name)=db_fetch_row($res)){
-                            $selected=($info['email_id'] && $id==$info['email_id'])?'selected="selected"':'';
-                            if($name)
-                                $email=Format::htmlchars("$name <$email>");
-                            echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$email);
-                        }
+                    $emails = Email::objects()
+                        ->values_flat('email_id', 'email', 'name')
+                        ->order_by('name');
+                    foreach ($emails as list($id, $email, $name)) {
+                        $selected=($info['email_id'] && $id==$info['email_id'])?'selected="selected"':'';
+                        if($name)
+                            $email=Format::htmlchars("$name <$email>");
+                        else
+                            $email=Format::htmlchars($email);
+                        echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$email);
                     }
                     ?>
                 </select>
@@ -263,12 +267,14 @@ $info = Format::htmlchars(($errors && $_POST) ? $_POST : $info, true);
                 <select name="tpl_id">
                     <option value="0">&mdash; <?php echo __('System Default'); ?> &mdash;</option>
                     <?php
-                    $sql='SELECT tpl_id,name FROM '.EMAIL_TEMPLATE_GRP_TABLE.' tpl WHERE isactive=1 ORDER by name';
-                    if(($res=db_query($sql)) && db_num_rows($res)){
-                        while(list($id,$name)=db_fetch_row($res)){
-                            $selected=($info['tpl_id'] && $id==$info['tpl_id'])?'selected="selected"':'';
-                            echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$name);
-                        }
+                    $tpls = EmailTemplateGroupModel::objects()
+                        ->filter(array('isactive' => 1))
+                        ->values_flat('tpl_id', 'name')
+                        ->order_by('name');
+                    foreach ($tpls as list($id, $name)) {
+                        $selected=($info['tpl_id'] && $id==$info['tpl_id'])?'selected="selected"':'';
+                        echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,
+                            Format::htmlchars($name));
                     }
                     ?>
                 </select>
@@ -315,16 +321,18 @@ $info = Format::htmlchars(($errors && $_POST) ? $_POST : $info, true);
                 <select name="autoresp_email_id">
                     <option value="0" selected="selected">&mdash; <?php echo __('Department Email'); ?> &mdash;</option>
                     <?php
-                    $sql='SELECT email_id,email,name FROM '.EMAIL_TABLE.' email ORDER by name';
-                    if(($res=db_query($sql)) && db_num_rows($res)){
-                        while(list($id,$email,$name)=db_fetch_row($res)){
-                            $selected = (isset($info['autoresp_email_id'])
-                                    && $id == $info['autoresp_email_id'])
-                                ? 'selected="selected"' : '';
-                            if($name)
-                                $email=Format::htmlchars("$name <$email>");
-                            echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$email);
-                        }
+                    $emails = Email::objects()
+                        ->values_flat('email_id', 'email', 'name')
+                        ->order_by('name');
+                    foreach ($emails as list($id, $email, $name)) {
+                        $selected = (isset($info['autoresp_email_id'])
+                                && $id == $info['autoresp_email_id'])
+                            ? 'selected="selected"' : '';
+                        if($name)
+                            $email=Format::htmlchars("$name <$email>");
+                        else
+                            $email=Format::htmlchars($email);
+                        echo sprintf('<option value="%d" %s>%s</option>',$id,$selected,$email);
                     }
                     ?>
                 </select>

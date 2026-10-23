@@ -52,11 +52,11 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 517 |
-| Líneas | 134.045 |
-| Funciones | 6.076 |
-| Clases, interfaces y rasgos | 672 en 199 archivos |
-| Tamaño medio de función | 12 líneas |
+| Archivos PHP propios | 518 |
+| Líneas | 134.669 |
+| Funciones | 6.072 |
+| Clases, interfaces y rasgos | 675 en 201 archivos |
+| Tamaño medio de función | 12,1 líneas |
 | Archivo más grande | `include/class.ticket.php` — 4.809 líneas |
 | Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
 | Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
@@ -69,16 +69,16 @@ atípicos, y ahora se ven:
 |---|---|---|
 | `Ticket::create()` | 500 | `include/class.ticket.php` |
 | `massProcess()` | 321 | `include/ajax.tickets.php` |
-| `massProcess()` | 285 | `include/ajax.tasks.php` |
+| `massProcess()` | 287 | `include/ajax.tasks.php` |
 | `Mailer::send()` | 270 | `include/class.mailer.php` |
 | `Ticket::postMessage()` | 178 | `include/class.ticket.php` |
 | `Schedule::buildFields()` | 175 | `include/class.schedule.php` |
 
 | Señal | Ocurrencias |
 |---|---|
-| SQL a mano (`db_query`) | 183 |
+| SQL a mano (`db_query`) | 176 reales (111 en la aplicación) |
 | `db_input()` (escape manual) | 164 |
-| Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.249 (frente 4) |
+| Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.248 (frente 4) |
 | `global $...` | 560 |
 | `eval()` | 15 |
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
@@ -368,10 +368,10 @@ del archivo diciendo qué hay dentro y las dependencias declaradas arriba
 mapa se consulta con `make classes`; los candidatos que quedan son
 `class.forms.php` (37 clases) y `class.thread.php` (11).
 
-### Frente 3 — Terminar la migración al ORM
+### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
-- Qué hacer: los 183 `db_query()` restantes son SQL escrito a mano que evita
-  el ORM (y con él, el escapado y la instrumentación). Migrarlos por áreas,
+- Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el
+  ORM (y con él, el escapado y la instrumentación). Migrarlos por áreas,
   empezando por los `SELECT` simples.
 - Por qué: cada `db_query` con concatenación es una superficie de inyección
   potencial y un punto que no se beneficia de las mejoras del ORM.
@@ -379,9 +379,105 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 - Éxito: `db_query` por debajo de 100 y sin ninguna concatenación de datos de
   la petición (el escáner `tools/audit` ya vigila lo segundo).
 
+**La cifra primero.** «183 `db_query`» era un `grep`, y un `grep` cuenta
+comentarios, la definición del driver y el SQL partido en varias líneas. La
+medida de verdad la da `tools/quality/sql-audit.php`, que quita los
+comentarios antes de contar (`PhpSource::withoutComments()`, conservando las
+líneas) y separa cuatro cosas que no son lo mismo:
+
+| Categoría | Llamadas | Archivos | Qué es | ¿Se toca? |
+|---|---|---|---|---|
+| **aplicación** | **111** | 43 | El código de osTicket | es la deuda, y baja |
+| instalador | 5 | 2 | `setup/` e `include/class.setup.php`: corre antes de que exista el esquema | no |
+| actualizador (histórico) | 33 | 16 | `include/upgrader/streams/`: migraciones de esquemas viejos | no |
+| driver de base de datos | 6 | 1 | `include/mysqli.php`: ahí `db_query()` *es* el trabajo | no |
+| dobles de prueba | 21 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
+
+De las 111 de la aplicación, **20 están marcadas como no migrables** con su
+motivo (`sql-audit:legacy`), así que **quedan 91 por migrar**: el objetivo
+era bajar de 100 y se cumple. Quedan **46 `SELECT`, 30 DML, 2 DDL y 13
+«otras»**; **ninguna concatenación de datos de la petición** (eso lo vigila
+`tools/audit` con OST-SQLI y también el propio `sql-audit`, que falla si
+aparece una en el punto de llamada).
+
+**La marca, y por qué no es una salida.** Hay SQL que no puede pasar por el
+ORM y no por pereza:
+
+```php
+// sql-audit:legacy OPTIMIZE TABLE es mantenimiento, no hay ORM
+@db_query('OPTIMIZE TABLE '.SYSLOG_TABLE);
+```
+
+- La marca **exige motivo**: una marca vacía hace fallar `make sql-audit`, y
+  el motivo se imprime en el informe para que dentro de un año se sepa por
+  qué sigue ahí.
+- Alcanza **tres líneas hacia arriba**, así que no se puede «marcar el
+  archivo» de una vez.
+- Hay un **tope de 25 marcas** (`SqlAudit::LEGACY_MAX`): si se pudiera marcar
+  todo, el contador volvería a no significar nada.
+
+Las 20 marcas son de cinco sitios, y ninguna es una consulta de la
+aplicación que se pueda escribir con el ORM:
+
+| Archivo | Marcas | Por qué |
+|---|---|---|
+| `include/class.cron.php` | 3 | `OPTIMIZE TABLE` de las tablas de bloqueo, syslog y borradores |
+| `include/class.search.php` | 7 | índice `FULLTEXT`: `REPLACE`, borrado con `JOIN`, `CREATE TABLE`, `INSERT` por lotes, `SHOW STATUS` para elegir motor |
+| `include/class.config.php` | 4 | compatibilidad con esquemas anteriores a 1.7 (`namespace`, `schema_signature`, `ostversion`) |
+| `include/class.export.php` | 3 | volcado: pregunta por `information_schema` y recorre tablas arbitrarias en streaming |
+| `include/staff/system.inc.php`, `include/class.setup.php` | 3 + 2 | tamaño en disco (`information_schema`), sentencias del esquema al instalar |
+
+**Lo migrado**, por áreas y con la suite en verde después de cada tanda:
+
+| Archivo | Antes | Después | Qué se hizo |
+|---|---|---|---|
+| `include/class.sla.php` | 4 | 0 | `delete()` completo por el ORM |
+| `include/staff/department.inc.php` | 4 | 0 | gerentes (`Staff`), correos (`Email`, dos veces) y grupos de plantillas (`EmailTemplateGroupModel`) |
+| `include/staff/settings-emails.inc.php` | 3 | 1 | dos `<select>` de correo y plantilla |
+| `scp/departments.php` | 3 | 2 | recuento de miembros con `Staff::objects()->filter(['dept_id__in' => ...])->count()` |
+| `include/class.topic.php` | 2 | 1 | desvincular tickets al borrar un tema, con `->update()` |
+| `include/staff/settings-tasks.inc.php` | 1 | 0 | prioridades y plantillas |
+| `include/staff/settings-tickets.inc.php` | 1 | 0 | prioridades |
+| `include/staff/settings-agents.inc.php` | 1 | 0 | plantillas de respuesta |
+| `include/staff/settings-users.inc.php` | 1 | 0 | plantilla de bienvenida |
+
+Ninguno sube. Lo que sigue en esos archivos es SQL de otra naturaleza (por
+ejemplo, en `settings-emails.inc.php` queda el `SELECT DISTINCT` que alimenta
+la lista de tipos de correo). Además, `include/class.knowledgebase.php` era un
+archivo huérfano —nadie lo incluía y su clase no existía en ningún otro
+sitio— y se borró.
+
+**Una pieza nueva:** `EmailTemplateGroupModel`, un `VerySimpleModel` sobre
+`EMAIL_TEMPLATE_GRP_TABLE`. `EmailTemplateGroup` es la clase que compone y
+cachea las plantillas, no un modelo de fila; sin él, cada grupo de plantillas
+seguía leyéndose con SQL a mano.
+
+**Detalles que costaron y quedan documentados**, porque se repetirán:
+
+- **`$queryset` no se puede convertir a cadena** ni ejecuta: `getQuery()`
+  devuelve `sql`/`params` sin tocar la base. Las pruebas del ORM comprueban
+  el SQL generado, no el resultado.
+- **`order_by()` añade** al orden por defecto del modelo. Para reemplazarlo
+  hay que pasar `order_by(false)` y luego el criterio.
+- **`CONCAT_WS(", ", lastname, firstname)`** salta los vacíos; al pasarlo a
+  PHP hay que `array_filter(..., 'strlen')` o cambia el texto.
+- **`count()` ejecuta** (`compileCount()` hace `$exec->getRow()`): sin
+  `mysqli` revienta, y por eso las pruebas usan `compileSelect()`.
+
+**La regla automática.** `make sql-audit` compara con
+`tools/quality/sql-baseline.json` (91 llamadas en 43 archivos) y **falla** si:
+
+- un archivo nuevo trae SQL a mano,
+- cualquier archivo sube respecto de la línea base,
+- una llamada concatena datos de la petición sin escapar,
+- una marca `sql-audit:legacy` no lleva motivo, o se pasa del tope.
+
+Ya está dentro de `make ci`, detrás de `input-audit`. Para consolidar una
+bajada: `php tools/quality/sql-audit.php --update`.
+
 ### Frente 4 — Entrada única y tipada 🔄 En curso (la regla ya se cumple)
 
-- Qué hacer: no tocar los 1.243 accesos uno a uno. Añadir una fachada —
+- Qué hacer: no tocar los 1.242 accesos uno a uno. Añadir una fachada —
   `Http::get()`, `Http::post()`, `Http::postInt()`— y **usarla en el código
   nuevo**; migrar sólo los archivos que se vayan tocando por otro motivo
   (regla del boy scout).
@@ -400,9 +496,9 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 | `make input-audit` | `--check`: falla si aparece un archivo nuevo con acceso directo o si alguno sube. Ya está dentro de `make ci` | — |
 
 La regla no se queda en un documento: **el contador no puede subir**. La
-línea base tiene 141 archivos con 1.243 accesos; `include/class.http.php`, que
+línea base tiene 141 archivos con 1.242 accesos; `include/class.http.php`, que
 es la fachada, queda fuera del recuento porque leer esas variables es su
-trabajo. `make metrics` sí la cuenta, por eso da 1.249.
+trabajo. `make metrics` sí la cuenta, por eso da 1.248.
 
 Primera pasada de migración (los dos archivos que el frente 2 ya había
 tocado):
@@ -470,7 +566,7 @@ Queda pendiente migrar el resto **cuando se toque cada archivo**, no antes.
   dinámicos, SLA, correo y colas supera cualquier ganancia de estilo.
 - **Cambiar la convención de nombres** (`class.ticket.php`, `scp/`) para
   "modernizar". Rompe enlaces, plugins y documentación sin mejorar nada.
-- **Un refactor masivo de `$_POST`.** 1.243 sitios, con lógica de negocio
+- **Un refactor masivo de `$_POST`.** 1.242 sitios, con lógica de negocio
   mezclada: es el cambio con peor relación riesgo/beneficio.
 - **Tocar `eval()` del ORM** sin pruebas. Los 13 usos sostienen la generación
   dinámica de clases; sustituirlos exige un rediseño, no un reemplazo.
@@ -484,6 +580,14 @@ make metrics-json > antes.json
 make metrics-json > despues.json
 diff <(python3 -m json.tool antes.json) <(python3 -m json.tool despues.json)
 ```
+
+Los dos contadores que tienen regla propia —y que por eso no dependen de que
+alguien mire el informe— son:
+
+| Regla | Línea base | Comando |
+|---|---|---|
+| Accesos directos a `$_GET`/`$_POST`/`$_REQUEST` (frente 4) | 1.242 en 141 archivos | `make input-audit` |
+| SQL escrito a mano en la aplicación (frente 3) | 91 en 43 archivos, más 20 excepciones con motivo | `make sql-audit` |
 
 Un refactor está justificado si **baja** alguna señal sin que suba ninguna
 otra, y si `make ci` sigue en verde.

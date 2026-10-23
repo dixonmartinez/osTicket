@@ -161,6 +161,7 @@ if (!$lv) { ?>
     </tr>
     <tr><td><?php echo __('Space Used'); ?></td>
         <td><?php
+        // sql-audit:legacy information_schema no tiene modelo
         $sql = 'SELECT sum( data_length + index_length ) / 1048576 total_size
             FROM information_schema.TABLES WHERE table_schema = '
             .db_input(DBNAME);
@@ -179,6 +180,7 @@ if (!$lv) { ?>
                 ORDER BY
                     (DATA_LENGTH + INDEX_LENGTH)
                 DESC';
+        // sql-audit:legacy pregunta por el archivo más grande, no por un modelo
         $space = db_result(db_query($sql));
         echo sprintf('%.2f MiB', $space); ?></td></tr>
     <tr><td><?php echo __('Timezone'); ?></td>

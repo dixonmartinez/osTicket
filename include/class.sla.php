@@ -225,19 +225,29 @@ implements TemplateVariable {
         if(!$cfg || $cfg->getDefaultSLAId()==$this->getId())
             return false;
 
-        //TODO: Use ORM to delete & update
-        $id=$this->getId();
-        $sql='DELETE FROM '.SLA_TABLE.' WHERE id='.db_input($id).' LIMIT 1';
-        if(db_query($sql) && ($num=db_affected_rows())) {
-            db_query('UPDATE '.DEPT_TABLE.' SET sla_id=0 WHERE sla_id='.db_input($id));
-            db_query('UPDATE '.TOPIC_TABLE.' SET sla_id=0 WHERE sla_id='.db_input($id));
-            db_query('UPDATE '.TICKET_TABLE.' SET sla_id='.db_input($cfg->getDefaultSLAId()).' WHERE sla_id='.db_input($id));
-        }
+        $id = $this->getId();
+
+        // Primero el plan y después las referencias, igual que antes: si el
+        // borrado falla, no se desvincula nada.
+        if (!parent::delete())
+            return false;
+
+        // Los departamentos y los temas se quedan sin plan; los tickets
+        // pasan al plan por defecto (no se pueden quedar sin SLA)
+        Dept::objects()
+            ->filter(array('sla_id' => $id))
+            ->update(array('sla_id' => 0));
+        Topic::objects()
+            ->filter(array('sla_id' => $id))
+            ->update(array('sla_id' => 0));
+        Ticket::objects()
+            ->filter(array('sla_id' => $id))
+            ->update(array('sla_id' => $cfg->getDefaultSLAId()));
 
         $type = array('type' => 'deleted');
         Signal::send('object.deleted', $this, $type);
 
-        return $num;
+        return 1;
     }
 
     /** static functions **/

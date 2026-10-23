@@ -65,8 +65,10 @@ class SetupWizard {
             return $this->abort(__('Error parsing SQL schema'), $debug);
 
 
+        // sql-audit:legacy instala el esquema: el ORM aún no tiene nada que describir
         db_query('SET SESSION SQL_MODE =""', false);
         foreach($statements as $k=>$sql) {
+            // sql-audit:legacy sentencias del esquema, no consultas de la aplicación
             if(db_query($sql, false)) continue;
             $error = "[$sql] ".db_error();
             if ($abort)

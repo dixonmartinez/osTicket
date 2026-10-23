@@ -283,6 +283,7 @@ class MysqlSearchBackend extends SearchBackend {
             . ', object_id='.db_input($id)
             . ', content='.db_input($content)
             . ', title='.db_input($title);
+        // sql-audit:legacy índice FULLTEXT, fuera del ORM
         return db_query($sql, false);
     }
 
@@ -293,6 +294,7 @@ class MysqlSearchBackend extends SearchBackend {
                 . " s JOIN ".THREAD_ENTRY_TABLE." h ON (h.id = s.object_id) "
                 . " WHERE s.object_type='H'"
                 . ' AND h.thread_id='.db_input($model->getId());
+            // sql-audit:legacy borra del índice FULLTEXT con JOIN, sin modelo
             return db_query($sql);
 
         default:
@@ -302,6 +304,7 @@ class MysqlSearchBackend extends SearchBackend {
             $sql = 'DELETE FROM '.$this->SEARCH_TABLE
                 . ' WHERE object_type='.db_input($type)
                 . ' AND object_id='.db_input($model->getId());
+            // sql-audit:legacy borra del índice FULLTEXT, sin modelo
             return db_query($sql);
         }
     }
@@ -446,9 +449,11 @@ class MysqlSearchBackend extends SearchBackend {
         $sql = "select count(*) from information_schema.tables where
             table_schema='information_schema' and table_name =
             'INNODB_FT_CONFIG'";
+        // sql-audit:legacy pregunta por el motor (MySQL 5.6 y Galera)
         $mysql56 = db_result(db_query($sql));
 
         $sql = "show status like 'wsrep_local_state'";
+        // sql-audit:legacy SHOW STATUS, no hay modelo
         $galera = db_result(db_query($sql));
 
         if ($galera && !$mysql56)
@@ -465,6 +470,7 @@ class MysqlSearchBackend extends SearchBackend {
             primary key `object` (`object_type`, `object_id`),
             fulltext key `search` (`title`, `content`)
         ) $engine CHARSET=utf8";
+        // sql-audit:legacy CREATE TABLE del índice de búsqueda
         if (!db_query($sql))
             return false;
 
@@ -633,6 +639,7 @@ class MysqlSearchBackend extends SearchBackend {
 
         $sql = 'INSERT INTO `'.TABLE_PREFIX.'_search` (`object_type`, `object_id`, `title`, `content`)
             VALUES '.implode(',', $queue);
+        // sql-audit:legacy INSERT por lotes en el índice FULLTEXT
         if (!db_query($sql, false) || count($queue) != db_affected_rows())
             throw new Exception('Unable to index content');
 

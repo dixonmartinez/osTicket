@@ -814,6 +814,7 @@ class DatabaseExporter {
 
             // Inspect schema
             $table = array();
+            // sql-audit:legacy la exportación pregunta por el esquema, no por un modelo
             $res = db_query("select column_name from information_schema.columns
                 where table_schema=DATABASE() and table_name='$t'");
             while (list($field) = db_fetch_row($res))
@@ -827,6 +828,7 @@ class DatabaseExporter {
             $this->write_block(
                 array('table', substr($t, strlen(TABLE_PREFIX)), $table));
 
+            // sql-audit:legacy vuelca una tabla cualquiera, sin modelo posible
             db_query("select * from $t");
 
             // Dump row data
@@ -839,6 +841,7 @@ class DatabaseExporter {
 
     function transfer($destination, $query, $callback=false, $options=array()) {
         $header_out = false;
+        // sql-audit:legacy consulta de exportación en streaming, sin modelo
         $res = db_query($query, true, false);
         $i = 0;
         while ($row = db_fetch_array($res)) {

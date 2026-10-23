@@ -55,7 +55,8 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make metrics` | Radiografía del código: tamaño y deuda técnica | ~2 s |
 | `make classes` | Mapa de clases por archivo; falla si una clase se declara dos veces o un `include` literal apunta a un archivo que no existe | ~1 s |
 | `make input-audit` | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST`; falla si el contador sube respecto a la línea base | ~1 s |
-| `make ci` | lint + audit + security + theme + classes + input-audit + unit (verificación previa al commit) | ~10 s |
+| `make sql-audit` | SQL escrito a mano (`db_query`); falla si sube, si concatena datos de la petición o si una excepción no lleva motivo | ~1 s |
+| `make ci` | lint + audit + security + theme + classes + input-audit + sql-audit + unit (verificación previa al commit) | ~11 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
 | `php tools/scaffold.php` | Genera esqueletos de página/AJAX | instantáneo |
@@ -320,6 +321,12 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
   `Http::get()` / `Http::post()` / `Http::postInt()`, nunca a pelo. `make
   input-audit` falla si el contador de accesos directos sube; la fachada no
   cuenta. Detalle en [`CODE_QUALITY.md`](CODE_QUALITY.md), frente 4.
+- **SQL a mano**: `make sql-audit` cuenta las llamadas reales a `db_query()`
+  (sin comentarios) y separa aplicación, instalador, actualizador, driver y
+  dobles de prueba. Falla si sube una sola, si alguna concatena datos de la
+  petición, si una marca `// sql-audit:legacy` no lleva motivo o si se pasa
+  del tope de marcas. Detalle en [`CODE_QUALITY.md`](CODE_QUALITY.md),
+  frente 3.
 - **Pruebas unitarias**: `make unit` (o `make test`). Viven en `tests/` como
   `*Test.php` y extienden `UnitTestCase`. **Un aviso de PHP cuenta como
   fallo** (deprecaciones, índices sin definir): si tu prueba pasa pero el log

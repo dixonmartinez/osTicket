@@ -275,7 +275,9 @@ implements TemplateVariable, Searchable {
             FaqTopic::objects()->filter(array(
                 'topic_id' => $this->getId()
             ))->delete();
-            db_query('UPDATE '.TICKET_TABLE.' SET topic_id=0 WHERE topic_id='.db_input($this->getId()));
+            Ticket::objects()
+                ->filter(array('topic_id' => $this->getId()))
+                ->update(array('topic_id' => 0));
 
             $type = array('type' => 'deleted');
             Signal::send('object.deleted', $this, $type);
