@@ -54,10 +54,15 @@ class Validator {
 
         //Do the do.
         foreach($this->fields as $k=>$field){
-            if(!$field['required'] && !$this->input[$k]) //NOT required...and no data provided...
+            // Un campo que no viene en la entrada no es un aviso de PHP: es
+            // «vacío». Antes se leía $this->input[$k] sin comprobarlo y
+            // llenaba el log de «Undefined array key».
+            $value = $this->input[$k] ?? null;
+
+            if(!$field['required'] && !$value) //NOT required...and no data provided...
                 continue;
 
-            if($field['required'] && !isset($this->input[$k]) || (!$this->input[$k] && $field['type']!='int')){ //Required...and no data provided...
+            if($field['required'] && !isset($this->input[$k]) || (!$value && $field['type']!='int')){ //Required...and no data provided...
                 $this->errors[$k]=$field['error'];
                 continue;
             }
@@ -214,7 +219,9 @@ class Validator {
 
     static function is_url($url) {
         //XXX: parse_url is not ideal for validating urls but it's ideal for basic checks.
-        return ($url && ($info=parse_url($url)) && $info['host']);
+        $info = $url ? parse_url($url) : null;
+
+        return (!empty($info['host']));
     }
 
     static function is_ip($ip, &$error='') {

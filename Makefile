@@ -18,7 +18,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test security theme metrics metrics-json ci clean perms serve browser-audit \
+.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme metrics metrics-json ci clean perms serve browser-audit \
 	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
@@ -54,7 +54,21 @@ baseline: ## Registra los hallazgos actuales como línea base aceptada
 	@$(PHP) $(ROOT)/tools/audit/scan.php \
 		--write-baseline=$(ROOT)/$(BASELINE)
 
-test: ## Ejecuta la suite de pruebas del proyecto
+unit: ## Pruebas unitarias sin base de datos (Format, Validator…)
+	@if [ -x $(ROOT)/vendor/bin/phpunit ]; then \
+		echo "· PHPUnit (vendor/bin/phpunit)"; \
+		$(PHP) $(ROOT)/vendor/bin/phpunit --colors=never; \
+	else \
+		echo "· tests/run.php (sin Composer: mismo resultado, sin red)"; \
+		$(PHP) $(ROOT)/tests/run.php; \
+	fi
+
+unit-list: ## Lista las pruebas unitarias
+	@$(PHP) $(ROOT)/tests/run.php --list
+
+test: unit ## Pruebas unitarias (alias de `unit`)
+
+test-legacy: ## Suite del instalador (necesita base de datos configurada)
 	@$(PHP) $(ROOT)/setup/test/run-tests.php
 
 security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19)
@@ -97,7 +111,7 @@ metrics: ## Radiografía del código propio (tamaño y deuda técnica)
 metrics-json: ## Lo mismo, en JSON (para comparar antes/después)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php --json
 
-ci: lint audit security theme ## Verificación completa para integración continua
+ci: lint audit security theme unit ## Verificación completa para integración continua
 
 clean: ## Elimina artefactos temporales de desarrollo
 	@rm -rf $(ROOT)/vendor/.phpunit.result.cache

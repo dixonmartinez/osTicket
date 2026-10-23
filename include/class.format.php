@@ -34,9 +34,11 @@ class Format {
 
     static function filesize2bytes($size) {
         switch (substr($size, -1)) {
-        case 'M': case 'm': return (int)$size <<= 20;
-        case 'K': case 'k': return (int)$size <<= 10;
-        case 'G': case 'g': return (int)$size <<= 30;
+        // Desplazar el valor ya convertido: antes se desplazaba la cadena y
+        // PHP 8 emitía «A non-numeric value encountered» en cada llamada.
+        case 'M': case 'm': return (int) $size << 20;
+        case 'K': case 'k': return (int) $size << 10;
+        case 'G': case 'g': return (int) $size << 30;
         }
 
         return $size;

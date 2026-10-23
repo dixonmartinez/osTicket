@@ -48,7 +48,7 @@ dirección contraria.
 | Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.269 |
 | `global $...` | 560 |
 | `eval()` | 13 |
-| `onclick=`/`onchange=` en HTML | 127 |
+| `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
 | `<script>` embebido en plantillas | 166 |
 
 La media de 14,7 líneas por función es **buena**. El problema no es el estilo
@@ -74,20 +74,51 @@ construcción de SQL, validación, permisos y presentación.
 
 ## 3. Los seis frentes, por relación impacto/riesgo
 
-### Frente 1 — Red de seguridad antes de tocar nada (imprescindible)
+### Frente 1 — Red de seguridad antes de tocar nada (imprescindible) ✅ Hecho
 
-No hay pruebas que cubran el comportamiento actual: `setup/test/run-tests.php`
-valida el instalador, no la aplicación. **Cualquier refactor sin esto es una
-apuesta.**
+No había ninguna prueba del comportamiento de la aplicación:
+`setup/test/run-tests.php` valida el instalador, no el producto. **Cualquier
+refactor sin esto es una apuesta.**
 
-- Qué hacer: una carpeta `tests/` con PHPUnit (ya está en `composer.json`) y
-  pruebas de caracterización sobre las piezas puras: `Format::*`,
-  `Validator::*`, `Queue::getSortOptions()`, `TicketStatus`, `Filter`.
-- Por qué primero: son funciones sin base de datos, se prueban en segundos y
-  permiten refactorizar el resto con red.
-- Riesgo: bajo (no se toca código de producción).
-- Éxito: `make test` cubre al menos `Format` y `Validator` con casos reales y
-  falla si cambian.
+Lo que hay ahora:
+
+| Pieza | Para qué |
+|---|---|
+| `tests/bootstrap.php` | Entorno mínimo: define `ROOT_DIR`, `INCLUDE_DIR`, `PEAR_DIR`, sustituye `__()` y carga `Format` y `Validator`. Sin base de datos, sin configuración, sin sesión |
+| `tests/lib/UnitTestCase.php` | Clase base con la API de PHPUnit que usan las pruebas (asserts, `expectException`), para poder ejecutarlas sin `vendor/` |
+| `tests/run.php` | Ejecutor propio: recorre `tests/*Test.php` y llama a los métodos `test*`. Es lo que se usa cuando no hay Composer |
+| `tests/FormatTest.php` | 23 casos: tamaños, teléfonos, `truncate`, `mask`, `slugify`, escapado de HTML, cadenas de consulta… |
+| `tests/ValidatorTest.php` | 25 casos: correo (incluido el modo lista y `localhost`), IP y redes CIDR (v4 y v6), URL, teléfono, usuario, fórmula y el validador de formularios |
+| `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
+
+```bash
+make unit          # 48 pruebas en menos de 0,1 s
+make unit-list     # ver qué cubre
+make test          # alias de `unit`
+make test-legacy   # suite del instalador (necesita base de datos)
+```
+
+Con `composer install` presente, `make unit` usa PHPUnit; si no, usa
+`tests/run.php`. **Las dos vías ejecutan las mismas pruebas y dan el mismo
+resultado**, así que un clon recién bajado se puede comprobar sin red y dentro
+del contenedor.
+
+Son **pruebas de caracterización**: no dicen «esto es lo correcto», dicen
+«esto es lo que hace hoy». Si un refactor cambia el resultado, la prueba falla
+y obliga a decidir si el cambio era intencionado.
+
+Al escribirlas aparecieron tres defectos reales, corregidos sin cambiar el
+comportamiento observable:
+
+1. `Format::filesize2bytes()` desplazaba la cadena en vez del entero y PHP 8
+   emitía «A non-numeric value encountered» en cada llamada.
+2. `Validator::validate()` leía `$this->input[$k]` sin comprobar que existiera:
+   un campo opcional ausente llenaba el log de «Undefined array key».
+3. `Validator::is_url()` hacía lo mismo con `$info['host']` en las URLs
+   relativas.
+
+`make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
+integración.
 
 ### Frente 2 — Partir las funciones gigantes (empezando por `getCriteria`)
 

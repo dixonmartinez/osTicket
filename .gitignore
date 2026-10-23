@@ -37,3 +37,7 @@ nbproject/
 
 # Hoja de iconos generada por `make icons`
 ost-iconos.html
+
+# Caché de PHPUnit
+.phpunit.cache/
+.phpunit.result.cache

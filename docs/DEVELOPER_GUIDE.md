@@ -47,11 +47,13 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make lint` | Sintaxis de todos los PHP (paralelo) | ~2 s |
 | `make audit` | Análisis de seguridad, falla con hallazgos nuevos altos | ~2 s |
 | `make audit-all` | Informe completo con severidad baja | ~2 s |
-| `make test` | Suite histórica de pruebas (`setup/test/`) | variable |
+| `make unit` | Pruebas unitarias de `Format` y `Validator` (sin base de datos) | ~0,1 s |
+| `make test` | Alias de `make unit` | ~0,1 s |
+| `make test-legacy` | Suite histórica del instalador (`setup/test/`) | variable |
 | `make security` | Versión de PHP frente a php2shell (CVE-2026-109618/19) | ~1 s |
 | `make theme` | Integridad del tema claro/oscuro (sin navegador) | ~1 s |
 | `make metrics` | Radiografía del código: tamaño y deuda técnica | ~2 s |
-| `make ci` | lint + audit + security + theme (verificación previa al commit) | ~7 s |
+| `make ci` | lint + audit + security + theme + unit (verificación previa al commit) | ~8 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
 | `php tools/scaffold.php` | Genera esqueletos de página/AJAX | instantáneo |
@@ -310,15 +312,17 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
   [`CODE_QUALITY.md`](CODE_QUALITY.md).
 - **Seguridad**: `make audit` (falla con hallazgos altos nuevos). Cualquier
   excepción deliberada se anota con `// audit:ignore <REGLA> -- motivo`.
-- **Suite histórica**: `setup/test/run-tests.php` (análisis estático:
+- **Pruebas unitarias**: `make unit` (o `make test`). Viven en `tests/` como
+  `*Test.php` y extienden `UnitTestCase`. No necesitan base de datos ni
+  Composer: `tests/run.php` las ejecuta igual. Con `composer install`,
+  `make unit` usa PHPUnit. Detalle en
+  [`CODE_QUALITY.md`](CODE_QUALITY.md#frente-1--red-de-seguridad-antes-de-tocar-nada-imprescindible).
+- **Suite histórica**: `make test-legacy` (`setup/test/run-tests.php`:
   métodos inexistentes, variables sin inicializar, tabs, etc.).
-- **Nuevas pruebas**: PHPUnit está disponible como dependencia de
-  desarrollo (`composer install`). Ubica las pruebas en `tests/` con el
-  namespace `osTicket\Tests` y ejecuta `vendor/bin/phpunit`.
 - **Sin CI alojado**: este fork no configura pipelines automáticos en GitHub.
-  La verificación (`make ci`: lint + auditoría + versión de PHP + tema) se ejecuta a
-  mano o como paso previo a cada integración, en local o dentro del contenedor
-  (`make docker-test`).
+  La verificación (`make ci`: lint + auditoría + versión de PHP + tema +
+  pruebas unitarias) se ejecuta a mano o como paso previo a cada integración,
+  en local o dentro del contenedor (`make docker-test`).
 
 ### Checklist de pull request
 

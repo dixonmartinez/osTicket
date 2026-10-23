@@ -21,10 +21,12 @@
         "lint": "php tools/audit/scan.php --severity=high --baseline=tools/audit/baseline.json",
         "audit": "php tools/audit/scan.php --severity=low",
         "syntax": "PHP_BIN=php bash tools/lint.sh",
-        "test": "php setup/test/run-tests.php",
+        "test": "php tests/run.php",
+        "test-legacy": "php setup/test/run-tests.php",
         "check": [
             "@syntax",
-            "@lint"
+            "@lint",
+            "@test"
         ]
     }
 }

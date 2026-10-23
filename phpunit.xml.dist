@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Pruebas unitarias (frente 1 de docs/CODE_QUALITY.md).
+
+    composer install          # una vez, para tener PHPUnit y el informe completo
+    make unit                 # usa PHPUnit si está; si no, tests/run.php
+
+  Las pruebas no necesitan base de datos ni red: cargan sólo las clases puras
+  de include/ (Format, Validator) con el entorno mínimo de tests/bootstrap.php.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true"
+         failOnRisky="true"
+         beStrictAboutOutputDuringTests="true">
+
+    <testsuites>
+        <testsuite name="unit">
+            <directory suffix="Test.php">tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">include</directory>
+        </include>
+        <exclude>
+            <directory>include/pear</directory>
+        </exclude>
+    </source>
+</phpunit>
