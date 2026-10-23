@@ -45,12 +45,12 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 509 |
-| Líneas | 133.234 |
+| Archivos PHP propios | 511 |
+| Líneas | 133.280 |
 | Funciones | 5.924 |
 | Clases, interfaces y rasgos | 654 en 182 archivos |
 | Tamaño medio de función | 10,8 líneas |
-| Archivo más grande | `include/class.forms.php` — 6.220 líneas |
+| Archivo más grande | `include/class.ticket.php` — 4.844 líneas |
 | Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 407 líneas (herramienta de línea de comandos) |
 | Función más larga de la aplicación | `Ticket::postMessage()` — 178 líneas |
 
@@ -77,15 +77,15 @@ lista de arriba, que en su mayoría son de herramientas propias
 
 Los archivos que más pesan:
 
-| Archivo | Líneas | Clases | Qué contiene |
-|---|---|---|---|
-| `include/class.forms.php` | 6.220 | 64 | Formularios dinámicos, campos, validación y widgets |
-| `include/class.ticket.php` | 4.844 | 2 | Ticket: creación, edición, correo, SLA, adjuntos |
-| `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) |
-| `include/class.thread.php` | 2.318 | 11 | Hilo de entradas, correo entrante, colaboradores (eran 3.405 y 35 clases) |
-| `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación (eran 3.232 y 38 clases) |
-| `include/ajax.tickets.php` | 2.077 | 2 | Punto de entrada AJAX de tickets |
-| `include/class.dynamic_forms.php` | 2.027 | 12 | Campos dinámicos y datos de formulario |
+| Archivo | Líneas | Clases | Qué contiene | Antes |
+|---|---|---|---|---|
+| `include/class.ticket.php` | 4.844 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | igual |
+| `include/class.forms.php` | 4.516 | 37 | Núcleo de formularios y campos | 6.220 líneas, 64 clases |
+| `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) | igual |
+| `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación | 3.232 líneas, 38 clases |
+| `include/class.thread.php` | 2.318 | 11 | Hilo de entradas, correo entrante, colaboradores | 3.405 líneas, 35 clases |
+| `include/ajax.tickets.php` | 2.077 | 2 | Punto de entrada AJAX de tickets | igual |
+| `include/class.dynamic_forms.php` | 2.027 | 12 | Campos dinámicos y datos de formulario | igual |
 
 `Queue::getCriteria()` no es el problema que parecía: tiene 30 líneas y
 devuelve el criterio ya resuelto. Lo que pesaba en `class.queue.php` eran sus
@@ -108,6 +108,14 @@ de correo y todo el historial de cambios. Ahora:
 | `include/class.thread.body.php` | 6 | `ThreadEntryBody` (texto y HTML) y las entradas de mensaje, respuesta y nota |
 | `include/class.thread.email.php` | — | piezas puras de `postEmail()` (ver frente 2) |
 | `include/class.thread.entry.php` | — | piezas puras de `create()` (ver frente 2) |
+
+Y `class.forms.php` era el mayor del proyecto con diferencia. Ahora:
+
+| Archivo | Clases | Qué contiene |
+|---|---|---|
+| `include/class.forms.php` | 37 | `Form`, los campos (`TextboxField`, `ChoiceField`, `DatetimeField`…), `VisibilityConstraint` y `FieldUnchanged` |
+| `include/class.forms.widget.php` | 21 | `Widget` y todo lo que dibuja cada campo en pantalla |
+| `include/class.forms.assignment.php` | 6 | Formularios de asignación, reclamo, liberación, marcado, referencia y transferencia |
 
 El reparto se comprueba con `make classes`, que lista qué clase vive en qué
 archivo y falla si dos archivos declaran la misma clase sin protección. Ese
@@ -261,13 +269,17 @@ mapa se consulta con `make classes`; los candidatos que quedan son
   mover clases enteras a un archivo con nombre propio, incluir ese archivo
   desde el original y comprobar con `make classes` que no falta ni sobra
   ninguna.
-- Siguiente, por relación riesgo/beneficio: `class.forms.php`, que es el
-  mayor y el que más clases tiene; dentro de él, los widgets de campo
-  (`include/class.forms.php`, a partir de `FormField`).
+- Lo hecho también: `class.forms.php` bajó de 6.220 a **4.516** líneas al
+  separar los widgets de campo y los formularios de asignación.
+- Siguiente, por relación riesgo/beneficio: `class.ticket.php`, ya el mayor
+  (4.844 líneas). Su parte de correo y notificaciones (`postMessage` y
+  alrededores) es la que más crece con cada versión.
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas.
+- Éxito: ningún archivo por encima de 2.000 líneas. De momento ninguno pasa
+  de 5.000 (el mayor, `class.ticket.php`, tiene 4.844), y los que estaban por
+  encima de 3.200 se han reducido un 30 %.
 
 ---
 
