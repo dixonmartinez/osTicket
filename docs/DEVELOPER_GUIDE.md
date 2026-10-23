@@ -54,7 +54,8 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make theme` | Integridad del tema claro/oscuro (sin navegador). Alias: `make theme-check` | ~1 s |
 | `make metrics` | Radiografía del código: tamaño y deuda técnica | ~2 s |
 | `make classes` | Mapa de clases por archivo; falla si una clase se declara dos veces o un `include` literal apunta a un archivo que no existe | ~1 s |
-| `make ci` | lint + audit + security + theme + classes + unit (verificación previa al commit) | ~9 s |
+| `make input-audit` | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST`; falla si el contador sube respecto a la línea base | ~1 s |
+| `make ci` | lint + audit + security + theme + classes + input-audit + unit (verificación previa al commit) | ~10 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
 | `php tools/scaffold.php` | Genera esqueletos de página/AJAX | instantáneo |
@@ -315,6 +316,10 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
   es válido por separado).
 - **Seguridad**: `make audit` (falla con hallazgos altos nuevos). Cualquier
   excepción deliberada se anota con `// audit:ignore <REGLA> -- motivo`.
+- **Entrada de la petición**: el código nuevo lee `$_GET`/`$_POST` con
+  `Http::get()` / `Http::post()` / `Http::postInt()`, nunca a pelo. `make
+  input-audit` falla si el contador de accesos directos sube; la fachada no
+  cuenta. Detalle en [`CODE_QUALITY.md`](CODE_QUALITY.md), frente 4.
 - **Pruebas unitarias**: `make unit` (o `make test`). Viven en `tests/` como
   `*Test.php` y extienden `UnitTestCase`. **Un aviso de PHP cuenta como
   fallo** (deprecaciones, índices sin definir): si tu prueba pasa pero el log

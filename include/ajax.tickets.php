@@ -1185,7 +1185,7 @@ class TicketsAjaxAPI extends AjaxController {
                 // we need to clear this relation so we can create a fresh
                 // query that will get roles for all depts this agent can access
                 unset($thisstaff->ht['dept_access']);
-                foreach ($_POST['tids'] as $tid) {
+                foreach (Http::post('tids', array()) as $tid) {
                     if (($t=Ticket::lookup($tid))
                             // Make sure the agent is allowed to
                             // access and assign the task.
@@ -1212,7 +1212,7 @@ class TicketsAjaxAPI extends AjaxController {
             $form = TransferForm::instantiate($_POST);
             $form->hideDisabled();
             if ($_POST && $form->isValid()) {
-                foreach ($_POST['tids'] as $tid) {
+                foreach (Http::post('tids', array()) as $tid) {
                     if (($t=Ticket::lookup($tid))
                             // Make sure the agent is allowed to
                             // access and transfer the task.
@@ -1254,10 +1254,10 @@ class TicketsAjaxAPI extends AjaxController {
                         __('to delete tickets'));
 
             if ($_POST && !$errors) {
-                foreach ($_POST['tids'] as $tid) {
+                foreach (Http::post('tids', array()) as $tid) {
                     if (($t=Ticket::lookup($tid))
                             && $t->checkStaffPerm($thisstaff, Ticket::PERM_DELETE)
-                            && $t->delete($_POST['comments'], $e)
+                            && $t->delete(Http::post('comments'), $e)
                             )
                         $i++;
                 }

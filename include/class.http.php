@@ -294,6 +294,52 @@ class Http {
         return parse_url($url ?: self::url(), PHP_URL_QUERY);
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Entrada de la petición (frente 4 de docs/CODE_QUALITY.md)           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Valor de `$_GET`, o `$default` si no viene.
+     *
+     * Un valor vacío es un valor: `?q=` devuelve `''`, no el valor por
+     * defecto. Las listas (`?ids[]=1&ids[]=2`) se devuelven tal cual.
+     */
+    static function get($name, $default=null) {
+        return array_key_exists($name, $_GET) ? $_GET[$name] : $default;
+    }
+
+    /** Valor de `$_POST`, o `$default` si no viene. */
+    static function post($name, $default=null) {
+        return array_key_exists($name, $_POST) ? $_POST[$name] : $default;
+    }
+
+    /** Valor de `$_REQUEST`, o `$default` si no viene. */
+    static function request($name, $default=null) {
+        return array_key_exists($name, $_REQUEST) ? $_REQUEST[$name] : $default;
+    }
+
+    /** `$_GET[$name]` como entero. Una lista o un valor no numérico dan 0. */
+    static function getInt($name, $default=0) {
+        return self::toInt(self::get($name), $default);
+    }
+
+    /** `$_POST[$name]` como entero. */
+    static function postInt($name, $default=0) {
+        return self::toInt(self::post($name), $default);
+    }
+
+    /** `$_REQUEST[$name]` como entero. */
+    static function requestInt($name, $default=0) {
+        return self::toInt(self::request($name), $default);
+    }
+
+    private static function toInt($value, $default=0) {
+        if (!is_scalar($value))
+            return (int) $default;
+
+        return (int) $value;
+    }
+
     // Refresh url
     static function refresh_url(array $queryFilter = []) {
         $url = self::url();

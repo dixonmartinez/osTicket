@@ -52,10 +52,10 @@ dirección contraria.
 
 | Métrica | Valor |
 |---|---|
-| Archivos PHP propios | 516 |
-| Líneas | 133.732 |
-| Funciones | 6.062 |
-| Clases, interfaces y rasgos | 669 en 196 archivos |
+| Archivos PHP propios | 517 |
+| Líneas | 134.045 |
+| Funciones | 6.076 |
+| Clases, interfaces y rasgos | 672 en 199 archivos |
 | Tamaño medio de función | 12 líneas |
 | Archivo más grande | `include/class.ticket.php` — 4.809 líneas |
 | Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
@@ -78,7 +78,7 @@ atípicos, y ahora se ven:
 |---|---|
 | SQL a mano (`db_query`) | 183 |
 | `db_input()` (escape manual) | 164 |
-| Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.260 |
+| Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.249 (frente 4) |
 | `global $...` | 560 |
 | `eval()` | 15 |
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
@@ -172,11 +172,13 @@ Lo que hay ahora:
 | `tests/CodeMeasureTest.php` | 13 casos: el medidor de `make metrics` (cierres, heredoc, interpolación, HTML) |
 | `tests/TicketCreateTest.php` | 18 casos: campos por origen, validación por quién abre, fecha límite |
 | `tests/MassActionTest.php` | 37 casos: tabla de acciones de tickets y tareas, verbos, identificadores, mensajes, script del diálogo |
+| `tests/HttpInputTest.php` | 19 casos: lectura con valor por defecto, cadenas vacías, listas y conversión a entero sin avisos |
+| `tests/InputAuditTest.php` | 19 casos: qué cuenta y qué no, archivos saltados, comparación con la línea base |
 | `tests/MailerMessageTest.php` | 24 casos: asunto en una línea, cabeceras por tipo de aviso, envoltorio del identificador, cuerpo de texto, dominio de las imágenes |
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 247 pruebas en ~0,3 s
+make unit          # 285 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -240,7 +242,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-247 pruebas correctas, 0 fallidas, 4 omitidas
+285 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -377,9 +379,9 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 - Éxito: `db_query` por debajo de 100 y sin ninguna concatenación de datos de
   la petición (el escáner `tools/audit` ya vigila lo segundo).
 
-### Frente 4 — Entrada única y tipada
+### Frente 4 — Entrada única y tipada 🔄 En curso (la regla ya se cumple)
 
-- Qué hacer: no tocar los 1.269 accesos uno a uno. Añadir una fachada —
+- Qué hacer: no tocar los 1.243 accesos uno a uno. Añadir una fachada —
   `Http::get()`, `Http::post()`, `Http::postInt()`— y **usarla en el código
   nuevo**; migrar sólo los archivos que se vayan tocando por otro motivo
   (regla del boy scout).
@@ -387,6 +389,29 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 - Riesgo: bajo si se aplica sólo a código nuevo.
 - Éxito: ningún archivo nuevo usa `$_POST[...]` directamente; el contador
   total baja de forma sostenida sin subir nunca.
+
+**Lo hecho:**
+
+| Pieza | Qué hace | Pruebas |
+|---|---|---|
+| `Http::get()`, `post()`, `request()` | Leen la variable y devuelven el valor por defecto si la clave no está. Un valor vacío sigue siendo un valor; una lista se devuelve tal cual | `tests/HttpInputTest.php`, 19 casos |
+| `Http::getInt()`, `postInt()`, `requestInt()` | Igual, pero como entero. Una lista devuelve el valor por defecto en vez de un aviso de PHP | ídem |
+| `tools/quality/input-audit.php` | Cuenta los accesos directos por archivo y los compara con la línea base (`tools/quality/input-baseline.json`) | `tests/InputAuditTest.php`, 19 casos |
+| `make input-audit` | `--check`: falla si aparece un archivo nuevo con acceso directo o si alguno sube. Ya está dentro de `make ci` | — |
+
+La regla no se queda en un documento: **el contador no puede subir**. La
+línea base tiene 141 archivos con 1.243 accesos; `include/class.http.php`, que
+es la fachada, queda fuera del recuento porque leer esas variables es su
+trabajo. `make metrics` sí la cuenta, por eso da 1.249.
+
+Primera pasada de migración (los dos archivos que el frente 2 ya había
+tocado):
+
+- `include/ajax.tasks.php`: 13 → 4 accesos. La búsqueda (`limit`, `q`), el
+  cambio de estado y el borrado en lote leen ya por la fachada.
+- `include/ajax.tickets.php`: 53 → 49. Asignar, transferir y borrar en lote.
+
+Queda pendiente migrar el resto **cuando se toque cada archivo**, no antes.
 
 ### Frente 5 — Sacar el JavaScript de las plantillas (CSP)
 
@@ -431,7 +456,8 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 
 1. **Frente 1** (pruebas) — ✅ hecho.
 2. **Frente 2** (funciones largas → clases pequeñas con pruebas) — en curso.
-3. **Frente 4** (fachada de entrada) — barato y frena el sangrado.
+3. **Frente 4** (fachada de entrada) — ✅ la fachada y la regla están; la
+   migración va archivo a archivo según se toquen.
 4. **Frente 5** (JS inline) — ✅ los `onclick` están a cero; quedan los
    `<script>`.
 5. **Frente 3** (SQL a mano) — por áreas, con pruebas.
@@ -444,7 +470,7 @@ mapa se consulta con `make classes`; los candidatos que quedan son
   dinámicos, SLA, correo y colas supera cualquier ganancia de estilo.
 - **Cambiar la convención de nombres** (`class.ticket.php`, `scp/`) para
   "modernizar". Rompe enlaces, plugins y documentación sin mejorar nada.
-- **Un refactor masivo de `$_POST`.** 1.269 sitios, con lógica de negocio
+- **Un refactor masivo de `$_POST`.** 1.243 sitios, con lógica de negocio
   mezclada: es el cambio con peor relación riesgo/beneficio.
 - **Tocar `eval()` del ORM** sin pruebas. Los 13 usos sostienen la generación
   dinámica de clases; sustituirlos exige un rediseño, no un reemplazo.

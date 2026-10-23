@@ -27,7 +27,8 @@ class TasksAjaxAPI extends AjaxController {
     function lookup() {
         global $thisstaff;
 
-        $limit = isset($_REQUEST['limit']) ? (int) $_REQUEST['limit']:25;
+        $limit = Http::requestInt('limit', 25);
+        $query = Http::request('q');
         $tasks = array();
 
         $visibility = Q::any(array(
@@ -42,7 +43,7 @@ class TasksAjaxAPI extends AjaxController {
 
         $hits = TaskModel::objects()
             ->filter(Q::any(array(
-                'number__startswith' => $_REQUEST['q'],
+                'number__startswith' => $query,
             )))
             ->filter($visibility)
             ->values('number')
@@ -53,7 +54,7 @@ class TasksAjaxAPI extends AjaxController {
         foreach ($hits as $T) {
             $tasks[] = array('id'=>$T['number'], 'value'=>$T['number'],
                 'info'=>"{$T['number']}",
-                'matches'=>$_REQUEST['q']);
+                'matches'=>$query);
         }
 
         return $this->json_encode($tasks);
@@ -498,14 +499,16 @@ class TasksAjaxAPI extends AjaxController {
                         __($action));
 
             if ($_POST && !$errors) {
-                if (!$_POST['status']
-                        || !in_array($_POST['status'], array('open', 'closed')))
+                $newStatus = Http::post('status');
+                if (!$newStatus
+                        || !in_array($newStatus, array('open', 'closed')))
                     $errors['status'] = __('Status selection required');
                 else {
-                    foreach ($_POST['tids'] as $tid) {
+                    foreach (Http::post('tids', array()) as $tid) {
                         if (($t=Task::lookup($tid))
                                 && $t->checkStaffPerm($thisstaff, $perm ?: null)
-                                && $t->setStatus($_POST['status'], $_POST['comments'])
+                                && $t->setStatus($newStatus,
+                                    Http::post('comments'))
                                 )
                             $i++;
                     }
@@ -534,9 +537,9 @@ class TasksAjaxAPI extends AjaxController {
                         );
 
             if ($_POST && !$errors) {
-                foreach ($_POST['tids'] as $tid) {
+                foreach (Http::post('tids', array()) as $tid) {
                     if (($t=Task::lookup($tid))
-                            && $t->getDeptId() != $_POST['dept_id']
+                            && $t->getDeptId() != Http::post('dept_id')
                             && $t->checkStaffPerm($thisstaff, Task::PERM_DELETE)
                             && $t->delete($_POST, $e)
                             )

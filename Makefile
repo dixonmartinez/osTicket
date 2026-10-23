@@ -19,7 +19,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme theme-check metrics metrics-json classes ci clean perms serve browser-audit \
+.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme theme-check metrics metrics-json classes input-audit ci clean perms serve browser-audit \
 	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
@@ -114,10 +114,13 @@ metrics: ## Radiografía del código propio (tamaño y deuda técnica)
 classes: ## Mapa de clases y duplicados (falla si una clase se declara dos veces)
 	@$(PHP) $(ROOT)/tools/quality/class-map.php --check
 
+input-audit: ## Entrada tipada: falla si crecen los accesos directos a $_GET/$_POST/$_REQUEST
+	@$(PHP) $(ROOT)/tools/quality/input-audit.php --check
+
 metrics-json: ## Lo mismo, en JSON (para comparar antes/después)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php --json
 
-ci: lint audit security theme classes unit ## Verificación completa para integración continua
+ci: lint audit security theme classes input-audit unit ## Verificación completa para integración continua
 
 clean: ## Elimina artefactos temporales de desarrollo
 	@rm -rf $(ROOT)/vendor/.phpunit.result.cache
