@@ -180,6 +180,63 @@ class QuerySqlTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Filtros vacíos                                                      */
+    /* ------------------------------------------------------------------ */
+
+    /*
+     * Las listas del panel arman el criterio según los filtros de la
+     * petición. Cuando no hay ninguno, el criterio queda vacío y el ORM
+     * emitía `WHERE ` sin condición: MySQL responde con un error de sintaxis
+     * y osTicket con un 500 (`logs.php`, `SELECT COUNT(*) FROM (SELECT …)`).
+     */
+
+    public function testUnArregloVacioNoEmiteWhere(): void {
+        $q = $this->compile($this->probe()->filter(array()));
+
+        $this->assertSame(
+            'SELECT A1.* FROM `probe` A1 ORDER BY A1.`name` ASC', $q['sql']);
+        $this->assertSame(array(), $q['params']);
+    }
+
+    public function testUnQSinCondicionesNoEmiteWhere(): void {
+        $q = $this->compile($this->probe()->filter(new \Q(array())));
+
+        $this->assertSame(
+            'SELECT A1.* FROM `probe` A1 ORDER BY A1.`name` ASC', $q['sql']);
+    }
+
+    public function testExcluirVacioNoEmiteWhereNiNot(): void {
+        $q = $this->compile($this->probe()
+            ->exclude(array())
+            ->exclude(new \Q(array())));
+
+        $this->assertSame(
+            'SELECT A1.* FROM `probe` A1 ORDER BY A1.`name` ASC', $q['sql']);
+    }
+
+    public function testUnFiltroVacioNoAnulaLosDemas(): void {
+        $q = $this->compile($this->probe()
+            ->filter(array())
+            ->filter(array('name' => 'Ana')));
+
+        $this->assertSame('SELECT A1.* FROM `probe` A1 WHERE A1.`name` = :1'
+            . ' ORDER BY A1.`name` ASC', $q['sql']);
+        $this->assertSame(array('Ana'), $q['params']);
+    }
+
+    public function testElCriterioVacioDeLaListaNoRompeElCount(): void {
+        // El caso real: el panel cuenta las filas del listado con un
+        // subselect; si el WHERE va vacío, el COUNT revienta
+        $q = $this->compile($this->probe()
+            ->values('id')
+            ->filter(array())
+            ->order_by(false));
+
+        $this->assertSame('SELECT A1.`id` AS `id` FROM `probe` A1', $q['sql']);
+        $this->assertFalse(strpos($q['sql'], 'WHERE') !== false);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Orden                                                               */
     /* ------------------------------------------------------------------ */
 

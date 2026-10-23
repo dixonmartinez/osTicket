@@ -1198,6 +1198,12 @@ class QuerySet implements IteratorAggregate, ArrayAccess, Serializable, Countabl
     function filter() {
         // Multiple arrays passes means OR
         foreach (func_get_args() as $Q) {
+            // Un filtro vacío no restringe nada. Si se guardara, el SQL
+            // saldría con un `WHERE` sin condición (error de sintaxis en
+            // MySQL) — pasa en las listas que arman el criterio según los
+            // filtros de la petición y no hay ninguno.
+            if (self::isEmptyFilter($Q))
+                continue;
             $this->constraints[] = $Q instanceof Q ? $Q : new Q($Q);
         }
         return $this;
@@ -1205,9 +1211,18 @@ class QuerySet implements IteratorAggregate, ArrayAccess, Serializable, Countabl
 
     function exclude() {
         foreach (func_get_args() as $Q) {
+            if (self::isEmptyFilter($Q))
+                continue;
             $this->constraints[] = $Q instanceof Q ? $Q->negate() : Q::not($Q);
         }
         return $this;
+    }
+
+    /** ¿El filtro no aporta ninguna condición? */
+    static function isEmptyFilter($Q) {
+        if ($Q instanceof Q)
+            return !$Q->constraints;
+        return is_array($Q) && !$Q;
     }
 
     /**
@@ -2995,8 +3010,17 @@ class MySqlCompiler extends SqlCompiler {
                 $where[] = "($S)";
             }
         }
+        // Un Q vacío compila a cadena vacía: se descarta antes de unir, para
+        // no emitir un `WHERE` sin condición
+        $where = array_filter($where, function ($C) {
+            return strlen((string) $C) > 0;
+        });
         if ($where)
             $where = ' WHERE '.implode(' AND ', $where);
+        // Igual con HAVING, aunque un agregado vacío no tenga sentido
+        $having = array_filter($having, function ($C) {
+            return strlen((string) $C) > 0;
+        });
         if ($having)
             $having = ' HAVING '.implode(' AND ', $having);
         return array($where ?: '', $having ?: '');
