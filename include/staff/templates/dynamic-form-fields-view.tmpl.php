@@ -4,15 +4,11 @@
             <input type="hidden" name="forms[]" value="<?php echo $form->get('id'); ?>" />
             <div class="pull-right">
             <i class="icon-large icon-move icon-muted"></i>
-            <a href="#" title="<?php echo __('Delete'); ?>" onclick="javascript:
-            if (confirm(__('You sure?'))) {
-                var tbody = $(this).closest('tbody');
-                $(this).closest('form')
-                    .find('[name=form_id] [value=' + tbody.data('formId') + ']')
-                    .prop('disabled', false);
-                tbody.fadeOut(function(){this.remove()});
-            }
-            return false;"><i class="icon-large icon-trash"></i></a>
+            <a href="#" title="<?php echo __('Delete'); ?>"
+                data-confirm="<?php echo __('You sure?'); ?>"
+                data-ost-remove-row="tbody"
+                data-ost-remove-restore="[name=form_id]"
+                ><i class="icon-large icon-trash"></i></a>
             </div>
             <div><strong><?php echo Format::htmlchars($form->getLocal('title')); ?></strong></div>
             <div><?php echo Format::display($form->getLocal('instructions')); ?></div>

@@ -17,11 +17,8 @@ if ($info['error']) {
         ><i class="icon-fixed-width icon-cloud-upload"></i>&nbsp;<?php echo __('Upload'); ?></a></li>
 </ul>
 <form action="<?php echo $info['action']; ?>" method="post" enctype="multipart/form-data"
-    onsubmit="javascript:
-    if ($(this).find('[name=import]').val()) {
-        $(this).attr('action', '<?php echo $info['upload_url']; ?>');
-        $(document).unbind('submit.dialog');
-    }">
+    data-ost-upload-form="<?php echo $info['upload_url']; ?>"
+    data-ost-upload-when="[name=import]">
 <?php echo csrf_token();
 if ($org_id) { ?>
     <input type="hidden" name="id" value="<?php echo $org_id; ?>"/>

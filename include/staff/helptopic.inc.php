@@ -360,14 +360,11 @@ foreach ($forms as $F) {
                 <div class="pull-right">
                 <i class="icon-large icon-move icon-muted"></i>
 <?php if ($F->get('type') != 'T') { ?>
-                <a href="#" title="<?php echo __('Delete'); ?>" onclick="javascript:
-                if (confirm(__('You sure?')))
-                    var tbody = $(this).closest('tbody');
-                    tbody.fadeOut(function(){this.remove()});
-                    $(this).closest('form')
-                        .find('[name=form_id] [value=' + tbody.data('formId') + ']')
-                        .prop('disabled', false);
-                return false;"><i class="icon-large icon-trash"></i></a>
+                <a href="#" title="<?php echo __('Delete'); ?>"
+                    data-confirm="<?php echo __('You sure?'); ?>"
+                    data-ost-remove-row="tbody"
+                    data-ost-remove-restore="[name=form_id]"
+                    ><i class="icon-large icon-trash"></i></a>
 <?php } ?>
                 </div>
                 <div><strong><?php echo Format::htmlchars($F->getLocal('title')); ?></strong></div>

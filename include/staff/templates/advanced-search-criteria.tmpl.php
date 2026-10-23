@@ -64,14 +64,12 @@ foreach ($form->getFields() as $name=>$field) {
         <?php echo $field->render(); ?>
         <?php if (!$has_errors && $sub === 'search' && isset($info[$name]) && $info[$name]['active']) { ?>
             <span style="padding-left: 5px">
-            <a href="#"  data-name="<?php echo Format::htmlchars($name); ?>" onclick="javascript:
-    var $this = $(this),
-        name = $this.data('name'),
-        expanded = $this.data('expanded') || false;
-    $this.closest('.adv-search-field-container').find('.adv-search-field-body').slideDown('fast');
-    $this.find('span.faded').hide();
-    $this.find('i').removeClass('icon-caret-right').addClass('icon-caret-down');
-    return false; "><i class="icon-caret-right"></i>
+            <a href="#" data-name="<?php echo Format::htmlchars($name); ?>"
+                data-ost-expand=".adv-search-field-body"
+                data-ost-expand-scope=".adv-search-field-container"
+                data-ost-expand-hide="span.faded"
+                data-ost-expand-icons
+                ><i class="icon-caret-right"></i>
             <span class="faded"><?php echo $search->describeField($info[$name]); ?></span>
             </a>
             </span>

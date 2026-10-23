@@ -166,6 +166,13 @@ JS
         , $this->getAjaxUrl());
     }
 
+    function getAttributes() {
+        return array(
+            'data-ost-dialog-url' => $this->getAjaxUrl(),
+            'data-ost-dialog-size' => 'large',
+            'data-ost-dialog-entry' => '1',
+        );
+    }
 
     function trigger() {
         switch ($_SERVER['REQUEST_METHOD']) {
@@ -461,6 +468,10 @@ JS
         );
     }
 
+    function getAttributes() {
+        return array('data-href' => $this->getCreateTicketUrl());
+    }
+
     function trigger() {
         switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
@@ -505,6 +516,15 @@ JS
         , $this->getAjaxUrl(),
         $this->entry->getThread()->getObjectType() == 'T' ? 'tickets' : 'tasks',
         $this->entry->getThread()->getObjectId()
+        );
+    }
+
+    function getAttributes() {
+        return array(
+            'data-ost-dialog-url' => $this->getAjaxUrl(),
+            'data-ost-dialog-pjax' => sprintf('%s.php?id=%d#tasks',
+                $this->entry->getThread()->getObjectType() == 'T' ? 'tickets' : 'tasks',
+                $this->entry->getThread()->getObjectId()),
         );
     }
 

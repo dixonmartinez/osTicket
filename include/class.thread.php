@@ -3370,6 +3370,17 @@ abstract class ThreadEntryAction {
     abstract function getJsStub();
 
     /**
+     * getAttributes
+     *
+     * Atributos con los que la plantilla abre la acción sin JavaScript en
+     * línea (CSP sin 'unsafe-inline'). Por defecto es un diálogo con la URL
+     * de la acción; las acciones con más lógica lo amplían.
+     */
+    function getAttributes() {
+        return array('data-ost-dialog-url' => $this->getAjaxUrl());
+    }
+
+    /**
      * getAjaxUrl
      *
      * Generate a URL to be used as an AJAX callback. The URL can be used to

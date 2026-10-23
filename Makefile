@@ -69,7 +69,7 @@ inline-audit-json: ## Lo mismo, en JSON, para comparar antes/después
 	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --json
 
 inline-budget: ## Falla si los onclick/onchange vuelven a subir del tope actual
-	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --max=12
+	@$(PHP) $(ROOT)/tools/ui/inline-handlers.php --max=0
 
 dark-audit: ## Zonas claras en el tema oscuro (necesita node + playwright-core)
 	@command -v node >/dev/null 2>&1 || { \

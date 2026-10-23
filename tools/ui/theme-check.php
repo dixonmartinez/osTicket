@@ -519,6 +519,56 @@ check(!$noInline,
     'los ajustes, el perfil y los formularios ya no llevan onclick',
     'siguen con manejadores en línea: ' . implode(', ', $noInline));
 
+/* Ya no queda ningún manejador en línea (`onclick=`, `onchange=`…): es la
+   condición para poder quitar 'unsafe-inline' del CSP (OST-102). Si vuelve a
+   aparecer uno, esta comprobación lo dice con archivo y línea. */
+$inlineFound = array();
+$events = 'click|change|submit|keydown|keyup|keypress|input|focus|blur|load|'
+    . 'mouseover|mouseout|mousedown|mouseup|dblclick|contextmenu|paste|error';
+foreach (array('include', 'scp') as $dir) {
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator("$root/$dir", FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $file) {
+        if (substr($file->getFilename(), -4) !== '.php')
+            continue;
+        $source = file_get_contents($file->getPathname());
+        if (preg_match_all('/\bon(?:' . $events . ')\s*=\s*[\"\']/i', $source, $m,
+                PREG_OFFSET_CAPTURE)) {
+            $rel = str_replace($root . '/', '', $file->getPathname());
+            $line = substr_count(substr($source, 0, $m[0][0][1]), "\n") + 1;
+            $inlineFound[] = "$rel:$line";
+        }
+    }
+}
+
+check(!$inlineFound,
+    'ninguna plantilla usa manejadores en línea (onclick, onchange…)',
+    'siguen con manejadores en línea: ' . implode(', ', array_slice($inlineFound, 0, 5)));
+
+foreach (array('data-ost-expand' => 'desplegar un campo de búsqueda',
+    'data-ost-remove-row' => 'quitar una fila y liberar su opción',
+    'data-ost-append-hidden' => 'apuntar el id de la fila quitada') as $attr => $what) {
+    check(strpos($actions, $attr) !== false,
+        "js/actions.js implementa $attr ($what)",
+        "js/actions.js no implementa $attr: $what se queda sin hacer");
+}
+
+foreach (array('ostAddFilterAction' => 'añadir una acción a un filtro',
+    'ostAddMergeTicket' => 'añadir un ticket a la fusión',
+    'ostAddSequence' => 'añadir una secuencia',
+    'ostAddQueueProperty' => 'añadir una propiedad a una condición',
+    'ostDropAnnotation' => 'quitar una anotación de columna') as $fn => $what) {
+    check(strpos($actions, 'window.' . $fn . ' =') !== false,
+        "js/actions.js define $fn ($what)",
+        "falta window.$fn en js/actions.js");
+}
+
+check(strpos(read("$root/include/class.thread.php"), 'function getAttributes()') !== false
+    && strpos(read("$root/include/staff/templates/thread-entry.tmpl.php"),
+        'getAttributes()') !== false,
+    'las acciones de la entrada del hilo se abren con atributos',
+    'thread-entry.tmpl.php sigue generando un onclick con getJsStub()');
+
 /* 11. Herramientas de revisión visual ------------------------------------- */
 check(file_exists("$root/tools/ui/dark-audit.js"),
     'existe la auditoría de superficies claras (dark-audit)',

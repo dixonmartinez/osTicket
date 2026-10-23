@@ -66,18 +66,9 @@ foreach ($sequences as $e) {
 </div>
 
 <hr/>
-<button onclick="javascript:
-  var id = ++$.uid, base = 'seq[new-'+id+']';
-  var clone = $('.row-item#template').clone()
-    .appendTo($('#sequences'))
-    .removeClass('hidden')
-    .append($('<input>').attr({type:'hidden',class:'fname',name:base+'[name]',value:'<?php echo __('New Sequence'); ?>'}))
-    .append($('<input>').attr({type:'hidden',class:'fcurrent',name:base+'[current]',value:'1'}))
-    .append($('<input>').attr({type:'hidden',class:'fincrement',name:base+'[increment]',value:'1'}))
-    .append($('<input>').attr({type:'hidden',class:'fpadding',name:base+'[padding]',value:'0'})) ;
-  clone.find('.manage a').trigger('click');
-  return false;
-  "><i class="icon-plus"></i> <?php echo __('Add New Sequence'); ?></button>
+<button type="button" data-call="ostAddSequence"
+  data-ost-new-name="<?php echo __('New Sequence'); ?>"
+  ><i class="icon-plus"></i> <?php echo __('Add New Sequence'); ?></button>
 <div id="delete-warning" style="display:none">
 <hr>
     <div id="msg_warning"><?php echo __(

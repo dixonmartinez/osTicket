@@ -304,24 +304,10 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                     <?php }
                     } ?>
                 </select>
-                <button id="new-action-btn" type="button" class="inline green button" onclick="javascript:
-                    var dropdown = $('#new-action-select'), selected = dropdown.find(':selected');
-                    dropdown.val('');
-                    if (selected.val() === '')
-                        return;
-                    $('#dynamic-actions')
-                      .append($('<tr></tr>')
-                        .append($('<td></td>')
-                          .text(selected.data('title') + ':')
-                        ).append($('<td></td>')
-                          .append($('<em></em>').text(__('Loading ...')))
-                          .load('ajax.php/filter/action/' + selected.val() + '/config', function() {
-                            if (!selected.data('multiUse')) selected.prop('disabled', true);
-                          })
-                        )
-                      ).append(
-                        $('<input>').attr({type:'hidden',name:'actions[]',value:'N'+selected.val()})
-                      );"><?php echo __('Add'); ?>
+                <button id="new-action-btn" type="button" class="inline green button"
+                    data-call="ostAddFilterAction"
+                    data-ost-loading="<?php echo __('Loading ...'); ?>"
+                    ><?php echo __('Add'); ?>
                 </button>
             </div>
     </div>

@@ -40,16 +40,7 @@ $data_form = $data_form ?: $column->getDataConfigForm($_POST);
       </select>
       <div class="pull-right">
         <a href="#" data-field="delete" title="<?php echo __('Delete'); ?>"
-            onclick="javascript:
-            var tab = $(this).closest('.tab_content'),
-                annotation = $(this).closest('.annotation'),
-                klass = annotation.find('input[data-field=input]').val(),
-                select = $('select.add-annotation', tab);
-            select.find('option[value=' + klass + ']').prop('disabled', false);
-            annotation.remove();
-            if (tab.find('.annotation:not(.template)').length === 0)
-                tab.find('.empty.placeholder').show()
-            return false;"><i class="icon-trash"></i></a>
+            data-call="ostDropAnnotation"><i class="icon-trash"></i></a>
       </div>
     </div>
 

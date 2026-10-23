@@ -34,8 +34,10 @@ if ($user && $cfg->isAvatarsEnabled())
 <?php       foreach ($actions as $group => $list) {
                 foreach ($list as $id => $action) { ?>
                 <li>
-                    <a class="no-pjax" href="#" onclick="javascript:
-                    <?php echo str_replace('"', '\\"', $action->getJsStub()); ?>; return false;">
+                    <a class="no-pjax" href="#"
+                    <?php foreach ($action->getAttributes() as $attr => $value)
+                        echo sprintf('%s="%s" ', $attr, Format::htmlchars($value));
+                    ?>>
                     <i class="<?php echo $action->getIcon(); ?>"></i> <?php
                     echo $action->getName();
                 ?></a></li>

@@ -482,9 +482,11 @@ botones del panel, que no usan el tema del portal.
 ### 3.9 Acciones declarativas (`js/actions.js`)
 
 Los manejadores en línea (`onclick="..."`) impiden una CSP sin
-`unsafe-inline`, así que se van sustituyendo por atributos que interpreta un
-único listener delegado en `document`. No hace falta inicializar nada: basta
-con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
+`unsafe-inline`, así que **se sustituyeron todos** (0 en `include/` y `scp/`)
+por atributos que interpreta un único listener delegado en `document`. No hace
+falta inicializar nada: basta con el `<script>` de `js/actions.js`, que ya va
+en los dos pies de página. Para lo que necesita lógica propia hay funciones
+con nombre (`data-call="ostAddMergeTicket"`, `ostAddSequence`…).
 
 | Atributo | Dónde | Qué hace |
 |---|---|---|
@@ -520,16 +522,23 @@ con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
 | `data-ost-ajax="url"` | cualquier elemento | hace la petición AJAX y aplica el resultado: `-method="post\|delete"`, `-data="a=1&b=2"`, `-json`, `-reload` (recarga al terminar) y `-fade="tr"` (desvanece el ancestro). En la URL, `{@attr}` se sustituye por el `data-attr` del elemento y `{#selector}` por el valor de ese campo |
 | `data-ost-mark-removed` | enlace de borrar | marca la fila como quitada sin sacarla del DOM: cambia su campo oculto (`-field="selector"`, `-prefix="D"`, `-drop-first` para sustituir el primer carácter) y la desvanece; `-mark="save pending"` avisa en el botón de guardar |
 | `data-ost-drop-row=".caja"` | enlace de borrar | quita los campos del bloque (para que no se envíen) y lo desliza hacia arriba sin borrarlo |
+| `data-ost-append-hidden="campo"` | enlace de borrar | añade un `<input hidden>` con ese nombre y el valor de `-append-value` al contenedor `-append-to` (por defecto `#ticket-entries`); se combina con `data-toggle-target` y `data-remove-closest` |
+| `data-ost-remove-row="tbody"` | enlace de borrar | desvanece y quita el contenedor, y vuelve a habilitar la opción del `<select>` de `-remove-restore` que tenga su `data-form-id` |
+| `data-ost-expand=".body"` | enlace | despliega el destino dentro de `-expand-scope` (por defecto el propio enlace), oculta `-expand-hide` y, con `-expand-icons`, cambia `icon-caret-right` por `icon-caret-down` |
+| `data-ost-upload-form="url"` | `<form>` | si el campo `-upload-when` tiene valor, el envío va a esa URL y se desengancha del diálogo (`submit.dialog`) |
+| `data-ost-dialog-entry` / `data-ost-dialog-pjax` | enlace de diálogo | al cerrarse con éxito, repinta la entrada del hilo con el JSON de respuesta o recarga por PJAX |
 | `data-ost-user-lookup="url"` | cualquier elemento | abre el buscador de usuarios (`$.userLookup`) y aplica el elegido: `-fill="#a=campo[\|formato]"` escribe texto (`angle` → `<email>`, `name-email` → `Nombre <email>`, `{id}` en el selector), `-value="#campo=id"` rellena un campo oculto, `-add="#select"` añade la opción y dispara `change` (`-add-format="email-name"`), `-redirect="url"` navega y `-save-draft` llama antes a `saveDraft()`. En la URL, `{#campo}` se sustituye por el valor de ese campo |
 | `data-call="funcion"` | elemento o `<form>` | llama a `window.funcion(event)`; si devuelve `false`, cancela la acción (en un `<form>`, al enviar). Incluye `ostHelpTopic` (recarga el formulario dinámico al cambiar de tema) y `ostAutodetectTimezone` (carga `jstz` y rellena el `<select>` de `data-timezone-target`) |
 
-Se combinaron más de 50 plantillas en nueve tandas y los manejadores en línea
-bajaron de **124 en 71 archivos a 12 en 11** (`make inline-audit`). `make
-inline-budget` fija el tope actual y falla si vuelve a subir. Lo que queda
-tiene lógica propia (ordenación de columnas y filas, combos de la búsqueda
-avanzada, importadores que cambian el `action` del formulario, fusionar
-tickets) y se migrará con `addEventListener` en su archivo, no con un
-atributo más.
+Se combinaron más de 50 plantillas en diez tandas y los manejadores en línea
+bajaron de **124 en 71 archivos a 0** (`make inline-audit`). `make
+inline-budget` falla si vuelve a aparecer uno, y `make theme` lo detecta con
+archivo y línea, así que el marcado nuevo tiene que usar los atributos de
+esta tabla o una función con `data-call`.
+
+Lo que queda para poder quitar `'unsafe-inline'` del CSP son los bloques
+`<script>` dentro de las plantillas (156): necesitan `nonce` o pasar a
+archivos. Eso es otro trabajo, anotado en la §6.2.
 
 El buscador de usuarios (`$.userLookup`) fue el grupo más grande: los ocho
 `onclick` hacían cosas distintas con el usuario elegido, así que el callback
@@ -672,7 +681,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 114 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 124 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -690,7 +699,8 @@ respuesta, acceso y FAQ).
 
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
-| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | **12** atributos en 11 archivos (`make inline-audit`), desde 124 en 71. Nueve tandas hechas con `js/actions.js` (§3.9, §6.1-14): la octava migró el buscador de usuarios y la novena los ajustes (2FA, idiomas, avatar, backend de autenticación, formularios) y las filas que se marcan como quitadas. Quedan fusionar tickets (2) y casos sueltos de importadores, columnas de la cola, respuestas y el combo de acciones de los filtros (10) |
+| 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
+| 1b | Quitar `'unsafe-inline'` de `script-src`: los 156 bloques `<script>` de las plantillas necesitan `nonce` o pasar a archivos | Es el paso siguiente del OST-102; sin él el CSP sigue admitiendo script en línea aunque ya no haya manejadores |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar

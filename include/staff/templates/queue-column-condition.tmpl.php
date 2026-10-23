@@ -63,20 +63,8 @@ foreach ($condition->getProperties() as $prop=>$v) {
 } ?>
       <div style="margin-top: 10px">
         <i class="icon-plus-sign"></i>
-        <select onchange="javascript:
-        var $this = $(this),
-            selected = $this.find(':selected'),
-            container = $this.closest('div');
-        $.ajax({
-          url: 'ajax.php/queue/condition/addProperty',
-          data: { prop: selected.val(), condition: <?php echo $id; ?> },
-          dataType: 'html',
-          success: function(html) {
-            $(html).insertBefore(container);
-            selected.prop('disabled', true);
-          }
-        });
-        ">
+        <select data-call="ostAddQueueProperty"
+            data-ost-condition="<?php echo $id; ?>">
           <option>— <?php echo __('Add a property'); ?> —</option>
 <?php foreach (array_keys(QueueColumnConditionProperty::$properties) as $p) {
     echo sprintf('<option value="%s">%s</option>', $p, mb_convert_case($p, MB_CASE_TITLE));

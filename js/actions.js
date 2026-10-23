@@ -29,6 +29,19 @@
  *                              En la URL, `{@attr}` se sustituye por el
  *                              `data-attr` del propio elemento y `{#selector}`
  *                              por el valor de ese campo del formulario
+ *   data-ost-append-hidden="campo" añade un <input hidden> con ese nombre (y el
+ *                              valor de -append-value) al contenedor -append-to
+ *                              (por defecto #ticket-entries)
+ *   data-ost-remove-row="tbody" desvanece y quita el contenedor indicado, y
+ *                              vuelve a habilitar la opción del <select> de
+ *                              -restore-option que tenga su data-form-id
+ *   data-ost-expand=".body"    despliega el destino dentro de -expand-scope
+ *                              (por defecto el propio enlace), oculta
+ *                              -expand-hide y, con -expand-icons, cambia
+ *                              icon-caret-right por icon-caret-down
+ *   data-ost-upload-form="url" en un <form>: si el campo -upload-when tiene
+ *                              valor, envía a esa url y quita el envío del
+ *                              diálogo (`submit.dialog`)
  *   data-ost-drop-row=".caja"  quita los campos de la fila (para que no se
  *                              envíen) y la desliza hacia arriba sin borrarla.
  *                              Con -drop-row-field="input" se eligen los campos
@@ -105,7 +118,8 @@
         + '[data-toggle-target],[data-reload],[data-click-target],'
         + '[data-set-name],[data-call],[data-ost-dialog-row],[data-pjax-query],'
         + '[data-ost-user-lookup],[data-ost-mark-removed],'
-        + '[data-ost-ajax],[data-ost-drop-row]';
+        + '[data-ost-ajax],[data-ost-drop-row],[data-ost-append-hidden],'
+        + '[data-ost-remove-row],[data-ost-expand]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -349,6 +363,73 @@
             });
     }
 
+    /* Añade un campo oculto con el id de la fila que se está quitando: el
+       formulario tiene que enterarse de qué se ha quitado. */
+    function appendHidden(el, event) {
+        var $ = window.jQuery;
+        var name = el.getAttribute('data-ost-append-hidden');
+        var value = el.getAttribute('data-ost-append-value');
+        var to = el.getAttribute('data-ost-append-to') || '#ticket-entries';
+
+        event.preventDefault();
+
+        if (!$ || !name || !$.fn.append)
+            return;
+
+        $(to).append($('<input/>').attr({type: 'hidden', name: name}).val(value));
+    }
+
+    /* Quita una fila con desvanecido y deja el <select> que la representa
+       utilizable otra vez (la opción estaba deshabilitada). */
+    function removeRow(el, event) {
+        var $ = window.jQuery;
+        var box = closest(el, el.getAttribute('data-ost-remove-row') || 'tr');
+        var restore = el.getAttribute('data-ost-remove-restore');
+        var value = box ? box.getAttribute('data-form-id') : null;
+
+        event.preventDefault();
+
+        if (!box)
+            return;
+
+        if (restore && $.fn.prop) {
+            $(restore).find('[value]').filter(function () {
+                return this.value === value;
+            }).prop('disabled', false);
+        }
+
+        if ($.fn.fadeOut) {
+            $(box).fadeOut(400, function () {
+                if (this.parentNode)
+                    this.parentNode.removeChild(this);
+            });
+        } else if (box.parentNode) {
+            box.parentNode.removeChild(box);
+        }
+    }
+
+    /* Despliega un bloque de búsqueda avanzada y ajusta el cursor del enlace. */
+    function expandField(el, event) {
+        var $ = window.jQuery;
+        var target = el.getAttribute('data-ost-expand');
+        var scope = el.getAttribute('data-ost-expand-scope');
+        var hide = el.getAttribute('data-ost-expand-hide');
+        var root = scope ? closest(el, scope) : el.parentElement;
+
+        event.preventDefault();
+
+        if (!$ || !target || !root)
+            return;
+
+        $(root).find(target).slideDown('fast');
+
+        if (hide)
+            $(el).find(hide).hide();
+
+        if (el.hasAttribute('data-ost-expand-icons'))
+            $(el).find('i').removeClass('icon-caret-right').addClass('icon-caret-down');
+    }
+
     /* Sustituye las marcas de una URL: `{#selector}` por el valor del campo
        del formulario y `{@attr}` por el atributo `data-attr` del propio
        elemento pulsado (`{@entry-id}` → data-entry-id). */
@@ -548,11 +629,56 @@
     /* `$.dialog` muestra el overlay «Loading» antes de pedir la URL: si la
        petición falla con una excepción, el overlay se queda encima de la
        página y no hay forma de cerrarlo. Se recoge el fallo y se limpia. */
-    function openDialog(url, size, options) {
+    /* Algunos diálogos, al cerrarse con éxito, repintan la entrada del hilo
+       (`data-ost-dialog-entry`) o recargan la lista por PJAX
+       (`data-ost-dialog-pjax`). Antes eso era un callback dentro del onclick. */
+    function dialogDone(el) {
+        var $ = window.jQuery;
+
+        if (el.hasAttribute('data-ost-dialog-entry')) {
+            return function (xhr, resp) {
+                var json;
+
+                try {
+                    json = JSON.parse(resp);
+                } catch (e) {
+                    return;
+                }
+
+                if (!json || !json.thread_id)
+                    return;
+
+                var $entry = $('#thread-entry-' + json.thread_id)
+                    .attr('id', 'thread-entry-' + json.new_id)
+                    .html(json.entry)
+                    .find('.thread-body')
+                    .delay(500);
+
+                /* `highlight` viene de jQuery UI; sin él la entrada se
+                   actualiza igual y no se rompe el cierre del diálogo. */
+                if ($.fn.effect)
+                    $entry.effect('highlight');
+            };
+        }
+
+        if (el.hasAttribute('data-ost-dialog-pjax')) {
+            return function () {
+                var url = el.getAttribute('data-redirect')
+                    || el.getAttribute('data-ost-dialog-pjax');
+
+                if (url && $.pjax)
+                    $.pjax({url: url, container: '#pjax-container'});
+            };
+        }
+
+        return null;
+    }
+
+    function openDialog(url, size, options, done) {
         var $ = window.jQuery;
 
         try {
-            $.dialog(url, size, null, options || null);
+            $.dialog(url, size, done || null, options || null);
         } catch (e) {
             if (typeof $.toggleOverlay === 'function')
                 $.toggleOverlay(false);
@@ -601,15 +727,22 @@
         }
 
         /* En un <form> el data-call se ejecuta en el evento submit, no en el
-           clic del botón que lo envía: si no, se llamaría dos veces. */
-        if (el.tagName !== 'FORM' && el.hasAttribute('data-call')
-                && !callNamed(el, event)) {
+           clic del botón que lo envía: si no, se llamaría dos veces. En un
+           <select> se ejecuta en el change (pulsar una opción también genera
+           un clic). */
+        if (el.tagName !== 'FORM' && el.tagName !== 'SELECT'
+                && el.hasAttribute('data-call') && !callNamed(el, event)) {
             event.preventDefault();
             return;
         }
 
         if (el.hasAttribute('data-click-target'))
             clickTarget(el);
+
+        /* Se combina con el borrado de la fila: apunta el id quitado y sigue
+           el curso normal (mostrar el aviso y quitar la fila). */
+        if (el.hasAttribute('data-ost-append-hidden'))
+            appendHidden(el, event);
 
         /* Va antes del borrado: hay enlaces que quitan una fila y, además,
            muestran un aviso (`data-toggle-target` + `data-remove-closest`). */
@@ -688,6 +821,16 @@
             return;
         }
 
+        if (el.hasAttribute('data-ost-remove-row')) {
+            removeRow(el, event);
+            return;
+        }
+
+        if (el.hasAttribute('data-ost-expand')) {
+            expandField(el, event);
+            return;
+        }
+
         if (el.hasAttribute('data-ost-ajax')) {
             ajaxAction(el, event);
             return;
@@ -712,7 +855,8 @@
                 return;
 
             event.preventDefault();
-            openDialog(url, size, options ? {size: options} : null);
+            openDialog(url, size, options ? {size: options} : null,
+                dialogDone(el));
         }
     }, false);
 
@@ -782,6 +926,20 @@
     document.addEventListener('submit', function (event) {
         var form = event.target;
 
+        /* Importadores: si se ha adjuntado un archivo, el formulario viaja a
+           la URL de subida. No se cancela el envío. */
+        if (form.hasAttribute && form.hasAttribute('data-ost-upload-form')) {
+            var upload = form.getAttribute('data-ost-upload-form');
+            var when = form.getAttribute('data-ost-upload-when') || '[name=import]';
+            var field = form.querySelector(when);
+
+            if (upload && field && field.value) {
+                form.setAttribute('action', upload);
+                if (window.jQuery)
+                    window.jQuery(document).off('submit.dialog');
+            }
+        }
+
         if (form.hasAttribute && form.hasAttribute('data-pjax-submit')) {
             if (window.jQuery && window.jQuery.pjax) {
                 event.preventDefault();
@@ -815,6 +973,215 @@
     /* ------------------------------------------------------------------ */
     /* Dos acciones con lógica propia, movidas aquí desde las plantillas    */
     /* ------------------------------------------------------------------ */
+
+    /* Añade una acción nueva a un filtro: pinta la fila, pide su configuración
+       por AJAX y añade el campo oculto `actions[]`. */
+    window.ostAddFilterAction = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        var dropdown = $('#new-action-select');
+        var selected = dropdown.find(':selected');
+        var id = selected.val();
+
+        dropdown.val('');
+
+        if (id === '' || id === null)
+            return;
+
+        $('#dynamic-actions')
+            .append($('<tr></tr>')
+                .append($('<td></td>').text(selected.data('title') + ':'))
+                .append($('<td></td>')
+                    .append($('<em></em>').text(this.getAttribute('data-ost-loading') || ''))
+                    .load('ajax.php/filter/action/' + id + '/config', function () {
+                        if (!selected.data('multiUse'))
+                            selected.prop('disabled', true);
+                    })
+                )
+            )
+            .append($('<input>').attr({type: 'hidden', name: 'actions[]', value: 'N' + id}));
+    };
+
+    /* Añade un ticket a la lista de fusión. La lista la construye el propio
+       navegador con los datos del select2, como hacía el onclick. */
+    window.ostAddMergeTicket = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        var ids = [];
+
+        $('input[name^=\'tids\']:checked').each(function () {
+            ids.push($(this).val());
+        });
+
+        var select = $(this).parent().find('select');
+        var $sel = select.find('option:selected');
+        var id = $sel.val();
+        var data = select.select2 ? select.select2('data') : null;
+        var key, ticket_id, ticketLink, tasks, showTasks, spaces, user, collaborators,
+            thread_id, showEntries, icon, showMergePrev, showCollaborators, inOriginalIds;
+        var link = this.getAttribute('data-ost-link') || '';
+
+        if (!data)
+            return;
+
+        for (key in data) {
+            ticket_id = data[key].ticket_id;
+            ticketLink = link;
+            tasks = data[key].tasks;
+            spaces = data[key].spaces;
+            user = data[key].user;
+            collaborators = data[key].collaborators;
+            thread_id = data[key].thread_id ? data[key].thread_id : 0;
+            showTasks = (tasks > 0) ? '<a data-placement=\'bottom\' <i class=\'icon-tasks\' '
+                + 'data-toggle=\'tooltip\' title=\'' + tasks + '\'>' : '';
+            showEntries = (data[key].entries > 0)
+                ? '<a data-placement=\'bottom\' data-toggle=\'tooltip\' '
+                    + '<i class=\'icon-comments-alt\' data-toggle=\'tooltip\' title=\''
+                    + data[key].entries + ' Thread Entries\'>' : '';
+            icon = (data[key].mergeType == 'visual')
+                ? '<i class=\'icon-link\'></i>' : '<i class=\'icon-code-fork\'></i>';
+            showMergePrev = data[key].mergePrev
+                ? '<a class=\'merge preview\' href=\'#tickets/' + ticket_id + '/merge\'>'
+                    + icon + '</i></a>' : '';
+            showCollaborators = (collaborators > 0)
+                ? '<a class=\'collaborators preview\' href=\'#thread/' + thread_id
+                    + '/collaborators/0\'><i class=\'icon-group\'></i></a>' : '';
+            inOriginalIds = ids.indexOf(String(ticket_id)) !== -1;
+        }
+
+        if (key === undefined)
+            return;
+
+        if (data[key].mergeType != 'visual') {
+            window.alert(this.getAttribute('data-ost-merged-alert') || '');
+            return;
+        }
+
+        if ($sel.prop('disabled'))
+            return;
+
+        if (!inOriginalIds) {
+            $('.merge-tickets').append($('<li></li>').addClass('sortable row-item')
+                .text(spaces + user + spaces)
+                .data('id', id)
+                .append(data[key].subject)
+                .append(spaces)
+                .append($('<div style=\'position:absolute; right:40px; top:10px;\'></div>')
+                    .append(showEntries)
+                    .append(showTasks ? spaces : '')
+                    .append(showTasks)
+                    .append(showMergePrev ? spaces : '')
+                    .append(showMergePrev)
+                    .append((collaborators > 0) ? spaces : '')
+                    .append(showCollaborators))
+                .prepend($('<a target=\'_blank\' href=\'' + ticketLink + ticket_id
+                    + '\' data-preview=\'#tickets/' + ticket_id + '/preview\' '
+                    + 'class=\'preview\'>\u00a0' + id + '</a>'))
+                .prepend($('<i>').addClass('icon-reorder'))
+                .append($('<input/>').attr({name: 'tids[]', type: 'hidden'}).val(id))
+                .append($('<div></div>').addClass('button-group')
+                    .append($('<div></div>').addClass('delete')
+                        .append($('<a href="#">')
+                            .append($('<i>').addClass('icon-trash'))
+                            .click(function () {
+                                $sel.prop('disabled', false);
+                                $(this).closest('li.row-item').remove();
+                                $('#delete-warning').show();
+
+                                return false;
+                            })
+                        )
+                    )
+                )
+            );
+            $('#ticket-number').empty();
+        } else {
+            window.alert(this.getAttribute('data-ost-duplicate-alert') || '');
+        }
+
+        $sel.prop('disabled', true);
+    };
+
+    /* Clona la fila de plantilla para añadir una secuencia nueva. */
+    window.ostAddSequence = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        /* `$.uid` lo aporta jQuery UI; si no está, se usa el reloj. */
+        var id = $.uid ? ++$.uid : new Date().getTime();
+        var base = 'seq[new-' + id + ']';
+        var name = this.getAttribute('data-ost-new-name') || '';
+        var clone = $('.row-item#template').clone()
+            .appendTo($('#sequences'))
+            .removeClass('hidden')
+            .append($('<input>').attr({type: 'hidden', class: 'fname',
+                name: base + '[name]', value: name}))
+            .append($('<input>').attr({type: 'hidden', class: 'fcurrent',
+                name: base + '[current]', value: '1'}))
+            .append($('<input>').attr({type: 'hidden', class: 'fincrement',
+                name: base + '[increment]', value: '1'}))
+            .append($('<input>').attr({type: 'hidden', class: 'fpadding',
+                name: base + '[padding]', value: '0'}));
+
+        clone.find('.manage a').trigger('click');
+    };
+
+    /* Añade una propiedad a una condición de columna: pide su formulario y lo
+       inserta antes del desplegable. */
+    window.ostAddQueueProperty = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        var $this = $(this);
+        var selected = $this.find(':selected');
+        var container = $this.closest('div');
+
+        if (!selected.val())
+            return;
+
+        $.ajax({
+            url: 'ajax.php/queue/condition/addProperty',
+            data: {prop: selected.val(), condition: $this.attr('data-ost-condition')},
+            dataType: 'html',
+            success: function (html) {
+                $(html).insertBefore(container);
+                selected.prop('disabled', true);
+            }
+        });
+    };
+
+    /* Quita una anotación de columna y deja su opción disponible otra vez. */
+    window.ostDropAnnotation = function () {
+        var $ = window.jQuery;
+
+        if (!$)
+            return;
+
+        var $this = $(this);
+        var tab = $this.closest('.tab_content');
+        var annotation = $this.closest('.annotation');
+        var klass = annotation.find('input[data-field=input]').val();
+        var select = $('select.add-annotation', tab);
+
+        select.find('option').filter(function () {
+            return this.value == klass;
+        }).prop('disabled', false);
+
+        annotation.remove();
+
+        if (tab.find('.annotation:not(.template)').length === 0)
+            tab.find('.empty.placeholder').show();
+    };
 
     /* El backend de autenticación decide si se piden contraseña y activación.
        -data-ost-backend-fields: se muestran sólo si el valor es «local»;

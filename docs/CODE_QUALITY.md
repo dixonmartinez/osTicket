@@ -124,17 +124,17 @@ apuesta.**
 
 ### Frente 5 — Sacar el JavaScript de las plantillas (CSP)
 
-- Qué hacer: 166 bloques `<script>` y 127 `onclick=` inline obligan a la CSP a
-  permitir `'unsafe-inline'`, y en el panel también `'unsafe-eval'`. Extraer
-  manejadores a `js/` por pantalla y sustituir `onclick=` por
-  `addEventListener`.
+- Qué hacer: **los `onclick=` ya están a cero** (`make inline-audit`, diez
+  tandas con `js/actions.js`). Quedan los bloques `<script>` dentro de las
+  plantillas: necesitan `nonce` o pasar a archivos para poder quitar
+  `'unsafe-inline'` (y `'unsafe-eval'` en el panel).
 - Por qué: es la única forma de endurecer de verdad la CSP (ver OST-102 en
   `SECURITY_AUDIT.md`). Mientras exista `unsafe-inline`, una inyección de
   HTML ejecuta código.
 - Riesgo: medio, pero **incremental**: cada pantalla migrada se puede probar
   sola.
-- Éxito: `script-src` sin `'unsafe-inline'` en el portal del cliente y
-  `onclick=` a cero en las plantillas migradas.
+- Éxito: `script-src` sin `'unsafe-inline'` en el portal del cliente (hoy
+  `onclick=` ya está a cero; falta el nonce de los `<script>`).
 
 ### Frente 6 — Partir los archivos de más de 2.000 líneas
 
