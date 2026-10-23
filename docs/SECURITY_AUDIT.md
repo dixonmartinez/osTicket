@@ -240,9 +240,14 @@ X-Frame-Options: SAMEORIGIN            (sólo si no se permite iframe)
 Strict-Transport-Security: ...         (sólo sobre HTTPS)
 Content-Security-Policy: object-src 'none'; base-uri 'self';
     style-src 'self' 'unsafe-inline';
-    script-src 'self' 'unsafe-inline' ['unsafe-eval' sólo en el panel];
+    script-src 'self' 'nonce-<por sesión>' ['unsafe-eval' sólo en el panel];
     frame-ancestors <configuración del administrador>
 ```
+
+`script-src` ya no anuncia `'unsafe-inline'`: los 98 bloques `<script>` en
+línea de las plantillas llevan el atributo `nonce` que emite
+`Http::nonce()` (OST-102). `style-src` sí lo conserva, porque los atributos
+`style=` de las plantillas son cientos y no ejecutan código.
 
 La CSP se mantiene **deliberadamente conservadora**: sólo se añaden
 directivas que no rompen imágenes remotas, plugins ni widgets embebidos.
@@ -525,18 +530,38 @@ inline en plantillas.
 
 **Recomendación** (por fases):
 1. Mover los `onclick=`/`<script>` inline a `js/` y usar `addEventListener`.
-2. Emitir un *nonce* por petición (`Http::csp()` ya acepta directivas).
+2. Emitir un *nonce* para los `<script>` que quedan y quitar `'unsafe-inline'`.
 3. Eliminar `unsafe-eval` del panel sustituyendo los widgets que usan `eval`.
 4. Medir con `Content-Security-Policy-Report-Only` antes de aplicar.
 
-**Estado: en curso.** `js/actions.js` implementa las acciones declarativas
-que sustituyen a los `onclick` más repetidos (`data-href`, `data-go-back`,
-`data-submit-on-change`, `data-ost-dialog`, `data-confirm`) y las plantillas se
-van migrando en tandas. `tools/ui/inline-handlers.php` (`make inline-audit`)
-cuenta lo que queda —**0** al escribir esto, desde 124— y falla con
-`--max=N` si el número vuelve a subir. Falta el paso 2 (nonce) y los
-manejadores con lógica propia (editores, ordenación de columnas, combos de
-la búsqueda avanzada).
+**Estado: fases 1 y 2 hechas.**
+
+- `js/actions.js` implementa las acciones declarativas que sustituyen a los
+  `onclick` más repetidos (`data-href`, `data-go-back`,
+  `data-submit-on-change`, `data-ost-dialog`, `data-confirm`) y las plantillas
+  se migraron en diez tandas. `tools/ui/inline-handlers.php`
+  (`make inline-audit`) cuenta lo que queda —**0** al escribir esto, desde
+  124— y falla con `--max=N` si el número vuelve a subir.
+- **Nonce**: `Http::nonce()` emite uno por sesión; las 98 etiquetas `<script>`
+  en línea de `include/` y `scp/` lo llevan, `Http::csp()` anuncia
+  `script-src 'self' 'nonce-…'` y `tools/quality/csp-nonce.php`
+  (`make csp-nonce`, dentro de `make ci`) falla si aparece una sin él.
+
+**Por qué el nonce es por sesión y no por respuesta.** El CSP de un documento
+gobierna también los scripts que ese documento inserta. osTicket monta casi
+todas sus pantallas con trozos de HTML que llegan por AJAX (diálogos, listas,
+respuestas); si cada respuesta trajera su propio nonce, el navegador
+rechazaría el del trozo por no coincidir con el del documento. Con un nonce
+por sesión coinciden siempre. El coste es que el nonce vive mientras dure la
+sesión; se pierde al cerrarla.
+
+**Lo que queda**: `'unsafe-eval'` en el panel (los widgets de editor y de
+gráficas antiguos), y `'unsafe-inline'` en `style-src`. Un complemento de
+terceros que escriba `<script>` en su propia plantilla tampoco funcionará sin
+nonce: `addExtraHeader()` se lo pone, y para el resto queda la salida de
+emergencia `Http::csp(null, ['nonce' => false])` (vuelve a
+`'unsafe-inline'`), documentada aquí para que sea una decisión y no una
+sorpresa.
 
 ### OST-103 — Sin límite de intentos a nivel de infraestructura · Media
 

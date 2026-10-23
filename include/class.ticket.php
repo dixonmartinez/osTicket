@@ -4080,57 +4080,15 @@ implements RestrictedAccess, Threadable, Searchable {
         if ($vars['uid'])
             $user = User::lookup($vars['uid']);
 
-        $id=0;
-        // Campos que exige cada origen. Ver TicketCreate::requiredFields()
-        $fields = TicketCreate::requiredFields($origin);
-        if ($fields === false)
-            $errors['err']=$errors['origin'] = __('Invalid ticket origin given');
-
-        if(!Validator::process($fields ?: array(), $vars, $errors) && !$errors['err'])
-            $errors['err'] = sprintf('%s — %s',
-                __('Missing or invalid data'),
-                __('Correct any errors below and try again'));
-
-        // Make sure the due date is valid. Ver TicketCreate::dueDateError()
-        if ($error = TicketCreate::dueDateError($vars['duedate'],
-                    array('Misc', 'user2gmtime')))
-            $errors['duedate'] = $error;
+        // Campos que exige el origen y comprobación de la fecha límite
+        TicketCreate::requestErrors($origin, $vars, $errors);
 
         $topic_forms = array();
         if (!$errors) {
 
-            // Handle the forms associate with the help topics. Instanciate the
-            // entries, disable and track the requested disabled fields.
-            if ($vars['topicId']) {
-                if ($__topic=Topic::lookup($vars['topicId'])) {
-                    foreach ($__topic->getForms() as $idx=>$__F) {
-                        $disabled = array();
-                        foreach ($__F->getFields() as $field) {
-                            if (!$field->isEnabled() && $field->hasFlag(DynamicFormField::FLAG_ENABLED))
-                                $disabled[] = $field->get('id');
-                        }
-                        // Special handling for the ticket form — disable fields
-                        // requested to be disabled as per the help topic.
-                        if ($__F->get('type') == 'T') {
-                            foreach ($form->getFields() as $field) {
-                                if (false !== array_search($field->get('id'), $disabled))
-                                    $field->disable();
-                            }
-                            $form->sort = $idx;
-                            $__F = $form;
-                        }
-                        else {
-                            $__F = $__F->instanciate($idx);
-                            $__F->setSource($vars);
-                            $topic_forms[] = $__F;
-                        }
-                        // Track fields currently disabled
-                        $__F->extra = JsonDataEncoder::encode(array(
-                            'disable' => $disabled
-                        ));
-                    }
-                }
-            }
+            // Formularios del tema, instanciados, con los campos que el
+            // tema desactiva ya marcados. Ver TicketCreate::topicForms()
+            $topic_forms = TicketCreate::topicForms($form, $vars);
 
             try {
                 $vars = self::filterTicketData($origin, $vars,
@@ -4191,24 +4149,10 @@ implements RestrictedAccess, Threadable, Searchable {
             }
         }
 
-        if (!$form->isValid($field_filter('ticket')))
-            $errors += $form->errors();
-
-        if ($vars['topicId']) {
-            if (is_numeric($vars['topicId'])
-                    && ($topic=Topic::lookup((int) $vars['topicId']))
-                    && $topic->isActive()) {
-                foreach ($topic_forms as $topic_form) {
-                    $TF = $topic_form->getForm($vars);
-                    if (!$TF->isValid($field_filter('topic')))
-                        $errors = array_merge($errors, $TF->errors());
-                }
-            } else  {
-                $vars['topicId'] = 0;
-            }
-        }
-
-
+        // Validación de los formularios: el del ticket y los del tema.
+        // De aquí sale también el tema de la petición
+        TicketCreate::formErrors($form, $topic_forms, $vars, $field_filter,
+            $errors, $topic);
 
         // Any errors above are fatal.
         if ($errors)
@@ -4232,87 +4176,19 @@ implements RestrictedAccess, Threadable, Searchable {
         // and filled out from the original  help topic, and (3) staff
         // members can always add more forms now
 
-        // OK...just do it.
-        $statusId = $vars['statusId'];
-        $deptId = $vars['deptId']; //pre-selected Dept if any.
-        $source = TicketCreate::source($vars['source']);
+        // A dónde va el ticket: correo, tema, organización y valores por
+        // omisión. Ver TicketCreate::routing()
+        $routing = TicketCreate::routing($vars, $cfg, $form, $topic, $user,
+            $autorespond);
+        $deptId = $routing['dept_id'];
+        $statusId = $routing['status_id'];
+        $topic = $routing['topic'];
+        $topicId = $routing['topic_id'];
+        $source = $routing['source'];
+        $ipaddress = $routing['ip'];
+        $number = $routing['number'];
+        $org = $routing['org'];
 
-        // Apply email settings for emailed tickets. Email settings should
-        // trump help topic settins if the email has an associated help
-        // topic
-        if ($vars['emailId'] && ($email=Email::lookup($vars['emailId']))) {
-            $deptId = $deptId ?: $email->getDeptId();
-            $dept = Dept::lookup($deptId);
-            if ($dept && !$dept->isActive())
-                $deptId = $cfg->getDefaultDeptId();
-            $priority = $form->getAnswer('priority');
-            if (!$priority || !$priority->getIdValue())
-                $form->setAnswer('priority', null, $email->getPriorityId());
-            if ($autorespond)
-                $autorespond = $email->autoRespond();
-            if (!isset($topic)
-                    && ($T = $email->getTopic())
-                    && ($T->isActive())) {
-                $topic = $T;
-            }
-            $email = null;
-            $source = 'Email';
-        }
-
-        if (!isset($topic)) {
-            // This may return NULL, no big deal
-            $topic = $cfg->getDefaultTopic();
-        }
-
-        // Intenal mapping magic...see if we need to override anything
-        if (isset($topic)) {
-            $deptId = $deptId ?: $topic->getDeptId();
-            $statusId = $statusId ?: $topic->getStatusId();
-            $priority = $form->getAnswer('priority');
-            if (!$priority || !$priority->getIdValue())
-                $form->setAnswer('priority', null, $topic->getPriorityId());
-            if ($autorespond)
-                $autorespond = $topic->autoRespond();
-
-            //Auto assignment.
-            if (!isset($vars['staffId']) && $topic->getStaffId())
-                $vars['staffId'] = $topic->getStaffId();
-            elseif (!isset($vars['teamId']) && $topic->getTeamId())
-                $vars['teamId'] = $topic->getTeamId();
-
-            // Unset slaId if 0 to use the Help Topic SLA or Default SLA
-            if ($vars['slaId'] == 0)
-                unset($vars['slaId']);
-
-            //set default sla.
-            if (isset($vars['slaId']))
-                $vars['slaId'] = $vars['slaId'] ?: $cfg->getDefaultSLAId();
-            elseif ($topic && $topic->getSLAId())
-                $vars['slaId'] = $topic->getSLAId();
-        }
-
-        // Auto assignment to organization account manager
-        if (($org = $user->getOrganization())
-                && $org->autoAssignAccountManager()
-                && ($code = $org->getAccountManagerId())) {
-            if (!isset($vars['staffId']) && $code[0] == 's')
-                $vars['staffId'] = substr($code, 1);
-            elseif (!isset($vars['teamId']) && $code[0] == 't')
-                $vars['teamId'] = substr($code, 1);
-        }
-
-        // Last minute checks
-        $priority = $form->getAnswer('priority');
-        if (!$priority || !$priority->getIdValue())
-            $form->setAnswer('priority', null, $cfg->getDefaultPriorityId());
-        $deptId = $deptId ?: $cfg->getDefaultDeptId();
-        $statusId = $statusId ?: $cfg->getDefaultTicketStatusId();
-        $topicId = isset($topic) ? $topic->getId() : 0;
-        $ipaddress = $vars['ip'] ?: $_SERVER['REMOTE_ADDR'];
-        $source = $source ?: 'Web';
-
-        //We are ready son...hold on to the rails.
-        $number = $topic ? $topic->getNewTicketNumber() : $cfg->getNewTicketNumber();
         $ticket = new static(array(
             'created' => SqlFunction::NOW(),
             'lastupdate' => SqlFunction::NOW(),
@@ -4340,24 +4216,8 @@ implements RestrictedAccess, Threadable, Searchable {
 
         /* -------------------- POST CREATE ------------------------ */
 
-        // Save the (common) dynamic form
-        // Ensure we have a subject
-        $subject = $form->getAnswer('subject');
-        if ($subject && !$subject->getValue() && $topic)
-            $subject->setValue($topic->getFullName());
-
-        $form->setTicketId($ticket->getId());
-        $form->save();
-
-        // Save the form data from the help-topic form, if any
-        foreach ($topic_forms as $topic_form) {
-            $topic_form->setTicketId($ticket->getId());
-            $topic_form->save();
-        }
-
-        $ticket->loadDynamicData(true);
-
-        $dept = $ticket->getDept();
+        // Formulario del ticket y del tema; datos dinámicos ya cargados
+        TicketCreate::saveForms($ticket, $form, $topic_forms, $topic);
 
         // Start tracking ticket lifecycle events (created should come first!)
         $ticket->logEvent('created', null, $thisstaff ?: $user);
@@ -4367,29 +4227,8 @@ implements RestrictedAccess, Threadable, Searchable {
         if ($ticket->getStatusId() <= 0)
             $ticket->setStatusId($cfg->getDefaultTicketStatusId());
 
-        // Add collaborators (if any)
-        if (isset($vars['ccs']) && count($vars['ccs']))
-          $ticket->addCollaborators($vars['ccs'], array(), $errors);
-
-        // Add organizational collaborators
-        if ($org && $org->autoAddCollabs()) {
-            $pris = $org->autoAddPrimaryContactsAsCollabs();
-            $members = $org->autoAddMembersAsCollabs();
-            $settings = array('isactive' => true);
-            $collabs = array();
-            foreach ($org->allMembers() as $u) {
-                $_errors = array();
-                if ($members || ($pris && $u->isPrimaryContact())) {
-                    if ($c = $ticket->addCollaborator($u, $settings, $_errors)) {
-                        $collabs[] = (string) $c;
-                    }
-                }
-            }
-            //TODO: Can collaborators add others?
-            if ($collabs) {
-                $ticket->logEvent('collab', array('org' => $org->getId()));
-            }
-        }
+        // Colaboradores de la petición y de la organización
+        TicketCreate::addCollaborators($ticket, $vars, $org, $errors);
 
         //post the message.
         $vars['title'] = $vars['subject']; //Use the initial subject as title of the post.
@@ -4408,136 +4247,16 @@ implements RestrictedAccess, Threadable, Searchable {
             $message->save();
         }
 
-        //check to see if ticket was created from a thread
-        if ($_SESSION[':form-data']['ticketId'] || $_SESSION[':form-data']['taskId']) {
-          $oldTicket = Ticket::lookup($_SESSION[':form-data']['ticketId']);
-          $oldTask = Task::lookup($_SESSION[':form-data']['taskId']);
+        // Aviso interno cruzado cuando el ticket nace de otra entrada
+        TicketCreate::linkOriginThread($ticket, $thisstaff, $errors);
 
-          //add internal note to new ticket.
-          //New ticket should have link to old task/ticket:
-          $link = sprintf('<a href="%s.php?id=%d"><b>#%s</b></a>',
-              $oldTicket ? 'tickets' : 'tasks',
-              $oldTicket ? $oldTicket->getId() : $oldTask->getId(),
-              $oldTicket ? $oldTicket->getNumber() : $oldTask->getNumber());
+        // SLA, estado, asignación y fecha límite estimada
+        TicketCreate::applyStatusAndAssignment($ticket, $vars, $statusId,
+            $origin, $cfg, $errors);
 
-          $note = array(
-                  'title' => __('Ticket Created From Thread Entry'),
-                  'body' => sprintf(__(
-                        // %1$s is the word Ticket or Task, %2$s will be a link to it
-                        'This Ticket was created from %1$s %2$s'),
-                        $oldTicket ? __('Ticket') : __('Task'), $link)
-                  );
-
-          $ticket->logNote($note['title'], $note['body'], $thisstaff);
-
-          //add internal note to referenced ticket/task
-          // Old ticket/task should have link to new ticket
-          $ticketLink = sprintf('<a href="tickets.php?id=%d"><b>#%s</b></a>',
-              $ticket->getId(),
-              $ticket->getNumber());
-
-          $entryLink = sprintf('<a href="#entry-%d"><b>%s</b></a>',
-              $_SESSION[':form-data']['eid'],
-              Format::datetime($_SESSION[':form-data']['timestamp']));
-
-          $ticketNote = array(
-              'title' => __('Ticket Created From Thread Entry'),
-              'body' => sprintf(__('Ticket %1$s<br/> Thread Entry: %2$s'),
-                $ticketLink, $entryLink)
-          );
-
-          $taskNote = array(
-              'title' => __('Ticket Created From Thread Entry'),
-              'note' => sprintf(__('Ticket %1$s<br/> Thread Entry: %2$s'),
-                $ticketLink, $entryLink)
-          );
-
-          if ($oldTicket)
-            $oldTicket->logNote($ticketNote['title'], $ticketNote['body'], $thisstaff);
-          elseif ($oldTask)
-            $oldTask->postNote($taskNote, $errors, $thisstaff);
-        }
-
-        // Configure service-level-agreement for this ticket
-        $ticket->selectSLAId($vars['slaId']);
-
-        // Set status
-        $status = TicketStatus::lookup($statusId);
-        if (!$status || !$ticket->setStatus($status, false, $errors,
-                    !strcasecmp($origin, 'staff'))) {
-            // Tickets _must_ have a status. Forceably set one here
-            $ticket->setStatusId($cfg->getDefaultTicketStatusId());
-        }
-
-        // Only do assignment if the ticket is in an open state
-        if ($ticket->isOpen()) {
-            // Assign ticket to staff or team (new ticket by staff)
-            if ($vars['assignId']) {
-                $asnform = $ticket->getAssignmentForm(array(
-                            'assignee' => $vars['assignId'],
-                            'comments' => $vars['note'])
-                        );
-                $e = array();
-                $ticket->assign($asnform, $e);
-            }
-            else {
-                // Auto assign staff or team - auto assignment based on filter
-                // rules. Both team and staff can be assigned
-                $username = __('Ticket Filter');
-                if ($vars['staffId'])
-                     $ticket->assignToStaff($vars['staffId'], false, true, $username);
-                if ($vars['teamId'])
-                    // No team alert if also assigned to an individual agent
-                    $ticket->assignToTeam($vars['teamId'], false, !$vars['staffId'], $username);
-            }
-        }
-
-        // Update the estimated due date in the database
-        $ticket->updateEstDueDate();
-
-        /**********   double check auto-response  ************/
-        //Override auto responder if the FROM email is one of the internal emails...loop control.
-        if($autorespond && (Email::getIdByEmail($ticket->getEmail())))
-            $autorespond=false;
-
-        # Messages that are clearly auto-responses from email systems should
-        # not have a return 'ping' message
-        if (isset($vars['mailflags']) && $vars['mailflags']['bounce'])
-            $autorespond = false;
-        if ($autorespond && $message instanceof ThreadEntry && $message->isAutoReply())
-            $autorespond = false;
-
-        // Post canned auto-response IF any (disables new ticket auto-response).
-        if ($vars['cannedResponseId']
-            && $ticket->postCannedReply($vars['cannedResponseId'], $message, $autorespond)) {
-                $ticket->markUnAnswered(); //Leave the ticket as unanswred.
-                $autorespond = false;
-        }
-
-
-        if ($vars['system_emails'])
-            $ticket->systemReferral($vars['system_emails']);
-
-        // Check department's auto response settings
-        // XXX: Dept. setting doesn't affect canned responses.
-        if ($autorespond && $dept && !$dept->autoRespONNewTicket())
-            $autorespond=false;
-
-        // Don't send alerts to staff when the message is a bounce
-        // this is necessary to avoid possible loop (especially on new ticket)
-        if ($alertstaff && $message instanceof ThreadEntry && $message->isBounce())
-            $alertstaff = false;
-
-        /***** See if we need to send some alerts ****/
-        $ticket->onNewTicket($message, $autorespond, $alertstaff);
-
-        /************ check if the user JUST reached the max. open tickets limit **********/
-        if ($cfg->getMaxOpenTickets()>0
-            && ($user=$ticket->getOwner())
-            && ($user->getNumOpenTickets()==$cfg->getMaxOpenTickets())
-        ) {
-            $ticket->onOpenLimit($autorespond && strcasecmp($origin, 'staff'));
-        }
+        // Respuesta automática, avisos y control del límite de abiertos
+        TicketCreate::notify($ticket, $message, $vars, $autorespond,
+            $alertstaff, $origin, $cfg);
 
         // Fire post-create signal (for extra email sending, searching)
         Signal::send('ticket.created', $ticket);

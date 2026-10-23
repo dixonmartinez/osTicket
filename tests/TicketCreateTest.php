@@ -133,6 +133,47 @@ class TicketCreateTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Fases de create()                                                   */
+    /* ------------------------------------------------------------------ */
+
+    public function testLaValidacionInicialAceptaUnaPeticionCompleta(): void {
+        $vars = array('topicId' => 3, 'duedate' => null);
+        $errors = array();
+
+        $this->assertTrue(TicketCreate::requestErrors('web', $vars, $errors));
+        $this->assertSame(array(), $errors);
+    }
+
+    public function testLaValidacionInicialExigeElTemaEnElPortal(): void {
+        // Sin `topicId` en la petición: el portal no sabe a qué tema va
+        $vars = array('duedate' => null);
+        $errors = array();
+
+        $this->assertFalse(TicketCreate::requestErrors('web', $vars, $errors));
+        $this->assertSame('Select a Help Topic', $errors['topicId']);
+        // El resumen va aparte del error concreto
+        $this->assertStringContainsString('Missing or invalid data',
+            $errors['err']);
+    }
+
+    public function testLaValidacionInicialRechazaUnOrigenInventado(): void {
+        $vars = array('topicId' => 1, 'duedate' => null);
+        $errors = array();
+
+        $this->assertFalse(TicketCreate::requestErrors('fax', $vars, $errors));
+        $this->assertSame('Invalid ticket origin given', $errors['origin']);
+        $this->assertTrue(isset($errors['err']));
+    }
+
+    public function testSinTemaNoHayFormulariosDeTema(): void {
+        // Sin tema no se toca la base: ni siquiera hace falta el formulario
+        $this->assertSame(array(), TicketCreate::topicForms(null,
+            array('topicId' => 0)));
+        $this->assertSame(array(), TicketCreate::topicForms(null,
+            array()));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Origen guardado                                                     */
     /* ------------------------------------------------------------------ */
 

@@ -54,6 +54,12 @@ class Validator {
 
         //Do the do.
         foreach($this->fields as $k=>$field){
+            // Una definición de campo puede traer sólo el tipo: aquí se
+            // completa para no leer claves que no existen (`min` sólo lo
+            // define quien lo necesita) y no llenar el log de avisos.
+            $field += array('required' => false, 'error' => null,
+                'type' => '*', 'min' => 0);
+
             // Un campo que no viene en la entrada no es un aviso de PHP: es
             // «vacío». Antes se leía $this->input[$k] sin comprobarlo y
             // llenaba el log de «Undefined array key».

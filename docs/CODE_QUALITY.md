@@ -57,32 +57,33 @@ dirección contraria.
 | Funciones | 6.072 |
 | Clases, interfaces y rasgos | 675 en 201 archivos |
 | Tamaño medio de función | 12,1 líneas |
-| Archivo más grande | `include/class.ticket.php` — 4.809 líneas |
-| Función más larga del código propio | `Ticket::create()` — 500 líneas (eran 536) |
+| Archivo más grande | `include/class.ticket.php` — 4.531 líneas |
+| Función más larga del código propio | `Ticket::create()` — **219** líneas (eran 536) |
 | Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
 
-**No hay ninguna función de 1.400 líneas**, pero sí una de **500**:
-`Ticket::create()`. La media son 12 líneas; el problema son los valores
-atípicos, y ahora se ven:
+**No hay ninguna función de 1.400 líneas** y la más larga de la aplicación
+ya baja de 400: `create()` pasó de 536 a **219** al partirse por fases
+(frente 6). La media son 12 líneas; el problema son los valores atípicos, y
+ahora se ven:
 
 | Función | Líneas | Archivo |
 |---|---|---|
-| `Ticket::create()` | 500 | `include/class.ticket.php` |
 | `massProcess()` | 321 | `include/ajax.tickets.php` |
 | `massProcess()` | 287 | `include/ajax.tasks.php` |
 | `Mailer::send()` | 270 | `include/class.mailer.php` |
+| `Ticket::create()` | 219 | `include/class.ticket.php` (eran 536) |
 | `Ticket::postMessage()` | 178 | `include/class.ticket.php` |
 | `Schedule::buildFields()` | 175 | `include/class.schedule.php` |
 
 | Señal | Ocurrencias |
 |---|---|
-| SQL a mano (`db_query`) | 119 reales (53 en la aplicación) |
+| SQL a mano (`db_query`) | 104 reales (38 en la aplicación) |
 | `db_input()` (escape manual) | 164 |
 | Accesos directos a `$_POST`/`$_REQUEST`/`$_GET` | 1.248 (frente 4) |
 | `global $...` | 560 |
 | `eval()` | 15 |
 | `onclick=`/`onchange=` en HTML | 0 (eran 127; ver frente 5) |
-| `<script>` embebido en plantillas | 161 |
+| `<script>` en línea en plantillas | 98 (todos con `nonce`; eran 161) |
 
 La media de 12 líneas por función es **buena**. Los valores atípicos son de
 dos tipos: siete archivos por encima de 2.000 líneas, y las funciones de la
@@ -94,7 +95,7 @@ Los archivos que más pesan:
 
 | Archivo | Líneas | Clases | Qué contiene | Antes |
 |---|---|---|---|---|
-| `include/class.ticket.php` | 4.809 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | igual |
+| `include/class.ticket.php` | 4.531 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | 4.809, y `create()` de 536 a 219 líneas |
 | `include/class.forms.php` | 4.516 | 37 | Núcleo de formularios y campos | 6.220 líneas, 64 clases |
 | `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) | igual |
 | `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación | 3.232 líneas, 38 clases |
@@ -492,22 +493,20 @@ líneas) y separa cuatro cosas que no son lo mismo:
 
 | Categoría | Llamadas | Archivos | Qué es | ¿Se toca? |
 |---|---|---|---|---|
-| **aplicación** | **53** | 18 | El código de osTicket | es la deuda, y baja |
+| **aplicación** | **38** | 15 | El código de osTicket | es la deuda, y baja |
 | instalador | 5 | 2 | `setup/` e `include/class.setup.php`: corre antes de que exista el esquema | no |
 | actualizador (histórico) | 33 | 16 | `include/upgrader/streams/`: migraciones de esquemas viejos | no |
 | driver de base de datos | 6 | 1 | `include/mysqli.php`: ahí `db_query()` *es* el trabajo | no |
 | dobles de prueba | 22 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
 
-De las 53 de la aplicación, **23 están marcadas como no migrables** con su
-motivo (`sql-audit:legacy`), así que **quedan 30 por migrar**: el objetivo
-era bajar de 100 y se cumple con holgura. Quedan **21 `SELECT`, 3 DML, 2 DDL
-y 4 «otras»**; **ninguna concatenación de datos de la petición** (eso lo
+De las 38 de la aplicación, **25 están marcadas como no migrables** con su
+motivo (`sql-audit:legacy`), así que **quedan 13 por migrar**: el objetivo
+era bajar de 100 y se cumple con holgura. Quedan **6 `SELECT`, 3 DML, 2 DDL
+y 2 «otras»**; **ninguna concatenación de datos de la petición** (eso lo
 vigila `tools/audit` con OST-SQLI y también el propio `sql-audit`, que falla
-si aparece una en el punto de llamada). Lo que resta son tres listas paginadas con `GROUP BY` que une la misma
-tabla dos veces (`filters.inc.php`), o que cuentan con condiciones dentro del
-`JOIN` (`cannedresponses.inc.php`, `templates/users.tmpl.php`), y las
-consultas de `class.analytics.php`, que agregan por `DATE()`, `HOUR()` y
-`DATE_FORMAT()`.
+si aparece una en el punto de llamada). Lo que resta son consultas de campos
+dinámicos, el índice `FULLTEXT` de los informes, la carga de idiomas y la
+importación por lotes; ninguna es una lista paginada.
 
 **La marca, y por qué no es una salida.** Hay SQL que no puede pasar por el
 ORM y no por pereza:
@@ -523,7 +522,9 @@ ORM y no por pereza:
 - Alcanza **tres líneas hacia arriba**, así que no se puede «marcar el
   archivo» de una vez.
 - Hay un **tope de 25 marcas** (`SqlAudit::LEGACY_MAX`): si se pudiera marcar
-  todo, el contador volvería a no significar nada.
+  todo, el contador volvería a no significar nada. Ahora mismo se usa
+  **entero** (25), así que el frente 3 no admite una marca más sin migrar
+  otra cosa a la vez.
 
 **Un falso positivo del escáner, corregido.** `tools/audit/scan.php` marcaba
 como XSS cualquier `echo` cuyo texto contuviera `$_GET`, aunque fuera una
@@ -538,7 +539,7 @@ fallar `make docker-test` por un mensaje de ayuda. La regla ignora ahora las
 apariciones escapadas; las que sí interpolan se siguen marcando, y está
 comprobado con los dos casos.
 
-Las 23 marcas son de ocho archivos, y ninguna es una consulta de la
+Las 25 marcas son de nueve archivos, y ninguna es una consulta de la
 aplicación que se pueda escribir con el ORM (o, en el caso de `class.staff.php`,
 que se pueda escribir **sin coste**: la versión ORM está al lado, en el mismo
 método, y tarda 2 ms más en cada carga de sesión del agente):
@@ -553,6 +554,7 @@ método, y tarda 2 ms más en cada carga de sesión del agente):
 | `include/class.setup.php` | 2 | sentencias del esquema al instalar, antes de que el ORM tenga algo que describir |
 | `include/class.timezone.php` | 1 | `SELECT` de expresiones sin tabla: el ORM siempre añade `FROM` |
 | `include/class.staff.php` | 1 | `getDepartments()`: la versión ORM (al lado, comentada) hace un `OR` sobre `path` y tarda 2 ms más, y esto corre en cada carga de sesión |
+| `include/class.analytics.php` | 2 | primera respuesta: es un `MIN()` por ticket, o sea una tabla derivada, y el ORM no une vistas calculadas; SLA: `t.closed <= t.duedate` compara **dos columnas**, y el ORM compara columnas con valores |
 
 **Lo migrado**, por áreas y con la suite en verde después de cada tanda:
 
@@ -590,6 +592,10 @@ método, y tarda 2 ms más en cada carga de sesión del agente):
 | `include/staff/banlist.inc.php` | 1 | 0 | lista paginada con búsqueda (`val__contains`) |
 | `include/staff/syslogs.inc.php` | 1 | 0 | lista paginada con rango de fechas (`FROM_UNIXTIME()` como `SqlFunction`) |
 | `include/staff/templates.inc.php` | 1 | 0 | lista paginada con `COUNT()` anotado sobre el `LEFT JOIN` a departamentos |
+| `include/staff/filters.inc.php` | 1 | 0 | lista con `COUNT()` de reglas y `MIN()` del tema y el departamento; el filtro del sistema se excluye con `exclude()` |
+| `include/staff/cannedresponses.inc.php` | 1 | 0 | lista con `COUNT()` de adjuntos condicionado (`attachments__inline`) y `MIN()` del nombre del departamento |
+| `include/staff/templates/users.tmpl.php` | 1 | 0 | lista con la cuenta (`account__status`), su `id`, el correo y los tickets, todo anotado sobre el `LEFT JOIN` |
+| `include/class.analytics.php` | 14 | 2 | resumen, agentes, departamentos, origen, temas, carga y antigüedad del atraso por el ORM; series por `DATE()`/`HOUR()` con `values(['alias' => SqlFunction])` |
 
 Ninguno sube. Lo que sigue en esos archivos es SQL de otra naturaleza (por
 ejemplo, en `settings-emails.inc.php` queda el `SELECT DISTINCT` que alimenta
@@ -623,9 +629,18 @@ seguía leyéndose con SQL a mano.
   Para contar filas de un `JOIN` con `GROUP BY` sirve
   `annotate(['depts' => SqlAggregate::COUNT('depts__id')])`, que además añade
   el `GROUP BY` de la clave primaria.
+- **`values()` acepta un arreglo con alias** (`values(['ident' => 'id'])`) y,
+  desde el frente 3, **expresiones calculadas**:
+  `values(['day' => SqlFunction::DATE(new SqlField('created'))])` emite
+  `DATE(A1.\`created\`) AS \`day\`` y pone **la expresión** —no el alias ni la
+  clave primaria— en el `GROUP BY`. Con `annotate()` al lado, el agregado se
+  calcula por día o por hora en la base, sin traer las filas a PHP.
+- **Agrupar por expresión exige `order_by(false)`**: el orden por defecto del
+  modelo es una columna suelta y, con `ONLY_FULL_GROUP_BY` (el valor por
+  omisión en MySQL 5.7+), la consulta sería inválida.
 
 **La regla automática.** `make sql-audit` compara con
-`tools/quality/sql-baseline.json` (30 llamadas en 10 archivos) y **falla** si:
+`tools/quality/sql-baseline.json` (13 llamadas en 6 archivos) y **falla** si:
 
 - un archivo nuevo trae SQL a mano,
 - cualquier archivo sube respecto de la línea base,
@@ -669,21 +684,49 @@ tocado):
 
 Queda pendiente migrar el resto **cuando se toque cada archivo**, no antes.
 
-### Frente 5 — Sacar el JavaScript de las plantillas (CSP)
+### Frente 5 — Sacar el JavaScript de las plantillas (CSP) ✅ Hecho
 
 - Qué hacer: **los `onclick=` ya están a cero** (`make inline-audit`, diez
-  tandas con `js/actions.js`). Quedan los bloques `<script>` dentro de las
-  plantillas: necesitan `nonce` o pasar a archivos para poder quitar
-  `'unsafe-inline'` (y `'unsafe-eval'` en el panel).
+  tandas con `js/actions.js`). Quedaban los bloques `<script>` dentro de las
+  plantillas: necesitaban `nonce` o pasar a archivos para poder quitar
+  `'unsafe-inline'`.
 - Por qué: es la única forma de endurecer de verdad la CSP (ver OST-102 en
   `SECURITY_AUDIT.md`). Mientras exista `unsafe-inline`, una inyección de
   HTML ejecuta código.
-- Riesgo: medio, pero **incremental**: cada pantalla migrada se puede probar
-  sola.
-- Éxito: `script-src` sin `'unsafe-inline'` en el portal del cliente (hoy
-  `onclick=` ya está a cero; falta el nonce de los `<script>`).
+- Éxito: `script-src` sin `'unsafe-inline'` — **cumplido** en el portal y en
+  el panel.
 
-### Frente 6 — Partir los archivos de más de 2.000 líneas 🔄 Empezado
+**Lo hecho.** Se eligió el nonce antes que mover 98 bloques a archivos: no
+cambia el orden de carga de ningún widget y se puede comprobar con una regla.
+
+| Pieza | Qué hace |
+|---|---|
+| `Http::nonce()` | Nonce base64 (128 bits) **por sesión**, guardado en `$_SESSION['__csp_nonce']`; `resetNonce()` para pruebas |
+| `Http::nonceAttr()` | Devuelve `nonce="…"` listo para pegar en la etiqueta |
+| `Http::nonceScripts($html)` | Añade el atributo a los `<script>` que no lo lleven: es lo que cubre `addExtraHeader()` (y con él los complementos) y el heredoc de `MassAction::selectedScript()` |
+| `Http::csp()` | `script-src 'self' 'nonce-…'`, sin `'unsafe-inline'`; `['nonce' => false]` es la salida de emergencia documentada |
+| `tools/quality/csp-nonce.php` | `make csp-nonce`, dentro de `make ci`: falla si un `<script>` en línea no lleva nonce |
+| `tests/CspNonceTest.php` | 13 casos: forma y estabilidad del nonce, `script-src`, `nonceScripts()` y la propia auditoría |
+
+**Por qué el nonce es por sesión.** El CSP de un documento también gobierna
+los scripts que ese documento inserta. Casi todas las pantallas de osTicket
+se montan con HTML que llega por AJAX (diálogos, listas, entradas de ticket);
+con un nonce por respuesta, el del trozo no coincidiría con el del documento
+y el navegador lo rechazaría. jQuery 3.7 copia el `nonce` del nodo al
+ejecutarlo (`DOMEval`), así que basta con que la etiqueta lo traiga.
+
+**Cómo se comprueba sin base de datos.** La auditoría sólo mira los tramos
+`T_INLINE_HTML` del archivo (con el código PHP enmascarado, para que
+`nonce="<?php echo Http::nonce(); ?>"` no parta la etiqueta en trozos): un
+`<script>` dentro de una cadena o de un comentario no cuenta, y uno sin
+nonce se informa con archivo y línea. Resultado hoy: **98 en línea, 0 sin
+nonce**.
+
+**Lo que queda de la CSP**: `'unsafe-eval'` en el panel (editores y gráficas
+antiguas) y `'unsafe-inline'` en `style-src` (cientos de atributos `style=`
+que no ejecutan código).
+
+### Frente 6 — Partir los archivos de más de 2.000 líneas 🔄 En curso
 
 - Qué hacer: `class.forms.php` (6.220 líneas, **64 clases**) y
   `class.ticket.php` en rasgos (`trait`) o clases colaboradoras, sin cambiar
@@ -696,9 +739,22 @@ Queda pendiente migrar el resto **cuando se toque cada archivo**, no antes.
   ninguna.
 - Lo hecho también: `class.forms.php` bajó de 6.220 a **4.516** líneas al
   separar los widgets de campo y los formularios de asignación.
-- Siguiente, por relación riesgo/beneficio: `class.ticket.php`, ya el mayor
-  (4.844 líneas). Su parte de correo y notificaciones (`postMessage` y
-  alrededores) es la que más crece con cada versión.
+- **`Ticket::create()`, de 536 a 219 líneas.** No se movió código sin más:
+  se partió por fases, cada una en `TicketCreate` y con nombre propio
+  (`requestErrors`, `topicForms`, `formErrors`, `routing`, `saveForms`,
+  `addCollaborators`, `linkOriginThread`, `applyStatusAndAssignment`,
+  `notify`). `create()` queda como el guion que las llama en orden, y las
+  cuatro primeras tienen prueba unitaria.
+  - De paso aparecieron **dos avisos de PHP** que el log recibía en cada alta
+    de ticket: `Validator` leía `$field['min']` y `$errors['err']` sin
+    comprobar que existieran. Ahora hay valores por omisión en el bucle de
+    campos y `isset()` en el resumen; reproducirlos es parte de
+    `tests/TicketCreateTest.php`.
+  - También se borró un `$id = 0;` que no se usaba y un `$dept` que quedó sin
+    consumidor al mover la fase de avisos.
+- Siguiente, por relación riesgo/beneficio: `Ticket::postMessage()` y los dos
+  `massProcess()` de `ajax.tickets.php` y `ajax.tasks.php`, que son ya las
+  funciones más largas de la aplicación.
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
@@ -714,11 +770,12 @@ Queda pendiente migrar el resto **cuando se toque cada archivo**, no antes.
 2. **Frente 2** (funciones largas → clases pequeñas con pruebas) — en curso.
 3. **Frente 4** (fachada de entrada) — ✅ la fachada y la regla están; la
    migración va archivo a archivo según se toquen.
-4. **Frente 5** (JS inline) — ✅ los `onclick` están a cero; quedan los
-   `<script>`.
-5. **Frente 3** (SQL a mano) — por áreas, con pruebas.
-6. **Frente 6** (archivos gigantes) — empezado por `class.queue.php`;
-   sigue `class.forms.php`, con calma.
+4. **Frente 5** (JS inline) — ✅ `onclick` a cero desde hace varias tandas y
+   `<script>` con `nonce`: la CSP ya no anuncia `'unsafe-inline'`.
+5. **Frente 3** (SQL a mano) — ✅ por áreas y con pruebas: 30 → 13 llamadas.
+6. **Frente 6** (archivos gigantes y funciones de 500 líneas) — `class.queue.php`,
+   `class.thread.php`, `class.forms.php` y `create()`; siguen los dos
+   `massProcess()` y `postMessage()`.
 
 ## 5. Lo que NO conviene hacer
 
@@ -747,7 +804,8 @@ alguien mire el informe— son:
 | Regla | Línea base | Comando |
 |---|---|---|
 | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST` (frente 4) | 1.242 en 141 archivos | `make input-audit` |
-| SQL escrito a mano en la aplicación (frente 3) | 30 en 10 archivos, más 23 excepciones con motivo | `make sql-audit` |
+| SQL escrito a mano en la aplicación (frente 3) | 13 en 6 archivos, más 25 excepciones con motivo | `make sql-audit` |
+| `<script>` en línea sin nonce (frente 5) | 0 de 98 | `make csp-nonce` |
 
 Un refactor está justificado si **baja** alguna señal sin que suba ninguna
 otra, y si `make ci` sigue en verde.

@@ -536,14 +536,31 @@ inline-budget` falla si vuelve a aparecer uno, y `make theme` lo detecta con
 archivo y línea, así que el marcado nuevo tiene que usar los atributos de
 esta tabla o una función con `data-call`.
 
-Lo que queda para poder quitar `'unsafe-inline'` del CSP son los bloques
-`<script>` dentro de las plantillas (156): necesitan `nonce` o pasar a
-archivos. Eso es otro trabajo, anotado en la §6.2.
-
 El buscador de usuarios (`$.userLookup`) fue el grupo más grande: los ocho
 `onclick` hacían cosas distintas con el usuario elegido, así que el callback
 se describe con atributos (`data-ost-user-lookup-fill`, `-value`, `-add`,
 `-redirect`) y la lógica vive una sola vez en `js/actions.js`.
+
+**Todo `<script>` en línea lleva `nonce`.** La CSP sale con
+`script-src 'self' 'nonce-…'`, sin `'unsafe-inline'`, así que una etiqueta sin
+el atributo **no se ejecuta**:
+
+```php
+<script nonce="<?php echo Http::nonce(); ?>">
+    $(function() { /* … */ });
+</script>
+```
+
+- El nonce es **por sesión** (`Http::nonce()`), porque los trozos de HTML que
+  llegan por AJAX se ejecutan dentro de la página que los recibe y su nonce
+  tiene que coincidir.
+- `make csp-nonce` (dentro de `make ci`) recorre las plantillas y falla con
+  archivo y línea si alguna etiqueta no lo lleva. Hoy: **98 en línea, 0 sin
+  nonce**.
+- Si el HTML se arma en PHP (un heredoc, un complemento con
+  `addExtraHeader()`), no hay etiqueta que editar: `Http::nonceScripts()`
+  añade el atributo, y `addExtraHeader()` ya lo hace solo.
+- Los `<script src="…">` no lo necesitan.
 
 ## 4. Reglas para no romper nada
 
@@ -702,6 +719,7 @@ queda en §6.2.
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
 | 15 | **Auditoría de manejadores inline** con umbral: `make inline-audit` lista, cuenta y falla si el número sube | ✅ Hecho | `tools/ui/inline-handlers.php` |
 | 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
+| 17 | **CSP con nonce**: los 98 `<script>` en línea de las plantillas llevan `nonce`, `script-src` deja de anunciar `'unsafe-inline'` y el instalador tampoco lo necesita (§6.2-1b, OST-102) | ✅ Hecho | `include/class.http.php`, `tools/quality/csp-nonce.php`, `tests/CspNonceTest.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -715,7 +733,7 @@ respuesta, acceso y FAQ).
 | # | Mejora | Por qué sigue abierta |
 |---|---|---|
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
-| 1b | Quitar `'unsafe-inline'` de `script-src`: los 156 bloques `<script>` de las plantillas necesitan `nonce` o pasar a archivos | Es el paso siguiente del OST-102; sin él el CSP sigue admitiendo script en línea aunque ya no haya manejadores |
+| 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar

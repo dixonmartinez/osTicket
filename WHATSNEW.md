@@ -12,6 +12,9 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   rehash automático; validación de `Host` y cabeceras CSP/nosniff/Referrer.
 * Auditoría de 12 hallazgos (1 crítico, 1 alto, 6 medios, 4 bajos) con
   correcciones y lista de verificación en `docs/SECURITY_AUDIT.md`.
+* **CSP sin `'unsafe-inline'`**: los 98 bloques `<script>` en línea de las
+  plantillas llevan `nonce` (`Http::nonce()`, uno por sesión), y
+  `make csp-nonce` falla si aparece uno sin él (OST-102).
 
 ### Development environment (no installs on the host)
 * `compose.yaml` + `compose.override.yaml` + `compose.prod.yaml`:
@@ -22,6 +25,15 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
 * Tareas de `make`: `docker-up`, `down`, `logs`, `shell`, `test`, `security`,
   `composer`, `qa`, `prod`.
 * Guía completa: `docs/DOCKER.md`.
+
+### Calidad del código
+* **SQL a mano**: 30 → 13 llamadas en la aplicación (38 en total, 25 marcadas
+  con motivo). Las listas paginadas y `class.analytics.php` usan el ORM; el
+  ORM agrupa ya por expresiones (`values(['day' => SqlFunction::DATE(…)])`).
+* **`Ticket::create()`**: de 536 a 219 líneas, partida en nueve fases dentro
+  de `TicketCreate`, cada una con nombre y las cuatro primeras con pruebas.
+* Dos avisos de PHP del alta de tickets (`Validator` leía claves que podían
+  no existir) corregidos; `make unit` falla si vuelve un aviso.
 
 ### Analytics
 * Nuevo panel `scp/analytics.php` (`Analytics` + `AnalyticsChart`):
