@@ -126,7 +126,7 @@ $extras = new ArrayObject();
               class="staff-username typeahead"
               name="username" value="<?php echo Format::htmlchars($staff->username); ?>" />
 <?php if (!($bk = $staff->getAuthBackend()) || $bk->supportsPasswordChange()) { ?>
-            <button type="button" class="action-button" data-dialog="201" data-dialog-url="ajax.php/staff/<?php echo $info['id'] ?: '0'; ?>/set-password">
+            <button type="button" class="action-button" data-ost-dialog="201" data-ost-dialog-url="ajax.php/staff/<?php echo $info['id'] ?: '0'; ?>/set-password">
               <i class="icon-refresh"></i> <?php echo __('Set Password'); ?>
             </button>
 <?php } ?>

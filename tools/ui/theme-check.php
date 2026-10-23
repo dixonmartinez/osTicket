@@ -424,9 +424,34 @@ check(strpos($actions, 'data-set-name') !== false
     'js/actions.js cubre escribir campos y llamar a funciones con nombre',
     'js/actions.js no implementa data-set-name/data-call');
 
-check(strpos($actions, 'data-dialog-row') !== false,
-    'js/actions.js abre diálogos con el id de la fila (data-dialog-row)',
-    'js/actions.js no implementa data-dialog-row');
+check(strpos($actions, 'data-ost-dialog-row') !== false,
+    'js/actions.js abre diálogos con el id de la fila (data-ost-dialog-row)',
+    'js/actions.js no implementa data-ost-dialog-row');
+
+/* `data-dialog` es de osTicket y guarda una URL: si el nuestro lo reutiliza,
+   scp.js abre el diálogo con un número, .load() revienta y el overlay
+   «Loading» se queda encima de la página. */
+check(strpos($actions, "hasAttribute('data-dialog')") === false
+    && strpos($actions, '[data-dialog]') === false,
+    'js/actions.js no reutiliza el data-dialog de osTicket',
+    'js/actions.js usa data-dialog, que en osTicket es la URL del diálogo: usa data-ost-dialog');
+
+check(strpos(read("$root/scp/js/scp.js"), "typeof dialog !== 'string'") !== false,
+    'scp.js ignora los data-dialog que no son una URL de texto',
+    'scp/js/scp.js pasaría un data-dialog numérico a $.dialog y dejaría el overlay «Loading» colgado');
+
+$numericDialog = array();
+foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root . '/include')) as $f) {
+    if (!$f->isFile() || substr($f->getFilename(), -4) !== '.php')
+        continue;
+    if (preg_match('/data-dialog="[0-9]/', file_get_contents($f->getPathname())))
+        $numericDialog[] = str_replace($root . '/', '', $f->getPathname());
+}
+
+check(!$numericDialog,
+    'ninguna plantilla usa data-dialog con un código de estado',
+    'hay plantillas con data-dialog numérico: ' . implode(', ', array_slice($numericDialog, 0, 5)));
 
 /* 11. Herramientas de revisión visual ------------------------------------- */
 check(file_exists("$root/tools/ui/dark-audit.js"),
@@ -448,6 +473,15 @@ check(strpos(read("$root/include/staff/footer.inc.php"), 'js/actions.js') !== fa
     && strpos(read("$root/include/client/footer.inc.php"), 'js/actions.js') !== false,
     'los dos pies de página cargan js/actions.js',
     'alguna de las dos interfaces no carga js/actions.js: los data-* no harían nada');
+
+/* 12. Arranque sin PHP instalado ----------------------------------------- */
+check(file_exists("$root/tools/php.sh"),
+    'existe tools/php.sh (PHP del host o del contenedor)',
+    'falta tools/php.sh: sin PHP en el equipo, make theme/inline-audit fallan con «php: No such file or directory»');
+
+check(strpos(read("$root/Makefile"), 'tools/php.sh') !== false,
+    'el Makefile usa tools/php.sh en vez de llamar a php a pelo',
+    'el Makefile llama a php directamente: en un equipo sin PHP los objetivos fallan');
 
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";

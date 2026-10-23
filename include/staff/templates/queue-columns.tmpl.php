@@ -50,7 +50,7 @@ $hidden_cols = $queue->inheritColumns() || $queue->useStandardColumns();
 <?php if (!$queue instanceof SavedSearch) { ?>
         <div>
         <a class="inline action-button"
-            href="#" data-dialog="201" data-dialog-row="ajax.php/tickets/search/column/edit/" data-dialog-row-field="[data-name=column_id]"><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
+            href="#" data-ost-dialog="201" data-ost-dialog-row="ajax.php/tickets/search/column/edit/" data-ost-dialog-row-field="[data-name=column_id]"><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
         </div>
 <?php }
       else { ?>

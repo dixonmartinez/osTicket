@@ -64,7 +64,7 @@ $extras = new ArrayObject();
                 } ?>
 <?php if ($thisstaff->hasPerm(User::PERM_EDIT)) { ?>
                 <li><a href="#ajax.php/users/<?php echo $user->getId();
-                    ?>/forms/manage" data-dialog="201"
+                    ?>/forms/manage" data-ost-dialog="201"
                     ><i class="icon-paste"></i>
                     <?php echo __('Manage Forms'); ?></a></li>
 <?php } ?>

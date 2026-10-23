@@ -112,7 +112,7 @@ if ($avatar->isChangeable()) { ?>
               class="staff-username typeahead"
               name="username" disabled value="<?php echo Format::htmlchars($staff->username); ?>" />
 <?php if (!$bk || $bk->supportsPasswordChange()) { ?>
-            <button type="button" id="change-pw-button" class="action-button" data-dialog="201" data-dialog-url="ajax.php/staff/<?php echo $staff->getId(); ?>/change-password">
+            <button type="button" id="change-pw-button" class="action-button" data-ost-dialog="201" data-ost-dialog-url="ajax.php/staff/<?php echo $staff->getId(); ?>/change-password">
               <i class="icon-refresh"></i> <?php echo __('Change Password'); ?>
             </button>
 <?php } ?>
@@ -153,7 +153,7 @@ if (($bks=Staff2FABackend::allRegistered())) {
              <?php } ?>
             </select>
             &nbsp;
-            <button type="button" id="config2fa-button" class="action-button" data-dialog="201" data-dialog-url="ajax.php/staff/<?php echo $staff->getId(); ?>/2fa/configure">
+            <button type="button" id="config2fa-button" class="action-button" data-ost-dialog="201" data-ost-dialog-url="ajax.php/staff/<?php echo $staff->getId(); ?>/2fa/configure">
               <i class="icon-gear"></i> <?php echo __('Configure Options'); ?>
             </button>
             <i class="offset help-tip icon-question-sign" href="#config2fa"></i>

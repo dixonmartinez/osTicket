@@ -531,7 +531,7 @@ inline en plantillas.
 
 **Estado: en curso.** `js/actions.js` implementa las acciones declarativas
 que sustituyen a los `onclick` más repetidos (`data-href`, `data-go-back`,
-`data-submit-on-change`, `data-dialog`, `data-confirm`) y las plantillas se
+`data-submit-on-change`, `data-ost-dialog`, `data-confirm`) y las plantillas se
 van migrando en tandas. `tools/ui/inline-handlers.php` (`make inline-audit`)
 cuenta lo que queda —**29** al escribir esto, desde 124— y falla con
 `--max=N` si el número vuelve a subir. Falta el paso 2 (nonce) y los

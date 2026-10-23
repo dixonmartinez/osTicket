@@ -60,7 +60,7 @@ $selected = (!isset($_REQUEST['a'])  && $_REQUEST['queue'] == $this_queue->getId
     </ul>
     <!-- Add Queue button sticky at the bottom -->
     <div class="add-queue">
-      <a class="full-width" data-dialog="201" data-dialog-url="ajax.php/tickets/search?parent_id=<?php echo $this_queue->getId() ?: 0; ?>">
+      <a class="full-width" data-ost-dialog="201" data-ost-dialog-url="ajax.php/tickets/search?parent_id=<?php echo $this_queue->getId() ?: 0; ?>">
         <span><i class="green icon-plus-sign"></i>
           <?php echo __('Add personal queue'); ?></span>
       </a>

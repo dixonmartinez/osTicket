@@ -208,7 +208,7 @@ if ($form && count($langs) > 1) { ?>
                 <a class="action-button field-config" style="overflow:inherit"
                     href="#ajax.php/form/field-config/<?php
                         echo $f->get('id'); ?>"
-                    data-dialog="201"><i class="icon-edit"></i> <?php echo __('Config'); ?></a>
+                    data-ost-dialog="201"><i class="icon-edit"></i> <?php echo __('Config'); ?></a>
             <?php } ?></td>
             <td>
                 <?php echo $f->getVisibilityDescription(); ?>

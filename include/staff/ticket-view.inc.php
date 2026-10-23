@@ -168,14 +168,14 @@ if($ticket->isOverdue())
 
                  if ($role->hasPerm(Ticket::PERM_MERGE) && !$ticket->isChild()) { ?>
                      <li><a href="#ajax.php/tickets/<?php echo $ticket->getId();
-                         ?>/merge" data-dialog="201"
+                         ?>/merge" data-ost-dialog="201"
                          ><i class="icon-code-fork"></i> <?php echo __('Merge Tickets'); ?></a></li>
                  <?php
                   }
 
                  if ($role->hasPerm(Ticket::PERM_LINK) && $ticket->getMergeType() == 'visual') { ?>
                      <li><a href="#ajax.php/tickets/<?php echo $ticket->getId();
-                         ?>/link" data-dialog="201"
+                         ?>/link" data-ost-dialog="201"
                          ><i class="icon-link"></i> <?php echo __('Link Tickets'); ?></a></li>
                  <?php
                  }
@@ -223,7 +223,7 @@ if($ticket->isOverdue())
                 <?php
                 if ($role->hasPerm(Ticket::PERM_EDIT)) { ?>
                 <li><a href="#ajax.php/tickets/<?php echo $ticket->getId();
-                    ?>/forms/manage" data-dialog="201"
+                    ?>/forms/manage" data-ost-dialog="201"
                     ><i class="icon-paste"></i> <?php echo __('Manage Forms'); ?></a></li>
                 <?php
                 }

@@ -53,7 +53,9 @@
 // v19: sexta tanda (diálogo con el id de la fila y columnas heredadas).
 // v20: séptima tanda (tema de ayuda, zona horaria, ordenación y filtros por
 //     PJAX) y js/actions.js en el pie del panel.
-const VERSION = 'ost-v20';
+// v21: los diálogos pasan a data-ost-dialog (data-dialog es de osTicket y
+//     guarda una URL); sin subir la versión se sirve el actions.js viejo.
+const VERSION = 'ost-v21';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

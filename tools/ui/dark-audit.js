@@ -130,9 +130,13 @@ function audit() {
     try {
         chromium = require('playwright-core');
     } catch (e) {
-        console.error('Falta playwright-core. Instálalo con:\n'
+        console.error('Falta playwright-core (comprobación opcional, sólo en el equipo).\n'
             + '  npm install --no-save playwright-core\n'
-            + 'y apunta a un Chromium con CHROME_PATH o PLAYWRIGHT_BROWSERS_PATH.');
+            + '  npx playwright install chromium\n'
+            + 'y, si el navegador no está en la ruta por defecto, apunta a él:\n'
+            + '  export CHROME_PATH=/ruta/al/chrome\n'
+            + 'Dentro del contenedor no está disponible: allí se usan make theme e\n'
+            + 'make inline-audit.');
         process.exit(2);
     }
 

@@ -9,10 +9,16 @@
  *   data-href="url"            navega a la url (botones «Cancel»)
  *   data-go-back               vuelve a la página anterior
  *   data-submit-on-change      en un <select>: envía el formulario al cambiar
- *   data-dialog="201"          abre `$.dialog(url, 201)` con la url del href
+ *   data-ost-dialog="201"      abre `$.dialog(url, 201)` con la url del href
  *                              (`#algo` → `algo`), como hacía el onclick.
- *                              Con data-dialog-url="..." se usa esa url y con
- *                              data-dialog-size="large" se pasa el tamaño
+ *                              Con data-ost-dialog-url="..." se usa esa url y
+ *                              con data-ost-dialog-size="large" se pasa el
+ *                              tamaño.
+ *                              OJO: **no es `data-dialog`**. Ese atributo ya
+ *                              existe en osTicket (scp/js/scp.js) y guarda la
+ *                              URL, no el código; usar el mismo nombre hacía
+ *                              que `.load()` recibiera un número y reventara
+ *                              con «e.indexOf is not a function».
  *   data-confirm="¿Seguro?"    pide confirmación; si se cancela, no hace nada
  *                              (también en un <form>: confirma antes de enviar)
  *   data-remove-closest="tr"   borra del DOM el ancestro que case con el
@@ -58,10 +64,10 @@
 (function (window, document) {
     'use strict';
 
-    var CLICKABLE = '[data-href],[data-go-back],[data-dialog],[data-confirm],'
+    var CLICKABLE = '[data-href],[data-go-back],[data-ost-dialog],[data-ost-dialog-url],[data-confirm],'
         + '[data-remove-closest],[data-save-draft],[data-discard-draft],'
         + '[data-toggle-target],[data-reload],[data-click-target],'
-        + '[data-set-name],[data-call],[data-dialog-row],[data-pjax-query]';
+        + '[data-set-name],[data-call],[data-ost-dialog-row],[data-pjax-query]';
 
     function closest(el, selector) {
         while (el && el.nodeType === 1) {
@@ -273,6 +279,23 @@
             nodes[i].click();
     }
 
+    /* `$.dialog` muestra el overlay «Loading» antes de pedir la URL: si la
+       petición falla con una excepción, el overlay se queda encima de la
+       página y no hay forma de cerrarlo. Se recoge el fallo y se limpia. */
+    function openDialog(url, size, options) {
+        var $ = window.jQuery;
+
+        try {
+            $.dialog(url, size, null, options || null);
+        } catch (e) {
+            if (typeof $.toggleOverlay === 'function')
+                $.toggleOverlay(false);
+            $('.dialog#popup').hide();
+            if (window.console && console.error)
+                console.error('No se pudo abrir el diálogo de', url, e);
+        }
+    }
+
     document.addEventListener('click', function (event) {
         var el = closest(event.target, CLICKABLE);
 
@@ -378,9 +401,9 @@
             return;
         }
 
-        if (el.hasAttribute('data-dialog-row')) {
-            var row = closest(el, el.getAttribute('data-dialog-row-scope') || 'tr');
-            var field = el.getAttribute('data-dialog-row-field');
+        if (el.hasAttribute('data-ost-dialog-row')) {
+            var row = closest(el, el.getAttribute('data-ost-dialog-row-scope') || 'tr');
+            var field = el.getAttribute('data-ost-dialog-row-field');
             var node = row && field ? row.querySelector(field) : null;
             var id = node ? node.value : '';
 
@@ -389,22 +412,21 @@
             if (!id || !window.jQuery || !window.jQuery.dialog)
                 return;
 
-            window.jQuery.dialog(
-                el.getAttribute('data-dialog-row') + id,
-                parseInt(el.getAttribute('data-dialog'), 10) || 201);
+            openDialog(el.getAttribute('data-ost-dialog-row') + id,
+                parseInt(el.getAttribute('data-ost-dialog'), 10) || 201);
             return;
         }
 
-        if (el.hasAttribute('data-dialog')) {
-            var url = el.getAttribute('data-dialog-url') || dialogUrl(el);
-            var size = parseInt(el.getAttribute('data-dialog'), 10) || 201;
-            var options = el.getAttribute('data-dialog-size');
+        if (el.hasAttribute('data-ost-dialog') || el.hasAttribute('data-ost-dialog-url')) {
+            var url = el.getAttribute('data-ost-dialog-url') || dialogUrl(el);
+            var size = parseInt(el.getAttribute('data-ost-dialog'), 10) || 201;
+            var options = el.getAttribute('data-ost-dialog-size');
 
             if (!url || !window.jQuery || !window.jQuery.dialog)
                 return;
 
             event.preventDefault();
-            window.jQuery.dialog(url, size, null, options ? {size: options} : null);
+            openDialog(url, size, options ? {size: options} : null);
         }
     }, false);
 

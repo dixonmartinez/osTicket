@@ -491,10 +491,21 @@ con el `<script>` de `js/actions.js`, que ya va en los dos pies de página.
 | `data-href="url"` | cualquier elemento | navega a `url` |
 | `data-go-back` | cualquier elemento | `history.back()` |
 | `data-submit-on-change` | `<select>` | envía su formulario al cambiar |
-| `data-dialog="201"` | enlace | abre el `href` en un diálogo AJAX (un `#` inicial se descarta) |
-| `data-dialog-url="url"` | cualquier elemento | abre esa URL en el diálogo, sin tocar el `href` |
-| `data-dialog-size="large"` | junto a los anteriores | tamaño del diálogo |
-| `data-dialog-row="base/"` | enlace dentro de una fila | abre `base` + el valor de `data-dialog-row-field` buscado en el `<tr>` (p. ej. el id de la columna que se configura); `data-dialog-row-scope` cambia el contenedor |
+| `data-ost-dialog="201"` | enlace | abre el `href` en un diálogo AJAX (un `#` inicial se descarta) |
+| `data-ost-dialog-url="url"` | cualquier elemento | abre esa URL en el diálogo, sin tocar el `href` |
+| `data-ost-dialog-size="large"` | junto a los anteriores | tamaño del diálogo |
+| `data-ost-dialog-row="base/"` | enlace dentro de una fila | abre `base` + el valor de `data-ost-dialog-row-field` buscado en el `<tr>` (p. ej. el id de la columna que se configura); `data-ost-dialog-row-scope` cambia el contenedor |
+
+> **`data-dialog` ya existía y significa otra cosa.** En osTicket,
+> `data-dialog="ajax.php/…"` es la **URL** que `scp/js/scp.js` abre con
+> `$.dialog(url, 201)`, y además refresca la lista por PJAX al cerrar. Por eso
+> las acciones de este archivo llevan prefijo `data-ost-`: usar el mismo
+> nombre hacía que el manejador de osTicket abriera el diálogo con el número
+> `201` como URL, jQuery lo convirtiera a `Number` y `.load()` reventara con
+> `e.indexOf is not a function`; el overlay «Loading…» se quedaba encima de la
+> página. Si necesitas el comportamiento de osTicket (recargar al cerrar),
+> escribe `data-dialog`; si necesitas exactamente el `$.dialog` de antes, usa
+> `data-ost-dialog`.
 | `data-confirm="texto"` | elemento o `<form>` | pide confirmación antes de actuar (en un formulario, al enviar); se combina con los demás atributos |
 | `data-remove-closest="tr"` | cualquier elemento | borra del DOM el ancestro que case con el selector (filas, condiciones, idiomas) |
 | `data-toggle-target="#id"` | elemento o `<select>` | muestra u oculta el destino: `data-toggle-mode="show\|hide\|toggle"`, `data-toggle-when="valor"` (según el valor del control) y `data-toggle-speed="200"` |
@@ -651,7 +662,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 98 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 103 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -673,6 +684,12 @@ respuesta, acceso y FAQ).
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
 
 ## 7. Si la interfaz se ve mal después de actualizar
+
+| Síntoma | Causa | Arreglo |
+|---|---|---|
+| Se queda el recuadro **«Loading …»** encima de la página y la consola dice `e.indexOf is not a function` en `jquery` | Algún elemento lleva `data-dialog` con un número (p. ej. `data-dialog="201"`). Ese atributo es de osTicket y guarda una **URL**: jQuery convierte `"201"` a `Number` y `.load()` falla | Usa `data-ost-dialog="201"` en su lugar. Desde esta versión `scp.js` ignora los valores que no sean texto, así que el modal ya no se queda colgado |
+| `make theme` / `make inline-audit` responden `php: No such file or directory` | No hay PHP en el equipo | Ya no hace falta: `tools/php.sh` ejecuta el comando dentro del contenedor de herramientas (`docker compose run --rm tools …`). Basta con tener Docker y el stack levantado alguna vez |
+
 
 Síntoma típico: el panel sale **sin estilos**, con los **iconos gigantes y
 en negro**, o la consola muestra `400 (Bad Request)` en

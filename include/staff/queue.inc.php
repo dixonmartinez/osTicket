@@ -207,7 +207,7 @@ if ($queue->parent) { ?>
               <td>
                 <div>
                 <a class="inline action-button"
-                    href="#" data-dialog="201" data-dialog-row="ajax.php/tickets/search/sort/edit/" data-dialog-row-field="[data-name^=sorts]"><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
+                    href="#" data-ost-dialog="201" data-ost-dialog-row="ajax.php/tickets/search/sort/edit/" data-ost-dialog-row-field="[data-name^=sorts]"><i class="icon-cog"></i> <?php echo __('Config'); ?></a>
                 </div>
               </td>
               <td>

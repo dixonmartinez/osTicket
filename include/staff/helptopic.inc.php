@@ -197,7 +197,7 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                     ?>><?php echo $s->name; ?></option>
 <?php } ?>
                 </select>
-                <button class="action-button pull-right" data-dialog="205" data-dialog-url="ajax.php/sequence/manage"><i class="icon-gear"></i> <?php echo __('Manage'); ?></button>
+                <button class="action-button pull-right" data-ost-dialog="205" data-ost-dialog-url="ajax.php/sequence/manage"><i class="icon-gear"></i> <?php echo __('Manage'); ?></button>
             </td>
         </tr>
     </tbody>

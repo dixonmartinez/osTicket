@@ -146,7 +146,7 @@ $pageNav->setURL('tickets.php', $args);
       <button type="submit" class="attached button"><i class="icon-search"></i>
       </button>
     </div>
-    <a href="#" data-dialog="201" data-dialog-url="ajax.php/tickets/search"
+    <a href="#" data-ost-dialog="201" data-ost-dialog-url="ajax.php/tickets/search"
         >[<?php echo __('advanced'); ?>]</a>
         <i class="help-tip icon-question-sign" href="#advanced"></i>
     </form>

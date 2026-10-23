@@ -10,13 +10,15 @@
 #   make ci         lint + audit + security + theme (antes de integrar)
 # ---------------------------------------------------------------------------
 
-PHP      ?= php
+# Si el equipo no tiene PHP, tools/php.sh lo ejecuta en el contenedor de
+# herramientas: `make theme` funciona igual con Docker y sin instalar nada.
+PHP      ?= $(ROOT)/tools/php.sh
 JOBS     ?= 4
 BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help lint audit audit-all audit-json baseline test security theme metrics metrics-json ci clean perms serve \
+.PHONY: help php-version lint audit audit-all audit-json baseline test security theme metrics metrics-json ci clean perms serve \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-security docker-prod docker-composer docker-qa \
 	docker-bench docker-urls
@@ -24,10 +26,18 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@printf '\nVariables: PHP=$(PHP) JOBS=$(JOBS) BASELINE=$(BASELINE)\n\n'
+	@printf '\nVariables: PHP=$(PHP) JOBS=$(JOBS) BASELINE=$(BASELINE)\n'
+	@printf 'Sin PHP en el equipo, los objetivos lo ejecutan en el contenedor (tools/php.sh).\n\n'
 
 lint: ## Comprueba la sintaxis de todos los archivos PHP
-	@PHP_BIN=$(PHP) JOBS=$(JOBS) $(ROOT)/tools/lint.sh
+	@if command -v php >/dev/null 2>&1 || [ -n "$$OST_PHP" ]; then \
+		PHP_BIN=$(PHP) JOBS=$(JOBS) $(ROOT)/tools/lint.sh; \
+	elif command -v docker >/dev/null 2>&1; then \
+		echo "· php no está en el host: lint dentro del contenedor"; \
+		docker compose run --rm --no-deps tools make lint; \
+	else \
+		echo "No hay PHP ni Docker: instala uno de los dos."; exit 127; \
+	fi
 
 audit: ## Análisis de seguridad; falla si hay hallazgos altos nuevos
 	@$(PHP) $(ROOT)/tools/audit/scan.php --severity=high \

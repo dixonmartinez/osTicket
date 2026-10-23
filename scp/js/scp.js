@@ -726,10 +726,17 @@ $.dialog = function (url, codes, cb, options) {
     if (options.onload) { options.onload(); }
  };
 $(document).on('click', 'a[data-dialog]', function(event) {
+    var dialog = $(this).data('dialog'),
+        link = $(this);
+    /* `data-dialog` es la URL del diálogo. Si alguien pone otra cosa (un
+       número, por ejemplo), jQuery la convierte a Number y `$.dialog` acaba
+       llamando a `.load(201)`: TypeError y el overlay «Loading» se queda
+       colgado. Mejor no hacer nada y dejar que el enlace siga su curso. */
+    if (typeof dialog !== 'string' || !dialog.length)
+        return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    var link = $(this);
-    $.dialog($(this).data('dialog'), 201, function(xhr, json) {
+    $.dialog(dialog, 201, function(xhr, json) {
       try {
         json = JSON.parse(json);
       } catch (e) {}
