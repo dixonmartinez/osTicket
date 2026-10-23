@@ -208,18 +208,20 @@ buenos, el frente cambia de objetivo:
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Funciones de la aplicación por encima de 150 líneas | 5 | **4** (ninguna pasa de 178) |
+| Función más larga de la aplicación | 536 líneas | **500** |
+| `Ticket::create()` | 536 líneas | **500** (`TicketCreate`) |
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
 | `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
-| Archivos por encima de 2.000 líneas | 5 | 5 |
+| Funciones de la aplicación por encima de 150 líneas | 6 | 6 |
+| Archivos por encima de 2.000 líneas | 7 | 7 (ninguno pasa de 4.844) |
 
 **Criterio:** sacar de las funciones largas los tramos que no tocan la base de
 datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: hasta ahora, 55 casos nuevos sin base de datos.
+Pasos hechos: 73 casos nuevos sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -242,11 +244,18 @@ pruebas de integración.
 
 Siguiente paso, por orden de riesgo:
 
-1. `Schedule::buildFields()` (175) y `Dept::update()` (159): separar la
-   validación de la escritura.
-2. Los archivos grandes: `class.queue.php` tiene cuatro clases juntas; mover
-   `QueueColumnCondition*` a su propio archivo es mecánico y comprobable con
-   `class_exists()`.
+1. `massProcess()` de `include/ajax.tickets.php` (377) y de
+   `include/ajax.tasks.php` (330): son dos despachadores con la misma forma
+   (tabla de acciones, lectura de los identificadores seleccionados,
+   permisos). La tabla de acciones y el parseo de identificadores son puros;
+   el resto es base de datos.
+2. `Mailer::send()` (297) y `QuerySet::compileSelect()` (222): el primero es
+   sobre todo envío y plantillas; el segundo, generación de SQL, donde hace
+   falta una prueba que compare la consulta generada antes y después.
+3. `Ticket::create()` (500): lo que queda no se puede tocar con seguridad
+   hasta tener pruebas con base de datos. Ahí el siguiente paso del plan deja
+   de ser mover código y pasa a ser **montar esa prueba de integración**
+   (contenedor con MySQL ya disponible: `make docker-up`).
 
 - Riesgo: bajo en el primer paso (código nuevo + pruebas, sin cambiar firmas).
 - Éxito: ninguna función de la aplicación por encima de 120 líneas y ningún
