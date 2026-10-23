@@ -45,6 +45,7 @@ class OrmIntegrationTest extends IntegrationTestCase {
             . '`name` varchar(64) not null,'
             . '`qty` int not null default 0,'
             . '`flag` tinyint(1) not null default 0,'
+            . '`notes` varchar(64) null,'
             . 'primary key (`id`),'
             . 'key `name` (`name`)'
             . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
@@ -68,10 +69,38 @@ class OrmIntegrationTest extends IntegrationTestCase {
     }
 
     public function testLosValoresNulosYVaciosSeGuardan(): void {
-        $row = new OrmIntegrationRow(array('name' => ''));
+        // `null == ''` en PHP hacía que este campo no se marcara como
+        // cambiado: `save()` se daba por terminado y no insertaba nada.
+        $row = new OrmIntegrationRow(array('name' => '', 'qty' => 0));
         $this->assertTrue($row->save());
 
         $this->assertSame('', $this->value('SELECT `name` FROM `ost_test_row`'));
+        $this->assertSame(1, (int) $this->value(
+            'SELECT COUNT(*) FROM `ost_test_row`'));
+    }
+
+    public function testVaciarUnCampoQueYaTeniaValor(): void {
+        $row = new OrmIntegrationRow(array('name' => 'algo'));
+        $this->assertTrue($row->save());
+
+        $row->name = '';
+        $this->assertTrue($row->save());
+
+        $this->assertSame('', $this->value('SELECT `name` FROM `ost_test_row`'));
+    }
+
+    public function testBorrarUnCampoOpcionalLoDejaEnNull(): void {
+        $row = new OrmIntegrationRow(array('name' => 'x', 'notes' => 'algo'));
+        $this->assertTrue($row->save());
+
+        $this->assertSame('algo', $this->value(
+            'SELECT `notes` FROM `ost_test_row` WHERE `id` = ' . $row->id));
+
+        $row->notes = null;
+        $this->assertTrue($row->save());
+
+        $this->assertNull($this->value(
+            'SELECT `notes` FROM `ost_test_row` WHERE `id` = ' . $row->id));
     }
 
     /* ------------------------------------------------------------------ */

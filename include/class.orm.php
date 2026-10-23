@@ -16,6 +16,7 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 require_once INCLUDE_DIR . 'class.util.php';
+require_once INCLUDE_DIR . 'class.signal.php';
 require_once INCLUDE_DIR . 'class.orm.select.php';
 
 class OrmException extends Exception {}
@@ -486,7 +487,14 @@ class VerySimpleModel {
             $related = static::$meta['foreign_keys'][$field];
         }
         $old = isset($this->ht[$field]) ? $this->ht[$field] : null;
-        if ($old != $value) {
+        // `null == ''` y `null == 0` son ciertos en PHP, así que la
+        // comparación suelta no basta: asignar una cadena vacía o un cero a un
+        // campo que aún no estaba no marcaba el modelo como cambiado,
+        // `save()` se daba por terminado y el valor no llegaba a la base (o se
+        // quedaba el valor por defecto de la columna). Se compara la nulidad
+        // aparte y se deja el `!=` para lo demás, que es lo que hace que un
+        // '5' venido de la base y un 5 asignado no cuenten como cambio.
+        if ($old != $value || ($old === null) !== ($value === null)) {
             // isset should not be used here, because `null` should not be
             // replaced in the dirty array
             if (!array_key_exists($field, $this->dirty))

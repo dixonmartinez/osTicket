@@ -69,6 +69,12 @@ set_include_path(PEAR_DIR . PATH_SEPARATOR . INCLUDE_DIR . PATH_SEPARATOR
     . get_include_path());
 
 require_once INCLUDE_DIR . 'class.charset.php';
+/* `Signal` y `Misc` los usa el ORM: `save()`/`delete()` emiten señales y
+   `db_connect()` siembra el generador aleatorio con `Misc`. Sin ellas, la
+   primera prueba que toca la base falla con «Class not found» en vez de
+   decir qué pasa con la base. */
+require_once INCLUDE_DIR . 'class.signal.php';
+require_once INCLUDE_DIR . 'class.misc.php';
 require_once INCLUDE_DIR . 'class.format.php';
 require_once INCLUDE_DIR . 'class.validator.php';
 /* Piezas puras sacadas de las clases grandes (frente 2). Este archivo no

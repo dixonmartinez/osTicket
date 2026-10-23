@@ -178,7 +178,7 @@ Lo que hay ahora:
 | `phpunit.xml.dist` | Configuración de PHPUnit para quien tenga `vendor/` |
 
 ```bash
-make unit          # 339 pruebas en ~0,3 s
+make unit          # 349 pruebas en ~0,3 s
 make unit-list     # ver qué cubre
 make test          # alias de `unit`
 make test-legacy   # suite del instalador (necesita base de datos)
@@ -242,7 +242,7 @@ como omitidas en vez de pasar en falso:
 ```
 PHP 8.3.11 — dom: no, mbstring: no, intl: no, mysqli: no
 ...
-339 pruebas correctas, 0 fallidas, 4 omitidas
+349 pruebas correctas, 0 fallidas, 4 omitidas
 ```
 
 `make ci` incluye `unit` desde esta versión: si una prueba falla, no hay
@@ -385,7 +385,8 @@ El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
 |---|---|
 | `tests/lib/Database.php` | Crea `<base>_test` (nunca la de la instalación), le carga `setup/inc/streams/core/install-mysql.sql` con el prefijo configurado y expone `query()`/`value()`/`rows()`. Si no puede conectar, explica por qué |
 | `tests/lib/IntegrationTestCase.php` | Base de esas pruebas: **omite con motivo** si no hay base y **falla** si se pidió `--require-db` (un verde silencioso sería peor que un error) |
-| `tests/integration/OrmIntegrationTest.php` | 11 casos: guardar y releer, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, y que el esquema del instalador se cargue entero |
+| `tests/integration/OrmIntegrationTest.php` | 13 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, y que el esquema del instalador se cargue entero |
+| `tests/OrmDirtyTest.php` | 10 casos sin base: qué cuenta como campo cambiado (una cadena vacía y un cero sí; un `'5'` de la base frente a un `5` asignado, no) y que el ORM tenga sus dependencias cargadas (`Signal`, `Misc`) |
 | `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
 | `make integration` | `tests/run.php --integration --require-db`, o PHPUnit (`--testsuite integration`) si está instalado |
 | `make docker-integration` | Levanta `db` y ejecuta lo anterior dentro del contenedor `tools` |
@@ -398,6 +399,28 @@ de datos—.
 
 Las pruebas de integración quedan **fuera de `make unit` y de `make ci`** a
 propósito: `ci` tiene que seguir corriendo en cualquier sitio sin Docker.
+
+**La primera ejecución encontró tres cosas**, que es exactamente para lo que
+está:
+
+1. **El banco no cargaba `Signal` ni `Misc`.** El ORM los necesita (`save()` y
+   `delete()` emiten señales; `db_connect()` siembra el generador aleatorio con
+   `Misc`), pero sólo se cargan en la aplicación completa. Se añadieron al
+   bootstrap de las pruebas y `class.orm.php` declara ahora su dependencia de
+   `class.signal.php` en la cabecera, en vez de suponer el orden de carga.
+2. **El ORM perdía los valores vacíos.** En `VerySimpleModel::set()` la
+   comparación era `$old != $value`; en PHP, `null == ''` y `null == 0` son
+   ciertos, así que asignar una cadena vacía o un cero a un campo que aún no
+   estaba **no** marcaba el modelo como cambiado. `save()` termina sin hacer
+   nada cuando no hay campos cambiados, de modo que el valor no llegaba a la
+   base y la llamada devolvía `true` igualmente. Se ve en una instalación como
+   un campo que se vacía en el formulario y conserva el valor anterior, y
+   cuesta encontrarlo porque no hay error. Ahora se compara la nulidad aparte.
+   La misma trampa hacía que poner `null` sobre una cadena vacía no la borrara.
+3. **Dos avisos de PHP en `include/mysqli.php`**: leía `$__db->unbuffered_result`
+   sin comprobar que existiera (en cada consulta, oculto por el nivel de
+   errores de la aplicación) y `$res` podía quedarse sin asignar si `query()`
+   lanzaba.
 
 **Organización de archivos.** Un archivo por familia de clases, con el nombre
 del archivo diciendo qué hay dentro y las dependencias declaradas arriba
