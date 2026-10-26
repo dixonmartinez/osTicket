@@ -23,6 +23,7 @@
 **********************************************************************/
 require_once INCLUDE_DIR . 'class.role.php';
 require_once INCLUDE_DIR . 'class.list.php';
+require_once INCLUDE_DIR . 'class.search.record.php';
 require_once INCLUDE_DIR . 'class.queue.php';
 
 abstract class SearchBackend {
@@ -484,6 +485,15 @@ class MysqlSearchBackend extends SearchBackend {
      * Cooperates with the cron system to automatically find content that is
      * not indexed in the _search table and add it to the index.
      */
+    /**
+     * Indexa lo que falte, un tipo de contenido por vez.
+     *
+     * Estaba en un solo método de 137 líneas con cinco bloques copiados: la
+     * misma consulta «lo que no está en el índice», el mismo bucle y el mismo
+     * guardado, cambiando sólo qué se lee y cómo se arma el registro. La
+     * composición del registro vive en `SearchRecord` (con sus pruebas); aquí
+     * quedan las consultas y el guardado.
+     */
     function IndexOldStuff() {
         $class = get_class($this);
         $auto_create = function($db_error) use ($class) {
@@ -497,7 +507,32 @@ class MysqlSearchBackend extends SearchBackend {
 
         };
 
-        // THREADS ----------------------------------
+        // Cada tipo devuelve `false` cuando hay que parar: la consulta falló o
+        // se acabó el número de lotes. En los dos casos se sale sin vaciar la
+        // cola, como antes (el valor de retorno no lo usa nadie).
+        if (!$this->indexThreadEntries($auto_create)
+                || !$this->indexTickets($auto_create)
+                || !$this->indexUsers($auto_create)
+                || !$this->indexOrganizations($auto_create)
+                || !$this->indexFaqs($auto_create))
+            return false;
+
+        // Flush non-full batch of records
+        $this->__index(null, true);
+
+        if (!$this->_reindexed) {
+            // Stop rebuilding the index
+            $this->getConfig()->set('reindex', 0);
+        }
+    }
+
+    /**
+     * Entradas del hilo que no están en el índice.
+     *
+     * @param callable $auto_create  lo que se hace si falta la tabla
+     * @return bool  false para parar (fallo o lotes agotados)
+     */
+    private function indexThreadEntries($auto_create) {
         $sql = "SELECT A1.`id`, A1.`title`, A1.`body`, A1.`format` FROM `".THREAD_ENTRY_TABLE."` A1
             LEFT JOIN `".TABLE_PREFIX."_search` A2 ON (A1.`id` = A2.`object_id` AND A2.`object_type`='H')
             WHERE A2.`object_id` IS NULL AND (A1.poster <> 'SYSTEM')
@@ -508,17 +543,24 @@ class MysqlSearchBackend extends SearchBackend {
 
         while ($row = db_fetch_row($res)) {
             $body = ThreadEntryBody::fromFormattedText($row[2], $row[3]);
-            $body = $body->getSearchable();
-            $title = Format::searchable($row[1]);
-            if (!$body && !$title)
+            $record = SearchRecord::entry($row[0],
+                Format::searchable($row[1]), $body->getSearchable());
+            if (!$record)
                 continue;
-            $record = array('H', $row[0], $title, $body);
             if (!$this->__index($record))
-                return;
+                return false;
         }
 
-        // TICKETS ----------------------------------
+        return true;
+    }
 
+    /**
+     * Tickets que no están en el índice.
+     *
+     * @param callable $auto_create
+     * @return bool  false para parar
+     */
+    private function indexTickets($auto_create) {
         $sql = "SELECT A1.`ticket_id` FROM `".TICKET_TABLE."` A1
             LEFT JOIN `".TABLE_PREFIX."_search` A2 ON (A1.`ticket_id` = A2.`object_id` AND A2.`object_type`='T')
             WHERE A2.`object_id` IS NULL
@@ -534,15 +576,22 @@ class MysqlSearchBackend extends SearchBackend {
             foreach ($cdata as $k=>$a)
                 if ($k != 'subject' && ($v = $a->getSearchable()))
                     $content[] = $v;
-            $record = array('T', $ticket->getId(),
-                Format::searchable($ticket->getNumber().' '.$ticket->getSubject()),
-                implode("\n", $content));
+            $record = SearchRecord::ticket($ticket->getId(), $ticket->getNumber(),
+                $ticket->getSubject(), $content, array('Format', 'searchable'));
             if (!$this->__index($record))
-                return;
+                return false;
         }
 
-        // USERS ------------------------------------
+        return true;
+    }
 
+    /**
+     * Usuarios que no están en el índice.
+     *
+     * @param callable $auto_create
+     * @return bool  false para parar
+     */
+    private function indexUsers($auto_create) {
         $sql = "SELECT A1.`id` FROM `".USER_TABLE."` A1
             LEFT JOIN `".TABLE_PREFIX."_search` A2 ON (A1.`id` = A2.`object_id` AND A2.`object_type`='U')
             WHERE A2.`object_id` IS NULL";
@@ -551,23 +600,29 @@ class MysqlSearchBackend extends SearchBackend {
 
         while ($row = db_fetch_row($res)) {
             $user = User::lookup($row[0]);
-            $cdata = $user->getDynamicData();
             $content = array();
             foreach ($user->emails as $e)
                 $content[] = $e->address;
-            foreach ($cdata as $e)
-                foreach ($e->getAnswers() as $a)
+            foreach ($user->getDynamicData() as $entry)
+                foreach ($entry->getAnswers() as $a)
                     if ($c = $a->getSearchable())
                         $content[] = $c;
-            $record = array('U', $user->getId(),
-                Format::searchable($user->getFullName()),
-                trim(implode("\n", $content)));
+            $record = SearchRecord::user($user->getId(), $user->getFullName(),
+                array(), $content, array('Format', 'searchable'));
             if (!$this->__index($record))
-                return;
+                return false;
         }
 
-        // ORGANIZATIONS ----------------------------
+        return true;
+    }
 
+    /**
+     * Organizaciones que no están en el índice.
+     *
+     * @param callable $auto_create
+     * @return bool  false para parar
+     */
+    private function indexOrganizations($auto_create) {
         $sql = "SELECT A1.`id` FROM `".ORGANIZATION_TABLE."` A1
             LEFT JOIN `".TABLE_PREFIX."_search` A2 ON (A1.`id` = A2.`object_id` AND A2.`object_type`='O')
             WHERE A2.`object_id` IS NULL";
@@ -576,22 +631,29 @@ class MysqlSearchBackend extends SearchBackend {
 
         while ($row = db_fetch_row($res)) {
             $org = Organization::lookup($row[0]);
-            $cdata = $org->getDynamicData();
             $content = array();
-            foreach ($cdata as $e)
-                foreach ($e->getAnswers() as $a)
+            foreach ($org->getDynamicData() as $entry)
+                foreach ($entry->getAnswers() as $a)
                     if ($c = $a->getSearchable())
                         $content[] = $c;
-            $record = array('O', $org->getId(),
-                Format::searchable($org->getName()),
-                trim(implode("\n", $content)));
+            $record = SearchRecord::organization($org->getId(), $org->getName(),
+                $content, array('Format', 'searchable'));
             if (!$this->__index($record))
-                return null;
+                return false;
         }
 
-        // KNOWLEDGEBASE ----------------------------
+        return true;
+    }
 
+    /**
+     * Artículos de la base de conocimiento que no están en el índice.
+     *
+     * @param callable $auto_create
+     * @return bool  false para parar
+     */
+    private function indexFaqs($auto_create) {
         require_once INCLUDE_DIR . 'class.faq.php';
+
         $sql = "SELECT A1.`faq_id` FROM `".FAQ_TABLE."` A1
             LEFT JOIN `".TABLE_PREFIX."_search` A2 ON (A1.`faq_id` = A2.`object_id` AND A2.`object_type`='K')
             WHERE A2.`object_id` IS NULL";
@@ -601,25 +663,14 @@ class MysqlSearchBackend extends SearchBackend {
         while ($row = db_fetch_row($res)) {
             if (!($faq = FAQ::lookup($row[0])))
                continue;
-            $q = $faq->getQuestion();
-            if ($k = $faq->getKeywords())
-                $q = $k.' '.$q;
-            $record = array('K', $faq->getId(),
-                Format::searchable($q),
-                $faq->getSearchableAnswer());
+            $record = SearchRecord::faq($faq->getId(), $faq->getQuestion(),
+                $faq->getKeywords(), $faq->getSearchableAnswer(),
+                array('Format', 'searchable'));
             if (!$this->__index($record))
-                return;
+                return false;
         }
 
-        // FILES ------------------------------------
-
-        // Flush non-full batch of records
-        $this->__index(null, true);
-
-        if (!$this->_reindexed) {
-            // Stop rebuilding the index
-            $this->getConfig()->set('reindex', 0);
-        }
+        return true;
     }
 
     function __index($record, $force_flush=false) {

@@ -12,6 +12,7 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 require_once(INCLUDE_DIR.'class.signal.php');
+require_once(INCLUDE_DIR.'class.file.input.php');
 require_once(INCLUDE_DIR.'class.error.php');
 
 
@@ -417,38 +418,29 @@ class AttachmentFile extends VerySimpleModel
     }
 
     static function create(&$file, $ft='T', $deduplicate=true) {
-        if (isset($file['encoding'])) {
-            switch ($file['encoding']) {
-            case 'base64':
-                $file['data'] = base64_decode($file['data']);
-            }
-        }
-
-        if (!isset($file['data']) && isset($file['data_cbk'])
-                && is_callable($file['data_cbk'])) {
-            // Allow a callback function to delay or avoid reading or
-            // fetching ihe file contents
-            $file['data'] = $file['data_cbk']();
-        }
+        // Las decisiones que no tocan la base —descodificar, resolver la
+        // llamada diferida, tipo, tamaño y cuándo deduplicar— viven en
+        // `FileInput`, con sus pruebas.
+        $file = FileInput::resolve(FileInput::decode($file));
 
         if (isset($file['data'])) {
             list($key, $file['signature'])
                 = self::_getKeyAndHash($file['data']);
-            if (!$file['key'])
+            if (empty($file['key']))
                 $file['key'] = $key;
         }
 
         if (isset($file['size']) && $file['size'] > 0) {
-            // Check and see if the file is already on record
-            $existing = static::objects()->filter(array(
-                'signature' => $file['signature'],
-                'size' => $file['size']
-            ))->first();
-
-            // If the record exists in the database already, a file with
-            // the same hash and size is already on file -- just return
-            // the file
-            if ($deduplicate && $existing) {
+            // Sólo se busca cuando se pidió deduplicar: antes la consulta se
+            // hacía igual y luego se tiraba el resultado.
+            if (FileInput::shouldLookup($file, $deduplicate)
+                    && ($existing = static::objects()->filter(array(
+                        'signature' => $file['signature'],
+                        'size' => $file['size']
+                    ))->first())) {
+                // If the record exists in the database already, a file with
+                // the same hash and size is already on file -- just return
+                // the file
                 $file['key'] = $existing->key;
                 return $existing;
             }
@@ -458,31 +450,25 @@ class AttachmentFile extends VerySimpleModel
             return false;
         }
 
+        // Lo que detecte `finfo` sólo sirve para los datos que ya están en
+        // memoria o para el archivo temporal, y sólo si el cliente no dijo el
+        // tipo. El genérico queda como último recurso. `isset()` y no la
+        // propiedad a secas: no todos los orígenes mandan `type`.
+        $file += array('type' => null);
+        $detect = null;
         if (!$file['type'] && extension_loaded('fileinfo')) {
-            $finfo = new finfo(FILEINFO_MIME_TYPE);
-            if ($file['data'])
-                $type = $finfo->buffer($file['data']);
-            elseif ($file['tmp_name'])
-                $type = $finfo->file($file['tmp_name']);
-
-            if ($type)
-                $file['type'] = $type;
+            $detect = function() use ($file) {
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                if (!empty($file['data']))
+                    return $finfo->buffer($file['data']);
+                if (!empty($file['tmp_name']))
+                    return $finfo->file($file['tmp_name']);
+            };
         }
-        if (!$file['type'])
-            $file['type'] = 'application/octet-stream';
+        $file['type'] = FileInput::mimeType($file['type'], $detect);
 
-
-        $f = new static(array(
-            'type' => strtolower($file['type']),
-            'name' => $file['name'],
-            'key' => $file['key'],
-            'ft' => $ft ?: 'T',
-            'signature' => $file['signature'],
-            'created' => SqlFunction::NOW(),
-        ));
-
-        if (isset($file['size']))
-            $f->size = $file['size'];
+        $f = new static(FileInput::attributes($file, $ft)
+            + array('created' => SqlFunction::NOW()));
 
         if (!$f->save())
             return false;
@@ -523,17 +509,10 @@ class AttachmentFile extends VerySimpleModel
         $f->bk = $bk->getBkChar();
         $f->attrs = $bk->getAttrs() ?: NULL;
 
-        if (!isset($file['size'])) {
-            if ($size = $bk->getSize())
-                $f->size = $size;
-            // Prefer mb_strlen, because mbstring.func_overload will
-            // automatically prefer it if configured.
-            elseif (extension_loaded('mbstring'))
-                $f->size = mb_strlen($file['data'], '8bit');
-            // bootstrap.php include a compat version of mb_strlen
-            else
-                $f->size = strlen($file['data']);
-        }
+        if (!isset($file['size'])
+                && ($size = FileInput::size($file['data'],
+                    $bk->getSize(), extension_loaded('mbstring'))))
+            $f->size = $size;
 
         $f->save();
         return $f;
