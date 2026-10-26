@@ -203,11 +203,12 @@ class DbMaintenance extends Module {
         if ($empty) {
             $total = array_sum($empty);
             $this->out('');
-            $this->out($total . ' registro' . ($total == 1 ? '' : 's')
-                . ' tiene' . ($total == 1 ? '' : 'n') . ' formulario pero'
+            $plural = ($total != 1);
+            $this->out($total . ' registro' . ($plural ? 's' : '')
+                . ($plural ? ' tienen' : ' tiene') . ' formulario pero'
                 . ' ninguna respuesta guardada:');
-            $this->out('no generan fila en la vista y no hay nada que'
-                .' reconstruir.');
+            $this->out(($plural ? 'no generan' : 'no genera')
+                . ' fila en la vista y no hay nada que reconstruir.');
             foreach ($this->emptyRecords($empty) as $line)
                 $this->out('  - ' . $line);
         }

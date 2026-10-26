@@ -30,6 +30,11 @@ if (!class_exists('Module')) {
 if (!defined('TABLE_PREFIX'))
     define('TABLE_PREFIX', 'ost_');
 
+/* Tablas que nombra la consulta de departamentos. */
+foreach (array('DEPT_TABLE' => 'department', 'TICKET_TABLE' => 'ticket') as $c => $t)
+    if (!defined($c))
+        define($c, TABLE_PREFIX . $t);
+
 require_once INCLUDE_DIR . 'cli/modules/queue.php';
 
 class QueueCheckTest extends UnitTestCase {
@@ -238,6 +243,42 @@ class QueueCheckTest extends UnitTestCase {
         foreach (array('id', 'state') as $column)
             $this->assertTrue(in_array($column, $status),
                 "`{$column}` no es una columna de ost_ticket_status");
+    }
+
+    /**
+     * La consulta de departamentos usaba `d.dept_id`, pero la clave de
+     * `ost_department` es `id` (en `ost_ticket` sí se llama `dept_id`). El
+     * error 1054 no lanza: la tabla del informe salía vacía y parecía que la
+     * instalación no tenía departamentos.
+     */
+    function testLaConsultaDeDepartamentosUsaColumnasQueExisten() {
+        $query = QueueCheck::deptCountsQuery();
+
+        $depts = $this->columnsOf('department');
+        foreach (array('id', 'name') as $column)
+            $this->assertTrue(in_array($column, $depts),
+                "`{$column}` no es una columna de ost_department");
+
+        // La unión es `ost_ticket.dept_id = ost_department.id`
+        $this->assertTrue(strpos($query, 't.dept_id = d.id') !== false,
+            'La unión no es la del esquema: ' . $query);
+        $this->assertTrue(strpos($query, 'd.dept_id') === false,
+            'Vuelve a usar d.dept_id, que no existe: ' . $query);
+
+        // Y las columnas que se piden existen en cada tabla
+        $ticket = $this->columnsOf('ticket');
+        $this->assertTrue(in_array('dept_id', $ticket),
+            '`dept_id` no es una columna de ost_ticket');
+    }
+
+    /** El informe del agente y sus departamentos usa la misma consulta. */
+    function testElInformeDeVisibilidadSeApoyaEnEsaConsulta() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/queue.php');
+
+        $this->assertTrue(strpos($source, 'deptCountsQuery()') !== false,
+            'El informe no usa la consulta comprobable');
+        $this->assertTrue(strpos($source, 'Tickets fuera de su alcance') !== false,
+            'No se informa de los tickets fuera del alcance del agente');
     }
 
     function testLenCountsAccentedCharactersOnce() {

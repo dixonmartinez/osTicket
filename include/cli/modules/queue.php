@@ -841,16 +841,21 @@ class QueueCheck extends Module {
             $audit['error'] = $e->getMessage();
         }
 
+        // El departamento tiene la clave en `id` (no en `dept_id`, que es el
+        // nombre de la columna en `ost_ticket`). Y si la consulta falla hay
+        // que decirlo: `db_query()` devuelve `false` sin lanzar, así que sin
+        // esto la tabla sale vacía como si no hubiera departamentos.
         try {
-            $res = db_query('SELECT d.dept_id, d.name, COUNT(t.ticket_id) AS n'
-                .' FROM '.DEPT_TABLE.' d'
-                .' LEFT JOIN '.TICKET_TABLE.' t ON (t.dept_id = d.dept_id)'
-                .' GROUP BY d.dept_id, d.name ORDER BY d.dept_id', false);
+            $res = db_query(self::deptCountsQuery(), false);
+            if (!$res)
+                throw new Exception(function_exists('db_last_failure_text')
+                    && db_last_failure_text()
+                        ? db_last_failure_text()
+                        : 'la consulta de departamentos no devolvió resultado');
             while ($res && ($row = db_fetch_array($res)))
-                $audit['by_dept'][(int) $row['dept_id']] = array(
+                $audit['by_dept'][(int) $row['id']] = array(
                     'name' => $row['name'], 'tickets' => (int) $row['n']);
-            if ($res)
-                db_free_result($res);
+            db_free_result($res);
         }
         catch (Throwable $e) {
             $audit['error'] = $audit['error'] ?: $e->getMessage();
@@ -868,6 +873,20 @@ class QueueCheck extends Module {
         }
 
         return $audit;
+    }
+
+    /**
+     * Departamentos con sus tickets. La clave del departamento es `id`; en
+     * `ost_ticket` la columna se llama `dept_id`. Confundirlas da un error
+     * 1054 que `db_query()` no lanza, así que la tabla salía vacía sin decir
+     * nada: las dos partes de la unión van aquí, en una sola cadena, para que
+     * se puedan comprobar contra el esquema en las pruebas.
+     */
+    static function deptCountsQuery() {
+        return 'SELECT d.id, d.name, COUNT(t.ticket_id) AS n'
+            .' FROM '.DEPT_TABLE.' d'
+            .' LEFT JOIN '.TICKET_TABLE.' t ON (t.dept_id = d.id)'
+            .' GROUP BY d.id, d.name ORDER BY d.id';
     }
 
     /**
@@ -1453,8 +1472,9 @@ class QueueCheck extends Module {
         // Visibilidad: el tramo que más veces explica «yo no veo esos tickets»
         $visibility = $query['visibility'];
         $this->heading('Departamentos y visibilidad del agente');
-        if ($visibility['error'] && !$visibility['by_dept'])
-            $this->out('  No se pudo leer: ' . $visibility['error']);
+        if ($visibility['error'])
+            $this->out('  No se pudo leer del todo: ' . $this->oneline(
+                $visibility['error']));
         else {
             $rows = array();
             foreach ($visibility['by_dept'] as $id => $dept)
