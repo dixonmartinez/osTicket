@@ -79,7 +79,12 @@ test-legacy: ## Suite del instalador (necesita base de datos configurada)
 	@$(PHP) $(ROOT)/setup/test/run-tests.php
 
 fix-eol: ## Vuelve a LF los archivos que sólo se diferencian en finales de línea
-	@cd $(ROOT) && n=0; m=0; \
+	@cd $(ROOT) && \
+	if ! command -v git >/dev/null 2>&1 || ! git rev-parse --git-dir >/dev/null 2>&1; then \
+		echo "· sin git (contenedor de herramientas): no se comprueban los finales de línea"; \
+		exit 0; \
+	fi; \
+	n=0; m=0; \
 	for f in $$(git ls-files --eol | awk -F'\t' '$$1 ~ /^i\/lf[[:space:]]+w\/(crlf|mixed)/ {print $$2}'); do \
 		if git diff --quiet --ignore-cr-at-eol -- "$$f"; then \
 			git checkout -- "$$f" && echo "  restaurado  $$f" && n=$$((n + 1)); \
@@ -95,10 +100,12 @@ fix-eol: ## Vuelve a LF los archivos que sólo se diferencian en finales de lín
 	else \
 		echo "· $$n archivo(s) vueltos a LF"; \
 		[ $$m -gt 0 ] && echo "  ($$m omitido(s): tienen cambios propios)"; \
+		echo "  Si vuelve a pasar, mira el ajuste files.eol del editor para PHP:"; \
+		echo "  un bloque [php] con files.eol en CRLF en los ajustes de usuario gana al del proyecto."; \
 	fi; \
 	true
 
-integration: ## Pruebas de integración contra MariaDB (crea <base>_test)
+integration: fix-eol ## Pruebas de integración contra MariaDB (crea <base>_test)
 	@if [ -x $(ROOT)/vendor/bin/phpunit ]; then \
 		echo "· PHPUnit (testsuite integration)"; \
 		$(PHP) $(ROOT)/vendor/bin/phpunit --testsuite integration --colors=never; \
@@ -161,7 +168,7 @@ csp-nonce: ## Falla si algún <script> en línea de las plantillas queda sin non
 metrics-json: ## Lo mismo, en JSON (para comparar antes/después)
 	@$(PHP) $(ROOT)/tools/quality/metrics.php --json
 
-ci: lint audit security theme classes input-audit sql-audit csp-nonce unit ## Verificación completa para integración continua
+ci: fix-eol lint audit security theme classes input-audit sql-audit csp-nonce unit ## Verificación completa para integración continua
 
 clean: ## Elimina artefactos temporales de desarrollo
 	@rm -rf $(ROOT)/vendor/.phpunit.result.cache
@@ -247,7 +254,7 @@ docker-install: ## Prepara la base de datos y dependencias tras un volumen nuevo
 docker-test: ## Ejecuta lint + auditoría dentro del contenedor
 	@docker compose run --rm tools make ci
 
-docker-integration: ## Pruebas de integración con MariaDB real (levanta `db`)
+docker-integration: fix-eol ## Pruebas de integración con MariaDB real (levanta `db`)
 	@docker compose up -d --wait db
 	@docker compose run --rm tools make integration
 

@@ -60,6 +60,20 @@ class EntryPointTest extends UnitTestCase {
         // Sin esta comprobación, `make fix-eol` borraría cambios de verdad.
         $this->assertTrue(strpos($makefile, '--ignore-cr-at-eol') !== false,
             'fix-eol debe comprobar que sólo cambian los finales de línea');
+
+        // Y corre solo antes de las dos puertas de entrada: el contenedor de
+        // herramientas no tiene git, así que ahí el objetivo no hace nada.
+        foreach (array('ci:', 'integration:', 'docker-integration:')
+                as $target) {
+            $this->assertTrue(
+                (bool) preg_match('/^' . preg_quote($target, '/') . '[^\n]*fix-eol/m',
+                    $makefile),
+                "$target debe depender de fix-eol");
+        }
+
+        $this->assertTrue(
+            strpos($makefile, 'command -v git') !== false,
+            'fix-eol debe funcionar sin git (contenedor de herramientas)');
     }
 
     /* ------------------------------------------------------------------ */

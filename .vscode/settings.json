@@ -34,13 +34,25 @@
     "editor.insertSpaces": true,
     "editor.rulers": [80, 120],
     "editor.formatOnSave": false,
+    // `files.eol` repetido por lenguaje a propósito: un ajuste de lenguaje
+    // del usuario (`"[php]": { "files.eol": "\r\n" }`) gana al `files.eol`
+    // general del proyecto, y no al de lenguaje del proyecto. Era la vía por
+    // la que `ajax.php` e `index.php` volvían a CRLF cada vez que se
+    // guardaban, y lo que hacía fallar EntryPointTest.
     "[php]": {
         "editor.tabSize": 4,
-        "editor.insertSpaces": true
+        "editor.insertSpaces": true,
+        "files.eol": "\n",
+        "files.insertFinalNewline": true
     },
-    "[json][jsonc][yaml][markdown]": {
-        "editor.tabSize": 2
+    "[shellscript]": {
+        "files.eol": "\n",
+        "files.insertFinalNewline": true
     },
+    "[json]": { "editor.tabSize": 2, "files.eol": "\n" },
+    "[jsonc]": { "editor.tabSize": 2, "files.eol": "\n" },
+    "[yaml]": { "editor.tabSize": 2, "files.eol": "\n" },
+    "[markdown]": { "editor.tabSize": 2, "files.eol": "\n" },
 
     // PHP
     "intelephense.environment.phpVersion": "8.4.0",

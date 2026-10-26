@@ -382,6 +382,11 @@ make fix-eol
 #   · 2 archivo(s) vueltos a LF
 ```
 
+Corre **solo** antes de `make ci`, `make integration` y
+`make docker-integration`, así que no hace falta acordarse. Dentro del
+contenedor de herramientas no hay `git`: allí el objetivo lo dice y sigue,
+sin romper nada.
+
 Recorre `git ls-files --eol`, se queda con los que están en LF en el
 repositorio y en CRLF (o mezclados) en el árbol, comprueba que **la única**
 diferencia sean los finales de línea (`git diff --ignore-cr-at-eol`) y sólo
@@ -394,6 +399,16 @@ en `false`; en WSL2 se hereda el `.gitconfig` de Windows) y
 `git config --get core.eol`. `.editorconfig` y `.vscode/settings.json` ya
 fijan `LF` para el editor; esto cubre el caso en que el archivo se escribió
 por fuera.
+
+El caso que ya se ha visto dos veces: `ajax.php` e `index.php` vuelven a CRLF
+después de guardarlos, y el resto de las páginas no. Eso es un ajuste **por
+lenguaje** del editor. En VS Code el orden de precedencia es
+`usuario < proyecto < usuario-por-lenguaje < proyecto-por-lenguaje`, así que
+un `"[php]": { "files.eol": "\r\n" }` en los ajustes de usuario gana al
+`files.eol` general del proyecto. Por eso `.vscode/settings.json` repite
+`files.eol` dentro de los bloques `[php]`, `[shellscript]`, `[json]`,
+`[jsonc]`, `[yaml]` y `[markdown]`: el ajuste de lenguaje del proyecto es el
+que manda.
 
 ### Checklist de pull request
 
