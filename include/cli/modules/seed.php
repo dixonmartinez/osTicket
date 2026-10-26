@@ -22,13 +22,16 @@
         orgs     3 organizaciones con contactos
         users    12 usuarios, repartidos entre las organizaciones
         slas     2 SLA (24/7 y horario de oficina)
-        depts    4 departamentos, uno hijo de otro, con accesos
+        depts    5 departamentos, uno hijo de otro, con accesos
         agents   5 agentes (uno administrador) con contraseña conocida
         teams    2 equipos con miembros y un líder
-        topics   6 temas de ayuda, uno privado y uno con SLA
+        topics   11 temas de ayuda, uno privado y uno con SLA
         canned   5 respuestas predefinidas
-        faq      3 categorías y 8 artículos publicados
-        tickets  30 tickets con estados, orígenes y antigüedad variados
+        faq      6 categorías y 33 artículos publicados
+        tickets  59 tickets: todos los estados, orígenes e hilos de hasta 14
+                 mensajes (respuesta del agente, del cliente y nota interna)
+        tasks    16 tareas: abiertas, completadas y vencidas, algunas ligadas
+                 a un ticket y otras sueltas
 
     El orden **es** una dependencia: los SLA antes que los departamentos, los
     departamentos antes que los agentes (cada uno tiene su departamento
@@ -55,13 +58,16 @@ class SeedManager extends Module {
             'help' => 'Borra lo que creó una ejecución anterior y lo vuelve a crear'),
         'only' => array('-o', '--only', 'metavar' => 'PASO',
             'help' => 'Ejecuta un solo paso: ' . 'orgs, users, agents, depts, '
-                . 'teams, slas, topics, canned, faq, tickets'),
+                . 'teams, slas, topics, canned, faq, tickets, tasks'),
         'list' => array('-l', '--list', 'action' => 'store_true',
             'help' => 'Lista los pasos disponibles y termina'),
         'no-tickets' => array('', '--no-tickets', 'action' => 'store_true',
-            'help' => 'Crea la configuración pero ningún ticket'),
-        'count' => array('-n', '--count', 'default' => '30', 'metavar' => 'N',
-            'help' => 'Cuántos tickets crear (por omisión 30)'),
+            'help' => 'Crea la configuración pero ningún ticket ni tarea'),
+        'domain' => array('', '--domain', 'metavar' => 'DOMINIO',
+            'help' => 'Dominio de los correos de demostración (por omisión '
+                . 'example.com, que resuelve por DNS)'),
+        'count' => array('-n', '--count', 'default' => '100', 'metavar' => 'N',
+            'help' => 'Cuántos tickets crear (por omisión todos: son 59)'),
         'quiet' => array('-q', '--quiet', 'action' => 'store_true',
             'help' => 'Sólo avisa de los errores'),
         'verbose' => array('-v', '--verbose', 'action' => 'store_true',
@@ -71,8 +77,23 @@ class SeedManager extends Module {
     /** Contraseña de todos los agentes y de las cuentas de cliente. */
     const PASSWORD = 'Demo1234!';
 
-    /** Dominio de los correos de demostración (no existe: no rebota nada). */
-    const DOMAIN = 'demo.invalid';
+    /**
+     * Dominio de los correos de demostración.
+     *
+     * `example.com` está reservado para documentación (RFC 2606) y **resuelve**
+     * por DNS, que es lo que exige la comprobación de osTicket cuando
+     * «Verify email addresses» está activo (lo está por omisión): con un TLD
+     * que no resuelve —`demo.invalid` era el caso— el alta de agentes falla
+     * con «Valid email is required», porque `Validator::is_email()` busca MX o
+     * A/AAAA del dominio y no encuentra ninguno.
+     *
+     * No se envía correo a esas direcciones: `example.com` publica un MX nulo
+     * (RFC 7505), así que cualquier envío se rechaza en el acto.
+     */
+    const DOMAIN = 'example.com';
+
+    /** Dominio en uso; `--domain=` lo cambia para esta ejecución. */
+    var $domain = self::DOMAIN;
 
     /** Dónde se apunta lo creado, para poder deshacerlo con --fresh. */
     const MANIFEST = 'tools/dev/seed-manifest.json';
@@ -95,9 +116,10 @@ class SeedManager extends Module {
 
     static function organizations() {
         return array(
-            array('name' => 'Acme S.A.', 'domain' => 'acme.demo.invalid'),
-            array('name' => 'Globex Corporation', 'domain' => 'globex.demo.invalid'),
-            array('name' => 'Initech', 'domain' => 'initech.demo.invalid'),
+            // La clave `slug` se convierte en el dominio de la organización
+            array('name' => 'Acme S.A.', 'slug' => 'acme'),
+            array('name' => 'Globex Corporation', 'slug' => 'globex'),
+            array('name' => 'Initech', 'slug' => 'initech'),
         );
     }
 
@@ -137,6 +159,7 @@ class SeedManager extends Module {
             array('Soporte Técnico', 'Soporte', true, 'Respuesta 8 h'),
             array('Facturación', 'Soporte', true, 'Respuesta 24 h'),
             array('Ventas', null, true, null),
+            array('Seguridad', null, false, 'Respuesta 8 h'),
         );
     }
 
@@ -157,6 +180,11 @@ class SeedManager extends Module {
             array('Alta de usuario', 'Soporte Técnico', true, null, 'normal'),
             array('Reclamación', 'Soporte', true, 'Respuesta 24 h', 'high'),
             array('Incidente interno', 'Soporte', false, null, 'normal'),
+            array('Cuenta y acceso', 'Soporte Técnico', true, 'Respuesta 8 h', 'normal'),
+            array('Seguridad', 'Seguridad', false, 'Respuesta 8 h', 'high'),
+            array('Soporte técnico', 'Soporte Técnico', true, 'Respuesta 8 h', 'normal'),
+            array('Uso del panel', 'Soporte', false, null, 'low'),
+            array('Formación', 'Ventas', true, null, 'low'),
         );
     }
 
@@ -184,63 +212,267 @@ class SeedManager extends Module {
                 array('¿Cómo consulto el estado de mi ticket?',
                     '<p>Con el enlace que recibe por correo, o desde <em>Estado del ticket</em> con su correo y el número.</p>'),
                 array('¿Puedo responder por correo?',
-                    '<p>Sí. Responda al mensaje de notificación y su respuesta se añade al ticket, conservando el hilo.</p>'),
+                    '<p>Sí. Responda al mensaje de notificación y su respuesta se añade al ticket, conservando el hilo y los adjuntos.</p>'),
+                array('¿Qué significa cada estado?',
+                    '<p><em>Abierto</em>: el equipo lo está atendiendo. <em>Pendiente</em>: esperamos información suya. <em>Resuelto</em>: hay una solución y se puede reabrir. <em>Cerrado</em>: ya no admite respuestas, pero conserva el historial.</p>'),
+                array('¿Cuánto tarda una primera respuesta?',
+                    '<p>Depende del tema: los incidentes técnicos tienen 8 horas de plazo y facturación 24 horas, en días laborables. El plazo se cuenta desde que el ticket entra en cola.</p>'),
+                array('¿Puedo adjuntar archivos?',
+                    '<p>Sí, hasta 10 MB por archivo. Para los registros de error, un archivo de texto es más útil que una captura de pantalla.</p>'),
             ),
             'Cuenta y acceso' => array(
                 array('No recuerdo mi contraseña',
-                    '<p>Use <em>¿Olvidó su contraseña?</em> en la pantalla de acceso. Si no le llega el correo, escriba a soporte.</p>'),
+                    '<p>Use <em>¿Olvidó su contraseña?</em> en la pantalla de acceso. Si no le llega el correo, escriba a soporte desde otra cuenta: el enlace caduca a los 30 minutos.</p>'),
                 array('¿Cómo cambio mi correo?',
-                    '<p>En <em>Mi perfil</em>. El correo principal no se puede cambiar desde ahí por seguridad; pida el cambio a soporte.</p>'),
+                    '<p>En <em>Mi perfil</em>. El correo principal no se puede cambiar desde ahí por seguridad; pida el cambio a soporte, que lo verifica con el titular.</p>'),
+                array('Mi cuenta está bloqueada',
+                    '<p>Tras cinco intentos fallidos la cuenta se bloquea 15 minutos. Si el bloqueo persiste, abra un ticket en <em>Cuenta y acceso</em> y el equipo la desbloquea.</p>'),
+                array('¿Cómo activo la verificación en dos pasos?',
+                    '<p>En <em>Mi perfil → Seguridad</em>, con una aplicación de códigos (TOTP). Guarde los códigos de respaldo: sin ellos, la recuperación requiere intervención del administrador.</p>'),
+                array('Pertenezco a dos organizaciones',
+                    '<p>Cada cuenta tiene una organización principal. Para cambiar de organización, soporte ajusta el dominio de correo o crea una segunda cuenta.</p>'),
             ),
             'Facturación' => array(
                 array('¿Cómo obtengo una factura?',
-                    '<p>Las facturas se envían por correo el primer día de cada mes. Si necesita una copia, abra un ticket en el tema <em>Facturación y pagos</em>.</p>'),
+                    '<p>Las facturas se envían por correo el primer día de cada mes. Si necesita una copia, abra un ticket en el tema <em>Facturación y pagos</em> con el número de factura.</p>'),
                 array('Me han cobrado dos veces',
                     '<p>Abra un ticket con la fecha y el importe del cargo. Anulamos el duplicado y el abono tarda entre 3 y 5 días hábiles.</p>'),
                 array('¿Qué métodos de pago aceptan?',
-                    '<p>Tarjeta, transferencia y domiciliación bancaria.</p>'),
+                    '<p>Tarjeta, transferencia y domiciliación bancaria. El cambio de método se hace en <em>Facturación → Método de pago</em> y tarda un ciclo en aplicarse.</p>'),
+                array('¿Cómo pido una factura a nombre de la empresa?',
+                    '<p>Envíe la razón social, el NIF y la dirección fiscal. La factura se reemite en 24 horas; las anteriores no se pueden modificar, solo anular.</p>'),
+                array('¿Qué pasa si no pago a tiempo?',
+                    '<p>Hay 10 días de gracia. Después, el servicio pasa a solo lectura hasta que se regularice el pago, sin perder datos.</p>'),
+                array('¿Cómo cancelo la suscripción?',
+                    '<p>Desde <em>Facturación → Suscripción</em> antes de la fecha de renovación. La cancelación es efectiva al final del periodo ya pagado.</p>'),
+            ),
+            'Soporte técnico' => array(
+                array('La aplicación va lenta',
+                    '<p>Compruebe primero en una ventana privada y sin extensiones. Si sigue igual, abra un ticket con el navegador, la hora aproximada y el identificador del error si aparece.</p>'),
+                array('Error 500 al subir un archivo',
+                    '<p>Suele ser el tamaño (10 MB por archivo) o el tipo. Comprima el archivo o súbalo por partes; si es un registro, use texto plano.</p>'),
+                array('No recibo los correos de notificación',
+                    '<p>Revise la carpeta de correo no deseado y añada el remitente a contactos. Los avisos salen del dominio configurado por su administrador.</p>'),
+                array('¿Cómo exporto un informe?',
+                    '<p>En el informe, <em>Exportar → CSV</em>. Para más de 50.000 filas, use la exportación programada y le enviaremos un enlace de descarga.</p>'),
+                array('La sincronización con el ERP se ha parado',
+                    '<p>El proceso reintenta cada 30 minutos y avisa al tercer fallo. Si el error es de credenciales, hay que renovar el token en la integración.</p>'),
+                array('¿Se puede usar sin conexión?',
+                    '<p>La aplicación se instala como PWA y guarda la interfaz, pero los tickets necesitan conexión: no se cachean datos de clientes.</p>'),
+            ),
+            'Seguridad y privacidad' => array(
+                array('¿Dónde se guardan los datos?',
+                    '<p>En el servidor de su organización, en la base de datos del propio osTicket. No se envían a terceros salvo el envío de correo.</p>'),
+                array('¿Quién puede ver mis tickets?',
+                    '<p>Solo los agentes del departamento que atiende el ticket y los administradores. Los colaboradores ven el hilo en el que participan.</p>'),
+                array('¿Cómo se tratan los datos personales?',
+                    '<p>Se conservan mientras dure la relación y los plazos legales. Puede solicitar la exportación o el borrado de su cuenta abriendo un ticket.</p>'),
+                array('¿Los adjuntos están cifrados?',
+                    '<p>Se guardan fuera del directorio público y se sirven con permisos por sesión. El cifrado en reposo depende del disco del servidor.</p>'),
+                array('Aviso de vulnerabilidad',
+                    '<p>Escríbanos a la dirección de seguridad con los detalles y un plazo razonable antes de publicarlo. Confirmamos la recepción en 48 horas.</p>'),
+            ),
+            'Uso del panel' => array(
+                array('¿Cómo asigno un ticket a otro agente?',
+                    '<p>En la ficha del ticket, <em>Asignar</em>, y elija agente o equipo. Si su rol no incluye el permiso de asignación, pida el cambio al administrador.</p>'),
+                array('¿Qué son las respuestas predefinidas?',
+                    '<p>Textos guardados por departamento que se insertan en una respuesta con un clic. Admiten variables como el nombre del solicitante o el número de ticket.</p>'),
+                array('¿Cómo creo una cola personalizada?',
+                    '<p>En <em>Colas</em>, con los filtros y el orden que necesite. Cada agente puede fijar las suyas y compartirlas con el equipo.</p>'),
+                array('¿Se pueden crear tareas?',
+                    '<p>Sí: desde el propio ticket (<em>Tareas</em>) o de forma independiente. Una tarea tiene departamento, responsable y fecha límite, y se cierra aparte del ticket.</p>'),
+                array('¿Cómo funciona el modo oscuro?',
+                    '<p>Con el selector de la cabecera. La preferencia se guarda por usuario y respeta la del sistema si no se ha elegido ninguna.</p>'),
             ),
         );
     }
 
     /**
-     * Los tickets de demostración. La antigüedad, el estado y las respuestas
-     * están pensados para que las colas y el panel de analíticas tengan algo
-     * que mostrar: abiertos, cerrados, vencidos, sin asignar y reabiertos.
+     * Los tickets de demostración.
+     *
+     * asunto, tema, días de antigüedad, «cerrado» (pista de estado), mensajes
+     * en el hilo y agente asignado. El estado final se reparte después entre
+     * **todos** los estados que tenga la instalación (`seedTickets()`), así
+     * que esta columna sólo dice si el ticket debe quedar cerrado o abierto
+     * cuando se ejecuta el paso sin reparto.
      */
     static function tickets() {
         return array(
-            // asunto, tema, días de antigüedad, estado, respuestas, asignado a
-            array('No puedo entrar en el panel', 'Problema técnico', 42, 'Cerrado', 3, 'agente1'),
-            array('El informe mensual sale vacío', 'Problema técnico', 35, 'Cerrado', 2, 'agente1'),
-            array('Error 500 al subir un archivo', 'Problema técnico', 2, 'Abierto', 1, 'agente1'),
-            array('La aplicación va muy lenta', 'Problema técnico', 0, 'Abierto', 0, null),
-            array('Factura de septiembre incorrecta', 'Facturación y pagos', 28, 'Cerrado', 4, 'agente2'),
-            array('Cobro duplicado en la tarjeta', 'Facturación y pagos', 5, 'Abierto', 2, 'agente2'),
-            array('Necesito factura a nombre de la empresa', 'Facturación y pagos', 1, 'Abierto', 1, null),
-            array('Cambio de método de pago', 'Facturación y pagos', 12, 'Cerrado', 2, 'agente2'),
-            array('Información sobre el plan anual', 'Solicitud de información', 20, 'Cerrado', 2, 'agente3'),
-            array('Presupuesto para 50 usuarios', 'Solicitud de información', 3, 'Abierto', 1, 'agente3'),
-            array('¿Tienen versión para Linux?', 'Solicitud de información', 0, 'Abierto', 0, null),
-            array('Alta de tres usuarios nuevos', 'Alta de usuario', 15, 'Cerrado', 3, 'agente1'),
-            array('Dar de baja a un empleado', 'Alta de usuario', 1, 'Abierto', 1, 'agente1'),
-            array('Reclamación por el tiempo de respuesta', 'Reclamación', 9, 'Abierto', 3, 'supervisor'),
-            array('Quiero cancelar el servicio', 'Reclamación', 22, 'Cerrado', 5, 'supervisor'),
-            array('El correo de notificación no llega', 'Problema técnico', 6, 'Abierto', 2, 'agente1'),
-            array('Sincronización con el ERP', 'Problema técnico', 18, 'Cerrado', 4, 'agente1'),
-            array('Impresora no imprime desde la app', 'Problema técnico', 4, 'Abierto', 1, null),
-            array('Mi cuenta está bloqueada', 'Problema técnico', 7, 'Cerrado', 3, 'agente1'),
-            array('Duda con el IVA de la última factura', 'Facturación y pagos', 11, 'Abierto', 2, 'agente2'),
-            array('Adjunto demasiado grande', 'Problema técnico', 3, 'Abierto', 1, 'agente1'),
-            array('Solicitud de formación', 'Solicitud de información', 25, 'Cerrado', 3, 'agente3'),
-            array('No recibo los avisos de estado', 'Problema técnico', 14, 'Cerrado', 2, 'agente1'),
-            array('Cambio de titular de la cuenta', 'Facturación y pagos', 8, 'Abierto', 2, 'agente2'),
-            array('Error al exportar a CSV', 'Problema técnico', 5, 'Abierto', 2, 'agente1'),
-            array('Segunda incidencia del mismo error', 'Problema técnico', 1, 'Abierto', 1, 'agente1'),
-            array('Consulta sobre la política de privacidad', 'Solicitud de información', 30, 'Cerrado', 2, 'agente3'),
-            array('Baja de un departamento completo', 'Alta de usuario', 10, 'Abierto', 1, 'supervisor'),
-            array('El ticket se reabrió solo', 'Problema técnico', 13, 'Abierto', 3, 'agente1'),
-            array('Falta un pago en el histórico', 'Facturación y pagos', 2, 'Abierto', 0, null),
+            array('No puedo entrar en el panel', 'Problema técnico', 42, true, 10, 'agente1'),
+            array('El informe mensual sale vacío', 'Problema técnico', 35, true, 6, 'agente1'),
+            array('Error 500 al subir un archivo', 'Problema técnico', 2, false, 8, 'agente1'),
+            array('La aplicación va muy lenta', 'Problema técnico', 0, false, 3, null),
+            array('Factura de septiembre incorrecta', 'Facturación y pagos', 28, true, 12, 'agente2'),
+            array('Cobro duplicado en la tarjeta', 'Facturación y pagos', 5, false, 7, 'agente2'),
+            array('Necesito factura a nombre de la empresa', 'Facturación y pagos', 1, false, 4, null),
+            array('Cambio de método de pago', 'Facturación y pagos', 12, true, 5, 'agente2'),
+            array('Información sobre el plan anual', 'Solicitud de información', 20, true, 4, 'agente3'),
+            array('Presupuesto para 50 usuarios', 'Solicitud de información', 3, false, 6, 'agente3'),
+            array('¿Tienen versión para Linux?', 'Solicitud de información', 0, false, 2, null),
+            array('Alta de tres usuarios nuevos', 'Alta de usuario', 15, true, 9, 'agente1'),
+            array('Dar de baja a un empleado', 'Alta de usuario', 1, false, 4, 'agente1'),
+            array('Reclamación por el tiempo de respuesta', 'Reclamación', 9, false, 9, 'supervisor'),
+            array('Quiero cancelar el servicio', 'Reclamación', 22, true, 14, 'supervisor'),
+            array('El correo de notificación no llega', 'Problema técnico', 6, false, 7, 'agente1'),
+            array('Sincronización con el ERP', 'Problema técnico', 18, true, 11, 'agente1'),
+            array('Impresora no imprime desde la app', 'Problema técnico', 4, false, 4, null),
+            array('Mi cuenta está bloqueada', 'Problema técnico', 7, true, 6, 'agente1'),
+            array('Duda con el IVA de la última factura', 'Facturación y pagos', 11, false, 6, 'agente2'),
+            array('Adjunto demasiado grande', 'Problema técnico', 3, false, 3, 'agente1'),
+            array('Solicitud de formación', 'Solicitud de información', 25, true, 8, 'agente3'),
+            array('No recibo los avisos de estado', 'Problema técnico', 14, true, 5, 'agente1'),
+            array('Cambio de titular de la cuenta', 'Facturación y pagos', 8, false, 5, 'agente2'),
+            array('Error al exportar a CSV', 'Problema técnico', 5, false, 7, 'agente1'),
+            array('Segunda incidencia del mismo error', 'Problema técnico', 1, false, 4, 'agente1'),
+            array('Consulta sobre la política de privacidad', 'Solicitud de información', 30, true, 4, 'agente3'),
+            array('Baja de un departamento completo', 'Alta de usuario', 10, false, 5, 'supervisor'),
+            array('El ticket se reabrió solo', 'Problema técnico', 13, false, 10, 'agente1'),
+            array('Falta un pago en el histórico', 'Facturación y pagos', 2, false, 2, null),
+            array('La web del portal no carga en Safari', 'Problema técnico', 9, true, 8, 'agente1'),
+            array('Se pierden los adjuntos al responder', 'Problema técnico', 4, false, 6, 'agente1'),
+            array('Duplicar una suscripción por error', 'Facturación y pagos', 16, true, 7, 'agente2'),
+            array('¿Hay descuento por volumen?', 'Solicitud de información', 7, false, 5, 'agente3'),
+            array('Migración desde otra herramienta', 'Solicitud de información', 33, true, 13, 'agente3'),
+            array('Usuarios sin acceso tras la migración', 'Alta de usuario', 21, true, 10, 'agente1'),
+            array('Solicitud de permisos de administrador', 'Alta de usuario', 3, false, 3, 'agente1'),
+            array('Retraso en la respuesta de una incidencia', 'Reclamación', 6, false, 8, 'supervisor'),
+            array('Facturación distinta a lo pactado', 'Reclamación', 19, true, 9, 'supervisor'),
+            array('El buscador no encuentra tickets antiguos', 'Problema técnico', 11, true, 5, 'agente1'),
+            array('Caducidad del enlace de restablecimiento', 'Cuenta y acceso', 8, false, 6, 'agente1'),
+            array('Cambio de idioma de la interfaz', 'Cuenta y acceso', 2, false, 4, null),
+            array('No puedo activar la verificación en dos pasos', 'Cuenta y acceso', 5, false, 7, 'agente1'),
+            array('Correo de bienvenida en otro idioma', 'Cuenta y acceso', 13, true, 5, 'agente1'),
+            array('Aviso de posible incidente de seguridad', 'Seguridad', 1, false, 6, 'supervisor'),
+            array('Solicitud de exportación de datos', 'Seguridad', 17, true, 4, 'supervisor'),
+            array('Adjunto con datos personales por error', 'Seguridad', 4, false, 8, 'supervisor'),
+            array('Pregunta sobre retención de registros', 'Seguridad', 26, true, 3, 'supervisor'),
+            array('Cómo crear una cola para el equipo', 'Uso del panel', 10, true, 6, 'agente1'),
+            array('Las respuestas predefinidas no aparecen', 'Uso del panel', 3, false, 5, 'agente1'),
+            array('No veo el modo oscuro en mi navegador', 'Uso del panel', 0, false, 2, null),
+            array('Tareas que no se cierran al cerrar el ticket', 'Uso del panel', 12, true, 7, 'agente1'),
+            array('Informe de tiempos sin datos', 'Uso del panel', 6, false, 4, 'supervisor'),
+            array('Reapertura automática de tickets cerrados', 'Problema técnico', 23, true, 9, 'agente1'),
+            array('El número de ticket no sigue la secuencia', 'Problema técnico', 15, true, 6, 'agente1'),
+            array('Integración con Slack no envía avisos', 'Problema técnico', 2, false, 5, 'agente1'),
+            array('Copias de seguridad: ¿cada cuánto?', 'Soporte técnico', 20, true, 4, 'supervisor'),
+            array('Solicitud de entorno de pruebas', 'Soporte técnico', 1, false, 3, 'agente1'),
+            array('Error al importar un CSV de clientes', 'Soporte técnico', 7, false, 6, 'agente1'),
+        );
+    }
+
+    /**
+     * Frases de los hilos. Se alternan agente y cliente para que el «chat» de
+     * cada ticket parezca una conversación y no un mensaje repetido N veces.
+     * Los `%s` que aparecen se sustituyen por el número de ticket.
+     */
+    static function conversation() {
+        return array(
+            'agent' => array(
+                'Gracias por avisar. Ya lo estoy revisando y le confirmo en cuanto tenga algo.',
+                'He reproducido el problema en un entorno de pruebas; parece relacionado con la configuración de su cuenta.',
+                '¿Podría confirmarme el navegador y si ocurre también en una ventana privada?',
+                'He abierto una incidencia con el equipo de desarrollo; la referencia interna es INC-%s.',
+                'Con la última actualización el error debería desaparecer. ¿Puede probarlo de nuevo?',
+                'Mientras tanto, como solución provisional puede usar la exportación manual desde el menú de informes.',
+                'Le dejo el resumen: el problema venía de un registro duplicado que ya hemos limpiado.',
+                'Si vuelve a ocurrir, responda a este mismo ticket y lo reabrimos sin perder el historial.',
+                'He revisado los registros del servidor de esa franja horaria y no veo errores, pero sigo mirando.',
+                'Le confirmo que el cambio ya está aplicado en su cuenta; no hace falta reiniciar la sesión.',
+                'Voy a necesitar un ejemplo concreto para reproducirlo; con uno me basta.',
+                'Quedo a la espera de su confirmación para dar el caso por resuelto.',
+            ),
+            'client' => array(
+                'Gracias por la respuesta. Sigo pendiente.',
+                'Lo he probado y el error continúa, esta vez con otro mensaje distinto.',
+                'Adjunto una captura de lo que veo en pantalla.',
+                '¿Hay alguna novedad? Llevamos dos días con el mismo problema.',
+                'Perfecto, esa solución provisional nos sirve. Quedo atento al arreglo definitivo.',
+                'Confirmo que ahora funciona correctamente. Muchas gracias por la rapidez.',
+                'Una última duda: ¿esto afecta también a los usuarios de la otra sede?',
+                'De acuerdo, cierro por mi parte. Si hace falta algo más, escribo de nuevo.',
+                'Probé desde otro equipo y ocurre igual, así que no parece cosa del navegador.',
+                'Sigue pasando, pero menos; ahora sólo al guardar por segunda vez.',
+                'Entendido. Le paso también el enlace donde lo vemos, por si ayuda.',
+                'Quedo pendiente de su respuesta. No es urgente, pero me gustaría cerrarlo esta semana.',
+            ),
+        );
+    }
+
+    /**
+     * Las tareas de demostración.
+     *
+     * título, departamento, días de antigüedad, completada (bool), días de
+     * plazo (negativo = vencida), agente asignado (o null) y descripción.
+     */
+    static function tasks() {
+        // título, departamento, antigüedad, completada, plazo en días
+        // (negativo = vencida), agente, descripción y ticket al que se
+        // engancha (null = tarea suelta, sin ticket)
+        return array(
+            array('Revisar los registros del servidor de correo', 'Soporte Técnico',
+                12, true, -5, 'agente1',
+                'Buscar en los registros de los últimos siete días los rechazos '
+                . 'del dominio de demostración y anotar los rebotes.',
+                'El correo de notificación no llega'),
+            array('Actualizar la plantilla de respuesta de facturación', 'Facturación',
+                9, true, -2, 'agente2',
+                'Añadir el nuevo formato de factura y la referencia al portal de pagos.',
+                'Necesito factura a nombre de la empresa'),
+            array('Documentar el procedimiento de altas masivas', 'Soporte Técnico',
+                6, false, 4, 'agente1',
+                'Un documento con los pasos, el formato del CSV y los errores más '
+                . 'habituales al importar.', null),
+            array('Migrar las colas personalizadas al nuevo esquema', 'Soporte',
+                4, false, -1, 'supervisor',
+                'Revisar que los filtros por estado sigan apuntando a estados '
+                . 'existentes tras el cambio.', null),
+            array('Preparar el entorno de pruebas para la actualización', 'Soporte',
+                2, false, 7, null,
+                'Una copia de la base de datos con datos de demostración y la '
+                . 'versión nueva del código.', null),
+            array('Revisar los permisos del rol de agente', 'Soporte',
+                15, true, -8, 'supervisor',
+                'Comprobar que los agentes pueden responder y cerrar, pero no borrar.',
+                'Solicitud de permisos de administrador'),
+            array('Contactar con el proveedor de la pasarela de pago', 'Facturación',
+                3, false, 2, 'agente2',
+                'Preguntar por los cargos duplicados de la última semana y pedir '
+                . 'el abono de los confirmados.', 'Cobro duplicado en la tarjeta'),
+            array('Escribir artículos sobre el nuevo portal', 'Ventas',
+                8, false, 10, 'agente3',
+                'Tres artículos: cómo abrir un ticket, cómo seguirlo y cómo adjuntar '
+                . 'archivos.', null),
+            array('Renovar el certificado del portal', 'Soporte',
+                30, true, -20, null,
+                'Se renovó el certificado y se comprobó la cadena completa en los '
+                . 'tres navegadores.', null),
+            array('Revisar los tickets cerrados sin respuesta', 'Soporte',
+                5, false, 1, 'supervisor',
+                'Listar los cerrados en los últimos 30 días que no tuvieron '
+                . 'respuesta del agente.', null),
+            array('Formación interna sobre el nuevo flujo de tareas', 'Soporte',
+                1, false, 14, null,
+                'Sesión de una hora con el equipo: cuándo usar una tarea y cuándo '
+                . 'una nota interna.', null),
+            array('Limpiar cuentas de usuario inactivas', 'Soporte Técnico',
+                18, true, -10, 'agente1',
+                'Desactivar las cuentas sin acceso en los últimos doce meses, previa '
+                . 'revisión con las organizaciones.', 'Dar de baja a un empleado'),
+            array('Preparar el informe trimestral de soporte', 'Soporte',
+                2, false, 5, 'supervisor',
+                'Tiempos de primera respuesta, resolución y cumplimiento de SLA del '
+                . 'trimestre.', null),
+            array('Revisar el texto de las notificaciones automáticas', 'Soporte',
+                7, false, -3, null,
+                'Ajustar el tono y quitar las referencias al sistema antiguo.', null),
+            array('Comprobar la búsqueda de tickets antiguos', 'Soporte Técnico',
+                11, true, -4, 'agente1',
+                'Reproducir la búsqueda sobre los tickets de hace más de un año y '
+                . 'verificar el índice.', 'El buscador no encuentra tickets antiguos'),
+            array('Unificar el formato de las respuestas predefinidas', 'Ventas',
+                6, false, 9, 'agente3',
+                'Mismo saludo, misma despedida y variables en todas las respuestas '
+                . 'del departamento.', 'Las respuestas predefinidas no aparecen'),
         );
     }
 
@@ -258,7 +490,7 @@ class SeedManager extends Module {
      */
     static function steps() {
         return array('orgs', 'users', 'slas', 'depts', 'agents', 'teams',
-            'topics', 'canned', 'faq', 'tickets');
+            'topics', 'canned', 'faq', 'tickets', 'tasks');
     }
 
     function run($args, $options) {
@@ -266,6 +498,12 @@ class SeedManager extends Module {
 
         $this->quiet = (bool) $options['quiet'];
         $this->verbose = (bool) $options['verbose'];
+
+        // `--domain=midominio.test` cambia los correos de demostración. Se
+        // limpia lo que el usuario escriba: `@midominio.test`, mayúsculas o
+        // un punto final rompen el alta de agentes sin decir por qué.
+        if (!empty($options['domain']))
+            $this->domain = strtolower(trim(trim($options['domain']), '@. '));
 
         // `--list` y un `--only` mal escrito no necesitan la base de datos:
         // se resuelven antes de conectar para que sirvan como ayuda rápida.
@@ -284,9 +522,18 @@ class SeedManager extends Module {
         if (!($ost = osTicket::start()) || !($cfg = $ost->getConfig()))
             $this->fail('No se pudo leer la configuración de la base de datos');
 
-        // Estados y prioridades viven en las listas internas
+        // Estados y prioridades viven en las listas internas; `class.ticket.php`
+        // arrastra los formularios y `class.task.php`.
         require_once INCLUDE_DIR . 'class.list.php';
         require_once INCLUDE_DIR . 'class.priority.php';
+        require_once INCLUDE_DIR . 'class.ticket.php';
+
+        // Las tablas `*__cdata` (asunto del ticket, título de la tarea…) son
+        // tablas materializadas que sólo aparecen tras la primera consulta.
+        // Sin ellas, el ORM no puede buscar por asunto ni por título —que es
+        // como el sembrador evita duplicar— y `ensureDynamicDataView()` con
+        // sus valores por omisión terminaría con un `die()`.
+        DynamicForm::ensureDynamicDataViews(true);
 
         $this->loadManifest();
 
@@ -302,7 +549,10 @@ class SeedManager extends Module {
         foreach ($steps as $step) {
             if ($only && $only != $step)
                 continue;
-            if ($step == 'tickets' && $options['no-tickets'])
+            // Sin tickets no hay tareas con ticket, y las sueltas solas no
+            // cuentan una historia: se saltan las dos cosas
+            if (in_array($step, array('tickets', 'tasks'))
+                    && $options['no-tickets'])
                 continue;
 
             $this->step = $step;
@@ -393,7 +643,8 @@ class SeedManager extends Module {
                 continue;
             }
             // El dominio reparte los usuarios de esa organización solo
-            $organization->set('domain', $org['domain']);
+            $organization->set('domain',
+                $org['slug'] . '.' . $this->domain);
             $organization->save();
 
             $this->created('orgs', $organization->getId(), $org['name']);
@@ -412,7 +663,7 @@ class SeedManager extends Module {
 
         foreach (self::people() as $i => $person) {
             list($name, $local, $orgIndex) = $person;
-            $email = $local . '@' . self::DOMAIN;
+            $email = $local . '@' . $this->domain;
 
             if (($user = User::lookupByEmail($email))) {
                 $this->skip($email);
@@ -441,13 +692,29 @@ class SeedManager extends Module {
     function seedAgents() {
         global $cfg;
 
+        // `Staff::update()` valida el correo con `Validator::is_valid_email()`
+        // y, con «Verify email addresses» activo (el valor por omisión), eso
+        // exige que el dominio tenga MX o A/AAAA. Si el DNS del contenedor no
+        // resuelve el dominio elegido, no hay agente posible: se dice una vez
+        // y con la salida, en vez de fallar cinco veces con «Valid email is
+        // required».
+        if ($cfg->verifyEmailAddrs()
+                && !Validator::is_valid_email('demo@' . $this->domain)) {
+            $this->warn(sprintf('el dominio «%s» no resuelve por DNS y el '
+                . 'panel tiene activa la verificación de correos, así que no '
+                . 'se puede crear ningún agente. Use --domain=example.com o '
+                . 'desactive «Verify email addresses» en Admin Panel → '
+                . 'Emails → Settings.', $this->domain));
+            return;
+        }
+
         $roles = $this->roleIndex();
         $depts = $this->deptIndex();
 
         foreach (self::agents() as $agent) {
             list($username, $first, $last, $deptName, $isadmin, $roleName)
                 = $agent;
-            $email = $username . '@' . self::DOMAIN;
+            $email = $username . '@' . $this->domain;
 
             if (Staff::lookup(array('username' => $username))
                     || Staff::lookup(array('email' => $email))) {
@@ -798,9 +1065,21 @@ class SeedManager extends Module {
         if ($limit !== null)
             $plan = array_slice($plan, 0, $limit);
 
+        // Estado de cada ticket: se reparten entre todos los estados que
+        // tenga la instalación (no sólo «abierto» y «cerrado»), así que las
+        // colas, los filtros y los informes tienen algo de cada uno.
+        $openStatuses = $this->statusIdsByStates(array('open', 'in progress',
+            'answered'));
+        $closedStatuses = $this->statusIdsByStates(array('resolved', 'closed'));
+        if (!$openStatuses)
+            $openStatuses = array((int) $cfg->getDefaultTicketStatusId());
+
+        $phrases = self::conversation();
+        $userCount = count($people);
+
         foreach ($plan as $i => $row) {
-            list($subject, $topicName, $age, $state, $replies, $agentUsername)
-                = $row;
+            list($subject, $topicName, $age, $closedHint, $messages,
+                $agentUsername) = $row;
 
             if (!isset($topics[$topicName])) {
                 $this->warn("el tema «{$topicName}» no existe: se salta el "
@@ -815,21 +1094,24 @@ class SeedManager extends Module {
                 continue;
             }
 
-            $person = $people[$i % count($people)];
-            $email = $person[1] . '@' . self::DOMAIN;
-            $when = $this->daysAgo($age);
+            $person = $people[$i % $userCount];
+            // Antigüedad con algo de dispersión para que dos tickets del
+            // mismo día no compartan fecha exacta
+            $when = $this->daysAgo($age, ($i % 8) * 45);
+            $agent = ($agentUsername && isset($agents[$agentUsername]))
+                ? $agents[$agentUsername] : null;
 
             // `Ticket::create()` lee estas claves con `$vars[...]` sin
             // comprobar que existan: en el portal siempre vienen del
             // formulario, aquí hay que ponerlas o el log se llena de avisos.
             $data = array(
                 'name' => $person[0],
-                'email' => $email,
+                'email' => $person[1] . '@' . $this->domain,
                 'subject' => $subject,
                 'message' => $this->message($subject, $topicName),
                 'topicId' => $topics[$topicName],
-                'source' => 'Web',
-                'ip' => '10.0.0.' . (10 + $i),
+                'source' => $this->sourceFor($i),
+                'ip' => '10.0.' . (1 + intdiv($i, 250)) . '.' . (10 + $i % 240),
                 'uid' => 0,
                 'deptId' => 0,          // lo pone el tema
                 'statusId' => 0,        // lo pone el tema
@@ -848,32 +1130,35 @@ class SeedManager extends Module {
             // Antigüedad: se corrige después porque create() pone NOW()
             $this->backdate($ticket, $when);
 
-            // Respuestas del cliente y del agente, alternando
-            for ($r = 1; $r <= $replies; $r++) {
-                $replyWhen = $this->daysAgo(max(0, $age - $r));
-                if ($r % 2) {
-                    $this->agentReply($ticket,
-                        $agents[$agentUsername] ?? null,
-                        "Hemos revisado su caso y estamos trabajando en ello.\n\n"
-                        . "Actualización {$r} del ticket.", $replyWhen);
-                }
-                else {
-                    $this->clientReply($ticket,
-                        "Gracias por la respuesta. Sigo pendiente.\n\n"
-                        . "Mensaje {$r} del solicitante.", $replyWhen);
-                }
-            }
+            // El hilo: mensajes alternos del agente y del cliente, con una
+            // nota interna de vez en cuando (una «conversación» de verdad).
+            $this->seedConversation($ticket, $agent, $messages, $age, $i,
+                $phrases);
 
-            // Estado
-            if ($state == 'Cerrado') {
-                $this->closeTicket($ticket, $agents[$agentUsername] ?? null,
-                    $this->daysAgo(max(0, $age - $replies - 1)));
+            // Estado final: cerrado de verdad o uno de los estados abiertos
+            if ($closedHint && $closedStatuses) {
+                $this->closeTicket($ticket, $agent,
+                    $this->daysAgo(max(0, $age - $messages - 1)),
+                    $closedStatuses[$i % count($closedStatuses)]);
             }
-            elseif ($agentUsername && isset($agents[$agentUsername])) {
-                // Asignado, sin pasar por la lógica de reparto
+            else {
                 Ticket::objects()
                     ->filter(array('ticket_id' => $ticket->getId()))
-                    ->update(array('staff_id' => $agents[$agentUsername]->getId()));
+                    ->update(array(
+                        'status_id' => $openStatuses[$i % count($openStatuses)],
+                        'staff_id' => $agent ? $agent->getId() : 0,
+                        'isanswered' => $i % 2,
+                    ));
+                // Un tercio de los tickets abiertos, vencidos: el SLA ya
+                // pasó y la cola de vencidos no queda vacía
+                if ($i % 3 == 0) {
+                    Ticket::objects()
+                        ->filter(array('ticket_id' => $ticket->getId()))
+                        ->update(array(
+                            'duedate' => $this->daysAgo(max(0, $age - 1)),
+                            'isoverdue' => 1,
+                        ));
+                }
             }
 
             $this->created('tickets', $ticket->getId(), $ticket->getNumber());
@@ -884,9 +1169,224 @@ class SeedManager extends Module {
             $this->warn('no se creó ningún ticket');
     }
 
+    /**
+     * Los mensajes de un ticket: `$count` entradas que van alternando
+     * respuesta del agente y mensaje del cliente, con una nota interna cada
+     * cuatro. Las fechas se reparten desde la apertura hasta hoy.
+     */
+    function seedConversation($ticket, $agent, $count, $age, $offset,
+            $phrases = null) {
+        if (!$phrases)
+            $phrases = self::conversation();
+
+        $agentLines = $phrases['agent'];
+        $clientLines = $phrases['client'];
+        $last = max(0, $age - 1);
+
+        for ($r = 1; $r <= $count; $r++) {
+            // Reparto de días: del más antiguo (apertura) al más reciente
+            $days = $count > 1
+                ? (int) round($last * (1 - ($r - 1) / ($count - 1)))
+                : $last;
+            $when = $this->daysAgo($days, 20 + $r * 7);
+
+            $lines = ($r % 2) ? $agentLines : $clientLines;
+            $lines = array_values($lines);
+            $text = sprintf($lines[($offset + $r) % count($lines)],
+                $ticket->getNumber());
+
+            if ($r % 4 == 0) {
+                // Nota interna: se ve en el panel, no la recibe el cliente
+                $this->agentNote($ticket, $agent, $text
+                    . "\n\n(Nota interna: seguimiento del caso.)", $when);
+            }
+            elseif ($r % 2) {
+                $this->agentReply($ticket, $agent, $text, $when);
+            }
+            else {
+                $this->clientReply($ticket, $text, $when);
+            }
+        }
+    }
+
+    /**
+     * Tareas de demostración, abiertas y completadas.
+     *
+     * `Task::create()` trabaja con la sesión de un agente (`$thisstaff`) y
+     * comprueba `Task::PERM_CREATE`: aquí se pone como agente en curso el
+     * administrador, que tiene todos los permisos. Las tareas se enganchan a
+     * un ticket cuando el plan trae el asunto (`object_type` = `T`) y, si no,
+     * quedan sueltas (`object_id` = 0), que es como las crea el panel.
+     */
+    function seedTasks($limit = null) {
+        global $thisstaff;
+
+        // Red de seguridad: si se ejecuta `--only=tasks` sobre una instalación
+        // donde nadie ha creado una tarea, la tabla puede no existir. Con
+        // `true` se construye en vez de abortar.
+        TaskForm::ensureDynamicDataView(true);
+
+        $agents = $this->agentIndex();
+        $depts = $this->deptIndex();
+        $admin = $agents['admin'] ?? null;
+        if (!$admin) {
+            $this->warn('no hay ningún agente administrador: ejecute antes el '
+                . 'paso de agents');
+            return;
+        }
+
+        // Permisos y departamento del agente que firma
+        $thisstaff = $admin;
+
+        $plan = self::tasks();
+        if ($limit !== null)
+            $plan = array_slice($plan, 0, $limit);
+
+        $comments = self::conversation();
+
+        foreach ($plan as $i => $row) {
+            list($title, $deptName, $age, $done, $dueIn, $agentUsername,
+                $description, $ticketSubject) = $row;
+
+            if (!isset($depts[$deptName])) {
+                $this->warn("el departamento «{$deptName}» no existe: se salta "
+                    . "la tarea «{$title}»");
+                continue;
+            }
+            // Una tarea por título: si ya existe, se salta
+            if (Task::objects()
+                    ->filter(array('cdata__title__contains' => $title))
+                    ->count()) {
+                $this->skip($title);
+                continue;
+            }
+
+            $agent = ($agentUsername && isset($agents[$agentUsername]))
+                ? $agents[$agentUsername] : null;
+
+            // Ticket de origen, si el plan lo pide
+            $ticket = null;
+            if ($ticketSubject) {
+                $found = Ticket::objects()
+                    ->filter(array('cdata__subject__contains' => $ticketSubject))
+                    ->all();
+                $ticket = $found ? $found[0] : null;
+                // Sin el ticket (por ejemplo con `--only=tasks` sobre una
+                // base sin tickets) la tarea sigue siendo válida: se crea
+                // suelta y no se cuenta como fallo.
+                if (!$ticket)
+                    $this->out(sprintf('  · el ticket «%s» no está: la tarea '
+                        . '«%s» queda suelta', $ticketSubject, $title));
+            }
+
+            $when = $this->daysAgo($age);
+            $due = date('Y-m-d H:i', strtotime(sprintf('%+d days 18:00',
+                (int) $dueIn)));
+
+            $vars = array(
+                'object_id' => $ticket ? $ticket->getId() : 0,
+                'object_type' => $ticket
+                    ? ObjectModel::OBJECT_TYPE_TICKET
+                    : ObjectModel::OBJECT_TYPE_TASK,
+                'default_formdata' => array(
+                    'title' => $title,
+                    'description' => $description,
+                ),
+                'internal_formdata' => array(
+                    'dept_id' => $depts[$deptName]->getId(),
+                    'assignee' => $agent,
+                    'duedate' => $due,
+                ),
+                'description' => $description,
+                'message' => $description,
+                'staffId' => $admin->getId(),
+                'poster' => $admin->getName(),
+                'ip_address' => '127.0.0.1',
+            );
+
+            $errors = array();
+            try {
+                $task = Task::create($vars);
+            }
+            catch (Throwable $e) {
+                $this->warn("la tarea «{$title}»: " . $e->getMessage());
+                continue;
+            }
+            if (!$task) {
+                $this->failed("la tarea «{$title}»", $errors);
+                continue;
+            }
+
+            $this->backdateTask($task, $when);
+
+            // Un par de notas internas: la tarea también tiene hilo
+            if ($agent) {
+                // Las frases llevan como mucho un `%s`: el número de tarea
+                $this->taskNote($task, $admin,
+                    sprintf($comments['agent'][$i % count($comments['agent'])],
+                        $task->getNumber()),
+                    $this->daysAgo(max(0, $age - 2), 30));
+            }
+
+            if ($done) {
+                $closing = sprintf(
+                    $comments['agent'][($i + 3) % count($comments['agent'])],
+                    $task->getNumber());
+                $errors = array();
+                try {
+                    $task->setStatus('closed', $closing, $errors);
+                }
+                catch (Throwable $e) {
+                    $this->warn("no se pudo completar la tarea «{$title}»: "
+                        . $e->getMessage());
+                }
+                if ($errors)
+                    $this->warn("no se pudo completar la tarea «{$title}»: "
+                        . Format::array_implode(' · ', ' · ', $errors));
+                else
+                    $this->taskNote($task, $admin, $closing,
+                        $this->daysAgo(max(0, $age - 3), 45));
+            }
+
+            // Fechas: create() y setStatus() ponen NOW()
+            $closed = $done
+                ? $this->daysAgo(max(0, $age - 3), 50) : null;
+            Task::objects()
+                ->filter(array('id' => $task->getId()))
+                ->update(array(
+                    'created' => $when,
+                    'updated' => $closed ?: $when,
+                    'duedate' => date('Y-m-d H:i:s', strtotime($due)),
+                    'closed' => $closed,
+                    'staff_id' => $agent ? $agent->getId() : 0,
+                ));
+
+            $this->created('tasks', $task->getId(), $task->getNumber());
+        }
+
+        if (!($this->stats['tasks']['created'] ?? 0)
+                && !($this->stats['tasks']['skipped'] ?? 0))
+            $this->warn('no se creó ninguna tarea');
+    }
+
     /* ------------------------------------------------------------------ */
     /* Ayudas de los pasos                                                 */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * Primeros 40 caracteres, para localizar la entrada recién creada por su
+     * cuerpo. Sin `mbstring` (algunas instalaciones mínimas) se corta por
+     * bytes: sirve igual para buscar.
+     */
+    static function excerpt($text) {
+        return function_exists('mb_substr')
+            ? mb_substr($text, 0, 40) : substr($text, 0, 40);
+    }
+
+    static function lower($text) {
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($text) : strtolower($text);
+    }
 
     /** Un texto de apertura con algo de cuerpo, según el tema. */
     function message($subject, $topic) {
@@ -894,7 +1394,7 @@ class SeedManager extends Module {
             "Hola,\n\nEscribo por lo siguiente: %s.\n\n"
             . "Tema: %s\n\nLo he intentado con el navegador y con la "
             . "aplicación móvil, y pasa igual.\n\nGracias.",
-            mb_strtolower($subject), $topic);
+            self::lower($subject), $topic);
     }
 
     function clientReply($ticket, $text, $when) {
@@ -979,11 +1479,15 @@ class SeedManager extends Module {
         if (!$thread)
             return;
 
-        $entry = ThreadEntry::objects()
+        // `one()` lanzaría ObjectNotUnique cuando dos respuestas empiezan
+        // igual (pasaba con los tickets de hilo largo): aquí sólo interesa la
+        // última entrada, así que se pide una y se toma la primera.
+        $found = ThreadEntry::objects()
             ->filter(array('thread_id' => $thread->getId(),
-                'body__contains' => mb_substr($text, 0, 40)))
+                'body__contains' => self::excerpt($text)))
             ->order_by('-id')
-            ->one();
+            ->all();
+        $entry = $found ? $found[0] : null;
         if ($entry) {
             ThreadEntry::objects()
                 ->filter(array('id' => $entry->getId()))
@@ -994,18 +1498,28 @@ class SeedManager extends Module {
             ->update(array('lastmessage' => $when));
     }
 
-    function closeTicket($ticket, $agent, $when) {
+    /**
+     * Deja el ticket en un estado terminado (`resolved` o `closed`).
+     *
+     * No se usa `Ticket::setStatus()`: exige un agente con permiso de cierre,
+     * dispara avisos por correo y puede devolver `false` sin decir por qué.
+     * Aquí se escribe el estado y, si el estado elegido es de tipo `closed`,
+     * también la fecha de cierre: el ticket queda como si se hubiera cerrado
+     * desde el panel.
+     */
+    function closeTicket($ticket, $agent, $when, $closed = null) {
         try {
-            $closed = $this->statusIdByState('closed');
-            if ($closed)
-                $ticket->setStatus($closed);
+            $closed = $closed ?: $this->statusIdByState('closed');
+            $status = $closed ? TicketStatus::lookup($closed) : null;
+            $isClosed = $status && !strcasecmp($status->getState(), 'closed');
 
             Ticket::objects()
                 ->filter(array('ticket_id' => $ticket->getId()))
                 ->update(array(
-                    'closed' => $when,
+                    'closed' => $isClosed ? $when : null,
                     'status_id' => $closed ?: $ticket->status_id,
                     'staff_id' => $agent ? $agent->getId() : $ticket->staff_id,
+                    'isanswered' => 1,
                     'lastupdate' => $when,
                 ));
         }
@@ -1014,10 +1528,14 @@ class SeedManager extends Module {
         }
     }
 
-    /** Fecha SQL, N días atrás, a una hora laborable. */
-    function daysAgo($days) {
-        return date('Y-m-d H:i:s',
-            strtotime(sprintf('-%d days 10:30', max(0, (int) $days))));
+    /**
+     * Fecha SQL, N días atrás, a una hora laborable. `$minutes` desplaza la
+     * hora para que dos entradas del mismo día no compartan marca de tiempo
+     * (el hilo se ordena por fecha además de por id).
+     */
+    function daysAgo($days, $minutes = 0) {
+        return date('Y-m-d H:i:s', strtotime(sprintf('-%d days 10:30',
+            max(0, (int) $days))) + max(0, (int) $minutes) * 60);
     }
 
     /* ------------------------------------------------------------------ */
@@ -1059,6 +1577,92 @@ class SeedManager extends Module {
         }
 
         return $index;
+    }
+
+    /**
+     * Los ids de los estados habilitados cuyo `state` está en la lista, en el
+     * orden de la lista interna (así «Abierto» va antes que «En progreso»).
+     */
+    function statusIdsByStates($states) {
+        $ids = array();
+        foreach (TicketStatus::objects()
+                ->filter(array('state__in' => $states,
+                    'mode__hasbit' => TicketStatus::ENABLED))
+                ->order_by('sort', 'id') as $status)
+            $ids[] = (int) $status->getId();
+
+        // Si la instalación ha desactivado algún estado, el hueco se cubre
+        // con el primero disponible para no dejar tickets sin estado.
+        return $ids;
+    }
+
+    /** Origen del ticket, repartido como en una instalación real. */
+    function sourceFor($i) {
+        $sources = array('Web', 'Web', 'Email', 'Phone', 'API', 'Other');
+        return $sources[$i % count($sources)];
+    }
+
+    /** Mueve la fecha de creación de la tarea y de su hilo (create pone NOW). */
+    function backdateTask($task, $when) {
+        Task::objects()
+            ->filter(array('id' => $task->getId()))
+            ->update(array('created' => $when, 'updated' => $when));
+        Thread::objects()
+            ->filter(array('object_id' => $task->getId(),
+                'object_type' => ObjectModel::OBJECT_TYPE_TASK))
+            ->update(array('created' => $when, 'lastmessage' => $when));
+    }
+
+    /** Nota interna de una tarea (la tarea no tiene respuestas al cliente). */
+    function taskNote($task, $poster, $text, $when) {
+        $errors = array();
+        try {
+            $ok = $task->postNote(array(
+                'note' => $text,
+                'title' => sprintf('Seguimiento de la tarea #%s',
+                    $task->getNumber()),
+                'staffId' => $poster->getId(),
+                'userId' => 0,
+                'poster' => $poster->getName(),
+                'ip_address' => '127.0.0.1',
+            ), $errors, $poster, false);
+
+            if ($ok)
+                $this->backdateEntry($task, $text, $when);
+            else
+                $this->warn('nota de la tarea: '
+                    . Format::array_implode(' · ', ' · ', $errors));
+        }
+        catch (Throwable $e) {
+            $this->warn('nota de la tarea: ' . $e->getMessage());
+        }
+    }
+
+    /** Nota interna del agente (no se envía al cliente ni necesita correo). */
+    function agentNote($ticket, $agent, $text, $when) {
+        if (!$agent)
+            return;
+
+        $errors = array();
+        try {
+            $ok = $ticket->postNote(array(
+                'note' => $text,
+                'staffId' => $agent->getId(),
+                'userId' => 0,
+                'poster' => $agent->getName(),
+                'ip_address' => '127.0.0.1',
+                'note_status_id' => 0,
+            ), $errors, false, false);
+
+            if ($ok)
+                $this->backdateEntry($ticket, $text, $when);
+            else
+                $this->warn('nota interna: '
+                    . Format::array_implode(' · ', ' · ', $errors));
+        }
+        catch (Throwable $e) {
+            $this->warn('nota interna: ' . $e->getMessage());
+        }
     }
 
     /** Id del primer estado con el `state` pedido (open, closed, resolved…). */
@@ -1227,11 +1831,15 @@ class SeedManager extends Module {
 
         // De lo más dependiente a lo más básico: los departamentos antes que
         // los SLA (apuntan a ellos) y los agentes antes que los departamentos.
-        foreach (array('tickets', 'faq', 'canned', 'topics', 'teams', 'agents',
-                'depts', 'slas', 'users', 'orgs') as $step) {
+        foreach (array('tasks', 'tickets', 'faq', 'canned', 'topics', 'teams',
+                'agents', 'depts', 'slas', 'users', 'orgs') as $step) {
             foreach ($m[$step] ?? array() as $id) {
                 try {
                     switch ($step) {
+                    case 'tasks':
+                        if ($t = Task::lookup($id))
+                            $t->delete();
+                        break;
                     case 'tickets':
                         if ($t = Ticket::lookup($id))
                             $t->delete();

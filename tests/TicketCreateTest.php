@@ -126,10 +126,12 @@ class TicketCreateTest extends UnitTestCase {
     }
 
     public function testLaFechaDeHoyNoVale(): void {
-        // El límite se compara en el mismo instante: «ahora» no es futuro
+        // El límite se compara en el mismo instante: «ahora» no es futuro.
+        // Con minutos (`H:i`) la prueba fallaba al pasar por el segundo 59,
+        // porque `time() + 1` ya cae en el minuto siguiente.
         $ahora = $this->gmt();
         $this->assertSame('Due date must be in the future',
-            TicketCreate::dueDateError(date('Y-m-d H:i', time() + 1), $ahora));
+            TicketCreate::dueDateError(date('Y-m-d H:i:s'), $ahora));
     }
 
     /* ------------------------------------------------------------------ */

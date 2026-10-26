@@ -33,8 +33,8 @@ $options = getopt('', array('to::', 'from::', 'subject::', 'help'));
 
 if (isset($options['help'])) {
     echo "tools/dev/mail-test.php — correo de prueba al buzón de desarrollo\n\n"
-        . "  --to=DIRECCIÓN       destinatario (por omisión pruebas@demo.invalid)\n"
-        . "  --from=DIRECCIÓN     remitente (por omisión osticket@demo.invalid)\n"
+        . "  --to=DIRECCIÓN       destinatario (por omisión pruebas@example.com)\n"
+        . "  --from=DIRECCIÓN     remitente (por omisión osticket@example.com)\n"
         . "  --subject=TEXTO      asunto\n\n"
         . "Variables: MAILPIT_HOST (mailpit), MAILPIT_PORT (1025).\n";
     exit(0);
@@ -42,8 +42,8 @@ if (isset($options['help'])) {
 
 $host = getenv('MAILPIT_HOST') ?: 'mailpit';
 $port = (int) (getenv('MAILPIT_PORT') ?: 1025);
-$to = $options['to'] ?? 'pruebas@demo.invalid';
-$from = $options['from'] ?? 'osticket@demo.invalid';
+$to = $options['to'] ?? 'pruebas@example.com';
+$from = $options['from'] ?? 'osticket@example.com';
 $subject = $options['subject'] ?? 'Prueba de correo de osTicket';
 $marker = 'ost-' . bin2hex(random_bytes(4));
 

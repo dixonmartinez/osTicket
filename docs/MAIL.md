@@ -47,7 +47,7 @@ Panel de agentes → **Admin** → **Emails** → **Emails** → **Add New Email
 
 | Campo | Valor |
 |---|---|
-| Email Address | `soporte@demo.invalid` (el dominio da igual: nada sale de tu equipo) |
+| Email Address | `soporte@example.com` (reservado para documentación; con la verificación de correos activa hay que usar un dominio que resuelva) |
 | Email Name | `Soporte` |
 | Department | el que quieras (p. ej. *Soporte*) |
 

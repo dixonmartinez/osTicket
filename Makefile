@@ -235,13 +235,13 @@ docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 	@echo "→ ¿Sigue accesible /setup/ desde la web?"
 	@docker compose exec -T php php tools/security/setup-probe.php
 
-seed: ## Carga datos de demostración (organizaciones, agentes, temas, 30 tickets)
+seed: ## Carga datos de demostración (organizaciones, agentes, 59 tickets, 16 tareas)
 	@docker compose exec -T php php manage.php seed
 
 seed-fresh: ## Borra lo que creó `make seed` y lo vuelve a crear
 	@docker compose exec -T php php manage.php seed --fresh
 
-seed-check: ## Sólo muestra qué pasos hay y qué haría (no escribe)
+seed-check: ## Lista los pasos del sembrador y lo que crea cada uno (no escribe)
 	@docker compose exec -T php php manage.php seed --list
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar

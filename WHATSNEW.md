@@ -17,9 +17,11 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   `make csp-nonce` falla si aparece uno sin él (OST-102).
 
 ### Datos y correo de prueba
-* **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 4 departamentos,
-  2 equipos, 2 SLA, 6 temas, 5 respuestas predefinidas, 8 artículos de base
-  de conocimiento y **30 tickets** con estados y antigüedad variados, creados
+* **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 5 departamentos,
+  11 temas, 2 equipos, 2 SLA, 5 respuestas predefinidas, 6 categorías de base
+  de conocimiento con 33 artículos, **59 tickets** repartidos entre todos los
+  estados (abierto, en progreso, contestado, resuelto y cerrado, con hilos de
+  hasta 14 mensajes) y **16 tareas** abiertas, completadas y vencidas, creadas
   con los mismos métodos que el panel (no con SQL a mano: los campos viven en
   `form_entry_values` y `ticket__cdata` es una vista). `--fresh` deshace sólo
   lo suyo. Ver `docs/SEED.md`.

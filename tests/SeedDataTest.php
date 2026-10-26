@@ -77,13 +77,15 @@ class SeedDataTest extends UnitTestCase {
         // organizaciones antes que los usuarios; los tickets al final.
         $steps = SeedManager::steps();
         $this->assertSame(array('orgs', 'users', 'slas', 'depts', 'agents',
-            'teams', 'topics', 'canned', 'faq', 'tickets'), $steps);
+            'teams', 'topics', 'canned', 'faq', 'tickets', 'tasks'), $steps);
 
         // Un departamento apunta a su SLA y cada agente a su departamento
         $this->assertLessThan(array_search('depts', $steps), array_search('slas', $steps));
         $this->assertLessThan(array_search('agents', $steps), array_search('depts', $steps));
         $this->assertLessThan(array_search('teams', $steps), array_search('agents', $steps));
         $this->assertLessThan(array_search('topics', $steps), array_search('depts', $steps));
+        // Las tareas se enganchan a tickets: van las últimas
+        $this->assertLessThan(array_search('tasks', $steps), array_search('tickets', $steps));
     }
 
     public function testCadaPasoTieneSuMetodo(): void {
@@ -98,11 +100,37 @@ class SeedDataTest extends UnitTestCase {
 
     public function testOrganizacionesConNombreYDominio(): void {
         $orgs = SeedManager::organizations();
+        $seed = new SeedManager();
         $this->assertCount(3, $orgs);
         foreach ($orgs as $org) {
             $this->assertTrue(strlen($org['name']) > 2, 'nombre de organización');
-            $this->assertTrue(strlen($org['domain']) > 3, 'dominio de organización');
+            // El dominio se compone con el dominio en uso: `slug` +
+            // `--domain`, para que no queden dominios de otra ejecución
+            $this->assertTrue(strlen($org['slug']) > 2, 'dominio de organización');
+            $this->assertStringContainsString('.', $org['slug'] . '.' . $seed->domain);
         }
+    }
+
+    public function testElDominioDeDemostracionResuelvePorDNS(): void {
+        // `Staff::update()` valida el correo con DNS cuando «Verify email
+        // addresses» está activo, que es el valor por omisión. Un TLD
+        // reservado pero no resoluble (`demo.invalid`) hace imposible crear
+        // agentes: el alta falla con «Valid email is required».
+        $seed = new SeedManager();
+        $this->assertSame('example.com', SeedManager::DOMAIN);
+        $this->assertSame('example.com', $seed->domain);
+        $this->assertFalse(strpos($seed->domain, '.invalid'),
+            'el dominio por omisión no puede ser un TLD que no resuelve');
+    }
+
+    public function testLaOpcionDomainCambiaLosCorreos(): void {
+        $seed = new SeedManager();
+        $opciones = array();
+        foreach ($seed->options as $name => $opt)
+            $opciones[$name] = $opt[0] . $opt[1];
+
+        $this->assertArrayHasKey('domain', $opciones);
+        $this->assertSame('--domain', $opciones['domain']);
     }
 
     public function testLasPersonasApuntanAUnaOrganizacion(): void {
@@ -115,9 +143,10 @@ class SeedDataTest extends UnitTestCase {
     }
 
     public function testCorreosDeClienteSinRepetir(): void {
+        $seed = new SeedManager();
         $emails = array();
         foreach (SeedManager::people() as $person)
-            $emails[] = $person[1] . '@' . SeedManager::DOMAIN;
+            $emails[] = $person[1] . '@' . $seed->domain;
 
         $this->assertSame(count($emails), count(array_unique($emails)));
     }
@@ -147,12 +176,13 @@ class SeedDataTest extends UnitTestCase {
     }
 
     public function testLosAgentesNoChocanConLosCorreosDeLosClientes(): void {
+        $seed = new SeedManager();
         $clients = array();
         foreach (SeedManager::people() as $person)
-            $clients[] = $person[1] . '@' . SeedManager::DOMAIN;
+            $clients[] = $person[1] . '@' . $seed->domain;
 
         foreach (SeedManager::agents() as $agent)
-            $this->assertFalse(in_array($agent[0] . '@' . SeedManager::DOMAIN, $clients),
+            $this->assertFalse(in_array($agent[0] . '@' . $seed->domain, $clients),
                 'el agente ' . $agent[0] . ' usa el correo de un cliente');
     }
 
@@ -201,7 +231,7 @@ class SeedDataTest extends UnitTestCase {
         }
     }
 
-    public function testHayTemasPublicosYUnTemaPrivado(): void {
+    public function testHayTemasPublicosYAlgunoPrivado(): void {
         $topics = SeedManager::topics();
         $public = 0;
         foreach ($topics as $topic) {
@@ -209,8 +239,9 @@ class SeedDataTest extends UnitTestCase {
                 $public++;
         }
 
-        $this->assertTrue($public >= 2, 'hacen falta temas públicos');
-        $this->assertSame(1, count($topics) - $public, 'un tema privado');
+        $this->assertTrue($public >= 4, 'hacen falta temas públicos');
+        $this->assertTrue(count($topics) - $public >= 1,
+            'al menos un tema privado (sólo agentes)');
     }
 
     /* ------------------------------------------------------------------ */
@@ -244,16 +275,29 @@ class SeedDataTest extends UnitTestCase {
             }
         }
 
-        $this->assertSame(8, $total, 'ocho artículos en la base de conocimiento');
+        // La base de conocimiento tiene que dar juego en el portal: varias
+        // categorías y bastantes artículos, no una muestra de dos.
+        $this->assertTrue(count(SeedManager::faqs()) >= 5, 'categorías de conocimiento');
+        $this->assertTrue($total >= 25, 'artículos de conocimiento');
+    }
+
+    public function testLasPreguntasDelConocimientoNoSeRepiten(): void {
+        $questions = array();
+        foreach (SeedManager::faqs() as $articles)
+            foreach ($articles as $article)
+                $questions[] = $article[0];
+
+        $this->assertSame(count($questions), count(array_unique($questions)));
     }
 
     /* ------------------------------------------------------------------ */
     /* Tickets                                                             */
     /* ------------------------------------------------------------------ */
 
-    public function testTreintaTicketsDeSeisCampos(): void {
+    public function testTicketsDeSeisCampos(): void {
         $tickets = $this->tickets();
-        $this->assertCount(30, $tickets);
+        // El conjunto se ha ampliado para que las colas tengan volumen
+        $this->assertTrue(count($tickets) >= 50, 'tickets de demostración');
         foreach ($tickets as $ticket)
             $this->assertCount(6, $ticket);
     }
@@ -272,17 +316,27 @@ class SeedDataTest extends UnitTestCase {
                 "el agente {$ticket[5]} del ticket «{$ticket[0]}» no se crea");
     }
 
-    public function testEstadosAntiguedadYRespuestasRazonables(): void {
+    public function testAntiguedadYMensajesRazonables(): void {
+        $long = 0;
         foreach ($this->tickets() as $ticket) {
             $subject = $ticket[0];
             $age = $ticket[2];
-            $state = $ticket[3];
-            $replies = $ticket[4];
-            $this->assertTrue(in_array($state, array('Abierto', 'Cerrado'), true),
-                "estado del ticket «{$subject}»");
+            $closed = $ticket[3];
+            $messages = $ticket[4];
+            // El estado final lo reparte `seedTickets()` entre los estados
+            // reales de la instalación; aquí sólo se marca si va cerrado.
+            $this->assertTrue(is_bool($closed),
+                "la pista de estado de «{$subject}» no es booleana");
             $this->assertTrue($age >= 0 && $age <= 60, "antigüedad de «{$subject}»");
-            $this->assertTrue($replies >= 0 && $replies <= 5, "respuestas de «{$subject}»");
+            $this->assertTrue($messages >= 0 && $messages <= 14,
+                "mensajes de «{$subject}»");
+            if ($messages >= 6)
+                $long++;
         }
+
+        // «Un amplio chat de respuestas»: la mayoría de los tickets tienen
+        // un hilo largo, no dos mensajes
+        $this->assertTrue($long >= 20, 'tickets con hilo largo');
     }
 
     public function testAsuntosSinRepetir(): void {
@@ -296,16 +350,16 @@ class SeedDataTest extends UnitTestCase {
     public function testHayMezclaDeEstadosYAsignaciones(): void {
         $open = $closed = $unassigned = 0;
         foreach ($this->tickets() as $ticket) {
-            if ($ticket[3] == 'Abierto')
-                $open++;
-            else
+            if ($ticket[3])
                 $closed++;
+            else
+                $open++;
             if ($ticket[5] === null)
                 $unassigned++;
         }
 
-        $this->assertTrue($open >= 10, 'tickets abiertos');
-        $this->assertTrue($closed >= 10, 'tickets cerrados');
+        $this->assertTrue($open >= 20, 'tickets abiertos');
+        $this->assertTrue($closed >= 15, 'tickets cerrados');
         $this->assertTrue($unassigned >= 3, 'tickets sin asignar');
     }
 
@@ -317,6 +371,72 @@ class SeedDataTest extends UnitTestCase {
         // Las colas y las analíticas necesitan un rango amplio, no todo «hoy»
         $this->assertTrue(max($ages) - min($ages) > 20);
         $this->assertSame(0, min($ages), 'al menos un ticket de hoy');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Conversación y tareas                                               */
+    /* ------------------------------------------------------------------ */
+
+    public function testLaConversacionTieneFrasesDeLosDosLados(): void {
+        $phrases = SeedManager::conversation();
+        $this->assertTrue(count($phrases['agent']) >= 8, 'frases del agente');
+        $this->assertTrue(count($phrases['client']) >= 8, 'frases del cliente');
+
+        foreach ($phrases as $side => $lines)
+            foreach ($lines as $line)
+                $this->assertTrue(strlen(trim($line)) > 20,
+                    "frase demasiado corta en {$side}");
+
+        // `sprintf()` sobre estas frases no puede fallar: como mucho llevan
+        // un `%s` (el número de ticket)
+        foreach (array_merge($phrases['agent'], $phrases['client']) as $line)
+            $this->assertLessThan(2, substr_count($line, '%s'),
+                'una frase lleva más de un comodín');
+    }
+
+    public function testCadaTareaApuntaADatosQueSeCrean(): void {
+        $depts = $this->deptNames();
+        $agents = $this->agentNames();
+        $subjects = array();
+        foreach ($this->tickets() as $ticket)
+            $subjects[$ticket[0]] = true;
+
+        foreach (SeedManager::tasks() as $task) {
+            list($title, $dept, $age, $done, $dueIn, $agent, $description,
+                $ticketSubject) = $task;
+            $this->assertTrue(strlen($title) > 10, 'título de tarea');
+            $this->assertTrue(isset($depts[$dept]),
+                "el departamento {$dept} de la tarea «{$title}» no se crea");
+            $this->assertTrue($agent === null || isset($agents[$agent]),
+                "el agente {$agent} de la tarea «{$title}» no se crea");
+            $this->assertTrue(is_bool($done), 'la tarea debe decir si está completada');
+            $this->assertTrue($age >= 0, "antigüedad de la tarea «{$title}»");
+            $this->assertTrue(strlen($description) > 30,
+                "descripción de la tarea «{$title}»");
+            $this->assertTrue($ticketSubject === null
+                    || isset($subjects[$ticketSubject]),
+                "el ticket «{$ticketSubject}» de la tarea «{$title}» no se crea");
+        }
+    }
+
+    public function testHayTareasAbiertasYCompletadas(): void {
+        $open = $closed = $overdue = $loose = 0;
+        $titles = array();
+        foreach (SeedManager::tasks() as $task) {
+            $task[3] ? $closed++ : $open++;
+            if (!$task[3] && $task[4] < 0)
+                $overdue++;
+            if ($task[7] === null)
+                $loose++;
+            $titles[] = $task[0];
+        }
+
+        // osTicket sólo distingue estos dos estados de tarea
+        $this->assertTrue($open >= 5, 'tareas abiertas');
+        $this->assertTrue($closed >= 5, 'tareas completadas');
+        $this->assertTrue($overdue >= 1, 'alguna tarea vencida y sin cerrar');
+        $this->assertTrue($loose >= 1, 'alguna tarea suelta, sin ticket');
+        $this->assertSame(count($titles), count(array_unique($titles)));
     }
 
     /* ------------------------------------------------------------------ */
@@ -332,6 +452,59 @@ class SeedDataTest extends UnitTestCase {
         $this->assertTrue(strtotime($date) < time(), 'la fecha está en el pasado');
         $this->assertSame(date('Y-m-d'), substr($seed->daysAgo(0), 0, 10),
             'cero días es hoy');
+    }
+
+    public function testDaysAgoConDesplazamientoNoCambiaElDia(): void {
+        $seed = new SeedManager();
+
+        // El desplazamiento (minutos) sirve para que dos entradas del mismo
+        // día no compartan marca de tiempo, no para mover el día
+        $this->assertSame(date('Y-m-d'), substr($seed->daysAgo(0, 90), 0, 10));
+        $this->assertSame(substr($seed->daysAgo(4, 0), 0, 10),
+            substr($seed->daysAgo(4, 25), 0, 10));
+        $this->assertTrue(strtotime($seed->daysAgo(4, 25))
+            > strtotime($seed->daysAgo(4, 0)));
+    }
+
+    public function testElOrigenDelTicketEsDeLosQueAdmiteOSTicket(): void {
+        $seed = new SeedManager();
+        // `Ticket::create()` rechaza un origen que no esté en la lista
+        $valid = array('Web', 'Email', 'Phone', 'API', 'Other');
+        $seen = array();
+        for ($i = 0; $i < 12; $i++) {
+            $source = $seed->sourceFor($i);
+            $this->assertTrue(in_array($source, $valid, true),
+                "origen no válido: {$source}");
+            $seen[$source] = true;
+        }
+
+        $this->assertTrue(count($seen) >= 4, 'orígenes variados');
+    }
+
+    public function testElMensajeDeAperturaCitaElAsuntoYElTema(): void {
+        $seed = new SeedManager();
+        $text = $seed->message('El informe mensual sale vacío', 'Problema técnico');
+
+        $this->assertStringContainsString('el informe mensual sale vacío', $text);
+        $this->assertStringContainsString('Problema técnico', $text);
+    }
+
+    public function testLasAyudasNuevasTienenLaFirmaQueUsaElSembrador(): void {
+        // `closeTicket()` pasa el estado elegido; `seedTasks()` necesita un
+        // hilo propio y una nota interna. Si cambian de firma, aquí se ve.
+        $seed = new SeedManager();
+        $this->assertTrue(method_exists($seed, 'seedConversation'));
+        $this->assertTrue(method_exists($seed, 'seedTasks'));
+        $this->assertSame(4, (new ReflectionMethod($seed, 'closeTicket'))
+            ->getNumberOfParameters());
+        $this->assertSame(4, (new ReflectionMethod($seed, 'agentNote'))
+            ->getNumberOfParameters());
+        $this->assertSame(4, (new ReflectionMethod($seed, 'taskNote'))
+            ->getNumberOfParameters());
+        $this->assertSame(2, (new ReflectionMethod($seed, 'daysAgo'))
+            ->getNumberOfParameters());
+        $this->assertSame(1, (new ReflectionMethod($seed, 'sourceFor'))
+            ->getNumberOfParameters());
     }
 
     public function testElManifiestoNoSeVersiona(): void {

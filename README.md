@@ -132,9 +132,11 @@ New in this branch:
     JavaScript dependency.
   * **Mobile** — responsive agent panel (`css/mobile.css`), installable PWA
     (`manifest.php`, `sw.js`) that caches *only* static assets, never tickets.
-  * **Demo data** — `make seed` fills a fresh install with 30 tickets, 12
+  * **Demo data** — `make seed` fills a fresh install with 59 tickets in every
+    status (with long threads), 16 open, completed and overdue tasks, 12
     clients, 5 agents, departments, teams, SLAs, help topics, canned responses
-    and a small knowledge base, through the same API the agent panel uses.
+    and a 6-category knowledge base with 33 articles, through the same API the
+    agent panel uses.
     `make seed-fresh` removes only what it created. See
     [`docs/SEED.md`](docs/SEED.md).
   * **Test mail** — `make test-mail` sends a message to the bundled Mailpit

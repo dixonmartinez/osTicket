@@ -1,11 +1,15 @@
 # Datos de demostración: `make seed`
 
 Carga un osTicket recién instalado con contenido parecido al de un help desk en
-funcionamiento: cuatro departamentos, cinco agentes, dos equipos, dos SLA, seis
-temas, cinco respuestas predefinidas, tres categorías de base de conocimiento
-con ocho artículos, doce clientes en tres organizaciones y **treinta tickets**
-repartidos entre abiertos, cerrados, asignados y sin asignar, con respuestas en
-el hilo y antigüedad variada.
+funcionamiento: cinco departamentos, cinco agentes, dos equipos, dos SLA, once
+temas, cinco respuestas predefinidas, seis categorías de base de conocimiento
+con treinta y tres artículos, doce clientes en tres organizaciones, **59
+tickets** repartidos entre todos los estados, asignados y sin asignar, con
+hilos de hasta 14 mensajes, y **16 tareas** abiertas, completadas y vencidas.
+
+La idea es que ningún rincón de la aplicación se quede vacío: colas, filtros,
+analíticas, SLAs vencidos, tareas, base de conocimiento y el hilo largo de una
+conversación real.
 
 Sirve para tres cosas concretas: ver cómo se comporta la interfaz con datos
 reales (listas, filtros, paginación, modo oscuro), tener algo que mirar en el
@@ -23,15 +27,16 @@ Todo se ejecuta **dentro del contenedor** (no hace falta PHP en tu equipo):
 docker compose exec -T php php manage.php seed            # lo mismo que make seed
 docker compose exec -T php php manage.php seed --verbose   # ver cada registro
 docker compose exec -T php php manage.php seed --only=topics
-docker compose exec -T php php manage.php seed --count=60  # más tickets
+docker compose exec -T php php manage.php seed --count=10  # sólo diez tickets
 docker compose exec -T php php manage.php seed --no-tickets
 ```
 
 | Opción | Qué hace |
 |---|---|
 | `--fresh` | borra lo creado por una ejecución anterior (según el manifiesto) y vuelve a crear |
-| `--only=PASO` | ejecuta un solo paso (`orgs`, `users`, `slas`, `depts`, `agents`, `teams`, `topics`, `canned`, `faq`, `tickets`) |
-| `--count=N` | cuántos tickets crear (por omisión 30) |
+| `--only=PASO` | ejecuta un solo paso (`orgs`, `users`, `slas`, `depts`, `agents`, `teams`, `topics`, `canned`, `faq`, `tickets`, `tasks`) |
+| `--count=N` | cuántos tickets crear (por omisión todos: son 59) |
+| `--domain=D` | dominio de los correos de demostración (por omisión `example.com`) |
 | `--no-tickets` | deja la configuración pero ningún ticket |
 | `--list` | muestra los pasos |
 | `--verbose` | muestra cada registro creado |
@@ -46,13 +51,14 @@ docker compose exec -T php php manage.php seed --no-tickets
 | `orgs` | Acme S.A., Globex Corporation, Initech (con su dominio, para que los usuarios se asignen solos) |
 | `users` | 12 clientes repartidos entre las tres organizaciones, con teléfono |
 | `slas` | Respuesta 8 h · Respuesta 24 h (24/7, sin horario asignado) |
-| `depts` | Soporte · Soporte Técnico (hijo) · Facturación (hijo) · Ventas |
-| `agents` | `admin` (administrador), `supervisor`, `agente1`, `agente2`, `agente3` — todos con acceso a los cuatro departamentos |
+| `depts` | Soporte · Soporte Técnico (hijo) · Facturación (hijo) · Ventas · Seguridad (privado) |
+| `agents` | `admin` (administrador), `supervisor`, `agente1`, `agente2`, `agente3` — todos con acceso a los cinco departamentos |
 | `teams` | Turno de noche · Escalado (con líder y miembros) |
-| `topics` | Problema técnico · Facturación y pagos · Solicitud de información · Alta de usuario · Reclamación · Incidente interno (este último privado) |
+| `topics` | Problema técnico · Facturación y pagos · Solicitud de información · Alta de usuario · Reclamación · Cuenta y acceso · Soporte técnico · Formación · Incidente interno y Uso del panel (los dos últimos, privados) |
 | `canned` | Saludo inicial · Petición de información · Ticket resuelto · Escalado a segundo nivel · Factura duplicada |
-| `faq` | Primeros pasos · Cuenta y acceso · Facturación, con 8 artículos publicados y destacados |
-| `tickets` | 30 tickets con antigüedad de 0 a 42 días, respuestas de cliente y de agente en el hilo, cerrados con su fecha, asignados o pendientes de asignar |
+| `faq` | 6 categorías (Primeros pasos · Cuenta y acceso · Facturación · Soporte técnico · Seguridad y privacidad · Uso del panel) con 33 artículos publicados y buscables |
+| `tickets` | 59 tickets con antigüedad de 0 a 42 días, de origen Web/Email/Phone/API, con hilos de hasta 14 mensajes que alternan respuesta del agente, mensaje del cliente y nota interna |
+| `tasks` | 16 tareas: abiertas y completadas, varias vencidas, con y sin responsable, ligadas a un ticket o sueltas |
 
 **Orden**: el de la tabla no es decorativo. Sin SLA no hay departamento
 (apunta a su SLA), sin departamento no hay agente (cada uno tiene el suyo como
@@ -64,9 +70,66 @@ registros a medias.
 resto de agentes y para las cuentas de cliente). Si al instalar ya creó una
 cuenta `admin` con otra contraseña, ese usuario se respeta tal cual y el
 sembrador no lo toca: entre con su contraseña de siempre, o use `supervisor`,
-`agente1`, `agente2` o `agente3` con `Demo1234!`. Los correos usan el dominio
-`demo.invalid`, que no existe: si algo intenta enviarles correo, rebota en el
-acto y no molesta a nadie.
+`agente1`, `agente2` o `agente3` con `Demo1234!`.
+
+Los correos de demostración usan **`example.com`**, el dominio reservado para
+documentación (RFC 2606). No es un detalle estético: con «Verify email
+addresses» activo —el valor por omisión— osTicket comprueba que el dominio
+tenga MX o A/AAAA antes de aceptar un agente, y un dominio que no resuelve
+(`demo.invalid`, por ejemplo) hace imposible crearlos: todos fallan con
+*Valid email is required*. `example.com` resuelve y publica un MX nulo
+(RFC 7505), así que nada sale hacia el exterior.
+
+Si su instalación tiene el DNS restringido (una red de empresa, un contenedor
+sin salida), use un dominio que resuelva en su entorno:
+
+```bash
+docker compose exec -T php php manage.php seed --only=agents --domain=empresa.local
+```
+
+O desactive la comprobación en **Admin Panel → Emails → Settings → Verify
+email addresses**. El sembrador lo avisa con ese mismo texto si detecta que el
+dominio no resuelve, en vez de fallar cinco veces seguidas.
+
+### Estados y tareas: «todos» de verdad
+
+Los estados de osTicket viven en la lista `ost_ticket_status` y son
+personalizables, así que el sembrador **no** escribe nombres a mano: reparte
+los tickets entre los estados que tenga la instalación, por su `state` interno.
+
+| `state` | Estados habituales | Cómo se ve en la cola |
+|---|---|---|
+| `open` | Abierto · Nuevo | recién llegado, en cola |
+| `in progress` | En progreso | alguien lo está mirando |
+| `answered` | Contestado | el agente respondió y espera al cliente |
+| `resolved` | Resuelto | con solución, reabrible |
+| `closed` | Cerrado | con fecha de cierre |
+
+`seedTickets()` agrupa los estados disponibles en dos bolsas —abiertos
+(`open`, `in progress`, `answered`) y terminados (`resolved`, `closed`)— y va
+tomando uno de cada bolsa para cada ticket, en orden. Un tercio de los tickets
+abiertos queda **vencido** (`duedate` en el pasado e `isoverdue` a 1) para que
+la cola de vencidos no esté vacía.
+
+Las tareas no tienen esa variedad: `Task::getStatus()` sólo devuelve **Open**
+o **Completed** (`flags` con el bit `ISOPEN` y la columna `closed`). Por eso
+hay 16 tareas repartidas entre las dos, algunas con `duedate` vencida, otras
+sin responsable, y ocho de ellas enganchadas a un ticket (`object_type` = `T`).
+
+### El hilo de un ticket
+
+Cada ticket recibe entre 2 y 14 mensajes, con fechas repartidas desde su
+apertura hasta hoy:
+
+- **respuesta del agente** (`postReply`), firmada con el agente asignado;
+- **mensaje del cliente** (`postMessage`), como si respondiera por el portal;
+- **nota interna** (`postNote`) cada cuatro mensajes, que el cliente no ve.
+
+Las frases salen de `SeedManager::conversation()`, que devuelve dos listas (una
+de agente y otra de cliente) y las va rotando; así dos tickets no tienen el
+mismo texto y el hilo se lee como una conversación. Las fechas se ajustan
+**después** de crear cada entrada (`create()` pone `NOW()`), así que el orden
+del hilo es el orden real.
 
 ---
 
@@ -123,6 +186,11 @@ tickets que hayas abierto tú ni la configuración de la instalación.
 make seed-fresh          # borra y vuelve a crear
 ```
 
+> **Si ya sembró con una versión anterior** (los correos eran
+> `@demo.invalid`), ejecute `make seed-fresh` una vez: el dominio ha cambiado
+> para que el alta de agentes pase la verificación de correos, y los registros
+> viejos ya no se reconocen como duplicados.
+
 Si quieres empezar de cero de verdad (base incluida):
 
 ```bash
@@ -135,16 +203,22 @@ make docker-up           # vuelve a levantar
 
 ## Cómo comprobar que salió bien
 
-1. **Panel de agentes** → *Tickets*: 30 tickets, varios sin asignar, filtros
-   por estado y departamento con contenido.
-2. **Dashboard**: actividad de los últimos días y tickets asignados a ti (con
+1. **Panel de agentes** → *Tickets*: 59 tickets, varios sin asignar, filtros
+   por estado y departamento con contenido, y una cola de vencidos que no está
+   vacía.
+2. **Panel → Tareas**: tareas abiertas, completadas y dos vencidas; abra una
+   ligada a un ticket y verá el enlace al ticket en la ficha.
+3. **Dashboard**: actividad de los últimos días y tickets asignados a ti (con
    `admin`).
-3. **Analíticas** (`/scp/analytics.php`): primera respuesta, resolución, SLA y
+4. **Analíticas** (`/scp/analytics.php`): primera respuesta, resolución, SLA y
    antigüedad del pendiente, con series de más de un mes.
-4. **Base de conocimiento** (`/kb/`): tres categorías con artículos
-   destacados.
-5. **Portal del cliente** (`/open.php`): el desplegable de temas muestra los
-   seis (el privado no aparece).
+5. **Base de conocimiento** (`/kb/`): seis categorías, artículos destacados y
+   el buscador con resultados (`/kb/faq.php?q=contraseña`).
+6. **Portal del cliente** (`/open.php`): el desplegable de temas muestra los
+   nueve públicos (los dos privados no aparecen).
+7. **Un ticket con hilo largo**: abra «Quiero cancelar el servicio» y verá la
+   conversación completa, con las respuestas del cliente, las del agente y las
+   notas internas en orden.
 
 ---
 
