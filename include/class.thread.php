@@ -662,34 +662,8 @@ implements Searchable {
      * tickets created without an initial message.
      */
     static function lookupByEmailHeaders(&$mailinfo) {
-        $possibles = array();
-        foreach (array('mid', 'in-reply-to', 'references') as $header) {
-            $matches = array();
-            if (!isset($mailinfo[$header]) || !$mailinfo[$header])
-                continue;
-            // Header may have multiple entries (usually separated by
-            // spaces ( )
-            elseif (!preg_match_all('/<([^>@]+@[^>]+)>/', $mailinfo[$header],
-                        $matches))
-                continue;
-
-            // The References header will have the most recent message-id
-            // (parent) on the far right.
-            // @see rfc 1036, section 2.2.5
-            // @see http://www.jwz.org/doc/threading.html
-            $possibles = array_merge($possibles, array_reverse($matches[1]));
-        }
-
-        // Add the message id if it is embedded in the body
-        $match = array();
-        if (preg_match('`(?:class="mid-|Ref-Mid: )([^"\s]*)(?:$|")`',
-                $mailinfo['message'], $match)
-            && !in_array($match[1], $possibles)
-        ) {
-            $possibles[] = $match[1];
-        }
-
-        foreach ($possibles as $mid) {
+        // Qué identificadores probar y en qué orden lo decide ThreadEmailInfo
+        foreach (ThreadEmailInfo::candidates($mailinfo) as $mid) {
             // Attempt to detect the ticket and user ids from the
             // message-id header. If the message originated from
             // osTicket, the Mailer class can break it apart. If it came
@@ -1411,35 +1385,11 @@ implements TemplateVariable {
             return $entry;
         }
 
-        $possibles = array();
-        foreach (array('mid', 'in-reply-to', 'references') as $header) {
-            $matches = array();
-            if (!isset($mailinfo[$header]) || !$mailinfo[$header])
-                continue;
-            // Header may have multiple entries (usually separated by
-            // spaces ( )
-            elseif (!preg_match_all('/<([^>@]+@[^>]+)>/', $mailinfo[$header],
-                        $matches))
-                continue;
-
-            // The References header will have the most recent message-id
-            // (parent) on the far right.
-            // @see rfc 1036, section 2.2.5
-            // @see http://www.jwz.org/doc/threading.html
-            $possibles = array_merge($possibles, array_reverse($matches[1]));
-        }
-
-        // Add the message id if it is embedded in the body
-        $match = array();
-        if (preg_match('`(?:class="mid-|Ref-Mid: )([^"\s]*)(?:$|")`',
-                (string) $mailinfo['message'], $match)
-            && !in_array($match[1], $possibles)
-        ) {
-            $possibles[] = $match[1];
-        }
-
         $thread = null;
-        foreach ($possibles as $mid) {
+        // Los identificadores candidatos salen de la misma pieza que usa
+        // Thread::lookupByEmailHeaders(): dos copias de estas reglas eran dos
+        // sitios donde equivocarse.
+        foreach (ThreadEmailInfo::candidates($mailinfo) as $mid) {
             // Attempt to detect the ticket and user ids from the
             // message-id header. If the message originated from
             // osTicket, the Mailer class can break it apart. If it came

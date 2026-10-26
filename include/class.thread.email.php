@@ -109,4 +109,69 @@ class ThreadEmailInfo {
     static function receivedFrom($name, $email) {
         return sprintf(_S('Received From: %1$s <%2$s>') . "\n\n", $name, $email);
     }
+
+    /* ------------------------------------------------------------------ */
+    /* A qué entrada contesta un correo                                    */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Los message-id por los que puede venir la respuesta, del más probable
+     * al menos.
+     *
+     * Se miran tres cabeceras —`Message-Id`, `In-Reply-To` y `References`— y
+     * después el identificador que osTicket deja dentro del cuerpo (`Ref-Mid:`
+     * en el texto y `class="mid-"` en el HTML). En `References` el mensaje
+     * más reciente es el de la derecha, así que cada cabecera se invierte:
+     * primero se prueba el padre inmediato y sólo después los abuelos.
+     *
+     * @param array $mailinfo  `mid`, `in-reply-to`, `references` y `message`
+     * @return array
+     */
+    static function candidates(array $mailinfo) {
+        $possibles = array();
+
+        foreach (array('mid', 'in-reply-to', 'references') as $header) {
+            $matches = array();
+            if (empty($mailinfo[$header]))
+                continue;
+            // Una cabecera puede traer varios identificadores, casi siempre
+            // separados por espacios
+            elseif (!preg_match_all('/<([^>@]+@[^>]+)>/', $mailinfo[$header],
+                        $matches))
+                continue;
+
+            // @see rfc 1036, section 2.2.5
+            // @see http://www.jwz.org/doc/threading.html
+            $possibles = array_merge($possibles, array_reverse($matches[1]));
+        }
+
+        $embedded = self::embeddedId(
+            isset($mailinfo['message']) ? $mailinfo['message'] : null);
+        if ($embedded && !in_array($embedded, $possibles))
+            $possibles[] = $embedded;
+
+        return $possibles;
+    }
+
+    /**
+     * El identificador que osTicket deja escrito en el cuerpo del correo.
+     *
+     * Es lo que permite enlazar la respuesta incluso cuando el cliente de
+     * correo se come las cabeceras de referencia. Devuelve `null` si no hay.
+     *
+     * @param mixed $message  cuerpo del correo (texto o `__toString`)
+     * @return string|null
+     */
+    static function embeddedId($message) {
+        if (!$message || !is_scalar($message)
+                && !method_exists($message, '__toString'))
+            return null;
+
+        $match = array();
+        if (!preg_match('`(?:class="mid-|Ref-Mid: )([^"\s]*)(?:$|")`',
+                (string) $message, $match))
+            return null;
+
+        return $match[1] ?: null;
+    }
 }

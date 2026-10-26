@@ -140,6 +140,87 @@ class ThreadEmailTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* A qué entrada contesta: los message-id candidatos                   */
+    /* ------------------------------------------------------------------ */
+
+    /** Sin cabeceras de referencia no hay nada que probar. */
+    public function testSinCabecerasNoHayCandidatos(): void {
+        $this->assertSame(array(), ThreadEmailInfo::candidates(array()));
+        $this->assertSame(array(), ThreadEmailInfo::candidates(array(
+            'mid' => '', 'in-reply-to' => null, 'references' => false,
+        )));
+    }
+
+    public function testElMessageIdDeLaCabeceraEsElPrimero(): void {
+        $this->assertSame(array('abc@ejemplo.com'), ThreadEmailInfo::candidates(
+            array('mid' => '<abc@ejemplo.com>')));
+    }
+
+    /**
+     * `References` trae el mensaje más reciente a la derecha: se prueba el
+     * padre inmediato antes que los abuelos.
+     */
+    public function testLasReferenciasSePruebanDeLaMasRecienteALaMasAntigua(): void {
+        $this->assertSame(
+            array('hijo@ejemplo.com', 'padre@ejemplo.com', 'abuelo@ejemplo.com'),
+            ThreadEmailInfo::candidates(array(
+                'references' => '<abuelo@ejemplo.com> <padre@ejemplo.com> <hijo@ejemplo.com>',
+            )));
+    }
+
+    /** El orden de las cabeceras también manda: primero `mid`. */
+    public function testElOrdenDeLasCabecerasEsMidInReplyToReferences(): void {
+        $this->assertSame(
+            array('m@ejemplo.com', 'r@ejemplo.com', 'x@ejemplo.com'),
+            ThreadEmailInfo::candidates(array(
+                'mid' => '<m@ejemplo.com>',
+                'in-reply-to' => '<r@ejemplo.com>',
+                'references' => '<x@ejemplo.com>',
+            )));
+    }
+
+    /** Una cabecera sin ángulos no es un message-id: se ignora. */
+    public function testUnaCabeceraSinAngulosNoAportaCandidatos(): void {
+        $this->assertSame(array(), ThreadEmailInfo::candidates(array(
+            'in-reply-to' => 'esto no es un id',
+        )));
+    }
+
+    /** El identificador que osTicket escribe en el texto del correo. */
+    public function testElIdentificadorDelCuerpoEnTextoPlano(): void {
+        $this->assertSame('abc123@osticket.local',
+            ThreadEmailInfo::embeddedId("Hola.\n\nRef-Mid: abc123@osticket.local"));
+    }
+
+    /** Y el que deja en el HTML del aviso. */
+    public function testElIdentificadorDelCuerpoEnHtml(): void {
+        $this->assertSame('def456@osticket.local',
+            ThreadEmailInfo::embeddedId(
+                '<div class="mid-def456@osticket.local"></div>'));
+    }
+
+    public function testUnCuerpoSinIdentificadorNoDevuelveNada(): void {
+        $this->assertNull(ThreadEmailInfo::embeddedId('Hola, sin nada dentro'));
+        $this->assertNull(ThreadEmailInfo::embeddedId(null));
+        $this->assertNull(ThreadEmailInfo::embeddedId(''));
+    }
+
+    /** Lo del cuerpo se añade al final, y no se repite si ya estaba. */
+    public function testElIdentificadorDelCuerpoVaAlFinalYNoSeRepite(): void {
+        $this->assertSame(array('m@ejemplo.com', 'cuerpo@ejemplo.com'),
+            ThreadEmailInfo::candidates(array(
+                'mid' => '<m@ejemplo.com>',
+                'message' => 'Ref-Mid: cuerpo@ejemplo.com',
+            )));
+
+        $this->assertSame(array('m@ejemplo.com'),
+            ThreadEmailInfo::candidates(array(
+                'mid' => '<m@ejemplo.com>',
+                'message' => 'Ref-Mid: m@ejemplo.com',
+            )));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Firma y aviso                                                       */
     /* ------------------------------------------------------------------ */
 

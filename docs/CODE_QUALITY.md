@@ -256,12 +256,12 @@ integración.
 
 **Dónde está** (medido el 2026-10-26 con `make metrics`): la primera tanda está
 hecha y en uso —catorce piezas puras sacadas de las funciones más largas, con
-384 pruebas nuevas y nueve defectos reales corregidos—, y ninguna de esas
+405 pruebas nuevas y nueve defectos reales corregidos—, y ninguna de esas
 funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **12 funciones de la
+El criterio de éxito **no se cumple todavía**: quedan **11 funciones de la
 aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 (`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
@@ -274,6 +274,8 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `Ticket::create()` | 536 líneas | **219** (nueve fases en `TicketCreate`) |
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
+| `ThreadEntry::lookupByEmailHeaders()` | 126 líneas | **102** (`ThreadEmailInfo::candidates()`) |
+| `Thread::lookupByEmailHeaders()` | 66 líneas | **28** (la misma pieza) |
 | `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
 | `Staff::update()` | 137 líneas | **118** (`StaffCheck`) |
 | `Ticket::update()` | 133 líneas | **116** (`TicketEdit`) |
@@ -289,7 +291,7 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `SelectSql::fields()` | 148 líneas | **57** (cinco tramos: relaciones, `values()`, simple, anotaciones y extras) |
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
-| Funciones de la aplicación por encima de 120 líneas | — | **12** |
+| Funciones de la aplicación por encima de 120 líneas | — | **11** |
 | Funciones de la aplicación por encima de 150 líneas | 10 | **8** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
@@ -303,11 +305,10 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Siete funciones intermedias (120–175 líneas) que nadie ha tocado**,
+2. **Seis funciones intermedias (120–175 líneas) que nadie ha tocado**,
    y que no estaban en el plan: `Report::getTabularData()` (158),
    `Thread::create()` (158), `Queue::update()` (157),
-   `Dept::update()` (137), `I18n::loadDefaultData()` (131) y
-   `Thread::lookupByEmailHeaders()` (126). Varias son del mismo tipo que las que ya se partieron (armar campos,
+   `Dept::update()` (137) e `I18n::loadDefaultData()` (131). Varias son del mismo tipo que las que ya se partieron (armar campos,
    validar, componer mensajes); otras son `update()` de modelo, donde lo que
    hay es una lista de
    campos y su validación.
@@ -332,8 +333,8 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    dar la tanda por terminada.
 
 **Comprobación de las cifras de arriba** (2026-10-26, tras esta tanda, con
-`make metrics --top=400`): 12 funciones de la aplicación por encima de 120
-líneas —diez menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
+`make metrics --top=400`): 11 funciones de la aplicación por encima de 120
+líneas —once menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
 3 archivos por encima de 3.000 (`class.ticket.php` 4.516, `class.forms.php`
 4.515, `class.orm.php` 3.643). La función más larga de la aplicación sigue
 siendo `massProcess()` con 321 líneas. Fuera del criterio, por ser librerías
@@ -346,12 +347,12 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: **384 casos nuevos** sin base de datos.
+Pasos hechos: **405 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
 | `include/class.ticket.post.php` | `TicketPost::normalizeVars()` (origen e IP del mensaje), `withoutPoster()` (quita al autor de los destinatarios), `shouldAutoRespond()` (rebotes y respuestas automáticas) | `tests/TicketPostTest.php`, 14 casos |
-| `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()` y `receivedFrom()` | `tests/ThreadEmailTest.php`, 19 casos |
+| `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()`, `receivedFrom()` y `candidates()`/`embeddedId()` (por qué message-id se prueba primero: `mid`, `in-reply-to`, `references` al revés y el `Ref-Mid:` del cuerpo) | `tests/ThreadEmailTest.php`, 29 casos |
 | `include/class.thread.entry.php` | `ThreadEntryInfo::title()` y `poster()` (qué se guarda), `replyFlags()` (respuesta a todos / al usuario), `bodyFlags()` (HTML equilibrado y nota de sistema), `dropStrippedImages()` y `markInline()` (adjuntos incrustados) | `tests/ThreadEntryInfoTest.php`, 22 casos |
 | `include/class.ticket.create.php` | `TicketCreate::requiredFields()` (qué exige cada origen: web, staff, api, email), `fieldFilter()` (qué se valida según quién abre), `dueDateError()`, `source()` y `openErrors()` (al abrir desde el panel: origen conocido y, sin usuario elegido, correo con forma de correo y nombre), más las nueve fases de `create()` | `tests/TicketCreateTest.php`, 23 casos |
 | `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
