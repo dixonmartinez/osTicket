@@ -407,7 +407,8 @@ class PerfCheck extends Module {
                         'queries' => $o['n'], 'distinct' => $o['distinct'],
                         'ms' => round($o['ms'], 1));
                 }, array_slice($this->topOrigins(), 0, 10)),
-            ), JSON_PRETTY_PRINT), "\n";
+            ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+                | JSON_UNESCAPED_UNICODE), "\n";
             return;
         }
 
