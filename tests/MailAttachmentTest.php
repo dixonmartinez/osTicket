@@ -407,6 +407,34 @@ class MailParseAttachmentsTest extends UnitTestCase {
             $this->attachments($raw));
     }
 
+    /**
+     * El lector de TNEF declara los tipos de retorno de `Iterator`.
+     *
+     * Sin ellos, PHP 8.1+ deja cinco avisos de obsolescencia en el log por
+     * cada `winmail.dat` que entra —y `class.mailparse.php` lo carga siempre—.
+     */
+    function testElLectorTnefDeclaraSusTiposDeIterador() {
+        $expected = array(
+            'next' => 'void',
+            'rewind' => 'void',
+            'valid' => 'bool',
+            'current' => 'mixed',
+            'key' => 'mixed',
+        );
+
+        foreach (array('TnefStreamReader', 'TnefAttributeStreamReader')
+                as $class) {
+            foreach ($expected as $method => $type) {
+                $return = (new ReflectionMethod($class, $method))
+                    ->getReturnType();
+                $this->assertTrue($return !== null,
+                    "$class::$method() no declara tipo de retorno");
+                $this->assertSame($type, (string) $return,
+                    "$class::$method() devuelve $type");
+            }
+        }
+    }
+
     /** Un `message/rfc822` adjunto se llama como el asunto que lleva dentro. */
     function testUnMensajeAdjuntoSeLlamaComoSuAsunto() {
         $raw = $this->headers('multipart/mixed; boundary=BND')

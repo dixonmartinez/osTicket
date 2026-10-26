@@ -355,6 +355,30 @@ caché de instancias del ORM, carga diferida de listas, PJAX para el panel.
   pruebas unitarias) se ejecuta a mano o como paso previo a cada integración,
   en local o dentro del contenedor (`make docker-test`).
 
+#### Cuando la suite dice «finales de línea CRLF»
+
+`EntryPointTest` compara las 21 páginas de la raíz con lo que hay en git y
+falla si alguna trae `\r\n`. No es cosmético: un `CRLF` en un `.sh` rompe el
+contenedor con `bad interpreter: /bin/sh^M`, y en un `.php` mete `\r` dentro
+de las cadenas que se generan.
+
+El repositorio está guardado en `LF` (`.gitattributes` con `* -text` y
+`*.sh text eol=lf`), así que un archivo con `CRLF` casi siempre lo escribió un
+editor desde Windows. Para saber de dónde viene:
+
+```bash
+git ls-files --eol ajax.php      # i/lf  w/crlf  → el árbol, no el repositorio
+git diff --stat                  # ¿lo lista como modificado?
+git checkout -- ajax.php         # volver a sacarlo de git
+```
+
+Si `w/crlf` sale en **todo** el árbol, la causa es la configuración de git y
+no un archivo suelto: `git config --get core.autocrlf` (debería estar vacío o
+en `false`; en WSL2 se hereda el `.gitconfig` de Windows) y
+`git config --get core.eol`. `.editorconfig` y `.vscode/settings.json` ya
+fijan `LF` para el editor; esto cubre el caso en que el archivo se escribió
+por fuera.
+
 ### Checklist de pull request
 
 - [ ] `make ci` en verde.

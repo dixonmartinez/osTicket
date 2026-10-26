@@ -449,6 +449,10 @@ mismo tipo, y las tres estaban en el camino de **cada correo que entra**:
 deprecación de PHP 8.2 por cada mensaje recibido) y `Mail_mimeDecode::$_input`
 tampoco, en el decodificador MIME empaquetado —el aviso salía dos veces por
 correo—. Declararlas es una línea en cada sitio y el log deja de llenarse.
+En la misma tanda se les puso tipo de retorno a los cinco métodos de
+`Iterator` de `TnefStreamReader`/`TnefAttributeStreamReader` (cinco avisos más
+por cada `winmail.dat`) y se corrigió el parámetro implícitamente anulable de
+`tests/SeedPurgeTest.php`, que PHP 8.4 avisa en la primera línea de la suite.
 
 En `Mailer::send()` lo que queda es lo que no se puede probar sin enviar:
 cuentas SMTP, envío por Sendmail y la traducción de destinatarios a

@@ -44,6 +44,12 @@ class TnefException extends Exception {}
  * http://msdn.microsoft.com/en-us/library/ee160597(v=exchg.80).aspx
  * http://sourceforge.net/apps/trac/mingw-w64/browser/trunk/mingw-w64-headers/include/tnef.h?rev=3952
  */
+/**
+ * Lector de bloques TNEF (los `winmail.dat` de Outlook).
+ *
+ * Los métodos de `Iterator` llevan su tipo de retorno desde PHP 8.1: sin él,
+ * cada correo con TNEF dejaba cinco avisos de obsolescencia en el log.
+ */
 class TnefStreamReader implements Iterator {
     const SIGNATURE = 0x223e9f78;
 
@@ -125,7 +131,7 @@ class TnefStreamReader implements Iterator {
                 $sum, $block['checksum']));
     }
 
-    function next() {
+    function next(): void {
         if ($this->length - $this->pos < 11) {
             $this->current = false;
             return;
@@ -143,19 +149,19 @@ class TnefStreamReader implements Iterator {
             $this->check($this->current);
     }
 
-    function current() {
+    function current(): mixed {
         return $this->current;
     }
 
-    function key() {
+    function key(): mixed {
         return $this->current['type'];
     }
 
-    function valid() {
+    function valid(): bool {
         return (bool) $this->current;
     }
 
-    function rewind() {
+    function rewind(): void {
         // Skip signature and attach-key
         $this->pos = 6;
     }
@@ -285,11 +291,11 @@ class TnefAttributeStreamReader extends TnefStreamReader {
         $this->count = $this->_geti(32);
     }
 
-    function valid() {
-        return $this->count && $this->current;
+    function valid(): bool {
+        return (bool) ($this->count && $this->current);
     }
 
-    function rewind() {
+    function rewind(): void {
         $this->pos = 4;
     }
 
@@ -405,9 +411,10 @@ class TnefAttributeStreamReader extends TnefStreamReader {
         }
     }
 
-    function next() {
+    function next(): void {
         if ($this->count <= 0) {
-            return $this->current = false;
+            $this->current = false;
+            return;
         }
 
         $this->count--;
@@ -464,7 +471,7 @@ class TnefAttributeStreamReader extends TnefStreamReader {
         );
     }
 
-    function key() {
+    function key(): mixed {
         return $this->current['name'];
     }
 }

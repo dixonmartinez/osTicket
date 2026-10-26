@@ -78,14 +78,27 @@ class EntryPointTest extends UnitTestCase {
     }
 
     public function testSinBomYConFinalesDeLineaUniformes(): void {
+        $problems = array();
+
         foreach (self::$pages as $name) {
             $src = $this->source($name);
 
-            $this->assertTrue(substr($src, 0, 3) !== "\xEF\xBB\xBF",
-                "$name empieza con BOM");
-            $this->assertTrue(strpos($src, "\r\n") === false,
-                "$name tiene finales de línea CRLF mezclados");
+            if (substr($src, 0, 3) === "\xEF\xBB\xBF")
+                $problems[] = "$name empieza con BOM";
+
+            if ($crlf = substr_count($src, "\r\n"))
+                $problems[] = sprintf('%s tiene %d líneas con CRLF', $name, $crlf);
         }
+
+        // Se informan todas de una vez, con la cuenta de líneas: cuando el
+        // archivo lo guardó un editor desde Windows, saber si son dos líneas o
+        // el archivo entero es la diferencia entre un retoque y volver a
+        // sacarlo de git. Y `git ls-files --eol` distingue las dos causas.
+        $this->assertSame(array(), $problems, implode("; ", $problems)
+            . ". Los archivos del repositorio están en LF. Si el tuyo no, "
+            . "compruébalo con `git ls-files --eol <archivo>` (w/crlf) y "
+            . "recupéralo con `git checkout -- <archivo>`; si sale el árbol "
+            . "entero, revisa `git config core.autocrlf`");
     }
 
     /* ------------------------------------------------------------------ */

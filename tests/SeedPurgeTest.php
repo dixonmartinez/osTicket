@@ -205,7 +205,7 @@ class SeedPurgeTest extends UnitTestCase {
         @unlink(sys_get_temp_dir() . '/seed-purge-test-manifest.json');
     }
 
-    private function seed(SeedPurgeStream $err = null): SeedManager {
+    private function seed(?SeedPurgeStream $err = null): SeedManager {
         $seed = new SeedPurgeManager();
         $seed->stderr = $err ?: new SeedPurgeStream();
         $seed->stdout = new SeedPurgeStream();
