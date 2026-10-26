@@ -256,12 +256,12 @@ integración.
 
 **Dónde está** (medido el 2026-10-26 con `make metrics`): la primera tanda está
 hecha y en uso —catorce piezas puras sacadas de las funciones más largas, con
-361 pruebas nuevas y nueve defectos reales corregidos—, y ninguna de esas
+384 pruebas nuevas y nueve defectos reales corregidos—, y ninguna de esas
 funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **13 funciones de la
+El criterio de éxito **no se cumple todavía**: quedan **12 funciones de la
 aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 (`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
@@ -286,9 +286,10 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `File::create()` | 122 líneas | **98** (`FileInput`) |
 | `MailParse::getAttachments()` | 127 líneas | **64** (`MailAttachment`) |
 | `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`; `fields()` 148) |
+| `SelectSql::fields()` | 148 líneas | **57** (cinco tramos: relaciones, `values()`, simple, anotaciones y extras) |
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
-| Funciones de la aplicación por encima de 120 líneas | — | **13** |
+| Funciones de la aplicación por encima de 120 líneas | — | **12** |
 | Funciones de la aplicación por encima de 150 líneas | 10 | **8** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
@@ -302,10 +303,9 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Ocho funciones intermedias (120–175 líneas) que nadie ha tocado**,
+2. **Siete funciones intermedias (120–175 líneas) que nadie ha tocado**,
    y que no estaban en el plan: `Report::getTabularData()` (158),
-   `Thread::create()` (158), `Queue::update()` (157), `SelectSql::fields()`
-   (148, la pieza que se sacó de `compileSelect()`),
+   `Thread::create()` (158), `Queue::update()` (157),
    `Dept::update()` (137), `I18n::loadDefaultData()` (131) y
    `Thread::lookupByEmailHeaders()` (126). Varias son del mismo tipo que las que ya se partieron (armar campos,
    validar, componer mensajes); otras son `update()` de modelo, donde lo que
@@ -332,8 +332,8 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    dar la tanda por terminada.
 
 **Comprobación de las cifras de arriba** (2026-10-26, tras esta tanda, con
-`make metrics --top=400`): 13 funciones de la aplicación por encima de 120
-líneas —nueve menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
+`make metrics --top=400`): 12 funciones de la aplicación por encima de 120
+líneas —diez menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
 3 archivos por encima de 3.000 (`class.ticket.php` 4.516, `class.forms.php`
 4.515, `class.orm.php` 3.643). La función más larga de la aplicación sigue
 siendo `massProcess()` con 321 líneas. Fuera del criterio, por ser librerías
@@ -346,7 +346,7 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: **361 casos nuevos** sin base de datos.
+Pasos hechos: **384 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -356,7 +356,7 @@ Pasos hechos: **361 casos nuevos** sin base de datos.
 | `include/class.ticket.create.php` | `TicketCreate::requiredFields()` (qué exige cada origen: web, staff, api, email), `fieldFilter()` (qué se valida según quién abre), `dueDateError()`, `source()` y `openErrors()` (al abrir desde el panel: origen conocido y, sin usuario elegido, correo con forma de correo y nombre), más las nueve fases de `create()` | `tests/TicketCreateTest.php`, 23 casos |
 | `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
 | `include/class.mailer.message.php` | `MailerMessage::cleanSubject()` (asunto en una línea, sin saltos), `extraHeaders()` (boletín, respuesta automática y aviso, con el orden de siempre), `wrapMid()` (el `div` invisible con el identificador del mensaje), `textBody()` (HTML a texto y `Ref-Mid`) y `contentIdDomain()` (dominio de las imágenes incrustadas) | `tests/MailerMessageTest.php`, 24 casos |
-| `include/class.orm.select.php` | `SelectSql::fields()`: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`) | `tests/QuerySqlTest.php`, 26 casos |
+| `include/class.orm.select.php` | `SelectSql::fields()` 148 → **57**: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`), ahora en cinco tramos (`relatedFields()`, `valueFields()`, `plainFields()`, `addAnnotations()`, `extraFields()`) que devuelven sus columnas y su GROUP BY | `tests/QuerySqlTest.php`, 27 casos |
 | `include/class.validator.rule.php` | `ValidatorRule::check()`: la tabla de tipos de la definición de un campo (`int`, `double`, `text`, `date`, `email`, `phone`, `zipcode`, `username`, `password`, `url`, `cs-domain`, `cs-url`, `ipaddr`) y qué pasa cada valor, devolviendo el mensaje de error del campo o `null`; `everyValue()` (listas de valores) y los ayudantes de correo, URL, teléfono y usuario | `tests/ValidatorRuleTest.php`, 18 casos |
 | `include/class.ticket.edit.php` | `TicketEdit`: los cuatro campos que se validan al editar un ticket y sus mensajes, la regla de la fecha límite (ticket cerrado, fecha legible y futura, con el conversor inyectado), la comprobación del origen y **qué cambios quedan en el historial** (`trackedChanges()`) | `tests/TicketEditTest.php`, 13 casos |
 | `include/class.search.record.php` | `SearchRecord`: cómo se arma cada registro del índice (`object_type`, id, título, contenido) para los cinco tipos —entrada del hilo, ticket, usuario, organización y artículo de la base de conocimiento— con sus diferencias: la entrada vacía no se indexa, el ticket no recorta y el usuario y la organización sí, y las palabras clave van delante de la pregunta | `tests/SearchRecordTest.php`, 18 casos |

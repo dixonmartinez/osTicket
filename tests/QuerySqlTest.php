@@ -387,6 +387,23 @@ class QuerySqlTest extends UnitTestCase {
             . ' GROUP BY DATE(A1.`created`)', $q['sql']);
     }
 
+    /**
+     * `values()` + agregado + `distinct`: manda el `distinct`, el GROUP BY es
+     * su columna. Es lo que producía el código antes de partir `fields()` en
+     * ramas —se comprobó ejecutando las dos versiones con la misma consulta—,
+     * y la combinación no estaba cubierta.
+     */
+    public function testValoresConAgregadoYDistintoAgrupaPorElDistinto(): void {
+        $q = $this->compile($this->probe()->order_by(false)
+            ->values(array('day' => new \SqlFunction('DATE', new \SqlField('created'))))
+            ->annotate(array('n' => new \SqlAggregate('COUNT', new \SqlField('id'))))
+            ->distinct('name'));
+
+        $this->assertSame('SELECT DATE(A1.`created`) AS `day`,'
+            . ' COUNT(A1.`id`) AS `n` FROM `probe` A1'
+            . ' GROUP BY A1.`name`', $q['sql']);
+    }
+
     public function testValoresConExpresionYOrdenExplicito(): void {
         // Un ORDER BY de columna suelta rompería ONLY_FULL_GROUP_BY, así que
         // las agrupaciones por expresión van con order_by(false)
