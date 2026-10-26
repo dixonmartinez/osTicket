@@ -748,6 +748,29 @@ class TicketPerfTest extends UnitTestCase {
     }
 
     /**
+     * La configuración de un espacio de nombres se pide una vez, no dos.
+     *
+     * `ConfigItem::items()` ejecutaba `count($items)` sólo para detectar una
+     * instalación a medio actualizar (`InconsistentModelException` viene del
+     * `db_prepare`), y `Config::load()` recorría la misma tabla a
+     * continuación: dos consultas por espacio de nombres, que el perfil real
+     * señalaba en `class.config.php:168` y `:49`. Recorrer la consulta hace
+     * las dos cosas de una vez. Se comprueba sobre el código porque sin base
+     * de datos no hay consultas que contar.
+     */
+    function testLaConfiguracionNoSePideDosVeces() {
+        $source = file_get_contents(INCLUDE_DIR . 'class.config.php');
+
+        $this->assertFalse(strpos($source, "        try {\n            count(\$items);")
+            !== false, 'Volvió el count() que duplica la consulta de config');
+        $this->assertTrue(strpos($source, 'foreach ($items as $item);') !== false,
+            'Falta el recorrido que deja la consulta en la caché del iterador');
+        // Y la detección de la actualización pendiente sigue en su sitio.
+        $this->assertTrue(strpos($source, 'catch (InconsistentModelException $ex)')
+            !== false);
+    }
+
+    /**
      * Los avisos del hilo se piden una vez, no dos.
      *
      * `count($events)` sobre la consulta compilaba

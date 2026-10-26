@@ -125,8 +125,8 @@ existe para enseñar sin leer el ORM.
 
 ## Lo que ya se arregló
 
-Las dos primeras se veían en el código sin necesidad de medir; las otras tres
-las señaló el perfil real del ticket antes de que nadie las buscara:
+Las dos primeras se veían en el código sin necesidad de medir; las otras
+cuatro las señaló el perfil real del ticket antes de que nadie las buscara:
 
 1. **Una consulta por entrada al pintar el hilo.**
    `include/staff/templates/thread-entries.tmpl.php` recorría las entradas y
@@ -166,6 +166,15 @@ las señaló el perfil real del ticket antes de que nadie las buscara:
    `:13` en el perfil, 3,2 ms entre las dos). Ahora se traen una vez y se
    cuentan en memoria; el orden es el mismo (`order_by()` sigue aplicándose
    sobre la consulta).
+
+6. **La configuración se pedía dos veces por espacio de nombres.**
+   `ConfigItem::items()` ejecutaba `count($items)` —que compila su propio
+   `SELECT COUNT(*) FROM (SELECT id …)`— sólo para detectar una instalación a
+   medio actualizar, y `Config::load()` recorría la misma tabla justo después.
+   El perfil las enseñaba como `class.config.php:168` y `:49`, 0,6 ms por
+   carga. Ahora se recorre la consulta una vez: eso hace de detección (el
+   `db_prepare` lanza `InconsistentModelException` igual que el `COUNT(*)`) y
+   deja el resultado en la caché del iterador.
 
 > Ojo con pedirlo desde `render()`: `$thread->getEvents()` devuelve una
 > `InstrumentedList` y `select_related()` sobre ella recae en un **clon** de la

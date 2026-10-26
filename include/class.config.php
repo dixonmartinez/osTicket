@@ -165,7 +165,16 @@ extends VerySimpleModel {
             ->filter([$column => $namespace]);
 
         try {
-            count($items);
+            // Recorrer la consulta **una vez** hace lo mismo que el `count()`
+            // de antes —si la instalación está a medio actualizar, el
+            // `db_prepare` lanza `InconsistentModelException`— y además deja
+            // el resultado en la caché del iterador, que es lo que el
+            // llamador recorre justo después (`Config::load()`). Antes se
+            // pagaban dos consultas a la misma tabla por espacio de nombres:
+            // `SELECT COUNT(*) FROM (SELECT id …)` y el `SELECT * …`. Se ve en
+            // el perfil real del ticket 428 como `class.config.php:168` y
+            // `class.config.php:49`.
+            foreach ($items as $item);
         }
         catch (InconsistentModelException $ex) {
             // Pending upgrade ??
