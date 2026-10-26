@@ -18,6 +18,7 @@ include_once(INCLUDE_DIR.'class.dept.php');
 include_once(INCLUDE_DIR.'class.error.php');
 include_once(INCLUDE_DIR.'class.team.php');
 include_once(INCLUDE_DIR.'class.role.php');
+include_once(INCLUDE_DIR.'class.staff.check.php');
 include_once(INCLUDE_DIR.'class.passwd.php');
 include_once(INCLUDE_DIR.'class.user.php');
 include_once(INCLUDE_DIR.'class.auth.php');
@@ -1238,10 +1239,7 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
         if (isset($this->staff_id) && $this->getId() != $vars['id'])
             $errors['err']=__('Internal error occurred');
 
-        if(!$vars['firstname'])
-            $errors['firstname']=__('First name required');
-        if(!$vars['lastname'])
-            $errors['lastname']=__('Last name required');
+        $errors += StaffCheck::missing($vars);
 
         $error = '';
         if(!$vars['username'] || !Validator::is_username($vars['username'], $error))
@@ -1264,16 +1262,17 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
         if($vars['mobile'] && !Validator::is_phone($vars['mobile']))
             $errors['mobile']=__('Valid phone number is required');
 
-        if(!$vars['dept_id'])
-            $errors['dept_id']=__('Department is required');
-        if(!$vars['role_id'])
-            $errors['role_id']=__('Role for primary department is required');
-
         $dept = Dept::lookup($vars['dept_id']);
         if($dept && !$dept->isActive())
           $errors['dept_id'] = sprintf(__('%s selected must be active'), __('Department'));
 
-        // Ensure we will still have an administrator with access
+        // Ensure we will still have an administrator with access.
+        //
+        // Antes esto comparaba con `$uid`, que sólo existe si el nombre de
+        // usuario o el correo han cambiado en este mismo guardado (eran los
+        // `elseif` de arriba): el aviso de «no puedes quitarte el único
+        // administrador» no llegaba a verse. La regla —y su prueba— viven en
+        // `StaffCheck::lastAdminError()`.
         if ($vars['isadmin'] !== '1' || $vars['islocked'] === '1') {
             $admins = array();
             foreach (Staff::objects()
@@ -1281,16 +1280,9 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
                     ->values_flat('staff_id') as list($sid))
                 $admins[] = $sid;
 
-            /* Antes esto comparaba con `$uid`, que sólo existe si el nombre de
-               usuario o el correo han cambiado en este mismo guardado (eran
-               los `elseif` de arriba): el aviso de «no puedes quitarte el
-               único administrador» no llegaba a verse. Lo que se quiere
-               comprobar es si el único administrador activo es este agente. */
-            if (count($admins) == 1 && $admins[0] == $this->getId()) {
-                $errors['isadmin'] = __(
-                    'Cowardly refusing to remove or lock out the only active administrator'
-                );
-            }
+            if ($adminError = StaffCheck::lastAdminError($admins,
+                    $this->getId(), $vars['isadmin'], $vars['islocked']))
+                $errors['isadmin'] = $adminError;
         }
 
         // Update the local permissions
@@ -1333,25 +1325,15 @@ implements AuthenticatedUser, EmailContact, TemplateVariable, Searchable {
             $this->setDepartmentId($vars['dept_id']);
 
             // Format access update as [array(dept_id, role_id, alerts?)]
-            $access = array();
-            if (isset($vars['dept_access'])) {
-                foreach (@$vars['dept_access'] as $dept_id) {
-                    $access[] = array($dept_id, $vars['dept_access_role'][$dept_id],
-                        @$vars['dept_access_alerts'][$dept_id]);
-                }
-            }
-            $this->updateAccess($access, $errors);
+            $this->updateAccess(StaffCheck::accessPairs(
+                @$vars['dept_access'], @$vars['dept_access_role'],
+                @$vars['dept_access_alerts']), $errors);
             $this->setExtraAttr('def_assn_role',
                 isset($vars['assign_use_pri_role']), true);
 
             // Format team membership as [array(team_id, alerts?)]
-            $teams = array();
-            if (isset($vars['teams'])) {
-                foreach (@$vars['teams'] as $team_id) {
-                    $teams[] = array($team_id, @$vars['team_alerts'][$team_id]);
-                }
-            }
-            $this->updateTeams($teams, $errors);
+            $this->updateTeams(StaffCheck::teamPairs(
+                @$vars['teams'], @$vars['team_alerts']), $errors);
 
             if ($vars['welcome_email'])
                 $this->sendResetEmail('registration-staff', false);
