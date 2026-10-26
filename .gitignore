@@ -41,3 +41,6 @@ ost-iconos.html
 # Caché de PHPUnit
 .phpunit.cache/
 .phpunit.result.cache
+
+# Manifiesto del sembrador de datos de demostración (se genera solo)
+tools/dev/seed-manifest.json

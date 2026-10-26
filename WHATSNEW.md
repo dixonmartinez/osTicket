@@ -16,6 +16,19 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   plantillas llevan `nonce` (`Http::nonce()`, uno por sesión), y
   `make csp-nonce` falla si aparece uno sin él (OST-102).
 
+### Datos y correo de prueba
+* **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 4 departamentos,
+  2 equipos, 2 SLA, 6 temas, 5 respuestas predefinidas, 8 artículos de base
+  de conocimiento y **30 tickets** con estados y antigüedad variados, creados
+  con los mismos métodos que el panel (no con SQL a mano: los campos viven en
+  `form_entry_values` y `ticket__cdata` es una vista). `--fresh` deshace sólo
+  lo suyo. Ver `docs/SEED.md`.
+* **Mailpit, paso a paso**: `docs/MAIL.md` (host `mailpit`, puerto 1025, sin
+  TLS ni usuario; el buzón no tiene IMAP, así que la sección *Mailbox* se
+  desactiva y el correo entrante se prueba con `api/pipe.php`).
+  `make mail` recuerda las URLs y `make test-mail` envía un mensaje de prueba
+  sin pasar por la aplicación.
+
 ### Development environment (no installs on the host)
 * `compose.yaml` + `compose.override.yaml` + `compose.prod.yaml`:
   nginx, PHP-FPM (Xdebug 3), MariaDB y Mailpit.

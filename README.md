@@ -118,6 +118,10 @@ Project documentation:
     2026-10-21 PHP vulnerability: versions, mitigations, checklists.
   * [`docs/CODE_QUALITY.md`](docs/CODE_QUALITY.md) — code health: measured
     figures, the six refactoring fronts and what not to touch.
+  * [`docs/SEED.md`](docs/SEED.md) — demo data (`make seed`): what it
+    creates, how to undo it and why it is not a `.sql` file.
+  * [`docs/MAIL.md`](docs/MAIL.md) — test mail with Mailpit, step by step:
+    host, port, mailbox settings and inbound mail.
   * [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) — bundled library inventory.
 
 New in this branch:
@@ -128,6 +132,15 @@ New in this branch:
     JavaScript dependency.
   * **Mobile** — responsive agent panel (`css/mobile.css`), installable PWA
     (`manifest.php`, `sw.js`) that caches *only* static assets, never tickets.
+  * **Demo data** — `make seed` fills a fresh install with 30 tickets, 12
+    clients, 5 agents, departments, teams, SLAs, help topics, canned responses
+    and a small knowledge base, through the same API the agent panel uses.
+    `make seed-fresh` removes only what it created. See
+    [`docs/SEED.md`](docs/SEED.md).
+  * **Test mail** — `make test-mail` sends a message to the bundled Mailpit
+    (SMTP `mailpit:1025`, inbox at <http://localhost:8025>); step-by-step
+    setup, including the mailbox tab for inbound mail, in
+    [`docs/MAIL.md`](docs/MAIL.md).
 
 Scaffold new screens or endpoints with:
 

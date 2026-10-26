@@ -26,7 +26,8 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-integration docker-security docker-prod \
 	docker-composer docker-qa \
-	docker-bench docker-urls
+	docker-bench docker-urls \
+	seed seed-fresh seed-check mail test-mail
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -233,6 +234,25 @@ docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 	@echo ""
 	@echo "→ ¿Sigue accesible /setup/ desde la web?"
 	@docker compose exec -T php php tools/security/setup-probe.php
+
+seed: ## Carga datos de demostración (organizaciones, agentes, temas, 30 tickets)
+	@docker compose exec -T php php manage.php seed
+
+seed-fresh: ## Borra lo que creó `make seed` y lo vuelve a crear
+	@docker compose exec -T php php manage.php seed --fresh
+
+seed-check: ## Sólo muestra qué pasos hay y qué haría (no escribe)
+	@docker compose exec -T php php manage.php seed --list
+
+mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar
+	@$(MAKE) --no-print-directory docker-urls
+	@printf '\n  Buzón de pruebas (Mailpit)\n'
+	@printf '    Interfaz web : http://localhost:%s\n' "$${MAILPIT_UI_PORT:-8025}"
+	@printf '    SMTP         : host mailpit · puerto 1025 · sin TLS · sin usuario\n'
+	@printf '    Guía         : docs/MAIL.md\n\n'
+
+test-mail: ## Envía un correo de prueba a Mailpit desde el contenedor
+	@docker compose exec -T php php tools/dev/mail-test.php
 
 docker-composer: ## Instala las dependencias de desarrollo con Composer (en contenedor)
 	@docker compose --profile tools run --rm composer install

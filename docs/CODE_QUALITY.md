@@ -261,7 +261,7 @@ funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **24 funciones de la
+El criterio de éxito **no se cumple todavía**: quedan **22 funciones de la
 aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 (`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
@@ -276,8 +276,10 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
 | `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
 | `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`; `fields()` 148) |
-| Funciones de la aplicación por encima de 120 líneas | — | **24** |
-| Funciones de la aplicación por encima de 150 líneas | 10 | **10** |
+| `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
+| `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
+| Funciones de la aplicación por encima de 120 líneas | — | **22** |
+| Funciones de la aplicación por encima de 150 líneas | 10 | **9** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
 **Lo que queda, y por qué no es sólo «seguir partiendo»:**
@@ -290,14 +292,12 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Diecinueve funciones intermedias (121–175 líneas) que nadie ha tocado**,
-   y que no estaban en el plan: `Schedule::buildFields()` (175),
-   `Dept::update()` (159), `Report::getTabularData()` (158), `Thread::create()`
+2. **Diecisiete funciones intermedias (121–175 líneas) que nadie ha tocado**,
+   y que no estaban en el plan: `Dept::update()` (159), `Report::getTabularData()` (158), `Thread::create()`
    (158), `Queue::update()` (157), `SelectSql::fields()` (148, la pieza que se
    sacó de `compileSelect()`), `Search::IndexOldStuff()` (137),
    `Staff::update()` (137), `Ticket::update()` (133), `I18n::loadDefaultData()`
-   (131), `Ticket::open()` (129), `Validator::validate()` (129),
-   `Organization::update()` (128), `MailParse::getAttachments()` (127),
+   (131), `Ticket::open()` (129), `Organization::update()` (128), `MailParse::getAttachments()` (127),
    `Thread::lookupByEmailHeaders()` (126), `Topic::update()` (126),
    `File::create()` (122) y `Ticket::setStatus()` (121). Varias son del mismo
    tipo que las que ya se partieron (armar campos, validar, componer
@@ -310,7 +310,9 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 4. **Las herramientas del propio proyecto** también aparecen en la lista
    (`run()` de `include/cli/modules/file.php` con 408 líneas, `_build()` del
    módulo de idiomas con 190, `install()` del instalador con 302,
-   `sqlaudit_main()` con 172). No son código de la aplicación —el criterio
+   `sqlaudit_main()` con 172). El sembrador de datos de demostración
+   (`include/cli/modules/seed.php`) nace ya repartido en diez pasos cortos, uno
+   por tipo de registro, para no engordar esa lista. No son código de la aplicación —el criterio
    habla de la aplicación, y las tres primeras son CLI— pero están a la vista
    y se parten cuando se toquen por otro motivo.
 
@@ -319,7 +321,7 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: **160 casos nuevos** sin base de datos.
+Pasos hechos: **195 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -330,10 +332,13 @@ Pasos hechos: **160 casos nuevos** sin base de datos.
 | `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
 | `include/class.mailer.message.php` | `MailerMessage::cleanSubject()` (asunto en una línea, sin saltos), `extraHeaders()` (boletín, respuesta automática y aviso, con el orden de siempre), `wrapMid()` (el `div` invisible con el identificador del mensaje), `textBody()` (HTML a texto y `Ref-Mid`) y `contentIdDomain()` (dominio de las imágenes incrustadas) | `tests/MailerMessageTest.php`, 24 casos |
 | `include/class.orm.select.php` | `SelectSql::fields()`: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`) | `tests/QuerySqlTest.php`, 26 casos |
+| `include/class.validator.rule.php` | `ValidatorRule::check()`: la tabla de tipos de la definición de un campo (`int`, `double`, `text`, `date`, `email`, `phone`, `zipcode`, `username`, `password`, `url`, `cs-domain`, `cs-url`, `ipaddr`) y qué pasa cada valor, devolviendo el mensaje de error del campo o `null`; `everyValue()` (listas de valores) y los ayudantes de correo, URL, teléfono y usuario | `tests/ValidatorRuleTest.php`, 18 casos |
+| `include/class.schedule.fields.php` | `ScheduleEntryFormFields::build()`: los 13 campos del formulario de horario (nombre, fecha, todo el día, hora de inicio y fin, repetición, día de la semana, del mes y del año), sus valores por omisión y **cuándo se muestra cada uno** (`allday`, `repeats`, `monthly`, `yearly`), armados por bloques (`head()`, `weekly()`, `monthly()`, `yearly()`) | `tests/ScheduleFieldsTest.php`, 17 casos |
 
-Las siete clases ya están en uso (`Ticket::postMessage()`,
+Las nueve clases ya están en uso (`Ticket::postMessage()`,
 `Thread::postEmail()`, `ThreadEntry::create()`, `Ticket::create()`, los dos
-`massProcess()`, `Mailer::send()` y `compileSelect()`). No cambia nada de lo
+`massProcess()`, `Mailer::send()`, `compileSelect()`, `Validator::validate()`
+y `ScheduleEntryForm::buildFields()`). No cambia nada de lo
 que hacen, y ahora
 la parte que más se rompe —de quién es el correo, a quién se responde, cómo se
 marca la entrada, qué se exige al abrir un ticket, qué se hace en lote con los
@@ -371,7 +376,29 @@ compilador y el alias, y devuelve texto. La prueba compara el SQL completo
 orden, límite, bloqueos, `values()`, diferidos, `distinct`, anotaciones,
 columnas extra y JOIN.
 
-Esa prueba destapó cuatro defectos de PHP 8 que el ORM arrastraba y que sólo
+`Validator::validate()` mezclaba tres cosas en un bucle de 129 líneas: campos
+obligatorios y vacíos, la comprobación de tipo y el armado de los errores. La
+comprobación de tipo —una tabla de `switch` por cada tipo— pasa a
+`ValidatorRule::check()`, que recibe un valor y devuelve el mensaje o `null`.
+Lo demás se queda en `validate()`, que baja a 52 líneas. Ese traslado sacó un
+defecto real: si llegaba un arreglo a un campo de tipo fecha, correo o teléfono,
+`strtotime()` reventaba con un 500 (o dejaba un «Array to string conversion» en
+el log); ahora es el error del campo, como cualquier otro valor inválido.
+
+`ScheduleEntryForm::buildFields()` eran 175 líneas de definiciones de campo con
+reglas cruzadas: la hora de inicio y de fin dependen de «todo el día», y el día
+de la semana, el día del mes y el «in» sólo aparecen según cómo repita la
+entrada. Pasa a `ScheduleEntryFormFields::build()`, que devuelve el mismo
+arreglo (mismas claves, mismo orden, mismos valores por omisión y las mismas
+restricciones de visibilidad) y queda en 5 líneas. Las 17 pruebas comprueban los
+13 campos uno a uno: su tipo, si es obligatorio, su valor por omisión y su
+condición de visibilidad. Aquí no había ningún defecto de comportamiento, pero
+sí uno de robustez: `options()` leía `$options['timezone']` sin comprobar que
+existiera y dejaba un «Undefined array key» en el log cada vez que el formulario
+se construía sin opciones.
+
+Esa prueba de `compileSelect()` destapó cuatro defectos de PHP 8 que el ORM
+arrastraba y que sólo
 se veían al compilar según qué consulta:
 
 1. `SqlCompiler::$annotations` y `CompiledExpression::$type` no estaban

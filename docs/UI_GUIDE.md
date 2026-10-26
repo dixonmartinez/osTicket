@@ -720,6 +720,8 @@ queda en §6.2.
 | 15 | **Auditoría de manejadores inline** con umbral: `make inline-audit` lista, cuenta y falla si el número sube | ✅ Hecho | `tools/ui/inline-handlers.php` |
 | 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
 | 17 | **CSP con nonce**: los 98 `<script>` en línea de las plantillas llevan `nonce`, `script-src` deja de anunciar `'unsafe-inline'` y el instalador tampoco lo necesita (§6.2-1b, OST-102) | ✅ Hecho | `include/class.http.php`, `tools/quality/csp-nonce.php`, `tests/CspNonceTest.php` |
+| 17b | **Datos de demostración** para poder mirar la interfaz con contenido real: 30 tickets con estados, departamentos y antigüedad variados, 12 clientes en 3 organizaciones, 5 agentes, 4 departamentos, 2 equipos, 2 SLA, 6 temas, 5 respuestas y 8 artículos de base de conocimiento, creados con la API del panel y borrables con `--fresh` | ✅ Hecho | `include/cli/modules/seed.php`, `make seed`, `docs/SEED.md` |
+| 17c | **Buzón de pruebas documentado**: Mailpit paso a paso (host `mailpit`, puerto 1025, sin TLS ni usuario, qué mirar, entrante con `api/pipe.php`, cron a mano) y `make test-mail` para un envío sin pasar por la aplicación. Es lo que permite comprobar los correos reales en claro y en oscuro | ✅ Hecho | `docs/MAIL.md`, `tools/dev/mail-test.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -734,7 +736,7 @@ respuesta, acceso y FAQ).
 |---|---|---|
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
-| 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Es lo único que no se puede reproducir sin la base de datos; el CSS está hecho y probado con HTML de ejemplo |
+| 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 
 ## 7. Si la interfaz se ve mal después de actualizar
 
