@@ -57,7 +57,7 @@ docker compose exec -T php php manage.php seed --no-tickets
 | `users` | 12 clientes repartidos entre las tres organizaciones, con teléfono |
 | `slas` | Respuesta 8 h · Respuesta 24 h (24/7, sin horario asignado) |
 | `depts` | Soporte · Soporte Técnico (hijo) · Facturación (hijo) · Ventas · Seguridad (privado) |
-| `agents` | `admin` (administrador), `supervisor`, `agente1`, `agente2`, `agente3` — todos con acceso a los cinco departamentos |
+| `agents` | `supervisor`, `agente1`, `agente2`, `agente3` — y `admin` **sólo si la instalación no tiene ningún administrador**; todos con acceso a los cinco departamentos |
 | `teams` | Turno de noche · Escalado (con líder y miembros) |
 | `topics` | Problema técnico · Facturación y pagos · Solicitud de información · Alta de usuario · Reclamación · Cuenta y acceso · Soporte técnico · Formación · Incidente interno y Uso del panel (los dos últimos, privados) |
 | `canned` | Saludo inicial · Petición de información · Ticket resuelto · Escalado a segundo nivel · Factura duplicada |
@@ -71,11 +71,22 @@ primario) y sin departamento ni tema no hay ticket. Si ejecuta un paso suelto
 con `--only` y le faltan los anteriores, lo dirá con un aviso en vez de crear
 registros a medias.
 
-**Credenciales**: usuario `admin`, contraseña `Demo1234!` (la misma para el
-resto de agentes y para las cuentas de cliente). Si al instalar ya creó una
-cuenta `admin` con otra contraseña, ese usuario se respeta tal cual y el
-sembrador no lo toca: entre con su contraseña de siempre, o use `supervisor`,
-`agente1`, `agente2` o `agente3` con `Demo1234!`.
+**Credenciales**: los agentes de demostración (`supervisor`, `agente1`,
+`agente2`, `agente3`) y las cuentas de cliente usan la contraseña `Demo1234!`.
+
+El **administrador no se duplica**. Quien instala osTicket ya tiene el suyo,
+con el nombre de usuario y la contraseña que eligió; el sembrador lo busca por
+`isadmin = 1` —no por el nombre `admin`, que el instalador deja elegir— y lo
+usa tal cual:
+
+- no crea un segundo administrador;
+- **no le cambia la contraseña ni el correo**;
+- firma con él las tareas y las notas internas, que necesitan un agente en
+  sesión;
+- al terminar, el resumen dice con qué usuario entrar al panel.
+
+Sólo si la instalación no tiene **ningún** administrador activo se crea uno de
+demostración (`admin` / `Demo1234!`).
 
 Los correos de demostración usan **`example.com`**, el dominio reservado para
 documentación (RFC 2606). No es un detalle estético: con «Verify email
@@ -194,10 +205,27 @@ tickets que hayas abierto tú ni la configuración de la instalación.
 make seed-fresh          # borra y vuelve a crear
 ```
 
-Algunos modelos de osTicket exigen un agente en sesión para borrarse
-(`Team::delete()` devuelve `false` sin decirlo). Durante la purga el sembrador
-pone al administrador como agente en curso y después lo quita, para que
-`--fresh` no deje equipos ni categorías a medias.
+La purga tiene **dos pasadas**:
+
+1. **Por el manifiesto** (`tools/dev/seed-manifest.json`): los identificadores
+   exactos de lo que creó el sembrador, de lo más dependiente a lo más básico,
+   con el administrador como agente en curso (algunos modelos, como
+   `Team::delete()`, devuelven `false` en silencio sin él). El manifiesto se
+   escribe **después de cada registro**, no al final: si la ejecución se corta
+   a mitad —un error de PHP, un `Ctrl-C`, un contenedor que se reinicia—, lo
+   que ya se creó sigue apuntado y `--fresh` puede borrarlo.
+2. **Por nombre**: sólo para los restos que dejaron versiones anteriores del
+   sembrador (las que perdían el manifiesto). Se limita a lo que es
+   **inequívocamente** suyo: los artículos y categorías de la base de
+   conocimiento (sus preguntas y nombres sólo existen en el módulo) y los dos
+   equipos de demostración.
+
+La pasada por nombre **nunca toca al administrador de la casa** (se excluye por
+id en la purga del manifiesto) y tampoco borra por nombre departamentos, SLA,
+organizaciones, usuarios, tickets ni tareas: si usted tiene un departamento
+«Soporte» o un SLA «Respuesta 8 h» propios, que se llamen igual que los de
+demostración no los convierte en desechables. Esos se borran sólo por
+identificador.
 
 > **Si ya sembró con una versión anterior** (los correos eran
 > `@demo.invalid`), ejecute `make seed-fresh` una vez: el dominio ha cambiado
@@ -278,3 +306,25 @@ traga el error del motor («Internal error occurred»); el sembrador lo rescata
 
 El orden de los pasos ya tiene en cuenta las dependencias; si ejecuta uno solo,
 los pasos anteriores tienen que estar hechos.
+
+### «Ya existía» en todos los pasos
+
+Si `make seed` dice `0 creado(s), N ya existía(n)` para casi todo, hay restos de
+una ejecución anterior. Con esta versión ya no se acumulan (el manifiesto se
+apunta registro a registro), pero si vienen de una versión anterior:
+
+```bash
+make seed-fresh          # los borra: conocimiento y equipos, por nombre
+make seed-fresh          # y esta vez sí los crea
+```
+
+Dos ejecuciones seguidas de `seed-fresh` son inofensivas: la segunda no
+encuentra restos.
+
+Si lo que sobra son **tickets, tareas, usuarios o departamentos** de una
+ejecución antigua, la purga no los toca a propósito (podrían ser suyos, con el
+mismo nombre). Bórrelos desde el panel —*Tickets* → seleccionar → *Eliminar*—
+o empiece de cero con `make docker-reset`, que borra el volumen de la base.
+
+Si prefiere verlo antes, `--verbose` marca cada registro con `+` (creado) o
+`=` (ya existía) y dice su nombre, así que se puede comprobar cuál sobra.

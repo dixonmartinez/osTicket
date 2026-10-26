@@ -532,6 +532,134 @@ class SeedDataTest extends UnitTestCase {
                 'no debería reconocer «' . var_export($ref, true) . '»');
     }
 
+    /* ------------------------------------------------------------------ */
+    /* El administrador de la instalación                                  */
+    /* ------------------------------------------------------------------ */
+
+    public function testElSembradorNoCreaUnSegundoAdministrador(): void {
+        // Quien ya instaló osTicket tiene su propio administrador. El paso
+        // `agents` sólo debe crear el de demostración cuando no hay ninguno,
+        // y para saberlo hay que preguntar por `isadmin`, no por el nombre de
+        // usuario: el instalador deja elegir cualquiera.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+
+        $this->assertStringContainsString('function firstAdmin()', $source);
+        $this->assertStringContainsString("'isadmin' => 1", $source);
+        // El administrador de demostración se salta si ya hay uno en uso
+        $this->assertStringContainsString('if ($isadmin && $this->adminStaff)',
+            $source);
+        // Y lo que necesita sesión de agente se firma con él
+        $this->assertStringContainsString('$this->adminStaff ?: $this->firstAdmin()',
+            $source);
+    }
+
+    public function testHayUnSoloAdministradorEnLosDatos(): void {
+        $admins = 0;
+        foreach (SeedManager::agents() as $agent)
+            if ($agent[4])
+                $admins++;
+
+        $this->assertSame(1, $admins);
+    }
+
+    public function testElAdministradorEnUsoSeEligeAlEmpezar(): void {
+        // `--only=tasks` no pasa por el paso `agents`: el administrador tiene
+        // que quedar resuelto antes de los pasos, no dentro de uno.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $start = strpos($source, '$this->loadManifest();');
+        $set = strpos($source, '$this->adminStaff = $this->firstAdmin();');
+
+        $this->assertTrue($set !== false, 'falta resolver el administrador');
+        $this->assertTrue($set > $start,
+            'el administrador debe resolverse al cargar el manifiesto');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* La purga de `--fresh`                                               */
+    /* ------------------------------------------------------------------ */
+
+    public function testLaPurgaTieneSegundaPasadaPorNombre(): void {
+        // El manifiesto sólo sirve si la ejecución anterior terminó: cuando un
+        // borrado fallaba (los equipos necesitaban sesión de agente), los ids
+        // desaparecían y `--fresh` decía «ya existía» para siempre.
+        $this->assertTrue(method_exists('SeedManager', 'purgeByName'));
+        $this->assertTrue(method_exists('SeedManager', 'purgeAll'));
+
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $this->assertStringContainsString('$loose = $this->purgeByName();', $source);
+    }
+
+    public function testLaPurgaPorNombreSoloTocaLoInequivocamentePropio(): void {
+        // El conocimiento y los equipos tienen nombres que sólo existen en
+        // este módulo. Departamentos, SLA, organizaciones, usuarios, tickets y
+        // tareas **no** se borran por nombre: si alguien tiene un
+        // departamento «Soporte» propio, borrarlo por parecerse sería perder
+        // su configuración. Esos van sólo por identificador.
+        $method = new ReflectionMethod('SeedManager', 'purgeByName');
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $lines = explode("\n", $source);
+        $body = implode("\n", array_slice($lines,
+            $method->getStartLine() - 1,
+            $method->getEndLine() - $method->getStartLine() + 1));
+
+        foreach (array('FAQ', 'Category', 'Team') as $class)
+            $this->assertStringContainsString($class . '::objects()', $body,
+                "la purga por nombre no borra $class");
+
+        foreach (array('Ticket', 'Task', 'Canned', 'Topic', 'Staff', 'Dept',
+                'SLA', 'User', 'Organization') as $class)
+            $this->assertTrue(strpos($body, $class . '::objects()') === false,
+                "$class no debe borrarse por nombre");
+    }
+
+    public function testElManifiestoSeApuntaAlCrearCadaRegistro(): void {
+        // Si la ejecución se corta a mitad, lo creado hasta ahí tiene que
+        // poder borrarse: el manifiesto se escribe registro a registro, no al
+        // final del comando.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $init = strpos($source, 'function __construct');
+        $created = strpos($source, 'function created(');
+        $end = strpos($source, 'function counted(', $created);
+        $body = substr($source, $created, $end - $created);
+
+        $this->assertStringContainsString('$this->saveManifest();', $body);
+    }
+
+    public function testLaPurgaRespetaAlAdministradorDeLaCasa(): void {
+        // Si la instalación nació con la cuenta de demostración (`admin`, con
+        // correo en el dominio de prueba), el manifiesto la conoce y `--fresh`
+        // la borraría: el panel se quedaría sin acceso. Se excluye por id.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $this->assertStringContainsString(
+            "if (\$this->adminStaff\n                                && \$this->adminStaff->getId() == \$id)",
+            $source);
+    }
+
+    public function testLaExistenciaDeUnArticuloNoDependeDelORM(): void {
+        // La comprobación anterior (`FAQ::lookup`) decía «no existe» y luego
+        // `FAQ::update()` rechazaba la pregunta por duplicada: 8 artículos
+        // quedaban sin crear con un aviso. Se pregunta por el id directamente.
+        $this->assertTrue(method_exists('SeedManager', 'faqIdByQuestion'));
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $this->assertStringContainsString('FROM %s WHERE question = %s LIMIT 1',
+            $source);
+        $this->assertStringContainsString('FAQ_TABLE, db_input($question)', $source);
+        $this->assertStringContainsString('$this->faqIdByQuestion($question)', $source);
+    }
+
+    public function testCadaActualizacionEmpiezaSinErrores(): void {
+        // `$errors` es acumulativo: reutilizarlo entre registros hacía que el
+        // aviso de un fallo anterior se pegara al siguiente registro creado.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $creates = preg_match_all(
+            '/\$(staff|dept|team|sla|topic|category|faq) = \w+::create\(\);\s*\n'
+            . '\s*\$errors = array\(\);/',
+            $source);
+
+        $this->assertSame(7, $creates,
+            'cada `create()` debe ir seguido de `$errors = array()`');
+    }
+
     public function testElManifiestoNoSeVersiona(): void {
         // `--fresh` borra por número de identificador: si el manifiesto se
         // versionara, se borrarían registros de otra instalación.

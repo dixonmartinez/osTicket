@@ -17,6 +17,12 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   `make csp-nonce` falla si aparece uno sin él (OST-102).
 
 ### Datos y correo de prueba
+* **El sembrador reutiliza el administrador de la instalación**: lo busca por
+  `isadmin = 1` (el instalador deja elegir el nombre de usuario) y no lo
+  duplica, no le cambia la contraseña y firma con él tareas y notas; sólo crea
+  `admin` / `Demo1234!` si no hay ningún administrador. `--fresh` tiene una
+  segunda pasada **por nombre**, para los restos que el manifiesto ya no
+  conocía y que hacían decir «ya existía» en cada ejecución.
 * **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 5 departamentos,
   11 temas, 2 equipos, 2 SLA, 5 respuestas predefinidas, 6 categorías de base
   de conocimiento con 33 artículos, **59 tickets** repartidos entre todos los

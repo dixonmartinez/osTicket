@@ -23,7 +23,8 @@
         users    12 usuarios, repartidos entre las organizaciones
         slas     2 SLA (24/7 y horario de oficina)
         depts    5 departamentos, uno hijo de otro, con accesos
-        agents   5 agentes (uno administrador) con contraseña conocida
+        agents   4 agentes; el administrador de la instalación se reutiliza
+                 (sólo se crea «admin» si no hay ninguno)
         teams    2 equipos con miembros y un líder
         topics   11 temas de ayuda, uno privado y uno con SLA
         canned   5 respuestas predefinidas
@@ -109,6 +110,12 @@ class SeedManager extends Module {
     var $step;
     /** Avisos de toda la ejecución: si hay alguno, el comando falla. */
     var $warnings = 0;
+    /**
+     * Administrador con el que se firma lo que necesita sesión de agente
+     * (tareas, notas). Es el que ya tenía la instalación si lo hay, y el que
+     * crea el sembrador sólo cuando no hay ninguno.
+     */
+    var $adminStaff;
 
     /* ------------------------------------------------------------------ */
     /* Paquetes de datos                                                   */
@@ -537,6 +544,11 @@ class SeedManager extends Module {
 
         $this->loadManifest();
 
+        // El administrador que ya tiene la instalación (si lo hay) es el que
+        // firma las tareas y las notas, y el que se muestra al final. Nunca
+        // se crea un segundo administrador.
+        $this->adminStaff = $this->firstAdmin();
+
         if ($options['fresh'] && !$this->purge())
             $this->fail('No se pudo borrar el conjunto anterior; no se crea nada');
 
@@ -597,8 +609,17 @@ class SeedManager extends Module {
             exit(1);
         }
 
-        $this->out('Listo. Entre al panel con el usuario «admin» (o el que '
-            . 'creó al instalar) y la contraseña indicada arriba.');
+        if ($this->adminStaff) {
+            $this->out(sprintf('Listo. Entre al panel con el usuario «%s» (el '
+                . 'administrador de la instalación: su contraseña es la de '
+                . 'siempre).', $this->adminStaff->getUserName()));
+            $this->out('Los demás agentes (supervisor, agente1…) y las cuentas '
+                . 'de cliente usan la contraseña indicada arriba.');
+        }
+        else {
+            $this->out('Listo. Entre al panel con el usuario «admin» y la '
+                . 'contraseña indicada arriba.');
+        }
         $this->out('Para deshacerlo: php manage.php seed --fresh (o borre la '
             . 'base y vuelva a instalarla).');
 
@@ -711,13 +732,33 @@ class SeedManager extends Module {
         $roles = $this->roleIndex();
         $depts = $this->deptIndex();
 
+        // Ya hay un administrador en la instalación: se usa ése y no se crea
+        // otro. Al instalador se le pide un nombre de usuario, así que el
+        // administrador de la casa puede llamarse de cualquier manera: buscar
+        // por `isadmin` es lo único que funciona en todos los casos.
+        $existing = $this->firstAdmin();
+        if ($existing) {
+            $this->adminStaff = $existing;
+            $this->out(sprintf('  · se reutiliza el administrador existente: '
+                . '%s (%s); su contraseña no se toca',
+                $existing->getName(), $existing->getUserName()));
+        }
+
         foreach (self::agents() as $agent) {
             list($username, $first, $last, $deptName, $isadmin, $roleName)
                 = $agent;
             $email = $username . '@' . $this->domain;
 
+            // El sembrador no crea un segundo administrador: ya se avisó
+            // arriba con qué cuenta se entra, y aquí no hay nada que crear.
+            if ($isadmin && $this->adminStaff)
+                continue;
+
             if (Staff::lookup(array('username' => $username))
                     || Staff::lookup(array('email' => $email))) {
+                // Puede ser el propio administrador de la instalación
+                if ($isadmin && !$this->adminStaff)
+                    $this->adminStaff = Staff::lookup(array('username' => $username));
                 $this->skip($username);
                 continue;
             }
@@ -774,13 +815,30 @@ class SeedManager extends Module {
             }
 
             $staff = Staff::create();
+            $errors = array();
             if (!$staff->update($vars, $errors)) {
                 $this->failed("el agente " . $username, $errors);
                 continue;
             }
 
+            if ($isadmin && !$this->adminStaff)
+                $this->adminStaff = $staff;
+
             $this->created('agents', $staff->getId(), $username);
         }
+
+        if (!$this->adminStaff)
+            $this->adminStaff = $this->firstAdmin();
+    }
+
+    /** El primer administrador activo de la instalación, o null. */
+    function firstAdmin() {
+        foreach (Staff::objects()
+                ->filter(array('isadmin' => 1, 'isactive' => 1))
+                ->order_by('staff_id') as $staff)
+            return $staff;
+
+        return null;
     }
 
     function seedDepts() {
@@ -817,6 +875,7 @@ class SeedManager extends Module {
             );
 
             $dept = Dept::create();
+            $errors = array();
             if (!$dept->update($vars, $errors)) {
                 $this->failed("el departamento " . $name, $errors);
                 continue;
@@ -874,6 +933,7 @@ class SeedManager extends Module {
                 $vars['lead_id'] = $vars['members'][0];
 
             $team = Team::create();
+            $errors = array();
             if (!$team->update($vars, $errors)) {
                 $this->failed("el equipo " . $name, $errors);
                 continue;
@@ -903,6 +963,7 @@ class SeedManager extends Module {
             );
 
             $sla = SLA::create();
+            $errors = array();
             if (!$sla->update($vars, $errors)) {
                 $this->failed("el SLA " . $name, $errors);
                 continue;
@@ -955,6 +1016,7 @@ class SeedManager extends Module {
             );
 
             $topic = Topic::create();
+            $errors = array();
             if (!$topic->update($vars, $errors)) {
                 $this->failed("el tema " . $name, $errors);
                 continue;
@@ -995,7 +1057,7 @@ class SeedManager extends Module {
         $topics = Topic::getHelpTopics(false, false, false);
 
         foreach (self::faqs() as $categoryName => $articles) {
-            $category = Category::lookup(array('name' => $categoryName));
+            $category = $this->categoryByName($categoryName);
             if (!$category) {
                 $vars = array(
                     'id' => 0,
@@ -1007,12 +1069,23 @@ class SeedManager extends Module {
                     'notes' => 'Categoría de demostración',
                 );
                 $category = Category::create();
+                $errors = array();
                 if (!$category->update($vars, $errors)) {
-                    $this->failed("la categoría " . $categoryName, $errors);
-                    continue;
+                    // Si el nombre ya estaba (por ejemplo, un resto de una
+                    // ejecución anterior que la purga no vio), se recupera y
+                    // se siguen creando sus artículos: perderlos todos por
+                    // una categoría duplicada no tiene sentido.
+                    $category = $this->categoryByName($categoryName);
+                    if (!$category) {
+                        $this->failed("la categoría " . $categoryName, $errors);
+                        continue;
+                    }
+                    $this->skip('categoría ' . $categoryName);
                 }
-                $this->createdRef('faq', 'c', $category->getId(),
-                    'categoría: ' . $categoryName);
+                else {
+                    $this->createdRef('faq', 'c', $category->getId(),
+                        'categoría: ' . $categoryName);
+                }
             }
             else {
                 $this->skip('categoría ' . $categoryName);
@@ -1020,7 +1093,11 @@ class SeedManager extends Module {
 
             foreach ($articles as $article) {
                 list($question, $answer) = $article;
-                if (FAQ::lookup(array('question' => $question))) {
+
+                // El mismo criterio que usa `FAQ::update()` para rechazar
+                // duplicados (`findIdByQuestion`), pero sin su `first()`, que
+                // avisa al no encontrar nada.
+                if ($this->faqIdByQuestion($question)) {
                     $this->skip($question);
                     continue;
                 }
@@ -1036,13 +1113,66 @@ class SeedManager extends Module {
                 );
 
                 $faq = FAQ::create();
+                $errors = array();
                 if (!$faq->update($vars, $errors)) {
+                    // El artículo puede haberlo creado otra ejecución entre
+                    // la comprobación y el INSERT, o estar con otro formato.
+                    if ($this->faqIdByQuestion($question)) {
+                        $this->skip($question);
+                        continue;
+                    }
                     $this->failed("el artículo " . $question, $errors);
                     continue;
                 }
                 $this->createdRef('faq', 'f', $faq->getId(), $question);
             }
         }
+    }
+
+    /** La categoría de la base de conocimiento con ese nombre, o null. */
+    function categoryByName($name) {
+        $name = trim((string) $name);
+        if (!strlen($name))
+            return null;
+
+        // Por el nombre (búsqueda del ORM) y, si no aparece, por id: la
+        // comprobación por nombre ya falló una vez con los artículos, así que
+        // no se deja el resultado en manos de un solo camino.
+        if ($category = Category::lookup(array('name' => $name)))
+            return $category;
+
+        if (!function_exists('db_query') || !defined('FAQ_CATEGORY_TABLE'))
+            return null;
+
+        $res = db_query(sprintf('SELECT category_id FROM %s WHERE name = %s LIMIT 1',
+            FAQ_CATEGORY_TABLE, db_input($name)));
+        $row = $res ? db_fetch_row($res) : null;
+
+        return ($row && $row[0]) ? Category::lookup((int) $row[0]) : null;
+    }
+
+    /**
+     * Id del artículo con esa pregunta exacta, o null.
+     *
+     * Se pregunta a la tabla y no al ORM a propósito: `FAQ::lookup(['question'
+     * => …])` devolvía «no existe» para artículos que sí estaban —y que
+     * `FAQ::update()` rechazaba después por duplicados, con el consiguiente
+     * aviso—, así que la comprobación se hace con la misma columna con la que
+     * el modelo decide que hay duplicado.
+     */
+    function faqIdByQuestion($question) {
+        $question = trim((string) $question);
+        if (!strlen($question) || !function_exists('db_query'))
+            return null;
+
+        $res = db_query(sprintf('SELECT faq_id FROM %s WHERE question = %s LIMIT 1',
+            FAQ_TABLE, db_input($question)));
+        if (!$res)
+            return null;
+
+        $row = db_fetch_row($res);
+
+        return ($row && $row[0]) ? (int) $row[0] : null;
     }
 
     function seedTickets($limit = null) {
@@ -1227,9 +1357,11 @@ class SeedManager extends Module {
         // `true` se construye en vez de abortar.
         TaskForm::ensureDynamicDataView(true);
 
-        $agents = $this->agentIndex();
         $depts = $this->deptIndex();
-        $admin = $agents['admin'] ?? null;
+        $agents = $this->agentIndex();
+        // El administrador con el que se firma: el de la instalación o el que
+        // haya creado el paso `agents`
+        $admin = $this->adminStaff ?: $this->firstAdmin();
         if (!$admin) {
             $this->warn('no hay ningún agente administrador: ejecute antes el '
                 . 'paso de agents');
@@ -1750,6 +1882,12 @@ class SeedManager extends Module {
     function created($step, $id, $label) {
         $this->manifest[$step][] = $id;
         $this->manifest[$step] = array_values(array_unique($this->manifest[$step]));
+        // Se apunta **ya**, no al final: si la ejecución se corta a mitad (un
+        // error de PHP, un Ctrl-C, un contenedor que se reinicia), lo creado
+        // hasta ese momento tiene que poder borrarse con `--fresh`. Sin esto,
+        // los registros quedaban para siempre y cada ejecución decía «ya
+        // existía».
+        $this->saveManifest();
         $this->counted($step, 'created');
         if ($this->verbose)
             $this->out(sprintf('  + %s (#%s)', $label, $id));
@@ -1855,6 +1993,81 @@ class SeedManager extends Module {
      * Borra lo que creó este módulo, de lo más dependiente a lo más básico.
      * Nunca toca nada que no esté en el manifiesto.
      */
+    /**
+     * Segunda pasada de la purga: lo que el manifiesto no conoce.
+     *
+     * El manifiesto se escribe ahora después de **cada** registro, así que una
+     * ejecución interrumpida ya no pierde identificadores. Esta pasada queda
+     * para los restos de versiones anteriores del sembrador (las que perdían
+     * el manifiesto) y se limita a lo que es **inequívocamente** del
+     * sembrador: los artículos y categorías de la base de conocimiento
+     * —preguntas y nombres que sólo existen en `SeedManager::faqs()`— y los dos
+     * equipos de demostración.
+     *
+     * Deliberadamente **no** borra por nombre departamentos, SLA,
+     * organizaciones, usuarios, tickets ni tareas: si alguien tiene un
+     * departamento «Soporte» o un SLA «Respuesta 8 h» propios, con el mismo
+     * nombre, borrarlos por parecerse sería destruir su configuración. Esos se
+     * borran sólo por identificador, que es lo que el manifiesto guarda.
+     *
+     * @return int cuántos registros sueltos se borraron
+     */
+    function purgeByName() {
+        $removed = 0;
+
+        // Conocimiento: primero los artículos, después sus categorías
+        $questions = array();
+        foreach (self::faqs() as $articles)
+            foreach ($articles as $article)
+                $questions[] = $article[0];
+        if ($questions)
+            $removed += $this->purgeAll(FAQ::objects()->filter(
+                array('question__in' => $questions)), 'artículo');
+
+        $categories = array_keys(self::faqs());
+        if ($categories)
+            $removed += $this->purgeAll(Category::objects()->filter(
+                array('name__in' => $categories)), 'categoría');
+
+        // Los equipos de demostración tienen nombres que no se repiten
+        $teams = array();
+        foreach (self::teams() as $row)
+            $teams[] = $row[0];
+        if ($teams)
+            $removed += $this->purgeAll(Team::objects()->filter(
+                array('name__in' => $teams)), 'equipo');
+
+        return $removed;
+    }
+
+    /**
+     * Borra lo que devuelve un QuerySet, uno a uno (para que cada modelo haga
+     * su limpieza) y sin que un fallo detenga el resto.
+     *
+     * @param mixed  $set  modelos a borrar
+     * @param string $what nombre del tipo, para los avisos
+     * @return int cuántos se borraron
+     */
+    function purgeAll($set, $what) {
+        $removed = 0;
+
+        foreach ($set as $obj) {
+            try {
+                if ($obj->delete() === false)
+                    $this->warn(sprintf('no se pudo borrar %s #%s: puede tener '
+                        . 'datos asociados', $what, $obj->getId()));
+                else
+                    $removed++;
+            }
+            catch (Throwable $e) {
+                $this->warn(sprintf('no se pudo borrar %s #%s: %s', $what,
+                    $obj->getId(), $e->getMessage()));
+            }
+        }
+
+        return $removed;
+    }
+
     function purge() {
         global $thisstaff;
 
@@ -1871,7 +2084,11 @@ class SeedManager extends Module {
         // sesión, así que se pone el administrador y luego se restaura.
         $previous = $thisstaff;
         $agents = $this->agentIndex();
-        $thisstaff = $agents['admin'] ?? ($agents ? reset($agents) : null);
+        // El administrador de la instalación sabe borrar todo lo que crea el
+        // sembrador; cualquier otro agente puede no tener permiso y
+        // `delete()` devolvería `false` sin decir nada.
+        $thisstaff = $this->adminStaff
+            ?: ($agents['admin'] ?? ($agents ? reset($agents) : null));
 
         // De lo más dependiente a lo más básico: los departamentos antes que
         // los SLA (apuntan a ellos) y los agentes antes que los departamentos.
@@ -1926,6 +2143,13 @@ class SeedManager extends Module {
                                 $id));
                         break;
                     case 'agents':
+                        // El administrador en uso nunca se borra: si la
+                        // instalación nació con la cuenta de demostración
+                        // (`admin`, correo del dominio de prueba), borrarla
+                        // dejaría el panel sin acceso.
+                        if ($this->adminStaff
+                                && $this->adminStaff->getId() == $id)
+                            break;
                         if ($s = Staff::lookup($id))
                             $s->delete();
                         break;
@@ -1950,9 +2174,19 @@ class SeedManager extends Module {
             }
         }
 
+        // Los registros que la ejecución anterior no pudo borrar (o que no
+        // llegaron al manifiesto) se quitan por nombre
+        $loose = $this->purgeByName();
+        if ($loose)
+            $this->out(sprintf('  · %d registro(s) sueltos de ejecuciones '
+                . 'anteriores', $loose));
+
         $thisstaff = $previous;
 
+        // Lo borrado ya no tiene que estar apuntado: si la ejecución se corta
+        // ahora, no debe quedar un manifiesto que cite ids muertos.
         $this->manifest = array();
+        $this->saveManifest();
         @unlink($this->manifestPath());
 
         return true;
