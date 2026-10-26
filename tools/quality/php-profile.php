@@ -181,6 +181,49 @@ class PhpProfile {
         return array($functions, $missing);
     }
 
+    /**
+     * ¿La «función» es en realidad un `include`/`require`?
+     *
+     * Xdebug los presenta como `include_once::/ruta/archivo.php`. En un
+     * proceso de consola se llevan la mayor parte del tiempo —cargar el
+     * código, no ejecutarlo— y, al ser decenas de filas, esconden lo que de
+     * verdad interesa: las funciones de la aplicación.
+     */
+    static function isInclude($function) {
+        return preg_match('/^(include|include_once|require|require_once)::/',
+            $function) === 1;
+    }
+
+    /**
+     * Junta todas las cargas de archivos en una sola fila.
+     *
+     * @param array $functions lo que devuelve `parse()`
+     * @return array            funciones sin los `include`, más una fila
+     *                          «includes (arranque)» con lo que sumaban
+     */
+    static function collapseIncludes(array $functions) {
+        $total = 0.0;
+        $files = array();
+        $kept = array();
+
+        foreach ($functions as $key => $info) {
+            if (self::isInclude($info['function'])) {
+                $total += $info['time'];
+                $files[$info['file'] ?: $info['function']] = true;
+                continue;
+            }
+            $kept[$key] = $info;
+        }
+
+        if ($files) {
+            $label = sprintf('includes (%d archivos)', count($files));
+            $kept[$label] = array('time' => $total,
+                'function' => 'includes de arranque', 'file' => '');
+        }
+
+        return $kept;
+    }
+
     static function duration($microseconds) {
         if ($microseconds >= 1000000)
             return sprintf('%.2f s', $microseconds / 1000000);
@@ -192,18 +235,24 @@ class PhpProfile {
 }
 
 if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) {
-    $options = getopt('', array('top::', 'filter::', 'help'));
+    $options = getopt('', array('top::', 'filter::', 'expand', 'help'));
 
     if (isset($options['help']) || empty($argv[1])) {
-        echo "Uso: php tools/quality/php-profile.php [--top=N] [--filter=TEXTO] perfil\n\n";
-        echo "  perfil    archivo cachegrind.out.NNN de Xdebug (admite varios)\n";
+        echo "Uso: php tools/quality/php-profile.php [opciones] perfil...\n\n";
+        echo "  perfil    archivo cachegrind.out.NNN de Xdebug (admite varios y comodines)\n\n";
+        echo "  --top=N        cuántas filas (20)\n";
+        echo "  --filter=TEXTO sólo lo que contenga ese texto\n";
+        echo "  --expand       muestra cada include por separado (por omisión van juntos)\n";
         exit(isset($options['help']) ? 0 : 2);
     }
 
     list($functions, $missing) = PhpProfile::load(array_slice($argv, 1));
 
-    foreach ($missing as $what)
-        fwrite(STDERR, "No encontré ningún perfil en «$what»\n");
+    // Concatenado, no interpolado: en `«$what»` el `»` es un byte >= 0x80 y
+    // PHP lo admite dentro del nombre de la variable, así que leía `$what»`
+    // (inexistente) y el aviso salía vacío con un «Undefined variable».
+    foreach ($missing as $pattern)
+        fwrite(STDERR, 'No encontré ningún perfil en «' . $pattern . "»\n");
 
     if (!$functions) {
         // Un informe de «0 µs en 0 funciones» no dice nada: o no hay perfil o
@@ -215,6 +264,14 @@ if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) {
 
     if (!empty($options['filter']))
         $functions = PhpProfile::grep($functions, $options['filter']);
+
+    if (empty($options['expand'])) {
+        $before = count($functions);
+        $functions = PhpProfile::collapseIncludes($functions);
+        if (count($functions) != $before)
+            fwrite(STDERR, "Las cargas de archivos van juntas en una fila;"
+                . " usa --expand para verlas una a una.\n");
+    }
 
     echo PhpProfile::report($functions,
         isset($options['top']) ? (int) $options['top'] : 20, dirname(__DIR__, 2));

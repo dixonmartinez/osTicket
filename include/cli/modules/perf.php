@@ -371,8 +371,18 @@ class PerfCheck extends Module {
                 (isset($this->queries[$key]['origins'][$origin])
                     ? $this->queries[$key]['origins'][$origin] : 0) + 1;
         }
-        if ($this->currentStep >= 0)
-            $this->queries[$key]['steps'][$this->currentStep] = true;
+        // Por paso se guarda **cuántas veces y cuánto** se ejecutó esa
+        // consulta dentro de él, no sólo que se ejecutó: el detalle por paso
+        // (`--step`) enseñaba el total de la ejecución entera y, con dos
+        // pasos que usan la misma consulta, atribuía a cada uno el doble de
+        // tiempo y de ejecuciones de las que hizo.
+        if ($this->currentStep >= 0) {
+            if (!isset($this->queries[$key]['steps'][$this->currentStep]))
+                $this->queries[$key]['steps'][$this->currentStep] =
+                    array('n' => 0, 'ms' => 0.0);
+            $this->queries[$key]['steps'][$this->currentStep]['n']++;
+            $this->queries[$key]['steps'][$this->currentStep]['ms'] += $ms;
+        }
     }
 
     /**
@@ -713,19 +723,26 @@ class PerfCheck extends Module {
                 continue;
             $matched++;
 
+            // Sólo el trozo de cada consulta que corresponde **a este paso**.
             $queries = array();
             foreach ($this->queries as $q) {
                 if (!isset($q['steps'][$index]))
                     continue;
-                $queries[] = $q;
+                $queries[] = array(
+                    'sql' => $q['sql'],
+                    'n' => $q['steps'][$index]['n'],
+                    'ms' => $q['steps'][$index]['ms'],
+                    'origins' => $q['origins'],
+                );
             }
             usort($queries, function($a, $b) {
                 return $b['ms'] <=> $a['ms'];
             });
 
             $this->out('');
-            $this->out(sprintf('Consultas de «%s» — %.1f ms, %d SQL',
-                $step['label'], $step['ms'], $step['queries']));
+            $this->out(sprintf('Consultas de «%s» — %.1f ms, %d SQL (%.1f ms en SQL)',
+                $step['label'], $step['ms'], $step['queries'],
+                $step['sql_ms'] * 1000));
             $this->out(str_repeat('-', 62));
             if (!$queries) {
                 $this->out('  (ninguna: el tiempo de este paso es de PHP)');

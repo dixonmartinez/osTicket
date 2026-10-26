@@ -98,11 +98,11 @@ Los archivos que más pesan:
 
 | Archivo | Líneas | Clases | Qué contiene | Antes |
 |---|---|---|---|---|
-| `include/class.ticket.php` | 4.531 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | 4.809, y `create()` de 536 a 219 líneas |
+| `include/class.ticket.php` | 4.516 | 2 | Ticket: creación, edición, correo, SLA, adjuntos | 4.809, y `create()` de 536 a 219 líneas |
 | `include/class.forms.php` | 4.516 | 37 | Núcleo de formularios y campos | 6.220 líneas, 64 clases |
 | `include/class.orm.php` | 3.663 | 34 | ORM propio (consultas, joins, instrumentación) | igual |
 | `include/class.queue.php` | 2.341 | 11 | Colas, columnas y ordenación | 3.232 líneas, 38 clases |
-| `include/class.thread.php` | 2.318 | 11 | Hilo de entradas, correo entrante, colaboradores | 3.405 líneas, 35 clases |
+| `include/class.thread.php` | 2.338 | 11 | Hilo de entradas, correo entrante, colaboradores | 3.405 líneas, 35 clases |
 | `include/ajax.tickets.php` | 2.077 | 2 | Punto de entrada AJAX de tickets | igual |
 | `include/class.dynamic_forms.php` | 2.027 | 12 | Campos dinámicos y datos de formulario | igual |
 

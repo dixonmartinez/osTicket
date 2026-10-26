@@ -418,10 +418,16 @@ implements Searchable {
         if ($options['sort'] && !strcasecmp($options['sort'], 'DESC'))
             $entries->order_by('-id');
 
-        // Precache all the attachments on this thread
-        AttachmentFile::objects()->filter(array(
-            'attachments__thread_entry__thread__id' => $this->id
-        ))->all();
+        // Aquí había un «precache» de todos los adjuntos del hilo
+        // (`AttachmentFile::objects()->filter(...)->all()`), tres consultas más
+        // por carga (1,2–1,7 ms) para llenar `AttachmentFile::$keyCache`. Es
+        // redundante: la plantilla que viene justo debajo pide los mismos
+        // adjuntos con `select_related('thread_entry', 'file')`, y el ORM
+        // llama a `__onload()` también en los modelos que llegan por JOIN
+        // (class.orm.php:2014), que es lo que llena ese mismo `$keyCache`. Se
+        // fue comprobado con el perfil real del ticket 428: la consulta
+        // aparecía como «class.thread.php:424» una vez por render y otra vez
+        // en la segunda pasada, sin ahorrar ninguna consulta después.
 
         // El autor de cada aviso viaja con los avisos: `ThreadEvent` declara
         // `user` y `agent` como `select_related` en su meta (ver

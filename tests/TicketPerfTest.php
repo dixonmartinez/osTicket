@@ -707,6 +707,71 @@ class TicketPerfTest extends UnitTestCase {
     }
 
     /**
+     * El detalle por paso cuenta **lo de ese paso**, no el total.
+     *
+     * Salía del perfil real: dos pasos que usan la misma consulta mostraban
+     * los dos el total de la ejecución entera (`4 ×` en cada uno), así que sus
+     * tiempos parecían sumar más de lo que duraba el paso. Con el conteo por
+     * paso, la suma de las filas de un paso es su tiempo de SQL.
+     */
+    function testElDetalleDelPasoCuentaSoloLoDeEsePaso() {
+        $perf = $this->probe(array('step' => 'render'));
+        $perf->step('Hilo: render() completo', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_file WHERE id = 1', 0.002);
+            return 1;
+        });
+        $perf->step('Hilo: render() otra vez', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_file WHERE id = 1', 0.002);
+            $perf->record('SELECT * FROM ost_file WHERE id = 1', 0.002);
+            return 1;
+        });
+
+        $property = new ReflectionProperty('PerfCheck', 'queries');
+        $property->setAccessible(true);
+        $queries = array_values($property->getValue($perf));
+
+        // La consulta se ejecutó tres veces en total, repartidas 1 y 2.
+        $this->assertSame(3, $queries[0]['n']);
+        $this->assertSame(1, $queries[0]['steps'][0]['n']);
+        $this->assertSame(2, $queries[0]['steps'][1]['n']);
+        $this->assertSame(0.002, round($queries[0]['steps'][0]['ms'], 6));
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        // Cada bloque dice su cuenta: el primero 1×, el segundo 2×.
+        $blocks = explode('Consultas de «', $text);
+        $this->assertTrue(strpos($blocks[1], '1 ×') !== false,
+            'El primer paso debe decir 1×, no el total');
+        $this->assertTrue(strpos($blocks[2], '2 ×') !== false);
+    }
+
+    /**
+     * `render()` no repite la consulta de adjuntos que ya hace la plantilla.
+     *
+     * El «precache» llenaba `AttachmentFile::$keyCache`, y la plantilla lo
+     * llena igual con su propio `select_related('thread_entry', 'file')`
+     * —el ORM llama a `__onload()` también en los modelos que llegan por
+     * JOIN—. Eran tres consultas por carga para nada; el perfil real las
+     * señalaba en `class.thread.php:424`.
+     */
+    function testRenderNoRepiteLaConsultaDeAdjuntosDeLaPlantilla() {
+        $source = file_get_contents(INCLUDE_DIR . 'class.thread.php');
+
+        $this->assertFalse(
+            strpos($source, "AttachmentFile::objects()->filter(array(\n"
+                . "            'attachments__thread_entry__thread__id'") !== false,
+            'Volvió el precache de adjuntos, que duplica el de la plantilla');
+
+        // La plantilla sí sigue precargando, y con el file unido.
+        $template = file_get_contents(
+            INCLUDE_DIR . 'staff/templates/thread-entries.tmpl.php');
+        $this->assertStringContainsString("select_related('thread_entry', 'file')",
+            $template);
+    }
+
+    /**
      * Los avisos del hilo traen su autor en la misma consulta.
      *
      * El perfil real del ticket mostró dos consultas por carga atribuidas a

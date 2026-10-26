@@ -143,6 +143,77 @@ CACHEGRIND;
         unlink($two);
     }
 
+    /** Un perfil de consola se lleva la vida en los `include`. */
+    private function startupProfile() {
+        return <<<CACHEGRIND
+version: 1
+creator: xdebug 3.3.0 (PHP 8.4.27)
+events: Time Memory
+
+fl=(1) /app/include/class.ticket.php
+fn=(2) include_once::/app/include/class.ticket.php
+1 2000000 0
+
+fl=(3) /app/include/class.search.php
+fn=(4) require::/app/include/class.search.php
+1 1000000 0
+
+fl=(5) /app/include/class.orm.select.php
+fn=(6) SelectSql::fields
+40 250000 0
+
+fl=(7) /app/bootstrap.php
+fn=(8) Bootstrap::loadCode
+12 900000 0
+CACHEGRIND;
+    }
+
+    function testReconoceLasCargasDeArchivos() {
+        $this->assertTrue(PhpProfile::isInclude('include_once::/app/a.php'));
+        $this->assertTrue(PhpProfile::isInclude('require::/app/b.php'));
+        $this->assertFalse(PhpProfile::isInclude('SelectSql::fields'));
+        $this->assertFalse(PhpProfile::isInclude('requireSomething'));
+    }
+
+    /** Las cargas de archivos se juntan en una fila con su total. */
+    function testJuntaLasCargasDeArchivosEnUnaFila() {
+        $functions = PhpProfile::collapseIncludes(
+            PhpProfile::parse($this->startupProfile()));
+
+        $this->assertSame(3, count($functions));
+
+        $includes = null;
+        foreach ($functions as $key => $info)
+            if (strpos($key, 'includes') === 0)
+                $includes = $info;
+        $this->assertTrue($includes !== null, 'No se juntaron los includes');
+        $this->assertEquals(3000000, $includes['time']);
+        $this->assertTrue(strpos($functions['includes (2 archivos)']['function'],
+            'includes') !== false);
+    }
+
+    /** Al juntarlos, las funciones de la aplicación quedan arriba. */
+    function testSinLosIncludesArribaQuedaElCodigoDeLaAplicacion() {
+        $functions = PhpProfile::collapseIncludes(
+            PhpProfile::parse($this->startupProfile()));
+        $top = PhpProfile::top($functions, 1);
+
+        $this->assertTrue(strpos(key($top), 'includes') === 0,
+            'Los includes siguen siendo lo más caro, pero en una sola fila');
+        $second = array_slice(PhpProfile::top($functions, 2), 1, 1);
+        $this->assertTrue(strpos(key($second), 'Bootstrap::loadCode') !== false);
+    }
+
+    /** Sin cargas de archivos no se añade una fila vacía. */
+    function testSinIncludesNoApareceLaFila() {
+        $functions = PhpProfile::collapseIncludes(array(
+            'A::b' => array('time' => 10.0, 'function' => 'A::b', 'file' => 'a.php'),
+        ));
+
+        $this->assertSame(1, count($functions));
+        $this->assertFalse(isset($functions['includes (0 archivos)']));
+    }
+
     /** Las duraciones se leen sin calculadora. */
     function testFormateaDuraciones() {
         $this->assertSame('500 µs', PhpProfile::duration(500));

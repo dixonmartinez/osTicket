@@ -107,10 +107,10 @@ Con la salida real de un ticket de 4 entradas, el reparto fue:
 
 | Dato | Valor |
 | --- | --- |
-| Total | 77-92 ms según si APCu está activo |
-| Introspección de esquema | 17-21 ms · 22 consultas (sólo en la consola) |
-| Consultas reales | 32 · 15-17 ms |
-| **PHP** | **≈ 44 ms** |
+| Total | 77-93 ms según la pasada y si APCu está activo |
+| Introspección de esquema | 17-21 ms · 21-22 consultas (sólo en la consola) |
+| Consultas reales | 30-32 · 16-19 ms |
+| **PHP** | **≈ 44-57 ms** |
 
 Con eso, la conclusión fue inmediata: **no era la base de datos**. Y dentro del
 hilo, el desglose descartó dos sospechas caras de perseguir:
@@ -119,14 +119,14 @@ hilo, el desglose descartó dos sospechas caras de perseguir:
 - las acciones por entrada: **1.3 ms**.
 
 Lo que sí quedó a la vista fue el coste de repetición: `render()` pintado dos
-veces baja de 24.5 a 9.7 ms, y la consulta de precarga de adjuntos se ejecuta
-varias veces por carga. Ese es el tipo de cosa que este informe existe para
-enseñar sin leer el ORM.
+veces baja de 30.5 a 13.7 ms, y dentro de `render()` se repiten consultas que
+la plantilla ya tiene en la mano. Ese es el tipo de cosa que este informe
+existe para enseñar sin leer el ORM.
 
 ## Lo que ya se arregló
 
-Estas dos cosas se veían en el código sin necesidad de medir, y se
-comprobaron con el perfilador:
+Las dos primeras se veían en el código sin necesidad de medir; las otras dos
+las señaló el perfil real del ticket antes de que nadie las buscara:
 
 1. **Una consulta por entrada al pintar el hilo.**
    `include/staff/templates/thread-entries.tmpl.php` recorría las entradas y
@@ -150,6 +150,15 @@ comprobaron con el perfilador:
    los avisos: `tests/QuerySqlTest.php` comprueba con el compilador de SQL que
    el `LEFT JOIN` se añade.
 
+4. **El «precache» de adjuntos de `Thread::render()` no ahorraba nada.** El
+   perfil lo enseñó como `include/class.thread.php:424`, una vez por render.
+   Eran tres consultas (1,2-1,7 ms) para llenar `AttachmentFile::$keyCache`, y
+   la plantilla que se incluye justo después pide los mismos adjuntos con
+   `select_related('thread_entry', 'file')`: el ORM llama a `__onload()`
+   también en los modelos que llegan por JOIN (`class.orm.php:2070` →
+   `getOrBuild()` → `__onload()` en `:2014`), así que llena ese mismo
+   `$keyCache`. Se quitó el precache, no la consulta de la plantilla.
+
 > Ojo con pedirlo desde `render()`: `$thread->getEvents()` devuelve una
 > `InstrumentedList` y `select_related()` sobre ella recae en un **clon** de la
 > consulta (su `__call()` proxya a `objects()`, que clona). No tiene efecto y no
@@ -168,14 +177,23 @@ make ticket-perf TICKET=405 PERF_ARGS="--step=hilo --schema"
 ```
 
 ```
-Consultas de «Hilo: render() completo» — 26.1 ms, 13 SQL
+Consultas de «Hilo: render() completo» — 30.5 ms, 9 SQL (5.2 ms en SQL)
 --------------------------------------------------------------
-   1.5 ms ·   4 × · SELECT ... FROM ost_thread_entry__merge WHERE thread_entry_id = ?
-        desde include/class.thread.php:1012
+   2.5 ms ·   1 × · SELECT A1.`id`, A1.`object_id`, … FROM `ost_attachment` A1 …
+        desde include/staff/templates/thread-entries.tmpl.php:21
+   1.1 ms ·   1 × · SELECT COUNT(*) FROM (SELECT A1.`id` FROM `ost_thread_event` …
+        desde include/staff/templates/thread-entries.tmpl.php:12
 ```
 
 Y debajo de cada consulta, la línea de código que la disparó (`desde …`). Es lo
 que evita leer el ORM para adivinar quién pide qué.
+
+El `n ×` y los milisegundos de cada fila son **de ese paso**, no del total de
+la ejecución. Antes no lo eran y el informe mentía por omisión: dos pasos que
+usan la misma consulta enseñaban los dos el total (`4 ×` en cada uno), de modo
+que sus tiempos parecían sumar más de lo que duraba el paso. Ahora se guarda
+cuántas veces y cuánto se ejecutó cada consulta **dentro** de cada paso, así
+que la suma de las filas de un bloque es su columna `SQLms`.
 
 Si el texto no coincide con ningún paso, el informe **lo dice y lista los pasos
 medidos**, para poder repetir el comando con el nombre correcto.
@@ -294,6 +312,11 @@ Dos advertencias, por orden de importancia:
 * La primera llamada incluye la compilación de las plantillas. El objetivo
   activa opcache y APCu para que eso no aparezca como si fuera trabajo de la
   función.
+
+Por omisión, las cargas de archivos (`include_once::`, `require::`…) van
+juntas en una sola fila con su total: en la consola se llevan la mayor parte
+del tiempo —cargar el código, no ejecutarlo— y son decenas de filas que
+esconden lo que interesa. `--expand` las muestra una a una.
 
 Si el patrón de archivos no encuentra nada, la herramienta lo dice y sale
 con error: un informe de «0 µs en 0 funciones» hacía dudar del perfil cuando
