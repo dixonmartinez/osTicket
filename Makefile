@@ -28,7 +28,7 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-composer docker-qa \
 	docker-bench docker-urls \
 	seed seed-fresh seed-check seed-verbose seed-list seed-doctor \
-	queues queue-check db-views db-rebuild-views ticket-perf mail test-mail
+	queues queue-check db-views db-rebuild-views ticket-perf ticket-perf-raw mail test-mail
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -275,6 +275,13 @@ db-rebuild-views: ## Reconstruye esas tablas desde form_entry_values (arregla ti
 	@docker compose exec -T php php manage.php db --rebuild-views
 
 ticket-perf: ## Perfila la carga de un ticket (TICKET=405; sin TICKET, el último tocado)
+	@# Con la caché de opcode y de APCu como en la web: sin ellas, la consola
+	@# compila cada plantilla en cada `include` y el informe culpa al código de
+	@# lo que es un artefacto de la consola. Ver docs/PERFORMANCE.md.
+	@docker compose exec -T php php -d opcache.enable_cli=1 -d apc.enable_cli=1 \
+		manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS)
+
+ticket-perf-raw: ## Lo mismo, pero sin opcache ni APCu: para ver los artefactos de la consola
 	@docker compose exec -T php php manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS)
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar

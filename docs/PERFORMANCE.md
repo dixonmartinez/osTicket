@@ -190,9 +190,24 @@ Y no salen en el ranking salvo que se pidan con `--schema`. Si aparecían arriba
 era fácil perseguir un fantasma: eran 22 tablas distintas, no 22 veces la misma
 consulta.
 
-## La nota de APCu
+## Los dos artefactos de la consola
 
-Si el informe termina con un aviso sobre APCu, es importante:
+Un perfil hecho con `php manage.php perf` mide en la consola, y la consola no
+es la web. Hay dos cachés que en la web están y en la consola no:
+
+| Caché | Sin ella | Efecto en el informe |
+| --- | --- | --- |
+| **APCu** | Cada tabla nueva pregunta sus columnas a `INFORMATION_SCHEMA` | La columna `Esq` y su línea aparte |
+| **opcache** | Cada `include` vuelve a compilar la plantilla | Los pasos que pintan (`render()`) se inflan una vez **por entrada** |
+
+Desde que `make ticket-perf` activa las dos (`-d opcache.enable_cli=1 -d
+apc.enable_cli=1`), el informe se parece a lo que ve el usuario. Con
+`make ticket-perf-raw` se ven los artefactos, que es útil para entenderlos pero
+no para decidir qué optimizar.
+
+Si el informe termina con un aviso sobre opcache, el `render()` de esa salida
+no es el de la web: la plantilla de cada entrada se ha compilado de nuevo. Y si
+avisa de APCu, es importante:
 
 ```
 Nota: APCu no está activo en este proceso (apc.enable_cli=0).

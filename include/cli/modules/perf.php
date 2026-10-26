@@ -646,8 +646,22 @@ class PerfCheck extends Module {
         }
     }
 
-    /** Los avisos del final: APCu y la consulta que más se repite. */
+    /** Los avisos del final: las cachés que faltan y la consulta más repetida. */
     function reportNotes($totals) {
+        // Sin caché de opcode, cada `include` vuelve a compilar la plantilla.
+        // Un paso que pinta el hilo la incluye una vez **por entrada**, así
+        // que en la consola se paga cuatro o cinco veces lo que la web paga
+        // una (y con opcache, ninguna). Callarlo hacía buscar el problema en
+        // el código de la plantilla.
+        if (!function_exists('opcache_get_status') || !@opcache_get_status())
+            $this->out(''
+                . "\nNota: el opcode no se cachea en esta consola (opcache.enable_cli=0),"
+                . "\nasí que cada `include` vuelve a compilar la plantilla: los pasos"
+                . "\nque pintan están inflados con trabajo que la web no hace. Usa"
+                . "\n`make ticket-perf`, que ya activa opcache y APCu, o añade"
+                . "\n`-d opcache.enable_cli=1` a mano. Resumen: fíate del SQLms y del"
+                . "\nreparto SQL/PHP, no del total en crudo.");
+
         // Aviso honesto: en CLI no hay APCu, así que la introspección del
         // esquema se paga aquí y no en la web.
         if (!function_exists('apcu_fetch'))

@@ -651,6 +651,31 @@ class TicketPerfTest extends UnitTestCase {
         $this->assertEquals(2.0, $json['steps'][0]['sql_ms']);
     }
 
+    /**
+     * Sin opcache, cada `include` de la plantilla de una entrada se compila
+     * otra vez: el `render()` de la consola no es el de la web. El informe
+     * tiene que avisarlo, como avisa de APCu.
+     */
+    function testElPerfilAvisaDeQueSinOpcacheElRenderEstaInflado() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+
+        $this->assertTrue(strpos($source, 'opcache_get_status') !== false,
+            'El perfil no comprueba si el opcode se cachea');
+        $this->assertTrue(strpos($source, 'opcache.enable_cli=1') !== false,
+            'El aviso no dice cómo repetir el perfil con opcache');
+    }
+
+    /** `make ticket-perf` perfila con las cachés de la web. */
+    function testElMakefilePerfilaConOpcacheYApcu() {
+        $makefile = file_get_contents(dirname(INCLUDE_DIR) . '/Makefile');
+
+        $this->assertTrue(
+            strpos($makefile, '-d opcache.enable_cli=1 -d apc.enable_cli=1') !== false,
+            'make ticket-perf no activa opcache/APCu');
+        $this->assertTrue(strpos($makefile, 'ticket-perf-raw') !== false,
+            'Falta la variante sin cachés para ver los artefactos');
+    }
+
     /** El perfil avisa de que sin APCu las medidas son pesimistas. */
     function testAvisaCuandoApcuNoEstaActivo() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
