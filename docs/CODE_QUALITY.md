@@ -255,13 +255,13 @@ integración.
 ### Frente 2 — Reducir las funciones y archivos que concentran la dificultad 🔄 En curso
 
 **Dónde está** (medido el 2026-10-26 con `make metrics`): la primera tanda está
-hecha y en uso —trece piezas puras sacadas de las funciones más largas, con
-326 pruebas nuevas y ocho defectos reales corregidos—, y ninguna de esas
+hecha y en uso —catorce piezas puras sacadas de las funciones más largas, con
+361 pruebas nuevas y nueve defectos reales corregidos—, y ninguna de esas
 funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **14 funciones de la
+El criterio de éxito **no se cumple todavía**: quedan **13 funciones de la
 aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 (`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
@@ -284,10 +284,11 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `Ticket::setStatus()` | 121 líneas | **108** (`logStatusChange()`, `ModelRules`) |
 | `Search::IndexOldStuff()` | 137 líneas | **31** (un método por tipo + `SearchRecord`) |
 | `File::create()` | 122 líneas | **98** (`FileInput`) |
+| `MailParse::getAttachments()` | 127 líneas | **64** (`MailAttachment`) |
 | `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`; `fields()` 148) |
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
-| Funciones de la aplicación por encima de 120 líneas | — | **14** |
+| Funciones de la aplicación por encima de 120 líneas | — | **13** |
 | Funciones de la aplicación por encima de 150 líneas | 10 | **8** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
@@ -301,13 +302,12 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Nueve funciones intermedias (120–175 líneas) que nadie ha tocado**,
+2. **Ocho funciones intermedias (120–175 líneas) que nadie ha tocado**,
    y que no estaban en el plan: `Report::getTabularData()` (158),
    `Thread::create()` (158), `Queue::update()` (157), `SelectSql::fields()`
    (148, la pieza que se sacó de `compileSelect()`),
-   `Dept::update()` (137), `I18n::loadDefaultData()` (131),
-   `MailParse::getAttachments()` (127) y `Thread::lookupByEmailHeaders()`
-   (126). Varias son del mismo tipo que las que ya se partieron (armar campos,
+   `Dept::update()` (137), `I18n::loadDefaultData()` (131) y
+   `Thread::lookupByEmailHeaders()` (126). Varias son del mismo tipo que las que ya se partieron (armar campos,
    validar, componer mensajes); otras son `update()` de modelo, donde lo que
    hay es una lista de
    campos y su validación.
@@ -332,8 +332,8 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    dar la tanda por terminada.
 
 **Comprobación de las cifras de arriba** (2026-10-26, tras esta tanda, con
-`make metrics --top=400`): 14 funciones de la aplicación por encima de 120
-líneas —ocho menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
+`make metrics --top=400`): 13 funciones de la aplicación por encima de 120
+líneas —nueve menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
 3 archivos por encima de 3.000 (`class.ticket.php` 4.516, `class.forms.php`
 4.515, `class.orm.php` 3.643). La función más larga de la aplicación sigue
 siendo `massProcess()` con 321 líneas. Fuera del criterio, por ser librerías
@@ -346,7 +346,7 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: **326 casos nuevos** sin base de datos.
+Pasos hechos: **361 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -361,6 +361,7 @@ Pasos hechos: **326 casos nuevos** sin base de datos.
 | `include/class.ticket.edit.php` | `TicketEdit`: los cuatro campos que se validan al editar un ticket y sus mensajes, la regla de la fecha límite (ticket cerrado, fecha legible y futura, con el conversor inyectado), la comprobación del origen y **qué cambios quedan en el historial** (`trackedChanges()`) | `tests/TicketEditTest.php`, 13 casos |
 | `include/class.search.record.php` | `SearchRecord`: cómo se arma cada registro del índice (`object_type`, id, título, contenido) para los cinco tipos —entrada del hilo, ticket, usuario, organización y artículo de la base de conocimiento— con sus diferencias: la entrada vacía no se indexa, el ticket no recorta y el usuario y la organización sí, y las palabras clave van delante de la pregunta | `tests/SearchRecordTest.php`, 18 casos |
 | `include/class.file.input.php` | `FileInput`: lo que se decide antes de guardar un archivo. Descodificar base64, resolver la llamada diferida (`data_cbk`) una sola vez, el tipo (el del cliente, si no el de `finfo`, si no el genérico), el tamaño cuando el cliente no lo manda (backend, `mb_strlen` en `8bit`, `strlen`) y cuándo merece la pena buscar un archivo idéntico | `tests/FileInputTest.php`, 17 casos |
+| `include/class.mail.attachment.php` | `MailAttachment`: qué parte de un correo es un adjunto (`isAttachment()`: `attachment`, `inline` o tipo `image`/`application`) y cómo se llama (`filename()`: `filename`, `filename*` RFC 5987, `name`, `name*`, `filename="…"`, imagen sin nombre, `message/rfc822` y la forma fragmentada `filename*0=`). `describe()` devuelve nombre y tipo ya decididos, `part()` normaliza la parte MIME (PEAR no define las propiedades que el correo no trae) y `size()` cuenta bytes | `tests/MailAttachmentTest.php`, 35 casos, cinco de ellos con correos MIME de verdad |
 | `include/class.model.rules.php` | `ModelRules`: las banderas por estado (`active`/`archived`), la regla de «no dejar la lista vacía» (`wouldEmpty()`), el destino de una asignación (`assignTarget()`: `s123` a un agente, `t45` a un equipo), las referencias opcionales que deben existir (`unknownReferences()`), las banderas de a quién se puede asignar (`assignmentFlags()`), qué señales de «editado» manda un guardado (`editedSignals()`, `editedColumns()`), la última bandera que cambió en una organización (`lastFlagAudit()`), la comparación de la lista de contactos (`idListChanged()`) el volcado de columnas con su tipo (`fieldValues()`), el permiso que pide cada estado del ticket (`statusPermission()`) y a quién se le deja un ticket al reabrirlo (`reopenAssignee()`) | `tests/ModelRulesTest.php`, 40 casos |
 | `include/class.staff.check.php` | `StaffCheck`: campos obligatorios del agente, la regla del **último administrador** activo (que ya escondía un defecto: comparaba con una variable que sólo existe cuando cambian usuario o correo) y el formato de los accesos a departamentos y de las pertenencias a equipos. `Dept::update()` reutiliza `accessPairs()`, así que las dos pantallas arman los accesos igual | `tests/StaffCheckTest.php`, 11 casos |
 | `include/class.schedule.fields.php` | `ScheduleEntryFormFields::build()`: los 13 campos del formulario de horario (nombre, fecha, todo el día, hora de inicio y fin, repetición, día de la semana, del mes y del año), sus valores por omisión y **cuándo se muestra cada uno** (`allday`, `repeats`, `monthly`, `yearly`), armados por bloques (`head()`, `weekly()`, `monthly()`, `yearly()`) | `tests/ScheduleFieldsTest.php`, 17 casos |
@@ -441,6 +442,13 @@ se veían al compilar según qué consulta:
    se resuelven a `[$this, '__contains']`.
 4. `QuerySet::extra()` leía `$this->extra[$section]` sin comprobar que
    existiera: «Undefined array key» la primera vez que se usaba cada sección.
+
+La prueba con correos de verdad de `getAttachments()` destapó tres más del
+mismo tipo, y las tres estaban en el camino de **cada correo que entra**:
+`Mail_Parse::$header` y `Mail_Parse::$notes` no estaban declaradas (una
+deprecación de PHP 8.2 por cada mensaje recibido) y `Mail_mimeDecode::$_input`
+tampoco, en el decodificador MIME empaquetado —el aviso salía dos veces por
+correo—. Declararlas es una línea en cada sitio y el log deja de llenarse.
 
 En `Mailer::send()` lo que queda es lo que no se puede probar sin enviar:
 cuentas SMTP, envío por Sendmail y la traducción de destinatarios a

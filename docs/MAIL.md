@@ -128,6 +128,26 @@ correo al entregar el mensaje.
 > crudo por HTTP. Es la vía para un servidor de correo externo, no hace falta
 > en desarrollo.
 
+### Cómo se llaman los adjuntos que llegan
+
+El nombre del archivo se toma de la cabecera que lo traiga, en este orden:
+
+1. `Content-Disposition: … filename="factura.pdf"`
+2. `filename*` —la forma de la RFC 5987, que admite acentos y espacios
+   codificados: `filename*=utf-8''informe%20raro.pdf` llega como
+   `informe raro.pdf`—, y también la forma partida `filename*0=`, `filename*1=`…
+3. `Content-Type: … name="logo.png"` (y `name*`), que usan los clientes que no
+   ponen disposición.
+
+Si el adjunto es una **imagen incrustada** y no trae ningún nombre —Lotus Notes
+y Domino lo hacían—, se guarda como `image-XXXX.gif`, con cuatro caracteres al
+azar y la extensión de su tipo. Un `message/rfc822` adjunto se guarda como
+`.eml` y toma el nombre del asunto del mensaje que lleva dentro.
+
+Esa decisión vive en `include/class.mail.attachment.php` (`MailAttachment`) y
+tiene pruebas con correos MIME de verdad en `tests/MailAttachmentTest.php`, así
+que un cliente raro se puede reproducir sin esperar a que escriba.
+
 ---
 
 ## 5. Tareas en segundo plano (avisos de vencimiento, cierre automático)

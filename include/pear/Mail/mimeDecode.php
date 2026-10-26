@@ -107,6 +107,13 @@ class Mail_mimeDecode extends PEAR
     var $_body;
 
     /**
+     * Referencia al texto crudo que se está decodificando. Faltaba: se
+     * asignaba en el constructor y PHP 8.2 avisa de la propiedad dinámica en
+     * cada correo.
+     */
+    var $_input;
+
+    /**
      * If an error occurs, this is used to store the message
      *
      * @var    string

@@ -20,6 +20,7 @@ require_once(PEAR_DIR.'Mail/RFC822.php');
 require_once(INCLUDE_DIR.'tnef_decoder.php');
 // El modelo Priority, para la urgencia del correo entrante
 require_once(INCLUDE_DIR.'class.priority.php');
+require_once(INCLUDE_DIR.'class.mail.attachment.php');
 
 class Mail_Parse {
 
@@ -30,6 +31,10 @@ class Mail_Parse {
 
     var $struct;
     var $headers;
+    // Declaradas: en PHP 8.2 crear propiedades sobre la marcha es obsoleto y
+    // llena el log de cada correo que entra.
+    var $header;
+    var $notes = array();
 
     var $charset ='UTF-8'; //Default charset.
 
@@ -443,79 +448,17 @@ class Mail_Parse {
     }
 
     function getAttachments($part=null){
-        $files = $matches = array();
+        $files = array();
 
-        /* Consider this part as an attachment if
-         *   * It has a Content-Disposition header
-         *     * AND it is specified as either 'attachment' or 'inline'
-         *   * The Content-Type header specifies
-         *     * type is image/* or application/*
-         *     * has a name parameter
-         */
-        if($part && (
-                ($part->disposition
-                    && (!strcasecmp($part->disposition,'attachment')
-                        || !strcasecmp($part->disposition,'inline'))
-                )
-                || (!strcasecmp($part->ctype_primary,'image')
-                    || !strcasecmp($part->ctype_primary,'application')))) {
+        // Qué es un adjunto, cómo se llama y de qué tipo es vive en
+        // MailAttachment; aquí sólo queda el cuerpo del correo.
+        if ($part && ($file = MailAttachment::describe($part, array(
+                'mimedecode' => array('Format', 'mimedecode'),
+                'rfc5987' => array('Format', 'decodeRfc5987'),
+                'random' => array('Misc', 'randCode'),
+            ), $this->charset))) {
 
-            if (isset($part->d_parameters['filename']))
-                $filename = Format::mimedecode($part->d_parameters['filename'], $this->charset);
-            elseif (isset($part->d_parameters['filename*']))
-                // Support RFC 6266, section 4.3 and RFC, and RFC 5987
-                $filename = Format::decodeRfc5987(
-                    $part->d_parameters['filename*']);
-
-            // Support attachments that do not specify a content-disposition
-            // but do specify a "name" parameter in the content-type header.
-            elseif (isset($part->ctype_parameters['name']))
-                $filename = Format::mimedecode($part->ctype_parameters['name'], $this->charset);
-            elseif (isset($part->ctype_parameters['name*']))
-                $filename = Format::decodeRfc5987(
-                    $part->ctype_parameters['name*']);
-            elseif (isset($part->headers['content-disposition'])
-                    && $part->headers['content-disposition']
-                    && preg_match('/filename="([^"]+)"/', $part->headers['content-disposition'], $matches))
-                $filename = Format::mimedecode($matches[1], $this->charset);
-            // Some mail clients / servers (like Lotus Notes / Domino) will
-            // send images without a filename. For such a case, generate a
-            // random filename for the image
-            elseif (isset($part->headers['content-id'])
-                    && $part->headers['content-id']
-                    && 0 === strcasecmp($part->ctype_primary, 'image')) {
-                $filename = 'image-'.Misc::randCode(4).'.'
-                    .strtolower($part->ctype_secondary);
-            // Attachment of type message/rfc822 without name!!!
-            } elseif (strcasecmp($part->ctype_primary, 'message') === 0) {
-                $struct = $part->parts[0];
-                if ($struct && isset($struct->headers['subject']))
-                    $filename = Format::mimedecode($struct->headers['subject'],
-                                $this->charset);
-                else
-                    $filename = 'email-message-'.Misc::randCode(4);
-
-                $filename .='.eml';
-            } elseif (isset($part->headers['content-disposition'])
-                    && $part->headers['content-disposition']
-                    && preg_match('/filename="([^"]+)"/', $part->headers['content-disposition'], $matches)) {
-                $filename = Format::mimedecode($matches[1], $this->charset);
-            } elseif (preg_match('/filename\*\d+=([^;]+);/', $part->headers['content-disposition']) === 1) {
-                $filename = '';
-                foreach ($part->d_parameters as $key=>$fname)
-                    if (strpos($key, 'filename*') !== false)
-                        $filename .= Format::decodeRfc5987($fname);
-            } else {
-                // Not an attachment?
-                return false;
-            }
-
-            $file=array(
-                    'name'  => $filename,
-                    'type'  => strtolower($part->ctype_primary.'/'.$part->ctype_secondary),
-                    );
-
-            if ($part->ctype_parameters['charset']
+            if (@$part->ctype_parameters['charset']
                     && 0 === strcasecmp($part->ctype_primary, 'text'))
                 $file['data'] = $this->mime_encode($part->body,
                     $part->ctype_parameters['charset']);
@@ -523,18 +466,15 @@ class Mail_Parse {
                 $file['data'] = $part->body;
 
             // Capture filesize in order to support de-duplication
-            if (extension_loaded('mbstring'))
-                $file['size'] = mb_strlen($file['data'], '8bit');
-            // bootstrap.php include a compat version of mb_strlen
-            else
-                $file['size'] = strlen($file['data']);
+            $file['size'] = MailAttachment::size($file['data']);
 
-            if(!$this->decode_bodies && $part->headers['content-transfer-encoding'])
+            if(!$this->decode_bodies && @$part->headers['content-transfer-encoding'])
                 $file['encoding'] = $part->headers['content-transfer-encoding'];
 
             // Include Content-Id (for inline-images), stripping the <>
-            $file['cid'] = (isset($part->headers['content-id']))
-                ? rtrim(ltrim($part->headers['content-id'], '<'), '>') : false;
+            $file['cid'] = MailAttachment::contentId(
+                isset($part->headers['content-id'])
+                    ? $part->headers['content-id'] : null);
 
             return array($file);
         }
@@ -554,12 +494,14 @@ class Mail_Parse {
 
         if($part==null) {
             $part=$this->getStruct();
-            if (!$part->parts)
+            // Sin estructura no hay nada que mirar. Y el `empty()` no es
+            // cosmético: con `!$part` esto se llamaría a sí mismo sin fin.
+            if ($part && empty($part->parts))
                 if($result=$this->getAttachments($part))
                     $files=array_merge($files,$result);
         }
 
-        if($part->parts){
+        if($part && !empty($part->parts)){
             foreach($part->parts as $k=>$p){
                 if($p && ($result=$this->getAttachments($p))) {
                     $files=array_merge($files,$result);
