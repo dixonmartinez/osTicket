@@ -122,6 +122,9 @@ Project documentation:
     creates, how to undo it and why it is not a `.sql` file.
   * [`docs/MAIL.md`](docs/MAIL.md) — test mail with Mailpit, step by step:
     host, port, mailbox settings and inbound mail.
+  * [`docs/QUEUES.md`](docs/QUEUES.md) — queue diagnostics
+    (`make queue-check`): why a queue can count tickets it does not list, and
+    how to tell the data from the query from the count.
   * [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) — bundled library inventory.
 
 New in this branch:

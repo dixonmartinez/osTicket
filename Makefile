@@ -27,7 +27,8 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-reset docker-test docker-integration docker-security docker-prod \
 	docker-composer docker-qa \
 	docker-bench docker-urls \
-	seed seed-fresh seed-check seed-verbose seed-list seed-doctor mail test-mail
+	seed seed-fresh seed-check seed-verbose seed-list seed-doctor \
+	queues queue-check mail test-mail
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -256,6 +257,16 @@ seed-list: ## Igual que seed-check (alias con el nombre del módulo)
 
 seed-doctor: ## Revisa que los datos sembrados cuadren con los informes (no escribe)
 	@docker compose exec -T php php manage.php seed --doctor
+
+# Diagnóstico de colas: `make queue-check QUEUE=8`, `make queue-check QUEUE=8 QUEUE_ARGS=--sql`
+QUEUE ?=
+QUEUE_ARGS ?=
+
+queues: ## Lista las colas del panel con su identificador y su recuento
+	@docker compose exec -T php php manage.php queue --list
+
+queue-check: ## Diagnostica una cola: criterio, SQL real, filas y recuento (QUEUE=8)
+	@docker compose exec -T php php manage.php queue $(if $(QUEUE),--id=$(QUEUE),--all) $(QUEUE_ARGS)
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar
 	@$(MAKE) --no-print-directory docker-urls
