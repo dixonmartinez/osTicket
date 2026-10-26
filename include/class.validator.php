@@ -14,6 +14,9 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 
+// Tabla de reglas de tipo de validate() (frente 2)
+require_once dirname(__FILE__).'/class.validator.rule.php';
+
 class Validator {
 
     var $input=array();
@@ -76,90 +79,9 @@ class Validator {
             //We don't care about the type.
             if ($field['type'] == '*') continue;
 
-            //Do the actual validation based on the type.
-            switch(strtolower($field['type'])):
-            case 'integer':
-            case 'int':
-                if(!is_numeric($this->input[$k]))
-                     $this->errors[$k]=$field['error'];
-                elseif ($field['min'] && $this->input[$k] < $field['min'])
-                     $this->errors[$k]=$field['error'];
-                break;
-            case 'double':
-                if(!is_numeric($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'text':
-            case 'string':
-                if(!is_string($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'array':
-                if(!$this->input[$k] || !is_array($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'radio':
-                if(!isset($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'date': //TODO...make sure it is really in GNU date format..
-                if(strtotime($this->input[$k])===false)
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'time': //TODO...make sure it is really in GNU time format..
-                break;
-            case 'phone':
-            case 'fax':
-                if(!self::is_phone($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'email':
-                if(!self::is_email($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'url':
-                if(!self::is_url($this->input[$k]))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'password':
-                if(strlen($this->input[$k])<6)
-                    $this->errors[$k]=$field['error'].' '.__('(Six characters min)');
-                break;
-            case 'username':
-                $error = '';
-                if (!self::is_username($this->input[$k], $error))
-                    $this->errors[$k]=$field['error'].": $error";
-                break;
-            case 'zipcode':
-                if(!is_numeric($this->input[$k]) || (strlen($this->input[$k])!=5))
-                    $this->errors[$k]=$field['error'];
-                break;
-            case 'cs-domain': // Comma separated list of domains
-                if($values=explode(',', $this->input[$k]))
-                    foreach($values as $v)
-                        if(!preg_match_all(
-                                '/^([a-z0-9|-]+\.)*[a-z0-9|-]+\.[a-z]+$/',
-                                ltrim($v)))
-                            $this->errors[$k]=$field['error'];
-                break;
-            case 'cs-url': // Comma separated list of urls
-                if($values=explode(',', $this->input[$k]))
-                    foreach($values as $v)
-                        if(!preg_match_all(
-                                '/^(https?:\/\/)?((\*\.|\w+\.)?[\w-]+(\.[a-zA-Z]+)?(:([0-9]+|\*))?)+$/',
-                                ltrim($v)))
-                            $this->errors[$k]=$field['error'];
-                break;
-            case 'ipaddr':
-                if($values=explode(',', $this->input[$k])){
-                    foreach($values as $v)
-                        if(!preg_match_all('/^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/', ltrim($v)))
-                            $this->errors[$k]=$field['error'];
-                }
-                break;
-            default://If param type is not set...or handle..error out...
-                $this->errors[$k]=$field['error'].' '.__('(type not set)');
-            endswitch;
+            // La tabla de reglas vive en class.validator.rule.php
+            if (($error = ValidatorRule::check($field['type'], $value, $field)) !== null)
+                $this->errors[$k] = $error;
         }
         return ($this->errors)?(FALSE):(TRUE);
     }
