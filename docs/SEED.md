@@ -30,7 +30,7 @@ docker compose exec -T php php manage.php seed --no-tickets
 | Opción | Qué hace |
 |---|---|
 | `--fresh` | borra lo creado por una ejecución anterior (según el manifiesto) y vuelve a crear |
-| `--only=PASO` | ejecuta un solo paso (`orgs`, `users`, `agents`, `depts`, `teams`, `slas`, `topics`, `canned`, `faq`, `tickets`) |
+| `--only=PASO` | ejecuta un solo paso (`orgs`, `users`, `slas`, `depts`, `agents`, `teams`, `topics`, `canned`, `faq`, `tickets`) |
 | `--count=N` | cuántos tickets crear (por omisión 30) |
 | `--no-tickets` | deja la configuración pero ningún ticket |
 | `--list` | muestra los pasos |
@@ -45,17 +45,26 @@ docker compose exec -T php php manage.php seed --no-tickets
 |---|---|
 | `orgs` | Acme S.A., Globex Corporation, Initech (con su dominio, para que los usuarios se asignen solos) |
 | `users` | 12 clientes repartidos entre las tres organizaciones, con teléfono |
-| `agents` | `admin` (administrador), `supervisor`, `agente1`, `agente2`, `agente3` — todos con acceso a los cuatro departamentos |
-| `depts` | Soporte · Soporte Técnico (hijo) · Facturación (hijo) · Ventas |
-| `teams` | Turno de noche · Escalado (con líder y miembros) |
 | `slas` | Respuesta 8 h · Respuesta 24 h (24/7, sin horario asignado) |
+| `depts` | Soporte · Soporte Técnico (hijo) · Facturación (hijo) · Ventas |
+| `agents` | `admin` (administrador), `supervisor`, `agente1`, `agente2`, `agente3` — todos con acceso a los cuatro departamentos |
+| `teams` | Turno de noche · Escalado (con líder y miembros) |
 | `topics` | Problema técnico · Facturación y pagos · Solicitud de información · Alta de usuario · Reclamación · Incidente interno (este último privado) |
 | `canned` | Saludo inicial · Petición de información · Ticket resuelto · Escalado a segundo nivel · Factura duplicada |
 | `faq` | Primeros pasos · Cuenta y acceso · Facturación, con 8 artículos publicados y destacados |
 | `tickets` | 30 tickets con antigüedad de 0 a 42 días, respuestas de cliente y de agente en el hilo, cerrados con su fecha, asignados o pendientes de asignar |
 
-**Credenciales**: usuario `admin`, contraseña `Demo1234!` (la misma para todos
-los agentes y para las cuentas de cliente). Los correos usan el dominio
+**Orden**: el de la tabla no es decorativo. Sin SLA no hay departamento
+(apunta a su SLA), sin departamento no hay agente (cada uno tiene el suyo como
+primario) y sin departamento ni tema no hay ticket. Si ejecuta un paso suelto
+con `--only` y le faltan los anteriores, lo dirá con un aviso en vez de crear
+registros a medias.
+
+**Credenciales**: usuario `admin`, contraseña `Demo1234!` (la misma para el
+resto de agentes y para las cuentas de cliente). Si al instalar ya creó una
+cuenta `admin` con otra contraseña, ese usuario se respeta tal cual y el
+sembrador no lo toca: entre con su contraseña de siempre, o use `supervisor`,
+`agente1`, `agente2` o `agente3` con `Demo1234!`. Los correos usan el dominio
 `demo.invalid`, que no existe: si algo intenta enviarles correo, rebota en el
 acto y no molesta a nadie.
 
@@ -142,14 +151,43 @@ make docker-up           # vuelve a levantar
 ## Si un paso falla
 
 Cada paso está aislado: un error se informa, los demás siguen, y al final el
-comando dice cuáles fallaron y con qué mensaje. Lo normal es corregir y repetir
-sólo ese paso:
+comando dice cuáles fallaron y **sale con error** (código 1, así que un
+`make seed` en un script se detiene). Lo normal es corregir y repetir sólo ese
+paso:
 
 ```bash
-docker compose exec -T php php manage.php seed --only=agents --verbose
+docker compose exec -T php php manage.php seed --only=topics --verbose
 ```
 
-Los avisos (`AVISO — …`) no detienen nada: significan que ese registro concreto
-no se creó, casi siempre porque ya existía o porque falta algo de lo que
-depende (por ejemplo, `topics` necesita los departamentos). El orden de los
-pasos ya lo tiene en cuenta.
+Cada paso termina con un resumen, para que no haya que adivinar si hizo algo:
+
+```
+[topics]
+  + Problema técnico (#4)
+  + Facturación y pagos (#5)
+  6 creado(s), 0 ya existía(n)
+```
+
+Un `AVISO — …` significa que **ese** registro no se creó, y siempre trae el
+motivo. Cuando el modelo no guarda, `save()` de osTicket devuelve `false` y se
+traga el error del motor («Internal error occurred»); el sembrador lo rescata
+(`VerySimpleModel::getLastError()`) y lo imprime detrás:
+
+```
+  AVISO — no se pudo crear el tema Problema técnico: err · Unable to create
+  this help topic. Internal error occurred — Unable to prepare query: Unknown
+  column 'isactive' in 'field list' INSERT INTO ost_help_topic SET ...
+```
+
+### Dónde mirar cuando algo falla
+
+| Sitio | Qué hay |
+|---|---|
+| La propia salida del comando | El aviso con el error del motor y el SQL que falló (desde la versión actual) |
+| `docker compose exec -T php php manage.php seed --only=PASO -v` | Repite un solo paso y muestra cada registro creado o saltado |
+| **Panel → Logs** (`/scp/logs.php`) | Cada error de base de datos que osTicket registra, con la consulta completa |
+| `SELECT log_type, title, log, created FROM ost_syslog ORDER BY log_id DESC LIMIT 10;` | Lo mismo desde SQL |
+| `docker compose logs php` | Avisos y errores de PHP (incluido «Undefined array key» y los de correo) |
+
+El orden de los pasos ya tiene en cuenta las dependencias; si ejecuta uno solo,
+los pasos anteriores tienen que estar hechos.

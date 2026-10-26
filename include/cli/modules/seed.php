@@ -21,14 +21,18 @@
 
         orgs     3 organizaciones con contactos
         users    12 usuarios, repartidos entre las organizaciones
-        agents   5 agentes (uno administrador) con contraseña conocida
-        depts    4 departamentos, uno hijo de otro, con accesos
-        teams    2 equipos con miembros y un líder
         slas     2 SLA (24/7 y horario de oficina)
+        depts    4 departamentos, uno hijo de otro, con accesos
+        agents   5 agentes (uno administrador) con contraseña conocida
+        teams    2 equipos con miembros y un líder
         topics   6 temas de ayuda, uno privado y uno con SLA
         canned   5 respuestas predefinidas
         faq      3 categorías y 8 artículos publicados
         tickets  30 tickets con estados, orígenes y antigüedad variados
+
+    El orden **es** una dependencia: los SLA antes que los departamentos, los
+    departamentos antes que los agentes (cada uno tiene su departamento
+    primario) y los agentes antes que los equipos.
 
     Al terminar escribe `tools/dev/seed-manifest.json` con los identificadores
     creados; es lo que `--fresh` usa para borrar **sólo** lo suyo.
@@ -77,6 +81,13 @@ class SeedManager extends Module {
     var $quiet = false;
     var $verbose = false;
     var $failed = array();
+
+    /** Cuántos registros creó, se saltó y avisó cada paso. */
+    var $stats = array();
+    /** Paso en curso, para poder apuntar los avisos a su casilla. */
+    var $step;
+    /** Avisos de toda la ejecución: si hay alguno, el comando falla. */
+    var $warnings = 0;
 
     /* ------------------------------------------------------------------ */
     /* Paquetes de datos                                                   */
@@ -237,8 +248,37 @@ class SeedManager extends Module {
     /* Arranque                                                            */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Los pasos, en el orden en que se ejecutan.
+     *
+     * El orden **es** una dependencia: cada paso busca lo que crearon los
+     * anteriores. Los SLA van antes que los departamentos (un departamento
+     * apunta a su SLA), los departamentos antes que los agentes (cada agente
+     * tiene un departamento primario) y los agentes antes que los equipos.
+     */
+    static function steps() {
+        return array('orgs', 'users', 'slas', 'depts', 'agents', 'teams',
+            'topics', 'canned', 'faq', 'tickets');
+    }
+
     function run($args, $options) {
         global $ost, $cfg;
+
+        $this->quiet = (bool) $options['quiet'];
+        $this->verbose = (bool) $options['verbose'];
+
+        // `--list` y un `--only` mal escrito no necesitan la base de datos:
+        // se resuelven antes de conectar para que sirvan como ayuda rápida.
+        $steps = self::steps();
+        if ($options['list']) {
+            $this->out('Pasos: ' . implode(', ', $steps));
+            $this->out('Use --only=PASO para ejecutar uno solo.');
+            return 0;
+        }
+
+        if ($options['only'] && !in_array($options['only'], $steps))
+            $this->fail("Paso desconocido: {$options['only']}. Son: "
+                . implode(', ', $steps));
 
         Bootstrap::connect();
         if (!($ost = osTicket::start()) || !($cfg = $ost->getConfig()))
@@ -247,21 +287,6 @@ class SeedManager extends Module {
         // Estados y prioridades viven en las listas internas
         require_once INCLUDE_DIR . 'class.list.php';
         require_once INCLUDE_DIR . 'class.priority.php';
-
-        $this->quiet = (bool) $options['quiet'];
-        $this->verbose = (bool) $options['verbose'];
-
-        $steps = array('orgs', 'users', 'agents', 'depts', 'teams', 'slas',
-            'topics', 'canned', 'faq', 'tickets');
-
-        if ($options['list']) {
-            $this->out("Pasos: " . implode(', ', $steps));
-            return;
-        }
-
-        if ($options['only'] && !in_array($options['only'], $steps))
-            $this->fail("Paso desconocido: {$options['only']}. Son: "
-                . implode(', ', $steps));
 
         $this->loadManifest();
 
@@ -280,7 +305,7 @@ class SeedManager extends Module {
             if ($step == 'tickets' && $options['no-tickets'])
                 continue;
 
-            $before = count($this->failed);
+            $this->step = $step;
             $this->out('');
             $this->out("[{$step}]");
 
@@ -293,27 +318,51 @@ class SeedManager extends Module {
                 $this->err(sprintf('  ERROR — %s: %s (%s:%d)', $step,
                     $e->getMessage(), basename($e->getFile()), $e->getLine()));
             }
+
+            // Un resumen por paso: sin él, un paso que no crea nada porque
+            // no encuentra lo que necesita se ve igual que uno que funciona.
+            $this->summary($step);
         }
 
         $this->saveManifest();
 
         $this->out('');
-        if ($this->failed) {
-            $this->err(sprintf('%d paso(s) con error:', count($this->failed)));
-            foreach ($this->failed as $f)
-                $this->err('  - ' . $f);
+        if ($this->failed || $this->warnings) {
+            if ($this->failed) {
+                $this->err(sprintf('%d paso(s) con error:', count($this->failed)));
+                foreach ($this->failed as $f)
+                    $this->err('  - ' . $f);
+            }
+            if ($this->warnings) {
+                $this->err(sprintf('%d aviso(s): los registros avisados no se '
+                    . 'crearon (ver el detalle arriba).', $this->warnings));
+            }
             $this->err('');
             $this->err('Los pasos son independientes: lo creado por los demás '
-                . 'sigue en la base. Corrija y repita con --only=<paso>.');
-            return 1;
+                . 'sigue en la base. Repita el que falle con --only=<paso> -v.');
+            $this->err('El motivo exacto de un fallo al guardar suele estar '
+                . 'también en el panel del agente, en «Logs».');
+            // `manage.php` ignora lo que devuelve el módulo: para que el
+            // comando —y `make seed`— salgan con error hay que salir aquí.
+            exit(1);
         }
 
-        $this->out('Listo. Entre al panel con el usuario «admin» y la '
-            . 'contraseña indicada arriba.');
+        $this->out('Listo. Entre al panel con el usuario «admin» (o el que '
+            . 'creó al instalar) y la contraseña indicada arriba.');
         $this->out('Para deshacerlo: php manage.php seed --fresh (o borre la '
             . 'base y vuelva a instalarla).');
 
         return 0;
+    }
+
+    /**
+     * `Module::fail()` usa `die()` sin argumento, que sale con 0: para que
+     * `make seed` falle de verdad (y pare una ejecución en lote) hay que
+     * salir con 1.
+     */
+    function fail($message) {
+        $this->err($message);
+        exit(1);
     }
 
     function out($text) {
@@ -339,7 +388,8 @@ class SeedManager extends Module {
             $vars = array('name' => $org['name']);
             $organization = Organization::fromVars($vars);
             if (!$organization) {
-                $this->warn('no se pudo crear la organización ' . $org['name']);
+                $this->warn('no se pudo crear la organización ' . $org['name']
+                    . ': ' . ($this->saveError() ?: 'sin más datos'));
                 continue;
             }
             // El dominio reparte los usuarios de esa organización solo
@@ -351,7 +401,14 @@ class SeedManager extends Module {
     }
 
     function seedUsers() {
-        $orgs = Organization::objects()->order_by('id')->all();
+        // Las organizaciones se buscan **por nombre**, no por posición: la
+        // instalación puede tener otras y el índice de `organizations()` no
+        // tiene por qué coincidir con el orden de la base.
+        $orgs = array();
+        foreach (self::organizations() as $i => $org) {
+            if ($found = Organization::lookup(array('name' => $org['name'])))
+                $orgs[$i] = $found;
+        }
 
         foreach (self::people() as $i => $person) {
             list($name, $local, $orgIndex) = $person;
@@ -365,13 +422,16 @@ class SeedManager extends Module {
             $vars = array('name' => $name, 'email' => $email);
             if ($orgIndex !== null && isset($orgs[$orgIndex]))
                 $vars['org_id'] = $orgs[$orgIndex]->getId();
+            elseif ($orgIndex !== null)
+                $this->warn('falta la organización del usuario ' . $email);
 
             // Teléfono: el formulario de usuario lo pide, pero no es
             // obligatorio; se rellena para que la ficha no esté vacía
             $vars['phone'] = sprintf('+58 412 %03d %04d', 100 + $i, 1000 + $i * 37);
 
             if (!($user = User::fromVars($vars, true, true))) {
-                $this->warn('no se pudo crear el usuario ' . $email);
+                $this->warn('no se pudo crear el usuario ' . $email
+                    . ': ' . ($this->saveError() ?: 'sin más datos'));
                 continue;
             }
             $this->created('users', $user->getId(), $email);
@@ -381,7 +441,7 @@ class SeedManager extends Module {
     function seedAgents() {
         global $cfg;
 
-        $role = $this->ensureRoles();
+        $roles = $this->roleIndex();
         $depts = $this->deptIndex();
 
         foreach (self::agents() as $agent) {
@@ -400,6 +460,10 @@ class SeedManager extends Module {
                 $this->warn("falta el departamento $deptName para $username");
                 continue;
             }
+            if (!($role = $this->roleFor($roles, $isadmin))) {
+                $this->warn("no hay ningún rol para $username");
+                continue;
+            }
 
             $vars = array(
                 'id' => 0,
@@ -413,7 +477,10 @@ class SeedManager extends Module {
                 'notes' => 'Agente de demostración',
                 'dept_id' => $dept->getId(),
                 'role_id' => $role,
-                'isadmin' => $isadmin ? 1 : 0,
+                // `Staff::update()` compara con la cadena '1' para decidir si
+                // hay que proteger al último administrador
+                'isadmin' => $isadmin ? '1' : 0,
+                'islocked' => null,     // null deja la cuenta activa
                 'isvisible' => 1,
                 'onvacation' => 0,
                 'assigned_only' => 0,
@@ -429,9 +496,11 @@ class SeedManager extends Module {
                 'dept_access_alerts' => array(),
                 'perms' => array(),
             );
-            // Acceso a todos los departamentos, como quien dice «sí» en el
-            // formulario del panel
+            // Acceso a todos los departamentos menos al primario, que ya lo
+            // tiene por serlo (si se repite, `updateAccess()` lo rechaza)
             foreach ($depts as $d) {
+                if ($d->getId() == $dept->getId())
+                    continue;
                 $vars['dept_access'][] = $d->getId();
                 $vars['dept_access_role'][$d->getId()] = $role;
                 $vars['dept_access_alerts'][$d->getId()] = 1;
@@ -439,8 +508,7 @@ class SeedManager extends Module {
 
             $staff = Staff::create();
             if (!$staff->update($vars, $errors)) {
-                $this->warn(sprintf('no se pudo crear el agente %s: %s',
-                    $username, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("el agente " . $username, $errors);
                 continue;
             }
 
@@ -483,8 +551,7 @@ class SeedManager extends Module {
 
             $dept = Dept::create();
             if (!$dept->update($vars, $errors)) {
-                $this->warn(sprintf('no se pudo crear el departamento %s: %s',
-                    $name, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("el departamento " . $name, $errors);
                 continue;
             }
             $depts[$name] = $dept;
@@ -496,7 +563,8 @@ class SeedManager extends Module {
         $depts = $this->deptIndex();
         $agents = $this->agentIndex();
         if (!$depts || !$agents) {
-            $this->warn('hacen falta departamentos y agentes');
+            $this->warn('hacen falta departamentos o agentes: ejecute antes '
+                . 'los pasos depts y agents');
             return;
         }
         $soporte = reset($depts);
@@ -516,24 +584,31 @@ class SeedManager extends Module {
             }
 
             $vars = array(
+                'id' => 0,
                 'name' => $name,
                 'notes' => $notes,
                 'isenabled' => 1,
                 'lead_id' => 0,
+                'remove' => array(),
                 'members' => array(),
                 'member_alerts' => array(),
             );
-            foreach ($members as $username)
-                if (isset($agents[$username]))
-                    $vars['members'][] = $agents[$username]->getId();
+            foreach ($members as $username) {
+                if (!isset($agents[$username])) {
+                    $this->warn("el agente $username no existe: el equipo "
+                        . "$name queda sin él");
+                    continue;
+                }
+                $vars['members'][] = $agents[$username]->getId();
+                $vars['member_alerts'][$agents[$username]->getId()] = 1;
+            }
             // El primer miembro hace de líder
             if ($vars['members'])
                 $vars['lead_id'] = $vars['members'][0];
 
             $team = Team::create();
             if (!$team->update($vars, $errors)) {
-                $this->warn(sprintf('no se pudo crear el equipo %s: %s',
-                    $name, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("el equipo " . $name, $errors);
                 continue;
             }
             $this->created('teams', $team->getId(), $name);
@@ -562,8 +637,7 @@ class SeedManager extends Module {
 
             $sla = SLA::create();
             if (!$sla->update($vars, $errors)) {
-                $this->warn(sprintf('no se pudo crear el SLA %s: %s',
-                    $name, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("el SLA " . $name, $errors);
                 continue;
             }
             $this->created('slas', $sla->getId(), $name);
@@ -594,7 +668,9 @@ class SeedManager extends Module {
                 'topic_pid' => 0,
                 'ispublic' => $ispublic ? 1 : 0,
                 'noautoresp' => 0,
-                'isactive' => 1,
+                // El estado activo va en `flags` (lo pone `status`); no hay
+                // columna `isactive` en `help_topic`, y el ORM inserta todo
+                // lo que quede «sucio»: ponerla aquí rompe el INSERT.
                 'status' => 'active',
                 'dept_id' => $depts[$deptName]->getId(),
                 'priority_id' => isset($priorities[$priorityName])
@@ -605,14 +681,15 @@ class SeedManager extends Module {
                 'page_id' => 0,
                 'sequence_id' => 0,
                 'number_format' => '',
+                'custom-numbers' => 0,
+                'fields' => null,       // sin tocar los campos del formulario
                 'notes' => sprintf('Tema de demostración (%d)', $sort),
                 'assign' => 0,
             );
 
             $topic = Topic::create();
             if (!$topic->update($vars, $errors)) {
-                $this->warn(sprintf('no se pudo crear el tema %s: %s',
-                    $name, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("el tema " . $name, $errors);
                 continue;
             }
             $sort += 10;
@@ -640,8 +717,7 @@ class SeedManager extends Module {
                 'isenabled' => 1,
                 'notes' => 'Respuesta de demostración',
             ), $errors)) {
-                $this->warn(sprintf('no se pudo crear la respuesta %s: %s',
-                    $title, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("la respuesta " . $title, $errors);
                 continue;
             }
             $this->created('canned', $canned->getId(), $title);
@@ -665,8 +741,7 @@ class SeedManager extends Module {
                 );
                 $category = Category::create();
                 if (!$category->update($vars, $errors)) {
-                    $this->warn(sprintf('no se pudo crear la categoría %s: %s',
-                        $categoryName, Format::array_implode(' · ', ' · ', $errors)));
+                    $this->failed("la categoría " . $categoryName, $errors);
                     continue;
                 }
                 $this->created('faq', $category->getId(), 'categoría: ' . $categoryName);
@@ -694,8 +769,7 @@ class SeedManager extends Module {
 
                 $faq = FAQ::create();
                 if (!$faq->update($vars, $errors)) {
-                    $this->warn(sprintf('no se pudo crear el artículo %s: %s',
-                        $question, Format::array_implode(' · ', ' · ', $errors)));
+                    $this->failed("el artículo " . $question, $errors);
                     continue;
                 }
                 $this->created('faq', $faq->getId(), $question);
@@ -710,19 +784,29 @@ class SeedManager extends Module {
         foreach (Topic::getHelpTopics(false, false, false) as $id => $name)
             $topics[$name] = $id;
 
+        if (!$topics) {
+            // Sin temas no hay ticketera posible: el ticket necesita tema y
+            // departamento. Mejor decirlo una vez que fallar treinta.
+            $this->warn('no hay ningún tema de ayuda activo: ejecute antes '
+                . 'los pasos depts y topics');
+            return;
+        }
+
         $agents = $this->agentIndex();
         $people = self::people();
         $plan = self::tickets();
         if ($limit !== null)
             $plan = array_slice($plan, 0, $limit);
 
-        $created = 0;
         foreach ($plan as $i => $row) {
             list($subject, $topicName, $age, $state, $replies, $agentUsername)
                 = $row;
 
-            if (!isset($topics[$topicName]))
+            if (!isset($topics[$topicName])) {
+                $this->warn("el tema «{$topicName}» no existe: se salta el "
+                    . "ticket «{$subject}»");
                 continue;
+            }
             // Un ticket por asunto: si ya existe, se salta
             if (Ticket::objects()
                     ->filter(array('cdata__subject__contains' => $subject))
@@ -735,6 +819,9 @@ class SeedManager extends Module {
             $email = $person[1] . '@' . self::DOMAIN;
             $when = $this->daysAgo($age);
 
+            // `Ticket::create()` lee estas claves con `$vars[...]` sin
+            // comprobar que existan: en el portal siempre vienen del
+            // formulario, aquí hay que ponerlas o el log se llena de avisos.
             $data = array(
                 'name' => $person[0],
                 'email' => $email,
@@ -743,6 +830,11 @@ class SeedManager extends Module {
                 'topicId' => $topics[$topicName],
                 'source' => 'Web',
                 'ip' => '10.0.0.' . (10 + $i),
+                'uid' => 0,
+                'deptId' => 0,          // lo pone el tema
+                'statusId' => 0,        // lo pone el tema
+                'priorityId' => 0,      // lo pone el tema
+                'duedate' => null,
             );
 
             $errors = array();
@@ -750,12 +842,9 @@ class SeedManager extends Module {
             // este comando tiene que funcionar igual
             $ticket = Ticket::create($data, $errors, 'API', false, false);
             if (!$ticket || $errors) {
-                $this->warn(sprintf('no se pudo crear el ticket «%s»: %s',
-                    $subject, Format::array_implode(' · ', ' · ', $errors)));
+                $this->failed("el ticket «" . $subject . "»", $errors);
                 continue;
             }
-            $created++;
-
             // Antigüedad: se corrige después porque create() pone NOW()
             $this->backdate($ticket, $when);
 
@@ -790,7 +879,9 @@ class SeedManager extends Module {
             $this->created('tickets', $ticket->getId(), $ticket->getNumber());
         }
 
-        $this->out(sprintf('  %d tickets creados', $created));
+        if (!($this->stats['tickets']['created'] ?? 0)
+                && !($this->stats['tickets']['skipped'] ?? 0))
+            $this->warn('no se creó ningún ticket');
     }
 
     /* ------------------------------------------------------------------ */
@@ -808,11 +899,17 @@ class SeedManager extends Module {
 
     function clientReply($ticket, $text, $when) {
         try {
+            // Sin avisos: no hay cuenta de correo configurada en una
+            // instalación recién creada y el hilo se llena igual.
             $ticket->postMessage(array(
                 'userId' => $ticket->getUserId(),
                 'poster' => (string) $ticket->getName(),
                 'message' => $text,
-            ), 'Web');
+                'ip_address' => '127.0.0.1',
+                'reply-to' => null,
+                'ccs' => null,
+                'header' => null,
+            ), 'Web', false);
             $this->backdateEntry($ticket, $text, $when);
         }
         catch (Throwable $e) {
@@ -829,19 +926,28 @@ class SeedManager extends Module {
         if (!$agent)
             return;
 
+        $errors = array();
         try {
             $ok = $ticket->postReply(array(
                 'response' => $text,
                 'staffId' => $agent->getId(),
                 'poster' => $agent->getName(),
+                'ip_address' => '127.0.0.1',
+                'reply-to' => null,
+                'ccs' => null,
+                'reply_status_id' => 0,
+                'from_email_id' => 0,
             ), $errors, false, false);
 
             if (!$ok)
                 $ok = $ticket->postNote(array(
                     'note' => $text,
                     'staffId' => $agent->getId(),
+                    'userId' => 0,
                     'poster' => $agent->getName(),
-                ), $errors);
+                    'ip_address' => '127.0.0.1',
+                    'note_status_id' => 0,
+                ), $errors, false, false);
 
             if ($ok)
                 $this->backdateEntry($ticket, $text, $when);
@@ -967,17 +1073,51 @@ class SeedManager extends Module {
     }
 
     /**
-     * Un rol para los agentes. La instalación trae roles, pero si la base se
-     * creó a mano puede no haber ninguno y `Staff::update()` lo exige.
+     * Los roles por nombre (en minúsculas), más los dos primeros por orden.
+     *
+     * La instalación trae cuatro («All Access», «Expanded Access»…), pero el
+     * nombre depende del idioma con que se instaló; por eso además de buscar
+     * por nombre se guardan los dos primeros, que son los de más permisos. Si
+     * la base se creó a mano y no hay ninguno, `Staff::update()` lo exige: se
+     * crea uno.
      */
-    function ensureRoles() {
-        if (Role::objects()->count())
-            return Role::objects()->order_by('id')->values_flat('id')->first()[0];
+    function roleIndex() {
+        if (!Role::objects()->count()) {
+            // Sin roles no se puede asignar un departamento. Se crea uno con
+            // todos los permisos: `Role::update()` es el que los guarda y no
+            // toca las marcas, así que la de «activo» va en el create.
+            $perms = array();
+            foreach (RolePermission::allPermissions() as $group)
+                $perms += $group;
+            $role = Role::create(array(
+                'name' => 'Agente',
+                'notes' => 'Rol de demostración',
+                'flags' => Role::FLAG_ENABLED,
+            ));
+            $errors = array();
+            $role->update(array('id' => 0, 'name' => 'Agente',
+                'notes' => 'Rol de demostración',
+                'perms' => array_keys($perms)), $errors);
+        }
 
-        $role = Role::create(array('name' => 'Agente', 'notes' => 'Rol de demostración'));
-        $role->save();
+        $index = array();
+        foreach (Role::objects()->order_by('id')->all() as $i => $role) {
+            $index[mb_strtolower((string) $role->getName())] = $role->getId();
+            if ($i == 0)
+                $index['_first'] = $role->getId();
+            elseif ($i == 1)
+                $index['_second'] = $role->getId();
+        }
 
-        return $role->getId();
+        return $index;
+    }
+
+    /** Todos los permisos para el administrador; el siguiente, para el resto. */
+    function roleFor(array $roles, $isadmin) {
+        if ($isadmin)
+            return $roles['all access'] ?? $roles['_first'];
+
+        return $roles['expanded access'] ?? $roles['_second'] ?? $roles['_first'];
     }
 
     /* ------------------------------------------------------------------ */
@@ -1005,17 +1145,71 @@ class SeedManager extends Module {
     function created($step, $id, $label) {
         $this->manifest[$step][] = $id;
         $this->manifest[$step] = array_values(array_unique($this->manifest[$step]));
+        $this->counted($step, 'created');
         if ($this->verbose)
             $this->out(sprintf('  + %s (#%s)', $label, $id));
     }
 
-    function skip($label) {
+    function skip($label, $step = null) {
+        $this->counted($step ?: $this->step, 'skipped');
         if ($this->verbose)
             $this->out('  = ' . $label . ' (ya existe)');
     }
 
     function warn($text) {
+        $this->warnings++;
+        $this->counted($this->step, 'warnings');
         $this->err('  AVISO — ' . $text);
+    }
+
+    function counted($step, $what) {
+        if (!$step)
+            return;
+        if (!isset($this->stats[$step][$what]))
+            $this->stats[$step][$what] = 0;
+        $this->stats[$step][$what]++;
+    }
+
+    /** Una línea por paso: cuántos quedaron y cuántos avisos hubo. */
+    function summary($step) {
+        $s = $this->stats[$step] ?? array();
+        $created = $s['created'] ?? 0;
+        $skipped = $s['skipped'] ?? 0;
+        $warnings = $s['warnings'] ?? 0;
+
+        $line = sprintf('  %d creado(s), %d ya existía(n)', $created, $skipped);
+        if ($warnings)
+            $line .= sprintf(', %d aviso(s)', $warnings);
+        $this->out($line);
+    }
+
+    /**
+     * El motivo real de un fallo al guardar. `VerySimpleModel::save()` se traga
+     * la excepción del motor y devuelve `false`; sin esto, lo único que se ve
+     * es el «Internal error occurred» del modelo.
+     */
+    function saveError() {
+        if (class_exists('VerySimpleModel')
+                && ($e = VerySimpleModel::getLastError()))
+            return $e;
+
+        if (function_exists('db_error') && ($e = db_error()))
+            return $e;
+
+        return '';
+    }
+
+    /** Aviso uniforme: el modelo no guardó, con lo que dijo la base. */
+    function failed($what, $errors = null) {
+        $detail = is_array($errors)
+            ? (string) Format::array_implode(' · ', ' · ', $errors)
+            : (string) $errors;
+
+        if (($e = $this->saveError()))
+            $detail .= ($detail ? ' — ' : '') . $e;
+
+        $this->warn(sprintf('no se pudo crear %s: %s', $what,
+            $detail ?: 'sin más datos'));
     }
 
     /**
@@ -1031,8 +1225,10 @@ class SeedManager extends Module {
 
         $this->out('Borrando el conjunto anterior…');
 
-        foreach (array('tickets', 'faq', 'canned', 'topics', 'slas', 'teams',
-                'agents', 'depts', 'users', 'orgs') as $step) {
+        // De lo más dependiente a lo más básico: los departamentos antes que
+        // los SLA (apuntan a ellos) y los agentes antes que los departamentos.
+        foreach (array('tickets', 'faq', 'canned', 'topics', 'teams', 'agents',
+                'depts', 'slas', 'users', 'orgs') as $step) {
             foreach ($m[$step] ?? array() as $id) {
                 try {
                     switch ($step) {

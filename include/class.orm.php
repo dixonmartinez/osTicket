@@ -638,6 +638,21 @@ class VerySimpleModel {
         return true;
     }
 
+    /**
+     * Mensaje del último error del motor al guardar.
+     *
+     * `save()` se traga la excepción del ORM y devuelve `false`, que es lo
+     * correcto para la aplicación pero deja al que llama sin saber por qué
+     * (un `update()` que devuelve `false` y un `$errors` genérico). Se guarda
+     * aquí para poder mostrarlo —el sembrador de datos lo imprime— sin
+     * cambiar lo que devuelve `save()`.
+     */
+    static $lastError;
+
+    static function getLastError() {
+        return static::$lastError;
+    }
+
     function save($refetch=false) {
         if ($this->__deleted__)
             throw new OrmException('Trying to update a deleted object');
@@ -665,6 +680,7 @@ class VerySimpleModel {
         if (count($this->dirty) === 0)
             return true;
 
+        static::$lastError = null;
         $ex = DbEngine::save($this);
         try {
             $ex->execute();
@@ -672,8 +688,12 @@ class VerySimpleModel {
                 // This doesn't really signify an error. It just means that
                 // the database believes that the row did not change. For
                 // inserts though, it's a deal breaker
-                if ($this->__new__)
+                if ($this->__new__) {
+                    static::$lastError = sprintf(
+                        'la base no insertó la fila de %s (affected_rows = %d)',
+                        static::getMeta('table'), $ex->affected_rows());
                     return false;
+                }
                 else
                     // No need to reload the record if requested — the
                     // database didn't update anything
@@ -681,6 +701,9 @@ class VerySimpleModel {
             }
         }
         catch (OrmException $e) {
+            // Lo que el motor dijo (columna desconocida, valor fuera de
+            // rango, clave repetida…), para quien quiera mostrarlo
+            static::$lastError = $e->getMessage();
             return false;
         }
 
