@@ -796,6 +796,39 @@ class TicketPerfTest extends UnitTestCase {
     }
 
     /**
+     * El «proemio» del perfil hace lo que hace la plantilla, no lo que hacía.
+     *
+     * Medía el precache de adjuntos que se retiró y un `count()` de los avisos
+     * que ya no existe, así que sumaba milisegundos de trabajo que la página
+     * no hace. Un informe que miente sobre lo que mide es peor que no tenerlo.
+     */
+    function testElProemioDelPerfilCopiaLaPlantilla() {
+        $perf = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+
+        $start = strpos($perf, '$this->step(\'Hilo: proemio del template\'');
+        $end = strpos($perf, 'return $n;', $start);
+        $this->assertTrue($start !== false && $end !== false);
+        $block = substr($perf, $start, $end - $start);
+
+        $this->assertFalse(
+            strpos($block, 'AttachmentFile::objects()') !== false,
+            'El proemio sigue midiendo el precache que ya no existe');
+        // La consulta se ejecutaba al contar; ahora se materializa primero y
+        // se cuenta en memoria (que es lo que hace la plantilla).
+        $this->assertFalse(
+            strpos($block, "\$thread->getEvents()->order_by('id');") !== false,
+            'El proemio sigue contando los avisos con una consulta');
+        $this->assertTrue(strpos($block, 'iterator_to_array') !== false,
+            'El proemio no materializa los avisos como la plantilla');
+
+        // Y la plantilla sigue haciendo lo que el proemio copia
+        $template = file_get_contents(
+            INCLUDE_DIR . 'staff/templates/thread-entries.tmpl.php');
+        $this->assertTrue(strpos($template, 'iterator_to_array') !== false);
+        $this->assertFalse(strpos($template, 'AttachmentFile::objects()') !== false);
+    }
+
+    /**
      * `render()` no repite la consulta de adjuntos que ya hace la plantilla.
      *
      * El «precache» llenaba `AttachmentFile::$keyCache`, y la plantilla lo

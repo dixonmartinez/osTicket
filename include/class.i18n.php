@@ -436,27 +436,52 @@ class Internationalization {
         return $delimiter;
     }
 
+    /**
+     * La clave con la que se guarda un `IntlDateFormatter`.
+     *
+     * Se calculaba con `implode(':', array_filter(array_intersect_key(...)))`
+     * y eso tenía dos problemas:
+     *
+     *  - `array_filter()` sin función quita los valores falsos, y
+     *    `IntlDateFormatter::FULL` vale **0**. Un formateador con día completo
+     *    (`Format::daydatetime()`, `IDF_FULL`) generaba la misma clave que uno
+     *    sin tipo de día (`ajax.config.php` pasa `null`), así que el segundo
+     *    reutilizaba el primero y pintaba la fecha de otra manera. Los valores
+     *    nulos y el cero tienen que distinguirse.
+     *  - `array_intersect_key()` conserva el orden del arreglo que llega, no el
+     *    de la lista de campos: los mismos valores en otro orden daban otra
+     *    clave y un formateador de más.
+     *
+     * @param array $options
+     * @return string
+     */
+    static function dateFormatterKey(array $options) {
+        $parts = array();
+
+        foreach (array('locale', 'daytype', 'timetype', 'timezone', 'pattern')
+                as $field) {
+            $value = array_key_exists($field, $options)
+                ? $options[$field] : null;
+            // `\0` para «no viene»: así no se confunde con la cadena vacía.
+            $parts[] = is_null($value) ? "\0" : (string) $value;
+        }
+
+        return md5(implode('|', $parts));
+    }
+
     //  getIntDateFormatter($options)
     //
     // Setting up the IntlDateFormatter is pretty expensive, so cache it since
     // there aren't many variations of the arguments passed to the constructor
     static function getIntDateFormatter($options) {
-        static $cache = false;
-        global $cfg;
+        // Un arreglo desde el principio: asignar sobre `false` era una
+        // conversión automática que PHP 8.1 marca como obsoleta.
+        static $cache = array();
 
         // Set some defaults
         $options['locale'] = $options['locale'] ?: self::getCurrentLocale();
 
-        // Generate signature key for options given
-        $k = md5(implode(':', array_filter(
-                    array_intersect_key($options,
-                        array_flip(array(
-                                'locale',
-                                'daytype',
-                                'timetype',
-                                'timezone',
-                                'pattern')
-                            )))));
+        $k = self::dateFormatterKey($options);
 
         // We if we have it cached
         if (isset($cache[$k]) && $cache[$k])

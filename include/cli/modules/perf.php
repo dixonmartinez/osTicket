@@ -240,14 +240,13 @@ class PerfCheck extends Module {
             return $n;
         });
 
-        // Lo que la plantilla hace **antes** del bucle: precargar adjuntos,
-        // contar entradas y eventos, y ordenar. Va aparte para poder restar.
+        // Lo que la plantilla hace **antes** del bucle, copiado de
+        // `thread-entries.tmpl.php`: precargar adjuntos, materializar los
+        // avisos (una sola consulta) y ordenar las entradas. Va aparte para
+        // poder restar. Cuando cambia la plantilla, esto cambia con ella: si no,
+        // el informe mide trabajo que ya no se hace en ningún sitio.
         $this->step('Hilo: proemio del template',
             function() use ($thread, $entries, $ticket) {
-                AttachmentFile::objects()->filter(array(
-                    'attachments__thread_entry__thread__id' => $thread->getId()
-                ))->all();
-
                 $n = 0;
                 foreach (Attachment::objects()->filter(array(
                         'thread_entry__thread__id' => $thread->getId(),
@@ -255,8 +254,8 @@ class PerfCheck extends Module {
                     $n++;
 
                 $entries->exists(true);
-                $entries->count();
-                $events = $thread->getEvents()->order_by('id');
+                $events = array_values(iterator_to_array(
+                    $thread->getEvents()->order_by('id')->getIterator()));
                 count($events);
                 ThreadEntry::sortEntries($entries, $ticket);
                 return $n;

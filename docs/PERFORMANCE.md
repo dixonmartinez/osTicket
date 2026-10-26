@@ -125,8 +125,8 @@ existe para enseñar sin leer el ORM.
 
 ## Lo que ya se arregló
 
-Las dos primeras se veían en el código sin necesidad de medir; las otras
-cuatro las señaló el perfil real del ticket antes de que nadie las buscara:
+Las dos primeras se veían en el código sin necesidad de medir; el resto las
+señaló el perfil real del ticket antes de que nadie las buscara:
 
 1. **Una consulta por entrada al pintar el hilo.**
    `include/staff/templates/thread-entries.tmpl.php` recorría las entradas y
@@ -175,6 +175,13 @@ cuatro las señaló el perfil real del ticket antes de que nadie las buscara:
    carga. Ahora se recorre la consulta una vez: eso hace de detección (el
    `db_prepare` lanza `InconsistentModelException` igual que el `COUNT(*)`) y
    deja el resultado en la caché del iterador.
+
+7. **El «proemio» que mide el perfilador había dejado de ser el de la
+   plantilla.** Seguía haciendo el precache de adjuntos retirado y un
+   `count($events)` que ya no existe, así que sumaba milisegundos de trabajo
+   que la página no hace. Ahora copia lo que hace `thread-entries.tmpl.php`
+   (adjuntos, materializar los avisos, ordenar). Es el único paso sintético
+   del informe, y por eso lleva una prueba que lo compara con la plantilla.
 
 > Ojo con pedirlo desde `render()`: `$thread->getEvents()` devuelve una
 > `InstrumentedList` y `select_related()` sobre ella recae en un **clon** de la
@@ -343,10 +350,37 @@ apuntaba a `/tmp` del contenedor).
 El lector del formato (`PhpProfile::parse()`) está cubierto por
 `tests/PhpProfileTest.php`: resuelve los nombres comprimidos `(1)` del
 cachegrind, no suma al tiempo propio la línea de una llamada (`calls=`) y
-tolera un perfil vacío sin romperse. **Pendiente de comprobar con un perfil
-real de este contenedor**: la herramienta está probada contra el formato, pero
-todavía no se ha ejecutado sobre la salida de Xdebug de una instalación con
-datos, así que las cifras por función siguen sin confirmar.
+tolera un perfil vacío sin romperse.
+
+### Lo primero que enseñó un perfil de verdad
+
+Con un perfil real del ticket (34,63 s bajo Xdebug, 865 funciones), sacando
+los `include`: `php::mysqli->query` 3,18 s (la base de datos, y ahí manda
+`Ticket::lookup()`) y, detrás, **`php::IntlDateFormatter->__construct` 1,53 s**.
+Que construir formateadores de fecha costara más que todo el resto del código
+de la aplicación junto no encajaba con que están cacheados, así que se miró la
+clave de esa caché (`Internationalization::getIntDateFormatter()`) y tenía dos
+defectos:
+
+* `array_filter()` sin función quita los valores falsos, y
+  `IntlDateFormatter::FULL` vale **0**. Un formateador de día completo
+  (`Format::daydatetime()`, que usan las entradas del hilo) generaba la misma
+  clave que uno **sin** tipo de día (`ajax.config.php` pasa `null`), así que el
+  segundo reutilizaba el primero y pintaba la fecha de otra manera. Era un
+  fallo de caché que se veía como fallo de formato.
+* la clave salía de `array_intersect_key()`, que conserva el orden del arreglo
+  que llega: los mismos valores en otro orden daban otra clave y construían un
+  formateador de más.
+
+Ahora la clave la calcula `dateFormatterKey()`, con una lista de campos en
+orden fijo y distinguiendo el cero del hueco (`tests/IntlDateTest.php`). De paso
+la caché nace como arreglo: asignar sobre `false` («automatic conversion of
+false to array») es una obsolescencia de PHP 8.1 que dejaba un aviso en el
+registro en cada primera llamada.
+
+**Sin confirmar todavía** cuántos formateadores ahorra: hay que volver a pasar
+`make ticket-perf-xdebug` y comparar el peso de esa fila. Lo que sí está
+comprobado es que la colisión de claves existía y que ahora no.
 
 ## Si un paso falla
 
