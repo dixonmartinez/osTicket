@@ -52,9 +52,72 @@ tener que leer la salida.
 | Agente | Con quién se calculó la visibilidad: un administrador por omisión, el que pida `--as=` |
 | Consulta de la lista | Forma de la consulta (SELECT, JOIN, LEFT JOIN, WHERE, GROUP BY, ORDER BY, LIMIT), tablas y parámetros. Con `--sql`, el SQL completo |
 | Números | Filas que devuelve la consulta, total de **esa misma** consulta sin `LIMIT`, `getCount()` de la cola (con su caché de cinco minutos) y `getTotal()` (sin caché) |
+| ¿Qué columna se come las filas? | Cuántos tickets quedan aplicando **cada columna por separado**, y cuántos sin ninguna: separa «el criterio no encuentra nada» de «una columna se lleva las filas por el camino» |
+| Tablas materializadas | Filas de `ost_ticket__cdata`, tickets **sin** fila en ella, y tickets sin formulario (`form_entry`) |
 | Datos en la base | Tickets por estado, cuántos tienen fecha de cierre, y las incoherencias: cerrados sin fecha y con fecha pero sin estado cerrado |
 | Periodos | Sólo con `--periods` o cuando el criterio usa un periodo: el rango de fechas de cada periodo y cuántos tickets caen dentro por `closed` y por `created` |
 | Veredicto | `OK`, `AVISO` o `FALLO`, con la explicación de qué número no cuadra y con cuál |
+
+## «La cola dice 23 y no lista ninguno»
+
+Es el caso que apareció con la cola *Closed*: la navegación decía **23
+tickets**, la cabecera «Showing 1 - 23 of about 23» y la tabla salía vacía. No
+es un problema de criterio ni de permisos, y no se arregla recargando.
+
+La cola cuenta y lista por caminos distintos:
+
+* el **recuento** (`SavedQueue::counts()` / `getTotal()`) consulta el criterio
+  sin columnas y lo deja en caché cinco minutos;
+* el **listado** (`getQueue()`) añade las columnas, y cada columna mete su
+  `JOIN`. La del asunto va contra `ost_ticket__cdata`, y ese `JOIN` es
+  **interno**: un ticket sin fila en esa tabla desaparece del listado aunque
+  el recuento lo siga contando.
+
+`ost_ticket__cdata` no la escribe la aplicación fila a fila. Se crea con
+`CREATE TABLE … AS SELECT` sobre `form_entry_values`, y luego sólo se
+*actualiza* al guardar respuestas. Si se creó cuando había pocos tickets, si
+un proceso se cortó a medias o si alguien la recreó vacía, los tickets
+anteriores no están. El daño visible: **no salen en ninguna cola**, porque casi
+todas las columnas pasan por ella.
+
+El diagnóstico lo dice con nombre y número:
+
+```
+¿Qué columna se come las filas?
+  Columna                          Tickets que quedan
+  Sólo el criterio (sin columnas)  23
+  Subject (3)                      0
+  ...
+```
+
+### Comprobarlo
+
+```bash
+make queue-check QUEUE=8
+```
+
+Si en **Tablas materializadas** aparece «Tickets **sin** fila en
+`ost_ticket__cdata`» con un número mayor que cero, ésa es la causa.
+
+### Arreglarlo
+
+```bash
+make db-views           # sólo mira: filas, filas esperadas y aviso
+make db-rebuild-views   # borra y reconstruye desde form_entry_values
+```
+
+`db-rebuild-views` es seguro: las tablas materializadas son una copia derivada;
+la verdad está en `form_entry_values` y no se toca. Después conviene repetir
+`make queue-check QUEUE=8`: los dos números tienen que coincidir.
+
+Si el aviso dice que faltan **tickets sin formulario** (`form_entry`), entonces
+el problema está antes: esos tickets no tienen datos de formulario guardados y
+no hay nada que reconstruir. Los crea mal quien los crea; con los de
+demostración, `make seed-check` lo detecta.
+
+> El recuento cacheado tarda hasta cinco minutos en refrescarse. Para verlo al
+> instante, `docker compose exec -T php php manage.php queue --list` lo
+> recalcula.
 
 ## Cómo se lee el veredicto
 

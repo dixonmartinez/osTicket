@@ -158,9 +158,11 @@ mano cuando se prueban avisos de vencimiento.
 
 | Síntoma | Causa | Solución |
 |---|---|---|
-| `No se pudo conectar a mailpit:1025` | el servicio no está arriba | `docker compose up -d mailpit` |
+| `No se pudo conectar a mailpit:1025` | el servicio no está arriba | `docker compose up -d mail` (el servicio se llama `mail`; `mailpit` es un alias de red) |
+| `getaddrinfo for mailpit failed` al ejecutar `make test-mail` **en el equipo** | `mailpit` sólo existe dentro de la red de Docker | `make test-mail` ya ejecuta el script **dentro** del contenedor; si lo lanzas a mano, usa `docker compose exec -T php php tools/dev/mail-test.php` |
 | El puerto 8025 no responde | otro proceso lo ocupa o cambiaste `MAILPIT_UI_PORT` | mira `.env` y `make docker-urls` |
 | osTicket dice «Unable to connect to SMTP» | hostname `localhost` en vez de `mailpit` | cámbialo en la cuenta de correo |
+| `sendmail: can't connect to remote host (127.0.0.1)` en la cola de correo | la cuenta apunta a `127.0.0.1`, que **dentro del contenedor** es el propio contenedor | Admin → Emails → la cuenta → *Hostname*: `mail`, puerto `1025` (sin TLS) |
 | No llega la respuesta automática | la cuenta no está activa o el departamento usa otra | Admin → Emails: debe estar *Active*; revisa el departamento del tema |
 | Llega todo a la papelera de Mailpit | reglas de Mailpit (`MP_*`) | interfaz → *Settings* |
 | Los correos salen sin formato | el mensaje viaja como texto | es normal en avisos internos; revisa la pestaña *HTML* |
@@ -176,14 +178,25 @@ sus plantillas, temas, agentes y treinta tickets, para que al enviar el primer
 aviso haya algo real que notificar.
 
 Si sólo quieres ver correos sin configurar nada, `make test-mail` es el atajo.
+Envía un mensaje con asunto y marcador propios y lo deja en la bandeja, así que
+sirve para separar dos fallos que se parecen mucho:
+
+* si **el correo de prueba llega** y el de osTicket no, el buzón está bien y lo
+  que falta es la cuenta de correo (paso 2) o la dirección del departamento;
+* si **no llega ni el de prueba**, el problema es del contenedor `mail` o de la
+  red, no de osTicket.
+
+El script habla SMTP a pelo, sin depender de osTicket. Se ejecuta dentro del
+contenedor de PHP porque ahí sí resuelve el nombre `mailpit` (alias del servicio
+`mail`); en Windows/WSL, lanzado desde el equipo, ese nombre no existe.
 
 ---
 
 ## 8. Cuando ya no lo necesites
 
 ```bash
-docker compose stop mailpit     # deja de capturar, sin borrar nada
-docker compose up -d mailpit    # vuelve a arrancarlo
+docker compose stop mail        # deja de capturar, sin borrar nada
+docker compose up -d mail       # vuelve a arrancarlo
 ```
 
 Mailpit guarda los mensajes en memoria: al reiniciar el contenedor, la bandeja

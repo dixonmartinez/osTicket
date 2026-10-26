@@ -42,6 +42,10 @@ if (isset($options['help'])) {
 
 $host = getenv('MAILPIT_HOST') ?: 'mailpit';
 $port = (int) (getenv('MAILPIT_PORT') ?: 1025);
+/* El servicio de `compose.override.yaml` se llama `mail`; `mailpit` es un
+   alias de red. Se prueban los dos para que el comando funcione aunque el
+   contenedor se haya levantado antes de añadir el alias. */
+$fallback = ($host === 'mailpit') ? 'mail' : false;
 $to = $options['to'] ?? 'pruebas@example.com';
 $from = $options['from'] ?? 'osticket@example.com';
 $subject = $options['subject'] ?? 'Prueba de correo de osTicket';
@@ -50,14 +54,25 @@ $marker = 'ost-' . bin2hex(random_bytes(4));
 printf("Conectando a %s:%d …\n", $host, $port);
 
 $socket = @stream_socket_client("tcp://$host:$port", $errno, $errstr, 5);
+if (!$socket && $fallback) {
+    $retry = @stream_socket_client("tcp://{$fallback}:$port", $errno, $errstr, 5);
+    if ($retry) {
+        printf("`%s` no resolvió; se usa el nombre del servicio `%s`.\n",
+            $host, $fallback);
+        $host = $fallback;
+        $socket = $retry;
+    }
+}
 if (!$socket) {
     fwrite(STDERR, sprintf("No se pudo conectar a %s:%d — %s (%d)\n",
         $host, $port, $errstr ?: 'sin detalle', $errno));
     fwrite(STDERR, "\n  ¿Están los contenedores arriba?  docker compose ps\n"
         . "  ¿Publica el servicio el puerto?  docker compose config | "
         . "grep MAILPIT_SMTP_PORT\n"
-        . "  Desde el contenedor de PHP, el host es `mailpit`, no "
-        . "`localhost`: es la red de Docker, no la de tu equipo.\n");
+        . "  Desde el contenedor de PHP, el host es `mail` (o el alias "
+        . "`mailpit`), no `localhost`:\n"
+        . "  es la red de Docker, no la de tu equipo. Si acabas de anadir el "
+        . "alias,\n  recrea el contenedor:  docker compose up -d --force-recreate mail\n");
     exit(1);
 }
 

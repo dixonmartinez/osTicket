@@ -351,12 +351,31 @@ fallo:
 | sin evento «created» / «closed» | *Statistics* con `Service Time 0.0` y `Closed 0` | los eventos se quedaron con la fecha del sembrado o no se registraron |
 | entradas antes que su padre | tiempos de respuesta **negativos** | se fechó la entrada equivocada |
 | filas de hilo sin hilo | «Deleted N» a un agente que no borró nada | la purga borró tickets y dejó sus eventos |
-| sin fila en `ticket__cdata` | la cola dice «about 37» y pinta menos filas | el ticket no está en la vista de datos |
+| sin fila en `ticket__cdata` | la cola dice «about 37» y pinta menos filas, o dice 23 y no pinta ninguna | el ticket no está en la vista de datos: `make db-rebuild-views` |
 | artículos sin categoría | artículos que no salen en `/kb/` | categoría borrada, artículo huérfano |
 | departamento ≠ tema | tickets en «Support» | el tema manda: se creó sin departamento |
 
 La purga de `--fresh` limpia ahora las filas de hilo sin dueño (sólo huérfanas:
 lo que tiene ticket detrás no se toca).
+
+### La vista de datos de los tickets
+
+`ost_ticket__cdata` no es una tabla normal: es una **copia derivada** de
+`form_entry_values` que se construye con `CREATE TABLE … AS SELECT` y luego
+sólo se actualiza al guardar respuestas. Un ticket que se crea cuando la vista
+ya existe puede quedarse fuera, y entonces no sale en **ninguna** cola: las
+columnas (Subject, entre otras) hacen un JOIN interno contra ella, mientras el
+recuento, que no usa columnas, lo sigue contando.
+
+Desde esta versión el sembrador la reconstruye al terminar (`refreshTicketView()`,
+vía `DynamicForm::rebuildDynamicDataViews()`), así que un `make seed` completo
+deja los 59 tickets dentro. Para comprobarlo o arreglarlo por separado:
+
+```bash
+make db-views           # filas, filas esperadas y aviso por tabla
+make db-rebuild-views   # reconstruye las cuatro vistas desde form_entry_values
+make seed-doctor        # incluye la comprobación «sin fila en ticket__cdata»
+```
 
 ---
 

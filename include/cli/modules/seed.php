@@ -1349,6 +1349,33 @@ class SeedManager extends Module {
         if (!($this->stats['tickets']['created'] ?? 0)
                 && !($this->stats['tickets']['skipped'] ?? 0))
             $this->warn('no se creó ningún ticket');
+        else
+            $this->refreshTicketView();
+    }
+
+    /**
+     * Reconstruye `ticket__cdata` al terminar de sembrar.
+     *
+     * Esa tabla no se rellena hacia atrás: la crea `CREATE TABLE … AS SELECT`
+     * cuando no existe y, a partir de ahí, sólo se *actualiza* al guardar una
+     * respuesta. Un ticket que se crea mientras la vista ya existe puede
+     * quedarse fuera, y entonces **no sale en ninguna cola**: las columnas
+     * (Subject, entre otras) hacen un JOIN interno contra ella, mientras el
+     * recuento —que no usa columnas— lo sigue contando. El síntoma exacto es
+     * «23 tickets» y la tabla vacía.
+     *
+     * Reconstruirla es barato con datos de demostración y deja el dato
+     * coherente con `form_entry_values`, que es la fuente de la verdad.
+     */
+    function refreshTicketView() {
+        try {
+            DynamicForm::rebuildDynamicDataViews();
+        }
+        catch (Throwable $e) {
+            $this->warn('no se pudo reconstruir la vista de datos de los '
+                . 'tickets: ' . $e->getMessage()
+                . ' (ejecute `make db-rebuild-views`)');
+        }
     }
 
     /**
@@ -2338,7 +2365,8 @@ class SeedManager extends Module {
             'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
               WHERE NOT EXISTS (SELECT 1 FROM ' . TICKET_CDATA_TABLE . ' c
                                  WHERE c.ticket_id = k.ticket_id)',
-            true, 'ejecute el actualizador del panel o siembre de nuevo');
+            true, 'reconstruya la vista con `make db-rebuild-views` (o vuelva a '
+                . 'sembrar: el sembrador la reconstruye al terminar)');
 
         // 6. Artículos de conocimiento sin categoría válida
         $add('artículos sin categoría (huérfanos)',
@@ -2371,7 +2399,8 @@ class SeedManager extends Module {
               WHERE s.state IN (\'open\', \'in_progress\', \'answered\')
                 AND NOT EXISTS (SELECT 1 FROM ' . TICKET_CDATA_TABLE . ' c
                                  WHERE c.ticket_id = k.ticket_id)',
-            true, 'sin fila en la vista, la cola los cuenta pero no los pinta');
+            true, 'sin fila en la vista, la cola los cuenta pero no los pinta: '
+                . '`make db-rebuild-views`');
 
         $failed = 0;
         foreach ($checks as $check) {

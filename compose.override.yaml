@@ -18,7 +18,14 @@ services:
     ports:
       - "${MAILPIT_UI_PORT:-8025}:8025"
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
-    networks: [osticket]
+    # El servicio se llama `mail`, pero la documentación (y la cuenta de
+    # correo de osTicket) usan `mailpit`. Docker resuelve los nombres de
+    # servicio, no los de la imagen: sin este alias, `tcp://mailpit:1025`
+    # falla con «getaddrinfo for mailpit failed: Name does not resolve».
+    networks:
+      osticket:
+        aliases:
+          - mailpit
 
   php:
     # En desarrollo el contenedor escribe como el usuario local para que los

@@ -562,9 +562,14 @@ class QueueCheck extends Module {
      * hiciera en otro orden, el SQL que se imprime no sería el de la página y
      * el diagnóstico mentiría.
      */
-    function buildListQuery($queue) {
+    function buildListQuery($queue, $withColumns=true) {
         $filter = trim((string) $this->getOption('filter'));
-        $query = $queue->getQuery(false, $filter !== '' ? $filter : null);
+        // Sin columnas se parte del criterio pelado: es la consulta con la que
+        // la cola **cuenta**, y sirve de referencia para saber cuántas filas
+        // se lleva cada columna por el camino.
+        $query = $withColumns
+            ? $queue->getQuery(false, $filter !== '' ? $filter : null)
+            : $queue->getBasicQuery();
 
         // Visibilidad: la misma condición que la plantilla
         $ignore = $queue->ignoreVisibilityConstraints($this->staff);
@@ -677,7 +682,94 @@ class QueueCheck extends Module {
             $result['queue_total'] = null;
         }
 
+        $result['columns'] = $this->columnAudit($queue);
+        $result['materialized'] = $this->materializedAudit();
+
         return $result;
+    }
+
+    /**
+     * Cuántas filas quedan al aplicar **cada columna** por separado.
+     *
+     * Es la prueba que separa «el criterio no encuentra nada» de «una columna
+     * se lleva las filas por el camino». Las columnas no sólo añaden datos al
+     * `SELECT`: meten JOIN (asunto → `ost_ticket__cdata`, usuario → `ost_user`,
+     * asignado → `ost_staff`…) y, si alguno es interno y la tabla está a
+     * medias, el listado sale vacío aunque el recuento diga 23.
+     */
+    function columnAudit($queue) {
+        $audit = array('baseline' => null, 'baseline_error' => null,
+            'columns' => array());
+
+        try {
+            $base = $this->buildListQuery($queue, false);
+            $audit['baseline'] = (int) $base->count();
+        }
+        catch (Throwable $e) {
+            $audit['baseline_error'] = $e->getMessage();
+        }
+
+        foreach ($queue->getColumns() as $C) {
+            $row = array(
+                'id' => $C->getId(),
+                'name' => $C->getName(),
+                'count' => null,
+                'error' => null,
+            );
+            try {
+                $query = $this->buildListQuery($queue, false);
+                $C->setQueue($queue);
+                $query = $C->mangleQuery($query, $queue->getRoot());
+                $query->distinct('ticket_id');
+                $row['count'] = (int) $query->count();
+            }
+            catch (Throwable $e) {
+                $row['error'] = $e->getMessage();
+                if (function_exists('db_last_failure_text')
+                        && db_last_failure_text())
+                    $row['error'] .= ' · ' . db_last_failure_text();
+            }
+            $audit['columns'][] = $row;
+        }
+
+        return $audit;
+    }
+
+    /**
+     * Estado de las tablas materializadas de los formularios.
+     *
+     * `ost_ticket__cdata` no es una tabla que escriba la aplicación fila a
+     * fila: se construye con `CREATE TABLE … AS SELECT` sobre
+     * `form_entry_values` (`DynamicForm::buildDynamicDataView`). Si se quedó a
+     * medias —se creó cuando había pocos tickets, o alguien la recreó— los
+     * tickets que no están en ella desaparecen de **todas** las colas, porque
+     * el JOIN de la columna «Subject» es interno. El recuento cacheado, que no
+     * usa columnas, los sigue contando: de ahí «23 de 23» con la tabla vacía.
+     */
+    function materializedAudit() {
+        $audit = array();
+
+        $audit['cdata_rows'] = $this->tabled(
+            'SELECT COUNT(*) FROM '.TICKET_CDATA_TABLE);
+        $audit['cdata_missing'] = $this->tabled(
+            'SELECT COUNT(*) FROM '.TICKET_TABLE.' t'
+            .' LEFT JOIN '.TICKET_CDATA_TABLE.' c ON (c.ticket_id = t.ticket_id)'
+            .' WHERE c.ticket_id IS NULL');
+        $audit['entries'] = $this->tabled(
+            'SELECT COUNT(DISTINCT object_id) FROM '.FORM_ENTRY_TABLE
+            ." WHERE object_type = 'T'");
+        $audit['tickets_without_entry'] = $this->tabled(
+            'SELECT COUNT(*) FROM '.TICKET_TABLE.' t'
+            .' LEFT JOIN '.FORM_ENTRY_TABLE.' e ON (e.object_id = t.ticket_id'
+            ." AND e.object_type = 'T')"
+            .' WHERE e.id IS NULL');
+
+        return $audit;
+    }
+
+    /** Cuenta una fila; si la tabla no existe (o falla), devuelve null. */
+    function tabled($sql) {
+        return $this->scalar($sql);
     }
 
     /**
@@ -897,22 +989,78 @@ class QueueCheck extends Module {
                         .' filas pero se cuenta 0.');
             }
 
-            if (is_int($query['count']) && is_int($query['queue_total'])
-                    && $query['count'] !== $query['queue_total'])
-                $warn('El recuento real ('.$query['count'].') no coincide con el de'
-                    .' la cola ('.$query['queue_total'].'): `SavedQueue::getTotal()`'
-                    .' cuenta otro conjunto que el que lista la página.');
+            // Si ya sabemos *por qué* no salen filas, no se acusa al SQL
+            $explained = false;
 
-            if (is_int($query['queue_count']) && is_int($query['queue_total'])
-                    && $query['queue_count'] !== $query['queue_total'])
-                $warn('El recuento cacheado de la cola ('.$query['queue_count']
-                    .') no coincide con su recuento real ('.$query['queue_total']
-                    .'): el número que se ve en la navegación viene de la caché'
-                    .' de cinco minutos de `SavedQueue::counts()`.');
+            // Qué columna deja el listado a cero
+            $baseline = $query['columns']['baseline'];
+            if (is_int($baseline) && $baseline > 0) {
+                $culprits = array();
+                foreach ($query['columns']['columns'] as $column)
+                    if ($column['count'] === 0)
+                        $culprits[] = sprintf('%s (%s)', $column['name'],
+                            $column['id']);
+                if ($culprits) {
+                    $explained = true;
+                    $error('El criterio encuentra '.$baseline.' tickets, pero al'
+                        .' aplicar '.count($culprits).' columna'
+                        .(count($culprits) == 1 ? '' : 's')
+                        .' la consulta se queda sin filas: '
+                        .implode(', ', $culprits)
+                        .'. El JOIN que mete esa columna es interno.');
+                }
+            }
+
+            // Recuentos. Sólo tienen mérito propio si no hay una causa
+            // conocida de las filas perdidas: la cola cuenta por un camino
+            // (sin columnas) y lista por otro (con columnas), así que la
+            // diferencia es el síntoma, no un segundo fallo.
+            if (!$explained) {
+                if (is_int($query['count']) && is_int($query['queue_total'])
+                        && $query['count'] !== $query['queue_total'])
+                    $warn('El recuento real ('.$query['count'].') no coincide con'
+                        .' el de la cola ('.$query['queue_total']
+                        .'): `SavedQueue::getTotal()` cuenta otro conjunto que el'
+                        .' que lista la página.');
+            }
+            else {
+                foreach (array(
+                    array('getCount()', 'queue_count'),
+                    array('getTotal()', 'queue_total'),
+                ) as $pair) {
+                    $value = $query[$pair[1]];
+                    if (is_int($value) && is_int($query['count'])
+                            && $value !== $query['count'])
+                        $warn('`'.$pair[0].'` dice '.$value.' y la consulta '
+                            .$query['count'].': la cola cuenta sin columnas y'
+                            .' lista con ellas, así que el número de la'
+                            .' navegación y el del listado no pueden cuadrar'
+                            .' mientras la causa anterior siga ahí.');
+                }
+            }
+
+            // Tablas materializadas a medias: es la causa habitual
+            $materialized = $query['materialized'];
+            if (is_int($materialized['cdata_missing'])
+                    && $materialized['cdata_missing'] > 0) {
+                $explained = true;
+                $error($materialized['cdata_missing'].' tickets no tienen fila en'
+                    .' `'.TICKET_CDATA_TABLE.'`: la columna «Subject» los deja'
+                    .' fuera porque su JOIN es interno. Reconstruya la tabla con'
+                    .' `php manage.php db --rebuild-views` (o'
+                    .' `make db-rebuild-views`).');
+            }
+
+            if (is_int($materialized['tickets_without_entry'])
+                    && $materialized['tickets_without_entry'] > 0)
+                $error($materialized['tickets_without_entry'].' tickets no tienen'
+                    .' fila en `'.FORM_ENTRY_TABLE."` (tipo T): sus datos de"
+                    .' formulario no existen, así que tampoco pueden estar en'
+                    .' `'.TICKET_CDATA_TABLE.'`.');
 
             if (is_int($query['count']) && is_int($db['total'])) {
                 $wanted = $this->wantedByCriteria($report);
-                if ($query['count'] === 0 && $wanted > 0)
+                if (!$explained && $query['count'] === 0 && $wanted > 0)
                     $error('La consulta devuelve 0 tickets, pero la base tiene '
                         .$wanted.' que cumplen el criterio de la cola: el fallo'
                         .' está en el SQL, no en el dato.');
@@ -920,7 +1068,8 @@ class QueueCheck extends Module {
 
             if (is_int($query['count']) && is_int($db['closed_not_null'])) {
                 $isClosed = $this->hasClosedStateCriteria($report);
-                if ($isClosed && $query['count'] === 0 && $db['closed_not_null'] > 0)
+                if (!$explained && $isClosed && $query['count'] === 0
+                        && $db['closed_not_null'] > 0)
                     $error('La cola busca tickets cerrados y hay '
                         .$db['closed_not_null'].' con fecha de cierre, pero la'
                         .' consulta no devuelve ninguno.');
@@ -1026,6 +1175,36 @@ class QueueCheck extends Module {
             array('`getTotal()` de la cola (sin caché)',
                 $this->number($query['queue_total'])),
         ));
+
+        // Desglose por columna: es lo que dice *qué* columna recorta el listado
+        $audit = $query['columns'];
+        $this->heading('¿Qué columna se come las filas?');
+        $rows = array(array('Sólo el criterio (sin columnas)',
+            $this->number($audit['baseline'])));
+        foreach ($audit['columns'] as $column) {
+            $rows[] = array(sprintf('%s (%s)', $column['name'], $column['id']),
+                $column['error'] ? 'error: ' . $this->oneline($column['error'])
+                    : $this->number($column['count']));
+        }
+        $this->table(array('Columna', 'Tickets que quedan'), $rows);
+        if ($audit['baseline_error'])
+            $this->out('  Sin columnas tampoco se pudo contar: '
+                . $audit['baseline_error']);
+
+        $materialized = $query['materialized'];
+        if (array_filter($materialized, function($v) { return $v !== null; })) {
+            $this->heading('Tablas materializadas de los formularios');
+            $this->table(array('Qué', 'Valor'), array(
+                array('Filas en `'.TICKET_CDATA_TABLE.'`',
+                    $this->number($materialized['cdata_rows'])),
+                array('Tickets **sin** fila en `'.TICKET_CDATA_TABLE.'`',
+                    $this->number($materialized['cdata_missing'])),
+                array('Tickets con formulario (`form_entry`, tipo T)',
+                    $this->number($materialized['entries'])),
+                array('Tickets **sin** formulario',
+                    $this->number($materialized['tickets_without_entry'])),
+            ));
+        }
 
         $db = $report['database'];
         $this->heading('Datos en la base');
