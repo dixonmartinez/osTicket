@@ -36,6 +36,8 @@ make ticket-perf TICKET=405 PERF_ARGS="--json"
 | `getEntries()` | Las entradas del hilo, hidratadas como en el `foreach` del template |
 | Eventos | Los eventos del hilo |
 | Adjuntos | La consulta de adjuntos del hilo |
+| Cuerpo → HTML | Lo que la plantilla hace **una vez por entrada**: `getBody()->toHtml()`, con el cuerpo sin cachear, que es donde se paga el saneado y el equilibrado del HTML |
+| Acciones por entrada | `hasActions()` y `getMergeData()` de cada entrada: los botones que se ofrecen en cada una |
 | `render()` | El hilo completo pintado (se descarta la salida, se mide el trabajo) |
 | Formulario | `DynamicFormEntry::forTicket()`, los campos personalizados |
 | Tareas: el número | Lo único que la página hace con las tareas: `getNumTasks()` y `getNumOpenTasks()`, el número de la pestaña |
@@ -47,14 +49,15 @@ administrador (ve todos los departamentos y todos los botones).
 ## Cómo se lee
 
 ```
-Ticket #405 — perfil de la carga
+Ticket #428 — perfil de la carga
 -------------------------------------------------------------
-  Paso                                   ms   SQL   N
-  Ticket::lookup()                       1.2     3   1
-  Encabezado: dept, rol, agente, …       0.8     4   1
-  Hilo: render() completo               42.7    31   7
+  Paso                                   ms   SQL  Esq  N
+  Ticket::lookup()                      11.6     3    8  1
+  Encabezado: dept, rol, agente, …       4.8     2    3  1
+  Hilo: render() completo               27.7     6    7  9335
   ...
-Total: 58.4 ms en 11 pasos · 57 consultas (49.1 ms en SQL)
+Total: 60.0 ms en 14 pasos · 24 consultas reales (10.5 ms en SQL)
+       + 22 de introspección de esquema (15.9 ms)
 
 Las 12 consultas que más tiempo suman
    12.4 ms ·   7 × · SELECT * FROM ost_thread_entry WHERE id = ?
@@ -65,7 +68,11 @@ La consulta más repetida: 7 veces — SELECT * FROM ost_thread_entry WHERE id =
 
 * **ms** de un paso es tiempo de reloj, no sólo de SQL: incluye el trabajo de
   PHP y el pintado del template.
-* **SQL** son las consultas que lanzó el paso.
+* **SQL** son las consultas **reales** que lanzó el paso, y **Esq** las de
+  introspección del esquema. Van en columnas distintas a propósito: en la
+  consola, un paso que toca ocho tablas nuevas suma ocho `INFORMATION_SCHEMA`
+  que la web no paga, y contarlas juntas hacía creer que
+  `Ticket::lookup()` necesitaba once consultas.
 * La lista final agrupa por **patrón**: la misma consulta con otro id es la
   misma fila, y se ordena por tiempo **total**, no por una ejecución. Una
   consulta de 1 ms repetida 40 veces pesa más que una de 8 ms, y es la que hay

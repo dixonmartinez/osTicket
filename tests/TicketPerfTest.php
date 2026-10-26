@@ -501,6 +501,88 @@ class TicketPerfTest extends UnitTestCase {
         $this->assertFalse(strpos($text, 'Consultas de «Ticket::lookup()»') !== false);
     }
 
+    /**
+     * Los 11 «SQL» de `Ticket::lookup()` en la consola eran casi todos
+     * `INFORMATION_SCHEMA` de tablas nuevas. Contarlas con las reales hace
+     * creer que un ticket necesita once consultas.
+     */
+    function testElPasoCuentaAparteLaIntrospeccionDeEsquema() {
+        $perf = $this->probe();
+        $perf->step('Ticket::lookup()', function() use ($perf) {
+            $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+                . " WHERE TABLE_NAME = 'a'", 0.010);
+            $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+                . " WHERE TABLE_NAME = 'b'", 0.010);
+            $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.002);
+            return 1;
+        });
+
+        $this->assertSame(1, $perf->steps[0]['queries']);
+        $this->assertSame(2, $perf->steps[0]['schema']);
+        // Y el tiempo de SQL del paso es el de las consultas reales
+        $this->assertEquals(0.002, round($perf->steps[0]['sql_ms'], 3));
+    }
+
+    /** La tabla del informe tiene que enseñar el desglose. */
+    function testLaTablaDelInformeSeparaSqlYEsquema() {
+        $perf = $this->probe();
+        $perf->step('Ticket::lookup()', function() use ($perf) {
+            $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+                . " WHERE TABLE_NAME = 'a'", 0.010);
+            return 1;
+        });
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        $this->assertTrue(strpos($text, 'Esq') !== false);
+    }
+
+    /**
+     * Una consulta que sale al recorrer un conjunto perezoso se ejecuta dentro
+     * del cierre del paso, y decir `perf.php:157` no ayuda: lo honesto es
+     * decir en qué paso salió.
+     */
+    function testLaConsultaPerezosaSeAtribuyeAlPaso() {
+        $perf = $this->probe();
+        $perf->step('Hilo: getEntries()', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_thread_entry WHERE thread_id = 1',
+                0.002, ROOT_DIR . '/include/cli/modules/perf.php:157');
+            return 4;
+        });
+
+        $origins = $perf->topOrigins();
+        $this->assertSame('paso «Hilo: getEntries()»', $origins[0]['origin']);
+    }
+
+    /**
+     * La flecha de «Cuerpo → HTML» ocupa tres bytes en UTF-8 y descuadraba
+     * la tabla entera. El ancho se mide en caracteres.
+     */
+    function testLaTablaCuadraConCaracteresDeVariosBytes() {
+        $perf = $this->probe();
+
+        ob_start();
+        $perf->table(array('Paso', 'ms'),
+            array(array('Hilo: cuerpo → HTML', '1.0'), array('Corto', '2.0')));
+        $text = ob_get_clean();
+
+        // La segunda columna tiene que empezar en el mismo carácter en todas
+        // las líneas, aunque una celda lleve una flecha de tres bytes.
+        $position = function($line, $needle) {
+            preg_match('/^(.*?)' . preg_quote($needle, '/') . '/u', $line, $m);
+            preg_match_all('/./u', $m[1], $chars);
+            return count($chars[0]);
+        };
+        // `rtrim()` y no `trim()`: el encabezado empieza por los dos espacios
+        // de margen, y recortarlos descuadraría justo lo que se compara.
+        $lines = explode("\n", rtrim($text));
+        $column = $position($lines[2], '1.0');
+        $this->assertSame($column, $position($lines[0], 'ms'));
+        $this->assertSame($column, $position($lines[3], '2.0'));
+    }
+
     /** El perfil avisa de que sin APCu las medidas son pesimistas. */
     function testAvisaCuandoApcuNoEstaActivo() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');

@@ -50,6 +50,8 @@ class PerfCheck extends Module {
     var $steps = array();
     /** Paso en curso, para poder atribuirle cada consulta. */
     var $currentStep = -1;
+    /** Nombre del paso en curso: el paso aún no está en `$steps` cuando corre. */
+    var $currentLabel = '';
     var $json = false;
     var $staff;
     /** Los pone `Module::parseOptions()`; se declara para no crearla al vuelo. */
@@ -175,6 +177,31 @@ class PerfCheck extends Module {
             return $n;
         });
 
+        // Desglose de lo que la plantilla hace **una vez por entrada**: es lo
+        // que convierte «render() tarda 27 ms» en un culpable concreto.
+        // El cuerpo se vuelve a pedir frío (`_body` a null) para que el paso
+        // de render mida lo mismo que la primera carga de la página.
+        $this->step('Hilo: cuerpo → HTML (por entrada)', function() use ($entries) {
+            $n = 0;
+            foreach ($entries as $E) {
+                $E->_body = null;
+                $E->getBody()->toHtml();
+                $E->_body = null;
+                $n++;
+            }
+            return $n;
+        });
+
+        $this->step('Hilo: acciones por entrada', function() use ($entries) {
+            $n = 0;
+            foreach ($entries as $E) {
+                $E->hasActions();
+                $E->getMergeData();
+                $n++;
+            }
+            return $n;
+        });
+
         $this->step('Hilo: render() completo', function() use ($thread) {
             ob_start();
             $thread->render(array('M', 'R', 'N'), array(
@@ -260,10 +287,18 @@ class PerfCheck extends Module {
         $this->queries[$key]['n']++;
         $this->queries[$key]['ms'] += $ms;
         $this->queries[$key]['schema'] = self::isSchemaQuery($key);
-        if ($origin)
+        if ($origin) {
+            // Una consulta lanzada al recorrer un conjunto perezoso se ejecuta
+            // dentro del cierre del paso, así que el primer marco de la
+            // aplicación es el propio perfilador. Decir «perf.php:157» no
+            // ayuda a nadie: lo honesto es decir que salió al recorrer ese
+            // paso.
+            if (basename(strtok($origin, ':')) === 'perf.php')
+                $origin = 'paso «' . ($this->currentLabel ?: '?') . '»';
             $this->queries[$key]['origins'][$origin] =
                 (isset($this->queries[$key]['origins'][$origin])
                     ? $this->queries[$key]['origins'][$origin] : 0) + 1;
+        }
         if ($this->currentStep >= 0)
             $this->queries[$key]['steps'][$this->currentStep] = true;
     }
@@ -317,10 +352,20 @@ class PerfCheck extends Module {
         return $origin;
     }
 
-    /** Cronometra un paso y cuenta cuántas consultas provoca. */
+    /**
+     * Cronometra un paso y cuenta cuántas consultas provoca.
+     *
+     * Se cuentan **por separado** las consultas reales y la introspección del
+     * esquema: en la consola, un paso que toca cinco tablas nuevas suma cinco
+     * `INFORMATION_SCHEMA` que la web no paga. Contarlas juntas hacía que
+     * «Ticket::lookup(): 11 SQL» pareciera un ticket que necesita once
+     * consultas.
+     */
     function step($label, $callback) {
-        $before = $this->totals();
+        $before = $this->totals(false);
+        $beforeSchema = $this->schemaTotals();
         $this->currentStep = count($this->steps);
+        $this->currentLabel = $label;
         $started = microtime(true);
         $result = null;
         $error = null;
@@ -331,12 +376,14 @@ class PerfCheck extends Module {
             $error = $e->getMessage();
         }
         $ms = (microtime(true) - $started) * 1000;
-        $after = $this->totals();
+        $after = $this->totals(false);
+        $afterSchema = $this->schemaTotals();
 
         $this->steps[] = array(
             'label' => $label,
             'ms' => $ms,
             'queries' => $after['n'] - $before['n'],
+            'schema' => $afterSchema['n'] - $beforeSchema['n'],
             'sql_ms' => $after['ms'] - $before['ms'],
             'result' => is_int($result) ? $result : null,
             'error' => $error,
@@ -399,6 +446,7 @@ class PerfCheck extends Module {
                 'steps' => array_map(function($s) {
                     return array('label' => $s['label'],
                         'ms' => round($s['ms'], 1), 'queries' => $s['queries'],
+                        'schema_queries' => isset($s['schema']) ? $s['schema'] : 0,
                         'error' => $s['error']);
                 }, $this->steps),
                 'queries' => $top,
@@ -425,10 +473,11 @@ class PerfCheck extends Module {
                 $step['label'],
                 sprintf('%.1f', $step['ms']),
                 $step['queries'],
+                isset($step['schema']) ? $step['schema'] : 0,
                 $step['result'] === null ? '' : $step['result'],
                 $step['error'] ? 'ERROR' : '',
             );
-        $this->table(array('Paso', 'ms', 'SQL', 'N', 'Err'), $rows);
+        $this->table(array('Paso', 'ms', 'SQL', 'Esq', 'N', 'Err'), $rows);
 
         // Los pasos que no se pudieron medir, con su motivo: un error aquí
         // no invalida el resto del informe, pero hay que verlo.
@@ -597,17 +646,27 @@ class PerfCheck extends Module {
     }
 
     function table($headers, $rows) {
+        // `strlen()` cuenta bytes: una flecha «→» ocupa tres y descuadraba la
+        // tabla entera. El ancho se mide en caracteres.
+        $len = function($text) {
+            $text = (string) $text;
+            if (function_exists('mb_strlen'))
+                return mb_strlen($text, 'UTF-8');
+            // Sin mbstring: contar caracteres UTF-8 con el motor de regex.
+            return preg_match_all('/./u', $text) ?: strlen($text);
+        };
         $widths = array();
         foreach ($headers as $i => $h)
-            $widths[$i] = strlen($h);
+            $widths[$i] = $len($h);
         foreach ($rows as $row)
             foreach (array_values($row) as $i => $cell)
-                $widths[$i] = max($widths[$i], strlen((string) $cell));
+                $widths[$i] = max($widths[$i], $len((string) $cell));
 
-        $line = function($cells) use ($widths) {
+        $line = function($cells) use ($widths, $len) {
             $out = array();
             foreach (array_values($cells) as $i => $cell)
-                $out[] = str_pad((string) $cell, $widths[$i]);
+                $out[] = str_pad((string) $cell,
+                    $widths[$i] + strlen((string) $cell) - $len($cell));
             return '  ' . rtrim(implode('  ', $out));
         };
 
