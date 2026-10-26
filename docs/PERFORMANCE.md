@@ -38,7 +38,8 @@ make ticket-perf TICKET=405 PERF_ARGS="--json"
 | Adjuntos | La consulta de adjuntos del hilo |
 | `render()` | El hilo completo pintado (se descarta la salida, se mide el trabajo) |
 | Formulario | `DynamicFormEntry::forTicket()`, los campos personalizados |
-| Tareas | Las tareas del ticket |
+| Tareas: el número | Lo único que la página hace con las tareas: `getNumTasks()` y `getNumOpenTasks()`, el número de la pestaña |
+| Tareas: listado | La consulta del listado, que **sólo** se hace al abrir la pestaña (llega por AJAX) |
 
 Para que las medidas sean comparables, el perfilado usa el **peor caso**: un
 administrador (ve todos los departamentos y todos los botones).
@@ -91,6 +92,12 @@ comprobaron con el perfilador:
    `Thread::getNumCollaborators()` hacía un `COUNT(*)` en cada llamada y la
    página lo llama desde la pestaña, el menú y la cabecera del hilo. Ahora se
    cuenta una vez y se recuerda en la instancia del hilo.
+
+## Si un paso falla
+
+Un paso roto no se lleva el informe: se marca `ERROR` en su fila, el motivo
+aparece debajo de la tabla y el resto se mide igual. Así se puede perfilar una
+instalación con datos raros sin que el comando muera.
 
 ## Qué mirar si sigue lento
 

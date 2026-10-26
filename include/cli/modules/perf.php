@@ -47,6 +47,8 @@ class PerfCheck extends Module {
     var $staff;
     /** Los pone `Module::parseOptions()`; se declara para no crearla al vuelo. */
     var $_options = array();
+    /** La consola de `Module`; se declara por el mismo motivo. */
+    var $stdout;
 
     function run($args, $options) {
         global $ost, $cfg;
@@ -57,6 +59,7 @@ class PerfCheck extends Module {
             mysqli_report(MYSQLI_REPORT_OFF);
 
         require_once INCLUDE_DIR . 'class.ticket.php';
+        require_once INCLUDE_DIR . 'class.task.php';
         require_once INCLUDE_DIR . 'class.dynamic_forms.php';
 
         try {
@@ -183,12 +186,26 @@ class PerfCheck extends Module {
                 return $n;
             });
 
-        $this->step('Tareas y pestañas', function() use ($ticket) {
-            $n = 0;
-            foreach ($ticket->getTasks() as $t)
-                $n++;
-            return $n;
+        // La pestaña de tareas sólo pinta el número: el listado llega por
+        // AJAX (`#tickets/<id>/tasks`), así que lo que cuesta la carga es
+        // `getNumTasks()`/`getNumOpenTasks()`, no una consulta de tareas.
+        $this->step('Tareas: el número de la pestaña', function() use ($ticket) {
+            $ticket->getNumTasks();
+            $ticket->getNumOpenTasks();
+            return $ticket->getNumTasks();
         });
+
+        // Y lo que sí llega por AJAX, para saber si el retardo está ahí: al
+        // abrir el ticket esta consulta no se hace, se hace al cambiar de
+        // pestaña.
+        $this->step('Tareas: listado (AJAX, sólo si se abre la pestaña)',
+            function() use ($id) {
+                $n = 0;
+                foreach (Task::objects()->filter(array('object_id' => $id,
+                        'object_type' => 'T')) as $t)
+                    $n++;
+                return $n;
+            });
 
         $this->stopProfile();
         $this->report($id);
@@ -245,9 +262,6 @@ class PerfCheck extends Module {
             'result' => is_int($result) ? $result : null,
             'error' => $error,
         );
-
-        if ($error)
-            $this->err(sprintf('  · %s — error: %s', $label, $error));
 
         return $result;
     }
@@ -310,7 +324,14 @@ class PerfCheck extends Module {
                 $step['result'] === null ? '' : $step['result'],
                 $step['error'] ? 'ERROR' : '',
             );
-        $this->table(array('Paso', 'ms', 'SQL', 'N', ''), $rows);
+        $this->table(array('Paso', 'ms', 'SQL', 'N', 'Err'), $rows);
+
+        // Los pasos que no se pudieron medir, con su motivo: un error aquí
+        // no invalida el resto del informe, pero hay que verlo.
+        foreach ($this->steps as $step)
+            if ($step['error'])
+                $this->err(sprintf('  · no se pudo medir «%s»: %s',
+                    $step['label'], $step['error']));
 
         $totals = $this->totals();
         $this->out('');
@@ -329,14 +350,16 @@ class PerfCheck extends Module {
         }
 
         // Dónde se va el tiempo, en una línea: es lo que se pregunta
+        // El paso más caro, entre los que sí se pudieron medir
         $slowest = null;
         foreach ($this->steps as $step)
-            if (!$slowest || $step['ms'] > $slowest['ms'])
+            if (!$step['error'] && (!$slowest || $step['ms'] > $slowest['ms']))
                 $slowest = $step;
-        if ($slowest)
+        if ($slowest) {
             $this->out('');
             $this->out(sprintf('El paso más caro: «%s» (%.1f ms, %d consultas)',
                 $slowest['label'], $slowest['ms'], $slowest['queries']));
+        }
 
         $repeated = null;
         foreach ($top as $q)
@@ -418,7 +441,20 @@ class PerfCheck extends Module {
     }
 
     function out($text) {
-        $this->stdout->write($text . "\n");
+        if ($this->stdout)
+            $this->stdout->write($text . "\n");
+        else
+            echo $text, "\n";
+    }
+
+    /**
+     * Un aviso. `Module` (la base de los comandos) no tiene `err()`: la
+     * escribe cada módulo que la necesita. Aquí va aparte porque un paso que
+     * falla **no puede** tumbar el perfil: si no se puede medir una parte, se
+     * mide el resto y se dice cuál quedó fuera.
+     */
+    function err($text) {
+        $this->out($text);
     }
 }
 

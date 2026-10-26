@@ -193,6 +193,69 @@ class TicketPerfTest extends UnitTestCase {
             'La plantilla dejó de usar los adjuntos precargados');
     }
 
+    /**
+     * La regresión de esta tanda: el módulo llamaba a `$ticket->getTasks()`,
+     * que no existe (en el ticket las tareas son una colección: `tasks`, y lo
+     * único que la página hace es contarlas con `getNumTasks()`), y al fallar
+     * el paso llamaba a `$this->err()`, que el `Module` base tampoco tiene.
+     * Las dos cosas juntas mataban el comando con «Call to undefined method».
+     */
+    /**
+     * Y el fallo en cadena que provocó: el paso de tareas lanzó, el `catch`
+     * llamó a `$this->err()` y el comando murió con «Call to undefined
+     * method». Un paso roto tiene que dejar el informe, no llevarse el
+     * proceso.
+     */
+    function testUnPasoRotoNoMataElComando() {
+        $perf = new PerfCheck();
+        $perf->_options = array();
+
+        $perf->step('tareas', function() {
+            throw new Error('Call to undefined method Ticket::getTasks()');
+        });
+
+        $steps = $this->stepsOf($perf);
+        $this->assertSame(1, count($steps));
+        $this->assertTrue(strpos($steps[0]['error'], 'getTasks') !== false);
+    }
+
+    function testLosMetodosQueUsaElPerfilExisten() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+        $orm = file_get_contents(INCLUDE_DIR . 'class.orm.php');
+
+        foreach (array('ticket' => 'class.ticket.php',
+                       'thread' => 'class.thread.php') as $var => $file) {
+            $class = file_get_contents(INCLUDE_DIR . $file);
+            preg_match_all('/\$' . $var . '->(\w+)\(/', $source, $m);
+            $used = array_unique($m[1]);
+            $this->assertGreaterThan(3, count($used),
+                "No se encontraron llamadas a \$$var en el perfilador");
+
+            foreach ($used as $method)
+                $this->assertTrue(
+                    strpos($class, "function {$method}(") !== false
+                        || strpos($orm, "function {$method}(") !== false,
+                    "El perfilador llama a \$$var->{$method}(), que no existe");
+        }
+    }
+
+    /** `Ticket::getTasks()` no existe: las tareas no se cargan así. */
+    function testElPerfilNoInventaMetodosDeTareas() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+        $ticket = file_get_contents(INCLUDE_DIR . 'class.ticket.php');
+
+        $this->assertTrue(strpos($ticket, 'function getTasks(') === false);
+        $this->assertTrue(strpos($source, 'getTasks(') === false,
+            'El perfilador vuelve a llamar a un método que no existe');
+    }
+
+    /** Un paso que falla se informa, y para eso `err()` tiene que existir. */
+    function testElPerfilTieneSusPropiosAvisos() {
+        $this->assertTrue(method_exists('PerfCheck', 'err'),
+            'PerfCheck no define err(): un paso fallido mata el comando');
+        $this->assertTrue(method_exists('PerfCheck', 'out'));
+    }
+
     function testLosColaboradoresSeCuentanUnaSolaVez() {
         $source = file_get_contents(INCLUDE_DIR . 'class.thread.php');
 
