@@ -15,6 +15,7 @@
 **********************************************************************/
 include_once(INCLUDE_DIR.'class.ticket.post.php');
 include_once(INCLUDE_DIR.'class.ticket.edit.php');
+include_once(INCLUDE_DIR.'class.model.rules.php');
 include_once(INCLUDE_DIR.'class.ticket.create.php');
 include_once(INCLUDE_DIR.'class.thread.php');
 include_once(INCLUDE_DIR.'class.staff.php');
@@ -1493,20 +1494,20 @@ implements RestrictedAccess, Threadable, Searchable {
                 && !($status = TicketStatus::lookup($status)))
             return false;
 
-        // Double check permissions (when changing status)
+        // Double check permissions (when changing status). Qué permiso pide
+        // cada estado lo dice `ModelRules`, que es donde se puede probar.
         if ($role && $this->getStatusId()) {
-            switch ($status->getState()) {
-            case 'closed':
+            switch (ModelRules::statusPermission($status->getState())) {
+            case 'close':
                 if (!($role->hasPerm(Ticket::PERM_CLOSE)))
                     return false;
                 break;
-            case 'deleted':
+            case 'delete':
                 // XXX: intercept deleted status and do hard delete TODO: soft deletes
                 if ($role->hasPerm(Ticket::PERM_DELETE))
                     return $this->delete($comments);
                 // Agent doesn't have permission to delete  tickets
                 return false;
-                break;
             }
         }
 
@@ -1545,16 +1546,16 @@ implements RestrictedAccess, Threadable, Searchable {
                     // to unassigned pool.
                     $dept = $this->getDept();
                     $staff = $this->getStaff() ?: $this->getLastRespondent();
-                    $autoassign = (!$dept->disableReopenAutoAssign());
-                    if ($autoassign
-                            && $staff
-                            // Is agent on vacation ?
-                            && $staff->isAvailable()
-                            // Does the agent have access to dept?
-                            && $staff->canAccessDept($dept))
-                        $this->setStaffId($staff->getId());
-                    else
-                        $this->setStaffId(0); // Clear assignment
+                    // Se reasigna sólo si el departamento lo permite y el
+                    // agente existe, está disponible y tiene acceso; si no, el
+                    // ticket vuelve al montón.
+                    $this->setStaffId(ModelRules::reopenAssignee(
+                        !$dept->disableReopenAutoAssign(),
+                        $staff ? $staff->getId() : 0,
+                        // Is agent on vacation ?
+                        $staff && $staff->isAvailable(),
+                        // Does the agent have access to dept?
+                        $staff && $staff->canAccessDept($dept)));
                 }
 
                 if ($this->isClosed()) {
@@ -1584,6 +1585,30 @@ implements RestrictedAccess, Threadable, Searchable {
         if ($refer && $cfg->autoReferTicketsOnClose())
             $this->getThread()->refer($refer);
 
+        // Nota con el motivo del cambio y evento en el historial. Va en su
+        // propio método porque el orden importa: primero la nota (que puede
+        // avisar al usuario) y después el evento.
+        $this->logStatusChange($status, $hadStatus, $comments, $ecb);
+
+        return true;
+    }
+
+    /**
+     * Deja constancia del cambio de estado.
+     *
+     * La nota sólo se escribe si ya había estado —al abrir el ticket el estado
+     * inicial no se anota— y el evento se delega en el cierre que armó
+     * `setStatus()` para el estado nuevo (`$ecb`), salvo que no haya ninguno,
+     * en cuyo caso se registra un «editado» genérico.
+     *
+     * @param TicketStatus $status    estado nuevo
+     * @param bool         $hadStatus si el ticket ya tenía estado
+     * @param string       $comments  comentarios del agente
+     * @param callable     $ecb       cierre que registra el evento del estado
+     */
+    private function logStatusChange($status, $hadStatus, $comments, $ecb) {
+        global $thisstaff;
+
         // Log status change b4 reload — if currently has a status. (On new
         // ticket, the ticket is opened and thereafter the status is set to
         // the requested status).
@@ -1601,8 +1626,6 @@ implements RestrictedAccess, Threadable, Searchable {
         elseif ($hadStatus)
             // Don't log the initial status change
             $this->logEvent('edited', array('status' => $status->getId()));
-
-        return true;
     }
 
     function setState($state, $alerts=false) {
@@ -4267,20 +4290,10 @@ implements RestrictedAccess, Threadable, Searchable {
             return false;
         }
 
-        if (isset($vars['source']) // Check ticket source if provided
-                && !array_key_exists($vars['source'], Ticket::getSources()))
-            $errors['source'] = sprintf( __('Invalid source given - %s'),
-                    Format::htmlchars($vars['source']));
-
-
-        if (!$vars['uid']) {
-            // Special validation required here
-            if (!$vars['email'] || !Validator::is_email($vars['email']))
-                $errors['email'] = __('Valid email address is required');
-
-            if (!$vars['name'])
-                $errors['name'] = __('Name is required');
-        }
+        // Origen conocido y, si no se eligió usuario, correo con forma de
+        // correo y un nombre. Vive en `TicketCreate` con el resto de reglas
+        // de apertura.
+        $errors += TicketCreate::openErrors($vars, Ticket::getSources());
 
         // Ensure agent has rights to make assignment in the cited
         // department

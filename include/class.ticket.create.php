@@ -25,8 +25,14 @@
  *
  * Lo puro que ya estaba: qué campos exige cada origen, qué campos se validan
  * según quién abre el ticket, si la fecha límite es válida y cómo se
- * normaliza el origen.
+ * normaliza el origen. Y lo que se validaba al abrir un ticket desde el panel
+ * (`openErrors()`), que es la misma clase de reglas.
+ *
+ * Necesita `class.ticket.edit.php` para la comprobación del origen: editar y
+ * abrir tienen que aceptar exactamente los mismos orígenes.
  */
+
+require_once INCLUDE_DIR . 'class.ticket.edit.php';
 class TicketCreate {
 
     /**
@@ -132,6 +138,38 @@ class TicketCreate {
     /** Origen tal como se guarda: la primera letra en mayúscula. */
     static function source($source) {
         return ucfirst((string) $source);
+    }
+
+    /**
+     * Lo que se valida al abrir un ticket desde el panel (`Ticket::open()`).
+     *
+     * Son tres reglas sin base de datos: el origen tiene que ser uno de los
+     * conocidos, y si no se eligió un usuario hacen falta correo y nombre
+     * (el correo, además, con forma de correo). El resto de `open()` —permisos
+     * por departamento, formularios, respuestas y avisos— se queda allí.
+     *
+     * @param array $vars     datos del formulario
+     * @param array $sources  orígenes válidos, con el nombre por clave
+     * @return array          campo => mensaje
+     */
+    static function openErrors(array $vars, array $sources) {
+        $errors = array();
+
+        // Misma comprobación que al editar un ticket: un solo sitio donde se
+        // decide qué orígenes existen.
+        if (($error = TicketEdit::sourceError(
+                isset($vars['source']) ? $vars['source'] : null, $sources)))
+            $errors['source'] = $error;
+
+        if (empty($vars['uid'])) {
+            if (empty($vars['email']) || !Validator::is_email($vars['email']))
+                $errors['email'] = __('Valid email address is required');
+
+            if (empty($vars['name']))
+                $errors['name'] = __('Name is required');
+        }
+
+        return $errors;
     }
 
     /* ------------------------------------------------------------------ */

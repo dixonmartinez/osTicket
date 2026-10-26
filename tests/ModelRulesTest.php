@@ -259,4 +259,39 @@ class ModelRulesTest extends UnitTestCase {
             ModelRules::fieldValues(array('group_membership' => 'grupo'),
                 array('group_membership' => 'raw')));
     }
+
+    /* ------------------------------------------------------------------ */
+    /* Estados de un ticket (`Ticket::setStatus`)                          */
+    /* ------------------------------------------------------------------ */
+
+    /** Cerrar pide `close`, borrar pide `delete`, el resto nada. */
+    function testElPermisoQuePideCadaEstado() {
+        $this->assertSame('close', ModelRules::statusPermission('closed'));
+        $this->assertSame('delete', ModelRules::statusPermission('deleted'));
+        $this->assertNull(ModelRules::statusPermission('open'));
+        $this->assertNull(ModelRules::statusPermission(''));
+        $this->assertNull(ModelRules::statusPermission('lo-que-sea'));
+    }
+
+    /** Al reabrir se devuelve el ticket al agente sólo si se puede. */
+    function testReabrirReasignaSoloCuandoTodoEncaja() {
+        $this->assertSame(7, ModelRules::reopenAssignee(true, 7, true, true));
+    }
+
+    /** Basta con que falle una condición para volver al montón. */
+    function testSiAlgoFallaElTicketVuelveSinAsignar() {
+        // El departamento no permite reasignar al reabrir
+        $this->assertSame(0, ModelRules::reopenAssignee(false, 7, true, true));
+        // No hay agente al que devolverlo
+        $this->assertSame(0, ModelRules::reopenAssignee(true, 0, true, true));
+        // Está de vacaciones
+        $this->assertSame(0, ModelRules::reopenAssignee(true, 7, false, true));
+        // No tiene acceso al departamento
+        $this->assertSame(0, ModelRules::reopenAssignee(true, 7, true, false));
+    }
+
+    /** El agente vuelve como número, aunque llegue como texto. */
+    function testElAgenteSeDevuelveComoNumero() {
+        $this->assertSame(12, ModelRules::reopenAssignee(true, '12', true, true));
+    }
 }

@@ -199,6 +199,59 @@ class TicketCreateTest extends UnitTestCase {
             return $t === false ? 0 : $t;
         };
     }
+
+    /* ------------------------------------------------------------------ */
+    /* Abrir un ticket desde el panel (`Ticket::open`)                     */
+    /* ------------------------------------------------------------------ */
+
+    private function sources() {
+        return array('Phone' => 'Phone', 'Email' => 'Email',
+            'Web' => 'Web', 'Other' => 'Other');
+    }
+
+    /** Con usuario elegido no se piden correo ni nombre. */
+    function testConUsuarioNoHacenFaltaCorreoNiNombre() {
+        $this->assertSame(array(), TicketCreate::openErrors(
+            array('uid' => 12, 'source' => 'Phone'), $this->sources()));
+    }
+
+    /** Sin usuario, el correo tiene que existir y tener forma de correo. */
+    function testSinUsuarioSeExigeUnCorreoValido() {
+        $errors = TicketCreate::openErrors(
+            array('name' => 'Ana'), $this->sources());
+
+        $this->assertSame('Valid email address is required', $errors['email']);
+
+        $errors = TicketCreate::openErrors(
+            array('name' => 'Ana', 'email' => 'no-es-correo'), $this->sources());
+        $this->assertSame('Valid email address is required', $errors['email']);
+    }
+
+    /** Sin usuario también hace falta el nombre. */
+    function testSinUsuarioSeExigeElNombre() {
+        $errors = TicketCreate::openErrors(
+            array('email' => 'ana@example.com', 'source' => 'Phone'),
+            $this->sources());
+
+        $this->assertSame('Name is required', $errors['name']);
+    }
+
+    /** Un origen que no existe se rechaza igual que al editar un ticket. */
+    function testElOrigenDesconocidoSeRechaza() {
+        $errors = TicketCreate::openErrors(
+            array('uid' => 1, 'source' => 'Paloma'), $this->sources());
+
+        $this->assertTrue(strpos($errors['source'], 'Invalid source given') !== false);
+        // Y es el mismo mensaje que da la edición: una sola regla.
+        $this->assertSame(TicketEdit::sourceError('Paloma', $this->sources()),
+            $errors['source']);
+    }
+
+    /** Sin origen no hay error: es opcional al abrir desde el panel. */
+    function testSinOrigenNoHayError() {
+        $this->assertSame(array(), TicketCreate::openErrors(
+            array('uid' => 1), $this->sources()));
+    }
 }
 
 /** Campo de formulario mínimo: sólo lo que consulta el filtro. */
@@ -216,4 +269,5 @@ class TicketCreateFakeField {
     function isVisibleToUsers() {
         return !empty($this->visibilidad['user']);
     }
+
 }

@@ -248,6 +248,48 @@ class ModelRules {
     }
 
     /**
+     * Qué permiso hace falta para pasar a un estado.
+     *
+     * `Ticket::setStatus()` tenía un `switch` por estado del ticket con dos
+     * ramas: cerrar exige `close`, borrar exige `delete`, y los demás estados
+     * no piden nada.
+     *
+     * @param string $state  estado del ticket (`open`, `closed`, `deleted`…)
+     * @return string|null   `'close'`, `'delete'` o null si no hace falta nada
+     */
+    static function statusPermission($state) {
+        switch ($state) {
+        case 'closed':
+            return 'close';
+        case 'deleted':
+            return 'delete';
+        }
+        return null;
+    }
+
+    /**
+     * A quién se le deja un ticket al reabrirlo.
+     *
+     * Se reasigna al agente que lo tenía (o al último que respondió) sólo si
+     * el departamento permite la reasignación automática, el agente está
+     * disponible y tiene acceso al departamento. En cualquier otro caso el
+     * ticket vuelve al montón sin asignar.
+     *
+     * @param bool $autoassign  el departamento permite reasignar al reabrir
+     * @param int  $staffId     agente candidato (0 si no hay)
+     * @param bool $available   el agente está disponible (no de vacaciones)
+     * @param bool $canAccess   el agente tiene acceso al departamento
+     * @return int              el agente, o 0 para dejarlo sin asignar
+     */
+    static function reopenAssignee($autoassign, $staffId, $available,
+            $canAccess) {
+        if (!$autoassign || !$staffId || !$available || !$canAccess)
+            return 0;
+
+        return (int) $staffId;
+    }
+
+    /**
      * Destino de la asignación automática de un tema de ayuda.
      *
      * El valor del formulario viene como `s123` (agente) o `t45` (equipo).
