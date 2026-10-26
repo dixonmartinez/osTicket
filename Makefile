@@ -271,6 +271,10 @@ SEED_ARGS ?=
 seed: ## Carga datos de demostración (organizaciones, agentes, 59 tickets, 16 tareas)
 	@docker compose exec -T php php manage.php seed $(SEED_ARGS)
 
+# Volumen a la carta: `make seed SEED_ARGS="--only=users --count=200"`,
+# `--only=tickets --count=100`, `--only=tasks --count=100` o
+# `--only=tickets --count=50 --with-tasks`. Ver docs/SEED.md.
+
 seed-verbose: ## Lo mismo que `make seed`, mostrando cada registro creado o saltado
 	@docker compose exec -T php php manage.php seed --verbose $(SEED_ARGS)
 

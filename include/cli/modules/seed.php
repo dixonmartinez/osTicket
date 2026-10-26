@@ -9,6 +9,12 @@
         php manage.php seed --only=tickets  # un solo paso
         php manage.php seed --list          # qué pasos hay
 
+        php manage.php seed --only=users   --count=200   # 200 usuarios
+        php manage.php seed --only=tickets --count=100   # 100 tickets
+        php manage.php seed --only=tasks   --count=100   # 100 tareas sueltas
+        php manage.php seed --only=tickets --count=50 --with-tasks
+                                                         # y una tarea por ticket
+
     Por qué no es un archivo .sql: las tablas que el ORM usa para los campos
     dinámicos (`ticket__cdata`, `user__cdata`) son **vistas** que se construyen
     a partir de `form_entry_values`, y los identificadores de formularios y
@@ -34,6 +40,13 @@
         tasks    16 tareas: abiertas, completadas y vencidas, algunas ligadas
                  a un ticket y otras sueltas
 
+    Esos números son el plan curado. `--count=N` pide más: el sembrador
+    completa la lista con registros generados (deterministas y con el número
+    en el asunto o el título, para no duplicar al repetir la ejecución). Vale
+    para los pasos `users`, `tickets` y `tasks`; los demás no se repiten.
+    `--with-tasks` añade, al sembrar tickets, una tarea de seguimiento por
+    cada ticket creado.
+
     El orden **es** una dependencia: los SLA antes que los departamentos, los
     departamentos antes que los agentes (cada uno tiene su departamento
     primario) y los agentes antes que los equipos.
@@ -46,6 +59,8 @@
 
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
+
+require_once INCLUDE_DIR . 'cli/seed.plan.php';
 
 class SeedManager extends Module {
 
@@ -67,8 +82,13 @@ class SeedManager extends Module {
         'domain' => array('', '--domain', 'metavar' => 'DOMINIO',
             'help' => 'Dominio de los correos de demostración (por omisión '
                 . 'example.com, que resuelve por DNS)'),
-        'count' => array('-n', '--count', 'default' => '100', 'metavar' => 'N',
-            'help' => 'Cuántos tickets crear (por omisión todos: son 59)'),
+        'count' => array('-n', '--count', 'metavar' => 'N',
+            'help' => 'Cuántos registros crear del paso que se ejecuta: users, '
+                . 'tickets o tasks (por omisión, los del plan curado: 12, 59 '
+                . 'y 16). Con todos los pasos, se aplica a los tres'),
+        'with-tasks' => array('', '--with-tasks', 'action' => 'store_true',
+            'help' => 'Al sembrar tickets, crea además una tarea de '
+                . 'seguimiento por cada ticket creado'),
         'quiet' => array('-q', '--quiet', 'action' => 'store_true',
             'help' => 'Sólo avisa de los errores'),
         'verbose' => array('-v', '--verbose', 'action' => 'store_true',
@@ -105,6 +125,10 @@ class SeedManager extends Module {
     var $manifest = array();
     var $quiet = false;
     var $verbose = false;
+    /** Cuántos registros por paso quiere `--count`; `null` = plan curado. */
+    var $count;
+    /** `--with-tasks`: una tarea de seguimiento por ticket creado. */
+    var $withTasks = false;
     var $failed = array();
 
     /** Cuántos registros creó, se saltó y avisó cada paso. */
@@ -149,6 +173,55 @@ class SeedManager extends Module {
             array('Inés Bravo', 'ines.bravo', null),
             array('Tomás Vidal', 'tomas.vidal', null),
         );
+    }
+
+    /**
+     * Los usuarios que se van a crear: el plan curado y, si `--count` pide
+     * más, los generados.
+     *
+     * @param int|null $count
+     * @return array
+     */
+    static function peoplePlan($count = null) {
+        return SeedPlan::fill(self::people(), $count,
+            function ($i) {
+                return SeedPlan::person($i);
+            });
+    }
+
+    /**
+     * Los tickets que se van a crear, con los temas y agentes que **existen**
+     * en la instalación (no los del paquete curado: puede faltar alguno).
+     *
+     * @param int|null $count
+     * @param array $topics  nombres de tema disponibles
+     * @param array $agents  nombres de usuario de agente
+     * @return array
+     */
+    static function ticketPlan($count, array $topics = array(),
+            array $agents = array()) {
+        return SeedPlan::fill(self::tickets(), $count,
+            function ($i) use ($topics, $agents) {
+                return SeedPlan::ticket($i, $topics, $agents);
+            });
+    }
+
+    /**
+     * Las tareas que se van a crear. Las generadas van sueltas: es lo que
+     * tiene sentido con `--only=tasks`, donde no hay tickets de los que
+     * colgarlas.
+     *
+     * @param int|null $count
+     * @param array $depts   nombres de departamento disponibles
+     * @param array $agents  nombres de usuario de agente
+     * @return array
+     */
+    static function taskPlan($count, array $depts = array(),
+            array $agents = array()) {
+        return SeedPlan::fill(self::tasks(), $count,
+            function ($i) use ($depts, $agents) {
+                return SeedPlan::task($i, $depts, $agents);
+            });
     }
 
     static function agents() {
@@ -538,12 +611,28 @@ class SeedManager extends Module {
         if ($options['list']) {
             $this->out('Pasos: ' . implode(', ', $steps));
             $this->out('Use --only=PASO para ejecutar uno solo.');
+            $this->out('Con --count=N se piden más registros de users, '
+                . 'tickets o tasks: --only=users --count=200.');
+            $this->out('Con --with-tasks, cada ticket nuevo lleva su tarea '
+                . 'de seguimiento.');
             return 0;
         }
 
         if ($options['only'] && !in_array($options['only'], $steps))
             $this->fail("Paso desconocido: {$options['only']}. Son: "
                 . implode(', ', $steps));
+
+        // El recuento se valida aquí, con el resto de las opciones: un
+        // `--count=2oo` (letra o) tiene que decirlo antes de conectar y de
+        // crear la mitad del conjunto.
+        if (($error = $this->parseCount($options['count'])))
+            $this->fail($error);
+
+        $this->withTasks = (bool) $options['with-tasks'];
+        if ($this->withTasks && $options['only']
+                && !in_array($options['only'], array('tickets', 'tasks')))
+            $this->fail('--with-tasks sólo tiene sentido con el paso tickets '
+                . '(o con la ejecución completa)');
 
         Bootstrap::connect();
         if (!($ost = osTicket::start()) || !($cfg = $ost->getConfig()))
@@ -585,8 +674,9 @@ class SeedManager extends Module {
         foreach ($steps as $step) {
             if ($only && $only != $step)
                 continue;
-            // Sin tickets no hay tareas con ticket, y las sueltas solas no
-            // cuentan una historia: se saltan las dos cosas
+            // `--no-tickets` deja la instalación configurada y sin volumen:
+            // ni tickets ni tareas, que es lo que pide quien sólo quiere
+            // probar el panel.
             if (in_array($step, array('tickets', 'tasks'))
                     && $options['no-tickets'])
                 continue;
@@ -596,8 +686,7 @@ class SeedManager extends Module {
             $this->out("[{$step}]");
 
             try {
-                $this->{'seed' . ucfirst($step)}(
-                    $step == 'tickets' ? max(0, (int) $options['count']) : null);
+                $this->{'seed' . ucfirst($step)}($this->limitFor($step));
             }
             catch (Throwable $e) {
                 $this->failed[] = $step . ': ' . $e->getMessage();
@@ -651,6 +740,43 @@ class SeedManager extends Module {
     }
 
     /**
+     * Lee `--count`. Devuelve el motivo del error o `null` si vale.
+     *
+     * Sin `--count` el plan es el curado, que es lo que hacía siempre. Un
+     * cero explícito tampoco crea: `--count=0` deja el paso sin registros,
+     * que es la forma de decir «configura, pero no llenes».
+     */
+    function parseCount($value) {
+        if ($value === null || $value === '')
+            return $this->count = null;
+
+        if (!preg_match('/^\d+$/', (string) $value))
+            return "--count tiene que ser un número entero: «{$value}»";
+
+        return $this->count = (int) $value;
+    }
+
+    /**
+     * Cuántos registros pide el paso, o `null` si va con el plan curado.
+     *
+     * Sólo hay tres pasos que se puedan repetir con sentido: los usuarios,
+     * los tickets y las tareas. Un `--count=50` con `--only=topics` no
+     * significa nada, y en vez de inventar cincuenta temas iguales se avisa.
+     */
+    function limitFor($step) {
+        if ($this->count === null)
+            return null;
+
+        if (!in_array($step, array('users', 'tickets', 'tasks'))) {
+            if ($this->count > 0)
+                $this->out("  (--count no se aplica al paso {$step})");
+            return null;
+        }
+
+        return $this->count;
+    }
+
+    /**
      * `Module::fail()` usa `die()` sin argumento, que sale con 0: para que
      * `make seed` falle de verdad (y pare una ejecución en lote) hay que
      * salir con 1.
@@ -696,7 +822,7 @@ class SeedManager extends Module {
         }
     }
 
-    function seedUsers() {
+    function seedUsers($limit = null) {
         // Las organizaciones se buscan **por nombre**, no por posición: la
         // instalación puede tener otras y el índice de `organizations()` no
         // tiene por qué coincidir con el orden de la base.
@@ -706,7 +832,17 @@ class SeedManager extends Module {
                 $orgs[$i] = $found;
         }
 
-        foreach (self::people() as $i => $person) {
+        // Se avisa una vez, no una por usuario: con `--count=200` y sin el
+        // paso `orgs`, doscientos avisos idénticos hacen fallar la ejecución
+        // y esconden el motivo real.
+        // Nota, no aviso: los usuarios se crean igual y la ejecución no debe
+        // terminar en error por un paso que no se pidió.
+        $noOrgs = !$orgs;
+        if ($noOrgs)
+            $this->out('  · no hay organizaciones: los usuarios se crean sin '
+                . 'organización (el paso orgs no se ha ejecutado)');
+
+        foreach (self::peoplePlan($limit) as $i => $person) {
             list($name, $local, $orgIndex) = $person;
             $email = $local . '@' . $this->domain;
 
@@ -718,7 +854,7 @@ class SeedManager extends Module {
             $vars = array('name' => $name, 'email' => $email);
             if ($orgIndex !== null && isset($orgs[$orgIndex]))
                 $vars['org_id'] = $orgs[$orgIndex]->getId();
-            elseif ($orgIndex !== null)
+            elseif ($orgIndex !== null && !$noOrgs)
                 $this->warn('falta la organización del usuario ' . $email);
 
             // Teléfono: el formulario de usuario lo pide, pero no es
@@ -1323,10 +1459,16 @@ class SeedManager extends Module {
         }
 
         $agents = $this->agentIndex();
-        $people = self::people();
-        $plan = self::tickets();
-        if ($limit !== null)
-            $plan = array_slice($plan, 0, $limit);
+        // Los usuarios que se crearon con `users` (o los del plan curado si
+        // ese paso no se ejecutó). Se leen de la base para que el correo del
+        // ticket sea de un usuario que existe.
+        $people = $this->ticketPeople();
+        $plan = self::ticketPlan($limit, array_keys($topics),
+            array_keys($agents));
+
+        // `--with-tasks`: los tickets que se creen en esta pasada, para
+        // colgarles después su tarea de seguimiento.
+        $created = array();
 
         // Estado de cada ticket: se reparten entre todos los estados que
         // tenga la instalación (no sólo «abierto» y «cerrado»), así que las
@@ -1436,6 +1578,8 @@ class SeedManager extends Module {
             }
 
             $this->created('tickets', $ticket->getId(), $ticket->getNumber());
+            $created[] = array('subject' => $subject, 'age' => $age,
+                'agent' => $agentUsername);
         }
 
         if (!($this->stats['tickets']['created'] ?? 0)
@@ -1443,6 +1587,45 @@ class SeedManager extends Module {
             $this->warn('no se creó ningún ticket');
         else
             $this->refreshTicketView();
+
+        // Las tareas de seguimiento van después de refrescar la vista: la
+        // búsqueda del ticket por asunto pasa por `ticket__cdata`.
+        if ($this->withTasks && $created) {
+            $this->out(sprintf('  · una tarea de seguimiento por cada uno de '
+                . 'los %d tickets nuevos', count($created)));
+            $this->seedTasks(null,
+                SeedPlan::followUps($created, array_keys($this->deptIndex())));
+        }
+    }
+
+    /**
+     * Los usuarios que existen, para repartir los tickets entre ellos.
+     *
+     * Antes se usaba la lista curada y el correo se inventaba; con
+     * `--only=tickets` sobre una instalación donde los usuarios del plan no
+     * existen (o con 200 usuarios generados) eso dejaba tickets de gente que
+     * no está. Se prefiere la base y, si no hay nadie, se cae a la lista.
+     *
+     * @return array  filas `array(nombre, correo local)`
+     */
+    function ticketPeople() {
+        $people = array();
+        try {
+            foreach (User::objects()->limit(500)->all() as $user) {
+                $email = (string) $user->getEmail();
+                // Sólo los del dominio de demostración: los de una
+                // instalación real no son parte del sembrador.
+                if (substr($email, -strlen('@' . $this->domain))
+                        === '@' . $this->domain)
+                    $people[] = array($user->getName(),
+                        substr($email, 0, strrpos($email, '@')));
+            }
+        }
+        catch (Throwable $e) {
+            $people = array();
+        }
+
+        return $people ?: self::people();
     }
 
     /**
@@ -1515,7 +1698,11 @@ class SeedManager extends Module {
      * un ticket cuando el plan trae el asunto (`object_type` = `T`) y, si no,
      * quedan sueltas (`object_id` = 0), que es como las crea el panel.
      */
-    function seedTasks($limit = null) {
+    /**
+     * @param int|null $limit  cuántas tareas (del plan curado o generadas)
+     * @param array|null $plan filas ya armadas; `--with-tasks` pasa las suyas
+     */
+    function seedTasks($limit = null, array $plan = null) {
         global $thisstaff;
 
         // Red de seguridad: si se ejecuta `--only=tasks` sobre una instalación
@@ -1549,9 +1736,8 @@ class SeedManager extends Module {
             return;
         }
 
-        $plan = self::tasks();
-        if ($limit !== null)
-            $plan = array_slice($plan, 0, $limit);
+        if ($plan === null)
+            $plan = self::taskPlan($limit, array_keys($depts), array_keys($agents));
 
         $comments = self::conversation();
 

@@ -32,7 +32,7 @@ Todo se ejecuta **dentro del contenedor** (no hace falta PHP en tu equipo):
 docker compose exec -T php php manage.php seed             # lo mismo que make seed
 docker compose exec -T php php manage.php seed --verbose   # ver cada registro
 docker compose exec -T php php manage.php seed --only=topics
-docker compose exec -T php php manage.php seed --count=10  # sólo diez tickets
+docker compose exec -T php php manage.php seed --count=10  # diez de cada uno
 docker compose exec -T php php manage.php seed --no-tickets
 ```
 
@@ -40,7 +40,8 @@ docker compose exec -T php php manage.php seed --no-tickets
 |---|---|
 | `--fresh` | borra lo creado por una ejecución anterior (según el manifiesto) y vuelve a crear |
 | `--only=PASO` | ejecuta un solo paso (`orgs`, `users`, `slas`, `depts`, `agents`, `teams`, `topics`, `canned`, `faq`, `tickets`, `tasks`) |
-| `--count=N` | cuántos tickets crear (por omisión todos: son 59) |
+| `--count=N` | cuántos registros crear del paso que se ejecuta: `users`, `tickets` o `tasks` (por omisión, los del plan curado: 12, 59 y 16). Con todos los pasos, se aplica a los tres |
+| `--with-tasks` | al sembrar tickets, crea **una tarea de seguimiento por ticket**, enlazada a él |
 | `--domain=D` | dominio de los correos de demostración (por omisión `example.com`) |
 | `--no-tickets` | deja la configuración, pero ni tickets ni tareas |
 | `--list` | muestra los pasos |
@@ -54,7 +55,7 @@ docker compose exec -T php php manage.php seed --no-tickets
 | Paso | Contenido |
 |---|---|
 | `orgs` | Acme S.A., Globex Corporation, Initech (con su dominio, para que los usuarios se asignen solos) |
-| `users` | 12 clientes repartidos entre las tres organizaciones, con teléfono |
+| `users` | 12 clientes repartidos entre las tres organizaciones, con teléfono (`--count=N` crea N) |
 | `slas` | Respuesta 8 h · Respuesta 24 h (24/7, sin horario asignado) |
 | `depts` | Soporte · Soporte Técnico (hijo) · Facturación (hijo) · Ventas · Seguridad (privado) |
 | `agents` | `supervisor`, `agente1`, `agente2`, `agente3` — y `admin` **sólo si la instalación no tiene ningún administrador**; todos con acceso a los cinco departamentos |
@@ -62,8 +63,8 @@ docker compose exec -T php php manage.php seed --no-tickets
 | `topics` | Problema técnico · Facturación y pagos · Solicitud de información · Alta de usuario · Reclamación · Cuenta y acceso · Soporte técnico · Formación · Incidente interno y Uso del panel (los dos últimos, privados) |
 | `canned` | Saludo inicial · Petición de información · Ticket resuelto · Escalado a segundo nivel · Factura duplicada |
 | `faq` | 6 categorías (Primeros pasos · Cuenta y acceso · Facturación · Soporte técnico · Seguridad y privacidad · Uso del panel) con 33 artículos publicados y buscables |
-| `tickets` | 59 tickets con antigüedad de 0 a 42 días, de origen Web/Email/Phone/API, con hilos de hasta 14 mensajes que alternan respuesta del agente, mensaje del cliente y nota interna |
-| `tasks` | 16 tareas: abiertas y completadas, varias vencidas, con y sin responsable, ligadas a un ticket o sueltas |
+| `tickets` | 59 tickets (`--count=N` crea N) con antigüedad de 0 a 42 días, de origen Web/Email/Phone/API, con hilos de hasta 14 mensajes que alternan respuesta del agente, mensaje del cliente y nota interna |
+| `tasks` | 16 tareas (`--count=N` crea N, sueltas): abiertas y completadas, varias vencidas, con y sin responsable, ligadas a un ticket o sueltas |
 
 **Orden**: el de la tabla no es decorativo. Sin SLA no hay departamento
 (apunta a su SLA), sin departamento no hay agente (cada uno tiene el suyo como
@@ -193,6 +194,50 @@ SELECT t.number, t.dept_id, d.name AS dept, t.topic_id, h.topic
   LEFT JOIN ost_help_topic h ON h.topic_id = t.topic_id
  WHERE d.name = 'Support';
 ```
+
+---
+
+## Volumen: `--count` y `--with-tasks`
+
+El conjunto curado está pensado para **enseñar** la herramienta: 12 usuarios,
+59 tickets y 16 tareas cuentan una historia y caben en una pantalla. Para
+**medir** hace falta otra cosa: una cola con 40 tickets no dice nada del
+rendimiento de una cola con 4.000, y una lista de usuarios de una página no
+prueba la paginación.
+
+`--count=N` completa el plan curado con registros generados hasta llegar a N,
+en los tres pasos que tienen sentido repetir:
+
+```bash
+# 200 usuarios de cliente, sin tocar nada más
+docker compose exec -T php php manage.php seed --only=users --count=200
+
+# 100 tickets repartidos entre todos los estados, orígenes y agentes
+docker compose exec -T php php manage.php seed --only=tickets --count=100
+
+# 100 tareas sueltas (sin ticket): sirven para la lista de tareas y sus filtros
+docker compose exec -T php php manage.php seed --only=tasks --count=100
+
+# 50 tickets, cada uno con su tarea de seguimiento enlazada
+docker compose exec -T php php manage.php seed --only=tickets --count=50 --with-tasks
+
+# o todo el conjunto con volumen, en una sola pasada
+docker compose exec -T php php manage.php seed --count=200
+```
+
+Lo generado es **determinista**: el mismo número produce siempre la misma
+fila, con el número en el asunto (`Problema técnico (demostración 87)`), en el
+título (`Tarea demostración 87`) o en el correo (`cliente87@example.com`). Por
+eso una segunda ejecución reconoce lo que ya creó y no duplica: el sembrador
+busca antes de crear, como siempre. `--count=0` es válido y no crea ninguno
+del paso (útil para configurar sin llenar).
+
+Las tareas generadas van **sueltas** a propósito: con `--only=tasks` no hay
+tickets de los que colgarlas. Las que llevan ticket son las del plan curado
+(que se enlazan si el ticket existe) y las de `--with-tasks`.
+
+> Un `--count` con un paso que no se repite (`--only=topics --count=50`) no
+> inventa cincuenta temas iguales: lo dice y sigue con el plan curado.
 
 ---
 
