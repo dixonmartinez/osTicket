@@ -286,13 +286,73 @@ class TicketPerfTest extends UnitTestCase {
         }
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Introspección del esquema, aparte de las consultas reales           */
+    /* ------------------------------------------------------------------ */
+
+    function testReconoceLaIntrospeccionDelEsquema() {
+        $this->assertTrue(PerfCheck::isSchemaQuery(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+            . " WHERE TABLE_NAME = 'ost_ticket'"));
+        $this->assertTrue(PerfCheck::isSchemaQuery('SHOW TABLES LIKE \'ost_ticket\''));
+        $this->assertTrue(PerfCheck::isSchemaQuery('SHOW COLUMNS FROM ost_ticket'));
+    }
+
+    function testUnaConsultaRealNoEsIntrospeccion() {
+        foreach (array(
+            'SELECT * FROM ost_ticket WHERE ticket_id = ?',
+            'SELECT * FROM ost_thread_entry WHERE thread_id = ?',
+            'UPDATE ost_ticket SET status_id = ? WHERE ticket_id = ?',
+        ) as $sql)
+            $this->assertFalse(PerfCheck::isSchemaQuery($sql),
+                "Se clasifica como esquema algo que no lo es: $sql");
+    }
+
+    /**
+     * El caso real del informe: 22 de las 46 consultas eran
+     * `INFORMATION_SCHEMA`, y con ellas el «total» asustaba. Tienen que
+     * contarse aparte.
+     */
+    function testLasConsultasDeEsquemaNoEntranEnElTotalReal() {
+        $perf = $this->probe();
+
+        $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+            . " WHERE TABLE_NAME = 'a'", 0.010);
+        $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+            . " WHERE TABLE_NAME = 'b'", 0.010);
+        $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.002);
+
+        $reales = $perf->totals(false);
+        $esquema = $perf->schemaTotals();
+
+        $this->assertSame(1, $reales['n']);
+        $this->assertSame(2, $esquema['n']);
+        $this->assertEquals(0.002, round($reales['ms'], 3));
+        $this->assertEquals(0.020, round($esquema['ms'], 3));
+    }
+
+    /** Y no aparecen en el ranking salvo que se pidan con `--schema`. */
+    function testElRankingOcultaElEsquemaSalvoQueSePida() {
+        $perf = $this->probe(array('top' => 10));
+        $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+            . " WHERE TABLE_NAME = 'a'", 0.010);
+        $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.001);
+
+        $top = $perf->topQueries();
+        $this->assertSame(1, count($top));
+        $this->assertTrue(strpos($top[0]['sql'], 'ost_ticket') !== false);
+
+        $perf->_options['schema'] = true;
+        $this->assertSame(2, count($perf->topQueries()));
+    }
+
     /** El perfil avisa de que sin APCu las medidas son pesimistas. */
     function testAvisaCuandoApcuNoEstaActivo() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
 
         $this->assertTrue(strpos($source, "function_exists('apcu_fetch')") !== false,
             'El perfil no comprueba APCu');
-        $this->assertTrue(strpos($source, 'más lento') !== false,
+        $this->assertTrue(strpos($source, 'la página real hace') !== false,
             'El perfil no avisa de que en CLI el resultado es pesimista');
     }
 

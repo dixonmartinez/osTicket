@@ -39,6 +39,8 @@ class PerfCheck extends Module {
             'help' => 'Salida JSON, para engancharla a otra herramienta'),
         'step' => array('', '--step', 'default' => '', 'metavar' => 'TEXTO',
             'help' => 'Detalla las consultas de los pasos cuyo nombre contenga TEXTO'),
+        'schema' => array('', '--schema', 'action' => 'store_true',
+            'help' => 'Incluye la introspección del esquema en el ranking (normalmente se oculta)'),
     );
 
     /** @var array Consultas acumuladas: patrón => [n, ms, ejemplo] */
@@ -234,6 +236,21 @@ class PerfCheck extends Module {
     }
 
     /** Acumula una consulta bajo su patrón (sin números ni literales). */
+    /**
+     * ¿La consulta sólo está leyendo el esquema?
+     *
+     * El ORM, la primera vez que ve una tabla en un proceso, pregunta sus
+     * columnas a `INFORMATION_SCHEMA`. Con APCu eso se guarda 30 minutos y lo
+     * paga la primera petición web; en la consola (`apc.enable_cli = 0`) lo
+     * paga **siempre**. Mezclarlas con las consultas reales hace que el
+     * informe señale un fantasma, así que se cuentan aparte.
+     */
+    static function isSchemaQuery($sql) {
+        return stripos($sql, 'INFORMATION_SCHEMA') !== false
+            || stripos($sql, 'SHOW TABLES') === 0
+            || stripos($sql, 'SHOW COLUMNS') === 0;
+    }
+
     function record($sql, $ms) {
         $key = self::pattern($sql);
         if (!isset($this->queries[$key]))
@@ -241,6 +258,7 @@ class PerfCheck extends Module {
                 'example' => $sql, 'steps' => array());
         $this->queries[$key]['n']++;
         $this->queries[$key]['ms'] += $ms;
+        $this->queries[$key]['schema'] = self::isSchemaQuery($key);
         if ($this->currentStep >= 0)
             $this->queries[$key]['steps'][$this->currentStep] = true;
     }
@@ -273,10 +291,25 @@ class PerfCheck extends Module {
         return $result;
     }
 
-    function totals() {
+    function totals($includeSchema = true) {
         $n = 0;
         $ms = 0.0;
         foreach ($this->queries as $q) {
+            if (!$includeSchema && !empty($q['schema']))
+                continue;
+            $n += $q['n'];
+            $ms += $q['ms'];
+        }
+        return array('n' => $n, 'ms' => $ms);
+    }
+
+    /** Lo que se llevó la introspección del esquema, aparte. */
+    function schemaTotals() {
+        $n = 0;
+        $ms = 0.0;
+        foreach ($this->queries as $q) {
+            if (empty($q['schema']))
+                continue;
             $n += $q['n'];
             $ms += $q['ms'];
         }
@@ -320,7 +353,11 @@ class PerfCheck extends Module {
         }
 
         $this->out('');
-        $this->out(sprintf('Ticket #%s — perfil de la carga', $id));
+        $requested = (string) $this->getOption('ticket');
+        $this->out(sprintf('Ticket #%s — perfil de la carga%s', $id,
+            $requested !== '' && $requested !== (string) $id
+                ? ' (se pidió «' . $requested . '»: no existe, se usó el último)'
+                : ''));
         $this->out(str_repeat('-', 62));
         $rows = array();
         foreach ($this->steps as $step)
@@ -340,15 +377,23 @@ class PerfCheck extends Module {
                 $this->err(sprintf('  · no se pudo medir «%s»: %s',
                     $step['label'], $step['error']));
 
-        $totals = $this->totals();
+        $totals = $this->totals(false);
+        $schema = $this->schemaTotals();
         $this->out('');
-        $this->out(sprintf('Total: %.1f ms en %d pasos · %d consultas (%.1f ms en SQL)',
+        $this->out(sprintf('Total: %.1f ms en %d pasos · %d consultas reales (%.1f ms en SQL)',
             $total, count($this->steps), $totals['n'], $totals['ms'] * 1000));
+        if ($schema['n']) {
+            $this->out(sprintf('       + %d de introspección de esquema (%.1f ms):'
+                .' en la web las paga APCu una vez cada 30 min',
+                $schema['n'], $schema['ms'] * 1000));
+        }
 
         $top = $this->topQueries();
         if ($top) {
             $this->out('');
-            $this->out(sprintf('Las %d consultas que más tiempo suman', count($top)));
+            $this->out(sprintf('Las %d consultas que más tiempo suman%s',
+                count($top), $this->getOption('schema')
+                    ? '' : ' (sin la introspección del esquema)'));
             $this->out(str_repeat('-', 62));
             foreach ($top as $q) {
                 $this->out(sprintf('  %5.1f ms · %3d × · %s', $q['ms'] * 1000,
@@ -379,11 +424,11 @@ class PerfCheck extends Module {
         // esquema se paga aquí y no en la web.
         if (!function_exists('apcu_fetch'))
             $this->out(''
-                . "\nNota: APCu no está activo en este proceso (apc.enable_cli=0)."
-                . "\nLas consultas a INFORMATION_SCHEMA que salen arriba se pagan"
-                . "\nuna vez por tabla en cada proceso; en la web (FPM) quedan"
-                . "\ncacheadas 30 minutos. El perfil por CLI es, en eso, más lento"
-                . "\nque la página real.");
+                . "\nNota: APCu no está activo en este proceso (apc.enable_cli=0),"
+                . "\nasí que la introspección del esquema se paga entera aquí. En la"
+                . "\nweb (FPM) se cachea 30 minutos, de modo que la página real hace"
+                . "\nlas " . $totals['n'] . " consultas de arriba y, como mucho, una"
+                . "\ntanda de esquema tras arrancar o tras expirar la caché.");
 
         $repeated = null;
         foreach ($top as $q)
@@ -434,7 +479,11 @@ class PerfCheck extends Module {
     }
 
     function topQueries() {
-        $top = array_values($this->queries);
+        $top = array();
+        $schema = (bool) $this->getOption('schema');
+        foreach ($this->queries as $q)
+            if ($schema || empty($q['schema']))
+                $top[] = $q;
         usort($top, function($a, $b) {
             return $b['ms'] <=> $a['ms'];
         });

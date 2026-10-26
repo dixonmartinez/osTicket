@@ -101,6 +101,8 @@ nombre contenga ese texto. Es lo que convierte «este paso cuesta 38 ms» en
 
 ```bash
 make ticket-perf TICKET=405 PERF_ARGS="--step=hilo"
+# y si se quiere ver también la introspección del esquema
+make ticket-perf TICKET=405 PERF_ARGS="--step=hilo --schema"
 ```
 
 ```
@@ -108,6 +110,21 @@ Consultas de «Hilo: render() completo» — 38.4 ms, 17 SQL
 --------------------------------------------------------------
    1.5 ms ·   4 × · SELECT ... FROM ost_thread_entry__merge WHERE thread_entry_id = ?
 ```
+
+## La introspección del esquema se cuenta aparte
+
+El ORM, la primera vez que ve una tabla en un proceso, pregunta sus columnas a
+`INFORMATION_SCHEMA`. Son consultas de verdad, pero **no son de la página**:
+con APCu se cachean 30 minutos. El informe las separa:
+
+```
+Total: 25.4 ms en 12 pasos · 24 consultas reales (9.3 ms en SQL)
+       + 22 de introspección de esquema (16.0 ms): en la web las paga APCu una vez cada 30 min
+```
+
+Y no salen en el ranking salvo que se pidan con `--schema`. Si aparecían arriba
+era fácil perseguir un fantasma: eran 22 tablas distintas, no 22 veces la misma
+consulta.
 
 ## La nota de APCu
 
