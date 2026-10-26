@@ -181,6 +181,65 @@ class QueueCheckTest extends UnitTestCase {
         $this->assertStringContainsString('…', $check->oneline($long));
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Nombres de columna: contra el DDL del instalador                    */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Columnas de una tabla según `setup/inc/streams/core/install-mysql.sql`.
+     *
+     * El diagnóstico pide las columnas por nombre al ORM, y un nombre que no
+     * exista no da «lista vacía»: MariaDB contesta «Unknown column» y el
+     * mensaje se pierde al registrarse. Ya pasó con `admin` en `ost_staff`
+     * (la columna se llama `isadmin`), así que se comprueba contra el DDL.
+     */
+    private function columnsOf(string $table): array {
+        $sql = file_get_contents(ROOT_DIR . '/setup/inc/streams/core/install-mysql.sql');
+        preg_match('/CREATE TABLE (?:IF NOT EXISTS )?`%TABLE_PREFIX%'
+            .preg_quote($table, '/').'` \((.*?)\n\) [^\n]*/s', $sql, $m);
+        $this->assertTrue(isset($m[1]),
+            "no se encontró la tabla {$table} en el DDL");
+
+        preg_match_all('/^\s*`(\w+)`/m', $m[1], $cols);
+        $this->assertGreaterThan(5, count($cols[1]),
+            "la tabla {$table} no tiene columnas en el DDL");
+
+        return $cols[1];
+    }
+
+    function testLosFiltrosDeAgentesUsanColumnasQueExisten() {
+        $columns = $this->columnsOf('staff');
+
+        foreach (QueueCheck::activeStaffFilter() as $field => $value)
+            $this->assertTrue(in_array($field, $columns),
+                "`{$field}` no es una columna de ost_staff");
+
+        foreach (QueueCheck::adminStaffFilter() as $field => $value)
+            $this->assertTrue(in_array($field, $columns),
+                "`{$field}` no es una columna de ost_staff");
+
+        // La regresión concreta: `admin` no existe, es `isadmin`
+        $this->assertFalse(in_array('admin', $columns));
+        $this->assertTrue(in_array('isadmin', $columns));
+        $this->assertArrayHasKey('isadmin', QueueCheck::adminStaffFilter());
+
+        // Los otros dos nombres que usa `resolveStaff()`
+        $this->assertTrue(in_array('staff_id', $columns));
+        $this->assertTrue(in_array('username', $columns));
+    }
+
+    function testElDiagnosticoSoloConsultaColumnasQueExisten() {
+        $ticket = $this->columnsOf('ticket');
+        foreach (array('ticket_id', 'status_id', 'closed', 'created') as $column)
+            $this->assertTrue(in_array($column, $ticket),
+                "`{$column}` no es una columna de ost_ticket");
+
+        $status = $this->columnsOf('ticket_status');
+        foreach (array('id', 'state') as $column)
+            $this->assertTrue(in_array($column, $status),
+                "`{$column}` no es una columna de ost_ticket_status");
+    }
+
     function testLenCountsAccentedCharactersOnce() {
         $this->assertEquals(6, QueueCheck::len('Año 26'));
     }

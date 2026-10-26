@@ -15,6 +15,9 @@
 
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
+
+/* Memoria del último error de la conexión (mensaje de las consultas) */
+require_once(INCLUDE_DIR . 'class.db.failure.php');
 require_once INCLUDE_DIR . 'class.util.php';
 require_once INCLUDE_DIR . 'class.signal.php';
 require_once INCLUDE_DIR . 'class.orm.select.php';
@@ -3459,8 +3462,13 @@ extends MySqlPreparedExecutor {
     function execute() {
         $sql = $this->__toString();
         if (!($this->stmt = db_query($sql, true, !$this->unbuffered)))
+            // `db_error()` describe la última operación de la conexión, y el
+            // aviso de `db_query()` (INSERT en `ost_syslog`, correo) la deja
+            // vacía. Se recurre al error guardado por `db_query()` para no
+            // lanzar «Unable to prepare query:  SELECT …» sin explicación.
             throw new InconsistentModelException(
-                'Unable to prepare query: '.db_error().' '.$sql);
+                'Unable to prepare query: '
+                . (db_error() ?: db_last_failure_text()) . ' '.$sql);
         // mysqli_query() return TRUE for UPDATE queries and friends
         if ($this->stmt !== true)
             $this->_setupCast();

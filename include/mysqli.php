@@ -1,4 +1,6 @@
 <?php
+/* Memoria del último error de la conexión (ver class.db.failure.php) */
+require_once(INCLUDE_DIR . 'class.db.failure.php');
 /*********************************************************************
     mysqli.php
 
@@ -245,14 +247,23 @@ function db_query($query, $logError=true, $buffered=true) {
         // TODO: Log warning
     } while (!$res && --$tries && isset($retry_codes[$__db->errno]));
 
-    if (false === $res && $logError && $ost) { //error reporting
-        // Allow $logError() callback to determine if logging is necessary
-        if (is_callable($logError) && !($logError($__db->errno)))
-            return $res;
+    if (false === $res) {
+        // Guardar el error *antes* de registrar nada. `logDBError()` escribe
+        // en `ost_syslog` (y puede mandar un aviso por correo), y esa consulta
+        // deja `mysqli::$error` limpio: quien luego lea el error para contarlo
+        // —el ORM lo hace al lanzar «Unable to prepare query:»— se encuentra
+        // una cadena vacía y el mensaje de MariaDB se pierde.
+        db_remember_failure($__db->errno, $__db->error, $query);
 
-        $msg='['.$query.']'."\n\n".db_error();
-        $ost->logDBError('DB Error #'.db_errno(), $msg);
-        //echo $msg; #uncomment during debugging or dev.
+        if ($logError && $ost) { //error reporting
+            // Allow $logError() callback to determine if logging is necessary
+            if (is_callable($logError) && !($logError($__db->errno)))
+                return $res;
+
+            $msg='['.$query.']'."\n\n".($__db->error ?: db_last_error());
+            $ost->logDBError('DB Error #'.db_last_errno(), $msg);
+            //echo $msg; #uncomment during debugging or dev.
+        }
     }
     return $res;
 }

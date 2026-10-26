@@ -75,6 +75,35 @@ El comando compara tres cosas:
 | «cerrados sin fecha de cierre» | Los tickets están en estado `closed` pero `closed` está vacío: no salen en los filtros por fecha. Es un problema del **dato** (de quien los cerró, o del sembrador) |
 | «con fecha de cierre pero estado distinto de closed» | Lo contrario: los filtros por estado y por fecha discrepan |
 
+## Si el comando muere con «Unable to prepare query»
+
+```
+Uncaught InconsistentModelException: Unable to prepare query:  SELECT A1.* FROM `ost_staff` …
+```
+
+Con dos espacios y el motivo en blanco. No es que falte el motivo: MariaDB sí
+contestó, pero el aviso del fallo (`db_query()` lo registra en `ost_syslog` y
+manda un correo al administrador) deja `mysqli::$error` limpio, y el ORM lee el
+error *después*. Desde esta versión, `db_query()` guarda el error antes de
+registrarlo (`include/class.db.failure.php`) y el mensaje ya incluye el motivo
+real, con su número:
+
+```
+Unable to prepare query: [1054] Unknown column 'A1.admin' in 'where clause' SELECT …
+```
+
+Ese caso concreto ya está corregido: la columna de `ost_staff` se llama
+`isadmin`, no `admin`. Si aparece otro, el número entre corchetes
+(`1054` columna desconocida, `1146` tabla inexistente, `1045` permisos…) dice
+por dónde empezar. El error completo también queda en el registro del sistema,
+que se lee desde el panel (*Admin → Panel → Registros*) o con:
+
+```bash
+docker compose exec -T db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -e "
+  SELECT created, title, LEFT(log, 400) AS log FROM ost_syslog
+   WHERE log_type = \'Error\' ORDER BY id DESC LIMIT 5;"'
+```
+
 ## Cuando hay que mirar la base a mano
 
 El comando ya hace estas consultas, pero si hace falta el SQL suelto, ojo con

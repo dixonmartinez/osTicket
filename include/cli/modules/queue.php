@@ -72,6 +72,8 @@ class QueueCheck extends Module {
     var $showSql = false;
     /** @var Staff con el que se calcula la visibilidad. */
     var $staff;
+    /** Lo que contestó la base en la comprobación previa (versión, base…). */
+    var $connection = array();
     /** Contradicciones encontradas: son las que hacen fallar el comando. */
     var $problems = 0;
 
@@ -98,28 +100,105 @@ class QueueCheck extends Module {
         $this->json = (bool) $this->getOption('json');
         $this->showSql = (bool) $this->getOption('sql');
 
+        // El ORM lanza «Unable to prepare query:» con el mensaje de MariaDB
+        // en blanco cuando `db_query()` alcanza a registrar el fallo: ese
+        // INSERT en `ost_syslog` deja `mysqli::$error` limpio. Con el modo de
+        // informes de mysqli apagado, la consulta devuelve `false` en vez de
+        // lanzar, y el mensaje sigue disponible para quien lo cuente. Es un
+        // ajuste sólo de este proceso de CLI, no de la aplicación.
+        if (function_exists('mysqli_report') && defined('MYSQLI_REPORT_OFF'))
+            mysqli_report(MYSQLI_REPORT_OFF);
+
         // `Bootstrap::loadCode()` ya trae `class.queue.php` y `class.search.php`,
         // pero no `class.ticket.php` (Ticket, TicketForm), que es donde están
         // el `FLAG_LINKED` y la vista materializada de los campos dinámicos.
         require_once INCLUDE_DIR . 'class.ticket.php';
 
-        Bootstrap::connect();
-        if (!($ost = osTicket::start()) || !($cfg = $ost->getConfig()))
+        try {
+            Bootstrap::connect();
+            $ost = osTicket::start();
+        }
+        catch (Throwable $e) {
+            $this->err('No se pudo abrir la base de datos: '.$e->getMessage());
+            return 2;
+        }
+
+        if (!$ost || !($cfg = $ost->getConfig()))
             $this->fail('No se pudo leer la configuración de la base de datos');
+
+        // Antes de tocar el ORM: ¿la conexión responde y las tablas están?
+        // Si no, el aviso tiene que decir **qué** contesta MariaDB; el ORM sólo
+        // puede decir «Unable to prepare query».
+        list($this->connection, $problem) = $this->preflight();
+        if ($problem) {
+            $this->err('La base de datos no responde como se espera.');
+            $this->err('  ' . $problem);
+            $this->err('');
+            $this->err('Compruebe que el contenedor `db` está arriba y que la');
+            $this->err('instalación terminó:  docker compose ps db');
+            $this->err('                      docker compose logs --tail=30 db');
+            return 2;
+        }
 
         // Los modelos de cola leen el agente «en curso»: `SavedQueue::__onload`
         // busca la configuración personal de `$thisstaff` (orden, columnas) y
         // la visibilidad de los tickets se calcula con él. En la web eso viene
         // de la sesión; aquí no hay sesión, así que se fija el agente a mano.
-        if (!($this->staff = $this->resolveStaff($this->getOption('as'))))
-            $this->fail('No hay agentes activos: sin agente no se puede calcular la visibilidad');
+        try {
+            $this->staff = $this->resolveStaff($this->getOption('as'));
+        }
+        catch (Throwable $e) {
+            $this->err('No se pudo leer el agente con el que se calcula la'
+                .' visibilidad.');
+            $this->err('  ' . $e->getMessage());
+            if (function_exists('db_last_failure_text') && db_last_failure_text())
+                $this->err('  MariaDB: ' . db_last_failure_text());
+            return 2;
+        }
+
+        if (!$this->staff) {
+            $this->err('No hay agentes activos en esta instalación.');
+            $this->err('  Agentes en la tabla `'.STAFF_TABLE.'`: '
+                . $this->connectionCount(STAFF_TABLE));
+            $this->err('  Créelos desde el panel (`scp/`) o con'
+                .' `php manage.php agent --help`.');
+            return 2;
+        }
 
         $GLOBALS['thisstaff'] = $this->staff;
 
-        $queues = $this->queues();
-        if (!$queues)
-            $this->fail('No hay colas de tickets en esta instalación');
+        try {
+            $queues = $this->queues();
+        }
+        catch (Throwable $e) {
+            $this->err('No se pudieron leer las colas.');
+            $this->err('  ' . $e->getMessage());
+            if (function_exists('db_last_failure_text') && db_last_failure_text())
+                $this->err('  MariaDB: ' . db_last_failure_text());
+            return 2;
+        }
 
+        if (!$queues) {
+            $this->err('No hay colas de tickets en esta instalación.');
+            $this->err('  Filas en `'.QUEUE_TABLE.'`: '
+                . $this->connectionCount(QUEUE_TABLE));
+            return 2;
+        }
+
+        try {
+            return $this->dispatch($queues);
+        }
+        catch (Throwable $e) {
+            $this->err('');
+            $this->err('El diagnóstico se detuvo: ' . $e->getMessage());
+            if (function_exists('db_last_failure_text') && db_last_failure_text())
+                $this->err('  MariaDB: ' . db_last_failure_text());
+            return 2;
+        }
+    }
+
+    /** Ejecuta la acción pedida (listar, revisar una o revisar todas). */
+    function dispatch($queues) {
         if ($this->getOption('list')) {
             $this->listQueues($queues);
             return $this->problems ? 1 : 0;
@@ -130,16 +209,93 @@ class QueueCheck extends Module {
             foreach ($queues as $queue)
                 $reports[] = $this->checkQueue($queue);
             if ($this->json)
-                $this->emitJson(array('agent' => $this->staffInfo(), 'queues' => $reports));
+                $this->emitJson(array('agent' => $this->staffInfo(),
+                    'server' => $this->connection, 'queues' => $reports));
             return $this->problems ? 1 : 0;
         }
 
         $queue = $this->pickQueue($queues);
         $report = $this->checkQueue($queue);
         if ($this->json)
-            $this->emitJson(array('agent' => $this->staffInfo(), 'queues' => array($report)));
+            $this->emitJson(array('agent' => $this->staffInfo(),
+                'server' => $this->connection, 'queues' => array($report)));
 
         return $this->problems ? 1 : 0;
+    }
+
+    /**
+     * Comprobación previa de la conexión, **sin** pasar por el ORM.
+     *
+     * `db_query()` registra cada fallo en `ost_syslog` (y puede mandar un
+     * correo de aviso), y ese INSERT deja `mysqli::$error` vacío: por eso el
+     * ORM acaba diciendo «Unable to prepare query:  SELECT …», con dos
+     * espacios donde debería estar el motivo. Aquí se consulta con
+     * `$logError = false` justo para que el mensaje de MariaDB siga ahí
+     * cuando se lee.
+     *
+     * @return array [info de la conexión, problema o null]
+     */
+    function preflight() {
+        $checks = array(
+            'conexión' => 'SELECT 1 AS ok',
+            'servidor' => 'SELECT DATABASE() AS base, VERSION() AS version',
+            'agentes' => 'SELECT COUNT(*) AS n FROM ' . STAFF_TABLE,
+            'colas' => 'SELECT COUNT(*) AS n FROM ' . QUEUE_TABLE,
+        );
+
+        $info = array();
+        $problem = null;
+        foreach ($checks as $name => $sql) {
+            $res = false;
+            try {
+                $res = db_query($sql, false);
+            }
+            catch (Throwable $e) {
+                $problem = sprintf('%s: %s (%s)', $name, $e->getMessage(), $sql);
+                break;
+            }
+
+            if (!$res) {
+                $problem = sprintf('%s: %s (%s)', $name,
+                    (function_exists('db_last_failure_text') && db_last_failure_text())
+                        ? db_last_failure_text()
+                        : sprintf('[%d] %s', db_errno(),
+                            db_error() ?: 'sin mensaje'),
+                    $sql);
+                break;
+            }
+
+            $row = db_fetch_array($res);
+            db_free_result($res);
+            if (!is_array($row))
+                $row = array('base' => '?', 'version' => '?', 'n' => null);
+
+            if ($name === 'servidor') {
+                $info['base'] = $row['base'];
+                $info['version'] = $row['version'];
+            }
+            elseif ($name === 'agentes' || $name === 'colas')
+                $info[$name] = (int) $row['n'];
+            else
+                $info[$name] = true;
+        }
+
+        return array($info, $problem);
+    }
+
+    /** Cuántas filas tiene una tabla (para los mensajes de «no hay agentes»). */
+    function connectionCount($table) {
+        try {
+            $res = db_query('SELECT COUNT(*) AS n FROM ' . $table, false);
+            if (!$res)
+                return '?';
+            $row = db_fetch_array($res);
+            db_free_result($res);
+            return is_array($row) ? (int) $row['n'] : '?';
+        }
+        catch (Throwable $e) {
+            return '?';
+        }
     }
 
     /**
@@ -151,9 +307,8 @@ class QueueCheck extends Module {
      * exactamente lo que ve otra persona.
      */
     function resolveStaff($who) {
-        $active = array('isactive' => 1);
         if ($who) {
-            $query = Staff::objects()->filter($active);
+            $query = Staff::objects()->filter(self::activeStaffFilter());
             if (ctype_digit((string) $who))
                 $query->filter(array('staff_id' => (int) $who));
             else
@@ -161,12 +316,33 @@ class QueueCheck extends Module {
             return $query->first();
         }
 
-        $admins = Staff::objects()->filter($active + array('admin' => 1))
+        $admins = Staff::objects()->filter(self::adminStaffFilter())
             ->order_by('staff_id');
         if ($admin = $admins->first())
             return $admin;
 
-        return Staff::objects()->filter($active)->order_by('staff_id')->first();
+        return Staff::objects()->filter(self::activeStaffFilter())
+            ->order_by('staff_id')->first();
+    }
+
+    /**
+     * Agentes activos: sólo las columnas que existen en `ost_staff`.
+     *
+     * Ojo con `isadmin`: la tabla **no** tiene `admin` (ver
+     * `setup/inc/streams/core/install-mysql.sql`), y `Staff` usa `isadmin` para
+     * todo (`isAdmin()` devuelve `$this->isadmin`). Pedir `admin` aquí no
+     * devuelve una lista vacía: MariaDB contesta «Unknown column 'A1.admin'»
+     * y, como `db_query()` registra el fallo en `ost_syslog` antes de que nadie
+     * lea el mensaje, el ORM lo cuenta como «Unable to prepare query» con el
+     * motivo en blanco.
+     */
+    static function activeStaffFilter() {
+        return array('isactive' => 1);
+    }
+
+    /** Agentes activos y administradores (columna `isadmin`). */
+    static function adminStaffFilter() {
+        return array('isactive' => 1, 'isadmin' => 1);
     }
 
     function staffInfo() {
@@ -223,6 +399,8 @@ class QueueCheck extends Module {
             return;
         }
 
+        $this->out($this->serverLine());
+        $this->out('');
         $this->table(
             array('ID', 'Cola', 'Padre', 'Tipo', 'Tickets'),
             array_map(function($r) {
@@ -232,6 +410,15 @@ class QueueCheck extends Module {
         );
         $this->out('');
         $this->out('Revise una con:  php manage.php queue --id=<ID>');
+    }
+
+    /** «MariaDB 11.4 · base osticket» para la cabecera de la salida. */
+    function serverLine() {
+        if (!$this->connection)
+            return '';
+        return sprintf('%s · base %s',
+            $this->connection['version'] ?: 'MariaDB',
+            $this->connection['base'] ?: '?');
     }
 
     /** Recuento de la cola, sin caché y sin romper el listado si falla. */
@@ -394,7 +581,9 @@ class QueueCheck extends Module {
         // Las tablas `*__cdata` son vistas materializadas: sin esto, las
         // columnas de asunto y de formulario no existen y la consulta falla.
         try {
-            TicketForm::ensureDynamicDataView();
+            // `$croak = false`: si la vista no se puede construir, aquí se
+            // prefiere el error de la consulta al `die()` de la vista.
+            TicketForm::ensureDynamicDataView(false, false);
         }
         catch (Throwable $e) {
             // Se avisa más abajo: la consulta se ejecuta igual y el error de
@@ -840,6 +1029,8 @@ class QueueCheck extends Module {
 
         $db = $report['database'];
         $this->heading('Datos en la base');
+        if ($this->serverLine())
+            $this->pair('Servidor', $this->serverLine());
         $rows = array(
             array('Tickets en total', $this->number($db['total'])),
             array('Con fecha de cierre (`closed`)', $this->number($db['closed_not_null'])),
