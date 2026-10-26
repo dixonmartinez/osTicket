@@ -125,6 +125,8 @@ Project documentation:
   * [`docs/QUEUES.md`](docs/QUEUES.md) — queue diagnostics
     (`make queue-check`): why a queue can count tickets it does not list, and
     how to tell the data from the query from the count.
+  * [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) — opening a ticket is slow?
+    `make ticket-perf` profiles it step by step.
   * [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md) — bundled library inventory.
 
 New in this branch:

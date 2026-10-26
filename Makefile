@@ -28,7 +28,7 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-composer docker-qa \
 	docker-bench docker-urls \
 	seed seed-fresh seed-check seed-verbose seed-list seed-doctor \
-	queues queue-check db-views db-rebuild-views mail test-mail
+	queues queue-check db-views db-rebuild-views ticket-perf mail test-mail
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -273,6 +273,9 @@ db-views: ## Estado de las tablas materializadas de los formularios (sólo lee)
 
 db-rebuild-views: ## Reconstruye esas tablas desde form_entry_values (arregla tickets que no salen)
 	@docker compose exec -T php php manage.php db --rebuild-views
+
+ticket-perf: ## Perfila la carga de un ticket (TICKET=405; sin TICKET, el último tocado)
+	@docker compose exec -T php php manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS)
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar
 	@$(MAKE) --no-print-directory docker-urls

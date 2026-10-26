@@ -34,7 +34,11 @@ if ($this->getObjectType() == 'T')
         // TODO: Consider adding a date boundary to indicate significant
         //       changes in dates between thread items.
         foreach ($buckets as $entry) {
-            $entry = ThreadEntry::lookup($entry->id);
+            // `$entry` ya es el modelo hidratado —`sortEntries()` recorre la
+            // consulta de entradas y devuelve los modelos— y además trae la
+            // anotación `has_attachments` de `Thread::getEntries()`. Volver a
+            // buscarlo aquí era **una consulta por entrada** en cada carga de
+            // la página, y la anotación se perdía por el camino.
             $extra = $entry->getMergeData();
             if ($entry->hasFlag(ThreadEntry::FLAG_CHILD) && $extra) {
                 if (!is_array($extra))

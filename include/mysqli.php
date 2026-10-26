@@ -215,7 +215,34 @@ function db_create_database($database, $charset='utf8',
  *   mysqli_result object if SELECT query succeeds, true if an INSERT,
  *   UPDATE, or DELETE succeeds, false if the query fails.
  */
+/**
+ * Igual que `db_query()`, pero además avisa a quien esté perfilando.
+ *
+ * El perfilador se activa poniendo una función en `$GLOBALS['__db_profile']`
+ * (lo hace `php manage.php perf`). Se comprueba con `isset()`, que cuesta
+ * nada, para que la ruta normal no pague nada por una herramienta de
+ * diagnóstico.
+ */
 function db_query($query, $logError=true, $buffered=true) {
+    if (!isset($GLOBALS['__db_profile']))
+        return db_query_untimed($query, $logError, $buffered);
+
+    $started = microtime(true);
+    try {
+        return db_query_untimed($query, $logError, $buffered);
+    }
+    finally {
+        // `finally` también corre cuando hay `return` dentro, que es el caso
+        // normal. Un fallo del perfilador no puede tumbar la consulta.
+        try {
+            call_user_func($GLOBALS['__db_profile'], $query,
+                microtime(true) - $started);
+        }
+        catch (Throwable $e) {}
+    }
+}
+
+function db_query_untimed($query, $logError=true, $buffered=true) {
     global $ost, $__db;
 
     // `isset()` y no la propiedad a secas: nadie la inicializa, y leerla

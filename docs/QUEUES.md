@@ -265,3 +265,5 @@ Para saber cuál de los tres números es el que falla, está este comando.
 - `docs/SEED.md` — los datos de demostración y `make seed-doctor`, que revisa
   que lo sembrado cuadre con los informes.
 - `docs/DOCKER.md` — el entorno, los servicios y los puertos.
+- `docs/PERFORMANCE.md` — `make ticket-perf`, para saber en qué se va el
+  tiempo al abrir un ticket.

@@ -121,7 +121,12 @@ implements Searchable {
 
     // Collaborators
     function getNumCollaborators() {
-        return $this->getCollaborators()->count();
+        // La página del ticket lo llama tres o cuatro veces (pestaña, menú,
+        // cabecera del hilo). Cada llamada era un `COUNT(*)` a la base.
+        if (!isset($this->ht['num_collaborators']))
+            $this->ht['num_collaborators'] = $this->getCollaborators()->count();
+
+        return $this->ht['num_collaborators'];
     }
 
     function getNumActiveCollaborators() {
