@@ -85,6 +85,13 @@ if (!$sorted) {
 
 $page = (isset($_GET['p']) && is_numeric($_GET['p']))?$_GET['p']:1;
 $pageNav = new Pagenate(PHP_INT_MAX, $page, PAGE_LIMIT);
+// Copia sin ventana: de ella sale el total que se muestra bajo la tabla. Se
+// toma antes de paginar porque `paginateSimple()` mete LIMIT/OFFSET en la
+// consulta que se ejecuta (y esa ya no sirve para contar). Lleva el mismo
+// `distinct` que la consulta de la tabla: sin él, los JOIN del hilo y de las
+// referencias (visibilidad) duplicarían filas y el total saldría inflado.
+$ticketsTotal = clone $tickets;
+$ticketsTotal->distinct('ticket_id');
 $tickets = $pageNav->paginateSimple($tickets);
 
 if (isset($tickets->extra['tables'])) {
@@ -106,6 +113,7 @@ if (isset($tickets->extra['tables'])) {
 
 $tickets->distinct('ticket_id');
 $Q = $queue->getBasicQuery();
+$empty = false;
 
 if ($Q->constraints) {
     if (count($Q->constraints) > 1) {
@@ -120,8 +128,23 @@ if (($Q->extra && isset($Q->extra['tables'])) || !$Q->constraints || $empty) {
     $skipCount = true;
     $count = '-';
 }
-
-$count = $count ?? $queue->getCount($thisstaff);
+elseif (!isset($count) || $count === null) {
+    // El total que se muestra sale de la **misma** consulta que llena la
+    // tabla. `$queue->getCount()` no sirve para esto: cuenta el criterio de
+    // la cola pero no el filtro rápido (`?filter=`), ni las columnas, ni la
+    // visibilidad que se aplican aquí abajo, y además puede venir de la caché
+    // de cinco minutos. Cuando los dos números no coinciden, el paginador
+    // promete filas que la tabla no trae («Showing 1 - 23 of about 23» con la
+    // tabla vacía).
+    try {
+        $count = (int) $ticketsTotal->count();
+    }
+    catch (Exception $e) {
+        // Si la base no puede contar la consulta, se mantiene el número de
+        // siempre antes que romper la página entera.
+        $count = $queue->getCount($thisstaff);
+    }
+}
 $pageNav->setTotal($count, true);
 $pageNav->setURL('tickets.php', $args);
 ?>
