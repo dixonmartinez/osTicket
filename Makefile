@@ -29,7 +29,7 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-bench docker-urls \
 	seed seed-fresh seed-check seed-verbose seed-list seed-doctor \
 	queues queue-check db-views db-rebuild-views ticket-perf ticket-perf-raw \
-\tticket-perf-xdebug mail test-mail
+	ticket-perf-xdebug mail test-mail fix-eol
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -77,6 +77,26 @@ test: unit ## Pruebas unitarias (alias de `unit`)
 
 test-legacy: ## Suite del instalador (necesita base de datos configurada)
 	@$(PHP) $(ROOT)/setup/test/run-tests.php
+
+fix-eol: ## Vuelve a LF los archivos que sólo se diferencian en finales de línea
+	@cd $(ROOT) && n=0; m=0; \
+	for f in $$(git ls-files --eol | awk -F'\t' '$$1 ~ /^i\/lf[[:space:]]+w\/(crlf|mixed)/ {print $$2}'); do \
+		if git diff --quiet --ignore-cr-at-eol -- "$$f"; then \
+			git checkout -- "$$f" && echo "  restaurado  $$f" && n=$$((n + 1)); \
+		else \
+			echo "  omitido     $$f (tiene cambios propios además de los finales de línea)"; \
+			m=$$((m + 1)); \
+		fi; \
+	done; \
+	if [ $$((n + m)) -eq 0 ]; then \
+		echo "· ningún archivo del árbol se diferencia sólo en finales de línea"; \
+	elif [ $$n -eq 0 ]; then \
+		echo "· nada restaurado: los $$m archivo(s) con CRLF tienen cambios propios"; \
+	else \
+		echo "· $$n archivo(s) vueltos a LF"; \
+		[ $$m -gt 0 ] && echo "  ($$m omitido(s): tienen cambios propios)"; \
+	fi; \
+	true
 
 integration: ## Pruebas de integración contra MariaDB (crea <base>_test)
 	@if [ -x $(ROOT)/vendor/bin/phpunit ]; then \

@@ -45,6 +45,23 @@ class EntryPointTest extends UnitTestCase {
         return (string) file_get_contents($path);
     }
 
+    /**
+     * Cuando la prueba de los finales de línea falla, el arreglo es un
+     * objetivo del Makefile: si alguien lo quita, el mensaje de la prueba
+     * mandaría a un comando que no existe.
+     */
+    public function testElArregloDeLosFinalesDeLineaEstaEnElMakefile(): void {
+        $makefile = (string) file_get_contents(ROOT_DIR . '/Makefile');
+
+        $this->assertTrue(strpos($makefile, 'fix-eol: ##') !== false,
+            'falta el objetivo fix-eol en el Makefile');
+        $this->assertTrue(strpos($makefile, 'git ls-files --eol') !== false,
+            'fix-eol debe preguntar a git qué archivos están en CRLF');
+        // Sin esta comprobación, `make fix-eol` borraría cambios de verdad.
+        $this->assertTrue(strpos($makefile, '--ignore-cr-at-eol') !== false,
+            'fix-eol debe comprobar que sólo cambian los finales de línea');
+    }
+
     /* ------------------------------------------------------------------ */
     /* Integridad de los archivos                                          */
     /* ------------------------------------------------------------------ */
@@ -95,10 +112,10 @@ class EntryPointTest extends UnitTestCase {
         // el archivo entero es la diferencia entre un retoque y volver a
         // sacarlo de git. Y `git ls-files --eol` distingue las dos causas.
         $this->assertSame(array(), $problems, implode("; ", $problems)
-            . ". Los archivos del repositorio están en LF. Si el tuyo no, "
-            . "compruébalo con `git ls-files --eol <archivo>` (w/crlf) y "
-            . "recupéralo con `git checkout -- <archivo>`; si sale el árbol "
-            . "entero, revisa `git config core.autocrlf`");
+            . ". Los archivos del repositorio están en LF: ejecuta `make "
+            . "fix-eol` y los vuelve a dejar como están en git (se salta los "
+            . "que tengan cambios propios). Si sale el árbol entero, revisa "
+            . "`git config core.autocrlf`");
     }
 
     /* ------------------------------------------------------------------ */

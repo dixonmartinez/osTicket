@@ -372,6 +372,22 @@ git diff --stat                  # ¿lo lista como modificado?
 git checkout -- ajax.php         # volver a sacarlo de git
 ```
 
+La forma corta de arreglarlo es un objetivo del Makefile, que además no
+pisa nada que no deba:
+
+```bash
+make fix-eol
+#   restaurado  ajax.php
+#   restaurado  index.php
+#   · 2 archivo(s) vueltos a LF
+```
+
+Recorre `git ls-files --eol`, se queda con los que están en LF en el
+repositorio y en CRLF (o mezclados) en el árbol, comprueba que **la única**
+diferencia sean los finales de línea (`git diff --ignore-cr-at-eol`) y sólo
+entonces los saca otra vez de git. Si un archivo tiene cambios propios, lo
+deja en paz y lo dice: ese hay que revisarlo a mano.
+
 Si `w/crlf` sale en **todo** el árbol, la causa es la configuración de git y
 no un archivo suelto: `git config --get core.autocrlf` (debería estar vacío o
 en `false`; en WSL2 se hereda el `.gitconfig` de Windows) y
