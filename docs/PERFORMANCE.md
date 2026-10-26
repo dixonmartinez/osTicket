@@ -54,23 +54,28 @@ administrador (ve todos los departamentos y todos los botones).
 ```
 Ticket #428 — perfil de la carga
 -------------------------------------------------------------
-  Paso                                   ms   SQL  Esq  N
-  Ticket::lookup()                      11.6     3    8  1
-  Encabezado: dept, rol, agente, …       4.8     2    3  1
-  Hilo: render() completo               27.7     6    7  9335
+  Paso                                   ms   SQLms  SQL  Esq  N
+  Ticket::lookup()                      13.4     1.7    1   10  1
+  Hilo: render() completo               24.5     7.1   10    2  9335
+  Hilo: render() otra vez (caché tibia)  9.7     4.0    5    0  9335
   ...
-Total: 60.0 ms en 14 pasos · 24 consultas reales (10.5 ms en SQL)
-       + 22 de introspección de esquema (15.9 ms)
+Total: 77.1 ms en 17 pasos · 32 consultas reales (15.5 ms en SQL)
+       + 22 de introspección de esquema (17.5 ms): ...
+       = 33.0 ms en base de datos y 44.1 ms en PHP (plantillas, objetos, saneado del HTML)
 
 Las 12 consultas que más tiempo suman
    12.4 ms ·   7 × · SELECT * FROM ost_thread_entry WHERE id = ?
     ...
-El paso más caro: «Hilo: render() completo» (42.7 ms, 31 consultas)
+El paso más caro: «Hilo: render() completo» (24.5 ms, 10 consultas)
 La consulta más repetida: 7 veces — SELECT * FROM ost_thread_entry WHERE id = ?
 ```
 
 * **ms** de un paso es tiempo de reloj, no sólo de SQL: incluye el trabajo de
   PHP y el pintado del template.
+* **SQLms** es lo que de ese tiempo se fue en la base de datos. El resto del
+  paso —`ms` menos `SQLms`— es PHP: plantillas, objetos, formateo. Es la
+  primera pregunta que hay que contestar antes de optimizar nada, y la línea
+  `= … en base de datos y … en PHP` del total la resume.
 * **SQL** son las consultas **reales** que lanzó el paso, y **Esq** las de
   introspección del esquema. Van en columnas distintas a propósito: en la
   consola, un paso que toca ocho tablas nuevas suma ocho `INFORMATION_SCHEMA`
@@ -85,6 +90,28 @@ La consulta más repetida: 7 veces — SELECT * FROM ost_thread_entry WHERE id =
 > `$GLOBALS['__db_profile']` tiene una función (lo pone este comando). No hay
 > que activar nada en la aplicación, no escribe en el registro y no queda nada
 > encendido al terminar el proceso.
+
+## Cómo se usó de verdad: el caso del ticket 428
+
+Con la salida real de un ticket de 4 entradas, el reparto fue:
+
+| Dato | Valor |
+| --- | --- |
+| Total | 77-92 ms según si APCu está activo |
+| Introspección de esquema | 17-21 ms · 22 consultas (sólo en la consola) |
+| Consultas reales | 32 · 15-17 ms |
+| **PHP** | **≈ 44 ms** |
+
+Con eso, la conclusión fue inmediata: **no era la base de datos**. Y dentro del
+hilo, el desglose descartó dos sospechas caras de perseguir:
+
+- el cuerpo de las entradas a HTML: **0.4 ms** para las cuatro;
+- las acciones por entrada: **1.3 ms**.
+
+Lo que sí quedó a la vista fue el coste de repetición: `render()` pintado dos
+veces baja de 24.5 a 9.7 ms, y la consulta de precarga de adjuntos se ejecuta
+varias veces por carga. Ese es el tipo de cosa que este informe existe para
+enseñar sin leer el ORM.
 
 ## Lo que ya se arregló
 

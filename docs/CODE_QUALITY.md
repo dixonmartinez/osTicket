@@ -292,7 +292,7 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Diecisiete funciones intermedias (121–175 líneas) que nadie ha tocado**,
+2. **Dieciséis funciones intermedias (121–175 líneas) que nadie ha tocado**,
    y que no estaban en el plan: `Dept::update()` (159), `Report::getTabularData()` (158), `Thread::create()`
    (158), `Queue::update()` (157), `SelectSql::fields()` (148, la pieza que se
    sacó de `compileSelect()`), `Search::IndexOldStuff()` (137),
@@ -315,6 +315,23 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    por tipo de registro, para no engordar esa lista. No son código de la aplicación —el criterio
    habla de la aplicación, y las tres primeras son CLI— pero están a la vista
    y se parten cuando se toquen por otro motivo.
+
+   Las dos herramientas que se escribieron en esta tanda de trabajo no han
+   añadido deuda: `run()` de `include/cli/modules/perf.php` llegó a **231**
+   líneas al crecer el perfilador y se partió en cinco métodos (el mayor,
+   `stepsThreadBody()`, 109); `seedAgents()` llegó a 125 y su lista de campos se
+   movió a `agentVars()` (82 y 50). Se comprobó con `make metrics` antes de
+   dar la tanda por terminada.
+
+**Comprobación de las cifras de arriba** (2026-10-26, tras esta tanda, con
+`make metrics --top=400`): 22 funciones de la aplicación por encima de 120
+líneas —las mismas que el año pasado, ninguna nueva—, 9 por encima de 150 y
+3 archivos por encima de 3.000 (`class.ticket.php` 4.532, `class.forms.php`
+4.516, `class.orm.php` 3.644). La función más larga de la aplicación sigue
+siendo `massProcess()` con 321 líneas. Fuera del criterio, por ser librerías
+empaquetadas o herramientas: `hl_tag` (448) y `hl_balance` (334) de
+`htmLawed.php`, `decode` (278) de `JSON.php`, `checkVariableUsage` (248) de las
+pruebas del instalador.
 
 **Criterio:** sacar de las funciones largas los tramos que no tocan la base de
 datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí

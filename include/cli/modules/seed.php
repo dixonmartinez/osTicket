@@ -797,51 +797,8 @@ class SeedManager extends Module {
                 continue;
             }
 
-            $vars = array(
-                'id' => 0,
-                'username' => $username,
-                'firstname' => $first,
-                'lastname' => $last,
-                'email' => $email,
-                'phone' => '',
-                'phone_ext' => '',
-                'mobile' => '',
-                'notes' => 'Agente de demostración',
-                'dept_id' => $dept->getId(),
-                'role_id' => $role,
-                // `Staff::update()` compara con la cadena '1' para decidir si
-                // hay que proteger al último administrador
-                'isadmin' => $isadmin ? '1' : 0,
-                'islocked' => null,     // null deja la cuenta activa
-                'isvisible' => 1,
-                'onvacation' => 0,
-                'assigned_only' => 0,
-                'change_passwd' => 0,
-                'passwd1' => self::PASSWORD,
-                'passwd2' => self::PASSWORD,
-                'backend' => '',
-                'welcome_email' => 0,
-                'teams' => array(),
-                'team_alerts' => array(),
-                'dept_access' => array(),
-                'dept_access_role' => array(),
-                'dept_access_alerts' => array(),
-                // El administrador de demostración tiene todos los permisos
-                // del panel, como el que crea el instalador. Con la lista
-                // vacía `hasPerm()` dice que no a todo —incluido «Stats»— y la
-                // pantalla de analíticas se queda en «usted sólo ve sus
-                // departamentos», que no es lo que se quiere demostrar.
-                'perms' => $isadmin ? $this->allPermissions() : array(),
-            );
-            // Acceso a todos los departamentos menos al primario, que ya lo
-            // tiene por serlo (si se repite, `updateAccess()` lo rechaza)
-            foreach ($depts as $d) {
-                if ($d->getId() == $dept->getId())
-                    continue;
-                $vars['dept_access'][] = $d->getId();
-                $vars['dept_access_role'][$d->getId()] = $role;
-                $vars['dept_access_alerts'][$d->getId()] = 1;
-            }
+            $vars = $this->agentVars($username, $first, $last, $dept, $role,
+                $isadmin, $depts);
 
             $staff = Staff::create();
             $errors = array();
@@ -858,6 +815,63 @@ class SeedManager extends Module {
 
         if (!$this->adminStaff)
             $this->adminStaff = $this->firstAdmin();
+    }
+
+    /**
+     * Los campos que `Staff::update()` espera para un agente de demostración.
+     *
+     * Están aquí y no dentro de `seedAgents()` para que aquél quede en un
+     * puñado de líneas: la lista de campos es datos, no flujo.
+     */
+    private function agentVars($username, $first, $last, $dept, $role,
+            $isadmin, $depts) {
+        $vars = array(
+            'id' => 0,
+            'username' => $username,
+            'firstname' => $first,
+            'lastname' => $last,
+            'email' => $username . '@' . $this->domain,
+            'phone' => '',
+            'phone_ext' => '',
+            'mobile' => '',
+            'notes' => 'Agente de demostración',
+            'dept_id' => $dept->getId(),
+            'role_id' => $role,
+            // `Staff::update()` compara con la cadena '1' para decidir si
+            // hay que proteger al último administrador
+            'isadmin' => $isadmin ? '1' : 0,
+            'islocked' => null,     // null deja la cuenta activa
+            'isvisible' => 1,
+            'onvacation' => 0,
+            'assigned_only' => 0,
+            'change_passwd' => 0,
+            'passwd1' => self::PASSWORD,
+            'passwd2' => self::PASSWORD,
+            'backend' => '',
+            'welcome_email' => 0,
+            'teams' => array(),
+            'team_alerts' => array(),
+            'dept_access' => array(),
+            'dept_access_role' => array(),
+            'dept_access_alerts' => array(),
+            // El administrador de demostración tiene todos los permisos del
+            // panel, como el que crea el instalador. Con la lista vacía
+            // `hasPerm()` dice que no a todo —incluido «Stats»— y la pantalla
+            // de analíticas se queda en «usted sólo ve sus departamentos», que
+            // no es lo que se quiere demostrar.
+            'perms' => $isadmin ? $this->allPermissions() : array(),
+        );
+        // Acceso a todos los departamentos menos al primario, que ya lo tiene
+        // por serlo (si se repite, `updateAccess()` lo rechaza)
+        foreach ($depts as $d) {
+            if ($d->getId() == $dept->getId())
+                continue;
+            $vars['dept_access'][] = $d->getId();
+            $vars['dept_access_role'][$d->getId()] = $role;
+            $vars['dept_access_alerts'][$d->getId()] = 1;
+        }
+
+        return $vars;
     }
 
     /**

@@ -95,21 +95,34 @@ class PerfCheck extends Module {
         if (!$id)
             $this->fail('No hay ningún ticket que perfilar');
 
-        $ticket = null;
         $this->startProfile();
 
+        if (!($ticket = $this->stepTicket($id)))
+            $this->fail("No existe el ticket #{$id}");
+
+        if ($thread = $this->stepThread($ticket))
+            $this->stepsThreadBody($thread, $ticket);
+
+        $this->stepsFormsAndTasks($id, $ticket);
+
+        $this->stopProfile();
+        $this->report($id);
+        return 0;
+    }
+
+    /** El ticket y su encabezado: lo primero que hace la página. */
+    function stepTicket($id) {
+        $ticket = null;
         $this->step('Ticket::lookup()', function() use ($id, &$ticket) {
             $ticket = Ticket::lookup($id);
             return $ticket;
         });
 
         if (!$ticket)
-            $this->fail("No existe el ticket #{$id}");
+            return null;
 
-        $thread = null;
-
-        // El encabezado de la página: cada uno de estos es una consulta o un
-        // modelo relacionado (departamento, rol, agente, usuario, equipo…).
+        // Cada uno de estos es una consulta o un modelo relacionado:
+        // departamento, rol, agente, usuario, equipo, SLA y bloqueo.
         $this->step('Encabezado: dept, rol, agente, usuario, equipo, SLA',
             function() use ($ticket) {
                 $ticket->getDept();
@@ -129,16 +142,22 @@ class PerfCheck extends Module {
                 return true;
             });
 
+        return $ticket;
+    }
+
+    /** El hilo, que es lo que se pinta en la pestaña principal. */
+    function stepThread($ticket) {
+        $thread = null;
         $this->step('Hilo: getThread()', function() use ($ticket, &$thread) {
             $thread = $ticket->getThread();
             return $thread;
         });
 
-        if (!$thread) {
-            $this->report($id);
-            return 0;
-        }
+        return $thread;
+    }
 
+    /** Todo lo que cuesta el hilo: entradas, eventos, adjuntos y el pintado. */
+    function stepsThreadBody($thread, $ticket) {
         $this->step('Colaboradores (4 veces, como la página)',
             function() use ($thread) {
                 $thread->getCollaborators();
@@ -189,7 +208,7 @@ class PerfCheck extends Module {
             });
 
         // Desglose de lo que la plantilla hace **una vez por entrada**: es lo
-        // que convierte «render() tarda 27 ms» en un culpable concreto.
+        // que convierte «render() tarda 24 ms» en un culpable concreto.
         // El cuerpo se vuelve a pedir frío (`_body` a null) para que el paso
         // de render mida lo mismo que la primera carga de la página.
         $this->step('Hilo: cuerpo → HTML (por entrada)', function() use ($entries) {
@@ -215,48 +234,52 @@ class PerfCheck extends Module {
 
         // Lo que la plantilla hace **antes** del bucle: precargar adjuntos,
         // contar entradas y eventos, y ordenar. Va aparte para poder restar.
-        $this->step('Hilo: proemio del template', function() use ($thread, $entries, $ticket) {
-            AttachmentFile::objects()->filter(array(
-                'attachments__thread_entry__thread__id' => $thread->getId()
-            ))->all();
+        $this->step('Hilo: proemio del template',
+            function() use ($thread, $entries, $ticket) {
+                AttachmentFile::objects()->filter(array(
+                    'attachments__thread_entry__thread__id' => $thread->getId()
+                ))->all();
 
-            $n = 0;
-            foreach (Attachment::objects()->filter(array(
-                    'thread_entry__thread__id' => $thread->getId(),
-                ))->select_related('thread_entry', 'file') as $A)
-                $n++;
+                $n = 0;
+                foreach (Attachment::objects()->filter(array(
+                        'thread_entry__thread__id' => $thread->getId(),
+                    ))->select_related('thread_entry', 'file') as $A)
+                    $n++;
 
-            $entries->exists(true);
-            $entries->count();
-            $events = $thread->getEvents()->order_by('id');
-            count($events);
-            ThreadEntry::sortEntries($entries, $ticket);
-            return $n;
-        });
+                $entries->exists(true);
+                $entries->count();
+                $events = $thread->getEvents()->order_by('id');
+                count($events);
+                ThreadEntry::sortEntries($entries, $ticket);
+                return $n;
+            });
 
         $this->step('Hilo: render() completo', function() use ($thread) {
-            ob_start();
-            $thread->render(array('M', 'R', 'N'), array(
-                'html-id' => 'ticketThread',
-                'mode' => Thread::MODE_STAFF,
-                'sort' => $this->staff ? $this->staff->thread_view_order : 'ASC',
-            ));
-            return strlen(ob_get_clean());
+            return $this->renderThread($thread);
         });
 
         // La segunda pasada distingue lo que se paga una vez (compilar el
         // template, cargar clases, hidratar) de lo que se paga en cada
         // pintado.
-        $this->step('Hilo: render() otra vez (caché tibia)', function() use ($thread) {
-            ob_start();
-            $thread->render(array('M', 'R', 'N'), array(
-                'html-id' => 'ticketThread',
-                'mode' => Thread::MODE_STAFF,
-                'sort' => $this->staff ? $this->staff->thread_view_order : 'ASC',
-            ));
-            return strlen(ob_get_clean());
-        });
+        $this->step('Hilo: render() otra vez (caché tibia)',
+            function() use ($thread) {
+                return $this->renderThread($thread);
+            });
+    }
 
+    /** Pinta el hilo como la página y devuelve los bytes producidos. */
+    function renderThread($thread) {
+        ob_start();
+        $thread->render(array('M', 'R', 'N'), array(
+            'html-id' => 'ticketThread',
+            'mode' => Thread::MODE_STAFF,
+            'sort' => $this->staff ? $this->staff->thread_view_order : 'ASC',
+        ));
+        return strlen(ob_get_clean());
+    }
+
+    /** Formulario y tareas: el resto de la página del ticket. */
+    function stepsFormsAndTasks($id, $ticket) {
         $this->step('Formulario: DynamicFormEntry::forTicket()',
             function() use ($id) {
                 $n = 0;
@@ -285,10 +308,6 @@ class PerfCheck extends Module {
                     $n++;
                 return $n;
             });
-
-        $this->stopProfile();
-        $this->report($id);
-        return 0;
     }
 
     /* ------------------------------------------------------------------ */
@@ -484,24 +503,7 @@ class PerfCheck extends Module {
             $total += $step['ms'];
 
         if ($this->json) {
-            $top = $this->topQueries();
-            echo json_encode(array(
-                'ticket' => (int) $id,
-                'total_ms' => round($total, 1),
-                'steps' => array_map(function($s) {
-                    return array('label' => $s['label'],
-                        'ms' => round($s['ms'], 1), 'queries' => $s['queries'],
-                        'schema_queries' => isset($s['schema']) ? $s['schema'] : 0,
-                        'error' => $s['error']);
-                }, $this->steps),
-                'queries' => $top,
-                'origins' => array_map(function($o) {
-                    return array('origin' => PerfCheck::shortOrigin($o['origin']),
-                        'queries' => $o['n'], 'distinct' => $o['distinct'],
-                        'ms' => round($o['ms'], 1));
-                }, array_slice($this->topOrigins(), 0, 10)),
-            ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
-                | JSON_UNESCAPED_UNICODE), "\n";
+            $this->reportJson($id, $total);
             return;
         }
 
@@ -512,17 +514,7 @@ class PerfCheck extends Module {
                 ? ' (se pidió «' . $requested . '»: no existe, se usó el último)'
                 : ''));
         $this->out(str_repeat('-', 62));
-        $rows = array();
-        foreach ($this->steps as $step)
-            $rows[] = array(
-                $step['label'],
-                sprintf('%.1f', $step['ms']),
-                $step['queries'],
-                isset($step['schema']) ? $step['schema'] : 0,
-                $step['result'] === null ? '' : $step['result'],
-                $step['error'] ? 'ERROR' : '',
-            );
-        $this->table(array('Paso', 'ms', 'SQL', 'Esq', 'N', 'Err'), $rows);
+        $this->reportTable();
 
         // Los pasos que no se pudieron medir, con su motivo: un error aquí
         // no invalida el resto del informe, pero hay que verlo.
@@ -533,6 +525,64 @@ class PerfCheck extends Module {
 
         $totals = $this->totals(false);
         $schema = $this->schemaTotals();
+        $this->reportTotals($total, $totals, $schema);
+        $this->reportRankings();
+        $this->reportSlowest();
+
+        // Detalle por paso: qué consultas hace cada uno. Es lo que permite
+        // pasar de «este paso cuesta 24 ms» a «estas cuatro consultas son la
+        // misma, una por entrada».
+        $filter = (string) $this->getOption('step');
+        if ($filter !== '')
+            $this->detailStep($filter);
+
+        $this->reportNotes($totals);
+    }
+
+    /** El informe en JSON, para engancharlo a otra herramienta. */
+    function reportJson($id, $total) {
+        echo json_encode(array(
+            'ticket' => (int) $id,
+            'total_ms' => round($total, 1),
+            'steps' => array_map(function($s) {
+                return array('label' => $s['label'],
+                    'ms' => round($s['ms'], 1),
+                    // En milisegundos, como la tabla: `sql_ms` interno está
+                    // en segundos y redondear a 2 decimales lo dejaba en cero.
+                    'sql_ms' => round($s['sql_ms'] * 1000, 1),
+                    'queries' => $s['queries'],
+                    'schema_queries' => isset($s['schema']) ? $s['schema'] : 0,
+                    'error' => $s['error']);
+            }, $this->steps),
+            'queries' => $this->topQueries(),
+            'origins' => array_map(function($o) {
+                return array('origin' => PerfCheck::shortOrigin($o['origin']),
+                    'queries' => $o['n'], 'distinct' => $o['distinct'],
+                    'ms' => round($o['ms'], 1));
+            }, array_slice($this->topOrigins(), 0, 10)),
+        ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+            | JSON_UNESCAPED_UNICODE), "\n";
+    }
+
+    /** La tabla de pasos: tiempo, cuánto es SQL y cuántas consultas. */
+    function reportTable() {
+        $rows = array();
+        foreach ($this->steps as $step)
+            $rows[] = array(
+                $step['label'],
+                sprintf('%.1f', $step['ms']),
+                // Lo que de ese tiempo es base de datos: el resto es PHP.
+                sprintf('%.1f', $step['sql_ms'] * 1000),
+                $step['queries'],
+                isset($step['schema']) ? $step['schema'] : 0,
+                $step['result'] === null ? '' : $step['result'],
+                $step['error'] ? 'ERROR' : '',
+            );
+        $this->table(array('Paso', 'ms', 'SQLms', 'SQL', 'Esq', 'N', 'Err'), $rows);
+    }
+
+    /** El total, y en qué se reparte: base de datos contra PHP. */
+    function reportTotals($total, $totals, $schema) {
         $this->out('');
         $this->out(sprintf('Total: %.1f ms en %d pasos · %d consultas reales (%.1f ms en SQL)',
             $total, count($this->steps), $totals['n'], $totals['ms'] * 1000));
@@ -542,6 +592,16 @@ class PerfCheck extends Module {
                 $schema['n'], $schema['ms'] * 1000));
         }
 
+        // La pregunta que se hace todo el mundo: ¿esto es la base de datos o
+        // es PHP? Se responde en una línea.
+        $db = ($totals['ms'] + $schema['ms']) * 1000;
+        $php = max($total - $db, 0);
+        $this->out(sprintf('       = %.1f ms en base de datos y %.1f ms en PHP'
+            . ' (plantillas, objetos, saneado del HTML)', $db, $php));
+    }
+
+    /** Los dos rankings: consultas por tiempo total y líneas que las piden. */
+    function reportRankings() {
         $top = $this->topQueries();
         if ($top) {
             $this->out('');
@@ -555,13 +615,14 @@ class PerfCheck extends Module {
             }
         }
 
-        // Qué línea de código dispara las consultas. Sin esto, «13 consultas
+        // Qué línea de código dispara las consultas. Sin esto, «10 consultas
         // en render()» sólo se puede adivinar leyendo el código.
         $origins = $this->topOrigins();
         if ($origins) {
             $this->out('');
             $this->out(sprintf('De dónde salen las consultas%s',
-                $this->getOption('schema') ? '' : ' (sin la introspección del esquema)'));
+                $this->getOption('schema')
+                    ? '' : ' (sin la introspección del esquema)'));
             $this->out(str_repeat('-', 62));
             foreach (array_slice($origins, 0, 10) as $o) {
                 $this->out(sprintf('  %5.1f ms · %3d × · %2d SQL distinta%s · %s',
@@ -570,9 +631,10 @@ class PerfCheck extends Module {
                     self::shortOrigin($o['origin'])));
             }
         }
+    }
 
-        // Dónde se va el tiempo, en una línea: es lo que se pregunta
-        // El paso más caro, entre los que sí se pudieron medir
+    /** El paso más caro, entre los que sí se pudieron medir. */
+    function reportSlowest() {
         $slowest = null;
         foreach ($this->steps as $step)
             if (!$step['error'] && (!$slowest || $step['ms'] > $slowest['ms']))
@@ -582,14 +644,10 @@ class PerfCheck extends Module {
             $this->out(sprintf('El paso más caro: «%s» (%.1f ms, %d consultas)',
                 $slowest['label'], $slowest['ms'], $slowest['queries']));
         }
+    }
 
-        // Detalle por paso: qué consultas hace cada uno. Es lo que permite
-        // pasar de «este paso cuesta 38 ms» a «estas cuatro consultas son la
-        // misma, una por entrada».
-        $filter = (string) $this->getOption('step');
-        if ($filter !== '')
-            $this->detailStep($filter);
-
+    /** Los avisos del final: APCu y la consulta que más se repite. */
+    function reportNotes($totals) {
         // Aviso honesto: en CLI no hay APCu, así que la introspección del
         // esquema se paga aquí y no en la web.
         if (!function_exists('apcu_fetch'))
@@ -601,7 +659,7 @@ class PerfCheck extends Module {
                 . "\ntanda de esquema tras arrancar o tras expirar la caché.");
 
         $repeated = null;
-        foreach ($top as $q)
+        foreach ($this->topQueries() as $q)
             if (!$repeated || $q['n'] > $repeated['n'])
                 $repeated = $q;
         if ($repeated && $repeated['n'] > 1)

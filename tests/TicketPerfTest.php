@@ -611,6 +611,46 @@ class TicketPerfTest extends UnitTestCase {
         $this->assertSame($column, $position($lines[3], '2.0'));
     }
 
+    /**
+     * La pregunta del usuario era «¿esto es la base de datos o es PHP?».
+     * El informe tiene que contestarla sin echar cuentas a mano.
+     */
+    function testElInformeReparteElTiempoEntreSqlYPhp() {
+        $perf = $this->probe();
+        $perf->step('Ticket::lookup()', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.002);
+            return 1;
+        });
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        $this->assertTrue(strpos($text, 'SQLms') !== false,
+            'La tabla no dice cuánto de cada paso es SQL');
+        $this->assertTrue(strpos($text, 'en base de datos y') !== false,
+            'El informe no reparte el tiempo entre base de datos y PHP');
+        // El paso dura más que su SQL: el resto es PHP
+        $this->assertTrue(strpos($text, 'en PHP') !== false);
+    }
+
+    /** El JSON lleva el mismo desglose, que es lo que se compara entre tandas. */
+    function testElJsonLlevaElTiempoDeSqlPorPaso() {
+        $perf = $this->probe(array('json' => true));
+        $perf->json = true;
+        $perf->step('Ticket::lookup()', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.002);
+            return 1;
+        });
+
+        ob_start();
+        $perf->report(7);
+        $json = json_decode(ob_get_clean(), true);
+
+        $this->assertTrue(isset($json['steps'][0]['sql_ms']));
+        $this->assertEquals(2.0, $json['steps'][0]['sql_ms']);
+    }
+
     /** El perfil avisa de que sin APCu las medidas son pesimistas. */
     function testAvisaCuandoApcuNoEstaActivo() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
