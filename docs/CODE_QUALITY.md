@@ -57,21 +57,24 @@ dirección contraria.
 | Funciones | 6.072 |
 | Clases, interfaces y rasgos | 675 en 201 archivos |
 | Tamaño medio de función | 12,1 líneas |
-| Archivo más grande | `include/class.ticket.php` — 4.531 líneas |
-| Función más larga del código propio | `Ticket::create()` — **219** líneas (eran 536) |
-| Función más larga de una herramienta | `run()` de `include/cli/modules/file.php` — 408 líneas |
+| Archivo más grande | `include/class.ticket.php` — 4.532 líneas |
+| Función más larga del código propio | `run()` de `include/cli/modules/file.php` — 408 líneas |
+| Función más larga de la aplicación | `massProcess()` de `include/ajax.tickets.php` — **321** (eran 377) |
 
 **No hay ninguna función de 1.400 líneas** y la más larga de la aplicación
-ya baja de 400: `create()` pasó de 536 a **219** al partirse por fases
+baja de 400: `create()` pasó de 536 a **219** al partirse por fases
 (frente 6). La media son 12 líneas; el problema son los valores atípicos, y
-ahora se ven:
+ahora se ven (los tres primeros son de herramientas propias o de la CLI, no de
+la aplicación):
 
 | Función | Líneas | Archivo |
 |---|---|---|
+| `run()` (importador por CLI) | 408 | `include/cli/modules/file.php` |
 | `massProcess()` | 321 | `include/ajax.tickets.php` |
 | `massProcess()` | 287 | `include/ajax.tasks.php` |
 | `Mailer::send()` | 270 | `include/class.mailer.php` |
 | `Ticket::create()` | 219 | `include/class.ticket.php` (eran 536) |
+| `_build()` (módulo de idiomas) | 190 | `include/cli/modules/i18n.php` |
 | `Ticket::postMessage()` | 178 | `include/class.ticket.php` |
 | `Schedule::buildFields()` | 175 | `include/class.schedule.php` |
 
@@ -251,37 +254,65 @@ integración.
 
 ### Frente 2 — Reducir las funciones y archivos que concentran la dificultad 🔄 En curso
 
-**Dónde está:** la primera tanda está hecha y en uso —siete piezas puras
-sacadas de las funciones más largas, con 160 pruebas nuevas y seis defectos
-reales corregidos—, y ninguna de esas funciones ha vuelto a crecer. El
-criterio de éxito del frente **no se cumple todavía**: sigue habiendo
-funciones de la aplicación por encima de 120 líneas y siete archivos por
-encima de 2.000.
+**Dónde está** (medido el 2026-10-26 con `make metrics`): la primera tanda está
+hecha y en uso —siete piezas puras sacadas de las funciones más largas, con
+160 pruebas nuevas y seis defectos reales corregidos—, y ninguna de esas
+funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
+además en nueve fases (frente 6), así que la función más larga de la
+aplicación ya no es un flujo de 500 líneas.
 
-La segunda tanda necesitaba algo que no existía: **una base de datos contra la
-que probar**. Ya está montada («Prueba de integración», más abajo):
-`make docker-integration` crea una base
-desechable, le carga el esquema del instalador y ejecuta el ORM de verdad. Lo
-que queda del frente es usarla para trocear `Ticket::create()` con la base
-delante, no a ciegas.
-
-El plan original hablaba de partir `Queue::getCriteria()` (1.414 líneas). Esa
-cifra era un error de medida (§1): la función tiene 30 líneas. Con los números
-buenos, el frente cambia de objetivo:
+El criterio de éxito **no se cumple todavía**: quedan **24 funciones de la
+aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
+(`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Función más larga de la aplicación | 536 líneas | **500** |
-| `Ticket::create()` | 536 líneas | **500** (`TicketCreate`) |
-| `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
-| `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
-| `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
+| Función más larga de la aplicación | 536 líneas | **321** (`massProcess()` de tickets) |
 | `massProcess()` de tickets | 377 líneas | **321** (`MassAction`) |
 | `massProcess()` de tareas | 330 líneas | **287** (`MassAction`) |
 | `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |
-| `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`) |
-| Funciones de la aplicación por encima de 150 líneas | 10 | 10 |
-| Archivos por encima de 2.000 líneas | 7 | 7 (ninguno pasa de 4.809) |
+| `Ticket::create()` | 536 líneas | **219** (nueve fases en `TicketCreate`) |
+| `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
+| `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
+| `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
+| `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`; `fields()` 148) |
+| Funciones de la aplicación por encima de 120 líneas | — | **24** |
+| Funciones de la aplicación por encima de 150 líneas | 10 | **10** |
+| Archivos por encima de 3.000 líneas | 3 | **3** |
+
+**Lo que queda, y por qué no es sólo «seguir partiendo»:**
+
+1. **El banco de integración no cubre el flujo de tickets.** Existe y está en
+   verde (`tests/integration/OrmIntegrationTest.php`, 19 casos contra una base
+   desechable), pero sólo prueba el ORM. Ni `Ticket::create()`, ni los dos
+   `massProcess()`, ni `Mailer::send()` tienen una prueba suya. Son las cuatro
+   más largas de la aplicación y las cuatro que tocan la base de datos de
+   punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
+   exactamente lo que el frente tiene pendiente desde el principio.
+   `make docker-integration` es el camino.
+2. **Diecinueve funciones intermedias (121–175 líneas) que nadie ha tocado**,
+   y que no estaban en el plan: `Schedule::buildFields()` (175),
+   `Dept::update()` (159), `Report::getTabularData()` (158), `Thread::create()`
+   (158), `Queue::update()` (157), `SelectSql::fields()` (148, la pieza que se
+   sacó de `compileSelect()`), `Search::IndexOldStuff()` (137),
+   `Staff::update()` (137), `Ticket::update()` (133), `I18n::loadDefaultData()`
+   (131), `Ticket::open()` (129), `Validator::validate()` (129),
+   `Organization::update()` (128), `MailParse::getAttachments()` (127),
+   `Thread::lookupByEmailHeaders()` (126), `Topic::update()` (126),
+   `File::create()` (122) y `Ticket::setStatus()` (121). Varias son del mismo
+   tipo que las que ya se partieron (armar campos, validar, componer
+   mensajes); otras son `update()` de modelo, donde lo que hay es una lista de
+   campos y su validación.
+3. **Los tres archivos de más de 3.000 líneas** son trabajo del frente 6
+   (reparto por familias de clases), no de éste, pero el criterio de éxito del
+   frente 2 los incluye. `class.forms.php` es el que más se resiste: 36 clases
+   y 4.516 líneas.
+4. **Las herramientas del propio proyecto** también aparecen en la lista
+   (`run()` de `include/cli/modules/file.php` con 408 líneas, `_build()` del
+   módulo de idiomas con 190, `install()` del instalador con 302,
+   `sqlaudit_main()` con 172). No son código de la aplicación —el criterio
+   habla de la aplicación, y las tres primeras son CLI— pero están a la vista
+   y se parten cuando se toquen por otro motivo.
 
 **Criterio:** sacar de las funciones largas los tramos que no tocan la base de
 datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
@@ -359,20 +390,27 @@ cuentas SMTP, envío por Sendmail y la traducción de destinatarios a
 prueban, y el `div` del identificador se comparó carácter a carácter con el
 que generaba el código anterior.
 
-`Ticket::create()` es la función más larga de la aplicación (500 líneas,
-eran 536). Bajó con esas piezas; lo que queda es un flujo con base de datos
-de punta a punta (buscar tema, departamento, correo, crear el usuario, guardar
-el formulario, los colaboradores y el mensaje) y no se puede trocear sin
-pruebas de integración.
+`Ticket::create()` fue la función más larga de la aplicación (536 líneas). Bajó
+a 219 con las piezas de arriba y, después, al partirse en nueve fases
+(frente 6); lo que queda en `include/class.ticket.php` es el flujo con base de
+datos de punta a punta (buscar tema, departamento, correo, crear el usuario,
+guardar el formulario, los colaboradores y el mensaje) y no se puede seguir
+troceando sin pruebas de integración.
 
 Siguiente paso, por orden de riesgo:
 
-1. **Usar el banco de integración que ya existe** para fijar `Ticket::create()`
-   con datos reales: un ticket web, uno de agente y uno por correo, con sus
-   colaboradores y su mensaje. En cuanto eso esté en verde, el flujo se puede
-   partir en los mismos términos que `TicketPost` o `ThreadEntryInfo`.
-2. `massProcess()` (321 y 287) y `Mailer::send()` (270): lo mismo, una prueba
-   de integración por rama antes de mover código.
+1. **Fijar `Ticket::create()` con una prueba de integración**: un ticket web,
+   uno de agente y uno por correo, con sus colaboradores y su mensaje. La
+   función ya está partida en nueve fases (`include/class.ticket.create.php`),
+   pero lo que queda en `class.ticket.php` son 219 líneas de orquestación con
+   base de datos: hasta que esa prueba esté en verde, moverlas es a ciegas.
+2. `massProcess()` (321 y 287) y `Mailer::send()` (270): una prueba de
+   integración por rama antes de mover código. En `Mailer::send()` lo que no
+   se puede probar sin enviar es justo lo que queda (cuentas SMTP, sendmail y
+   el reparto `to`/`cc`/`bcc`); las cabeceras y los cuerpos ya están en
+   `tests/MailerMessageTest.php`.
+3. Las funciones de 121 a 175 líneas: por la misma vía, pero son muchas y
+   ninguna es un riesgo para producción, así que van detrás.
 
 - Riesgo: bajo en el primer paso (código nuevo + pruebas, sin cambiar firmas).
 - Éxito: ninguna función de la aplicación por encima de 120 líneas y ningún
