@@ -42,7 +42,7 @@ docker compose exec -T php php manage.php seed --no-tickets
 | `--only=PASO` | ejecuta un solo paso (`orgs`, `users`, `slas`, `depts`, `agents`, `teams`, `topics`, `canned`, `faq`, `tickets`, `tasks`) |
 | `--count=N` | cuántos tickets crear (por omisión todos: son 59) |
 | `--domain=D` | dominio de los correos de demostración (por omisión `example.com`) |
-| `--no-tickets` | deja la configuración pero ningún ticket |
+| `--no-tickets` | deja la configuración, pero ni tickets ni tareas |
 | `--list` | muestra los pasos |
 | `--verbose` | muestra cada registro creado |
 | `--quiet` | sólo avisa de los errores |
@@ -134,8 +134,9 @@ sin responsable, y ocho de ellas enganchadas a un ticket (`object_type` = `T`).
 
 ### El hilo de un ticket
 
-Cada ticket recibe entre 2 y 14 mensajes, con fechas repartidas desde su
-apertura hasta hoy:
+Cada ticket recibe entre 2 y 14 mensajes, con fechas repartidas entre el día
+siguiente a su apertura y hoy —o el día del cierre, si está cerrado: un ticket
+cerrado hace tres semanas no puede tener una respuesta de ayer—:
 
 - **respuesta del agente** (`postReply`), firmada con el agente asignado;
 - **mensaje del cliente** (`postMessage`), como si respondiera por el portal;
@@ -146,6 +147,11 @@ de agente y otra de cliente) y las va rotando; así dos tickets no tienen el
 mismo texto y el hilo se lee como una conversación. Las fechas se ajustan
 **después** de crear cada entrada (`create()` pone `NOW()`), así que el orden
 del hilo es el orden real.
+
+El reparto de días lo hace `SeedManager::threadDay()` —una función pura, con
+pruebas—: del día `edad - 1` al día del cierre, sin saltos ni fechas
+anteriores a la apertura. Importa para los informes: una respuesta fechada
+antes de la apertura aparece como **tiempo de respuesta negativo**.
 
 ---
 

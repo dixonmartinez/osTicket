@@ -63,7 +63,7 @@ class SeedManager extends Module {
         'list' => array('-l', '--list', 'action' => 'store_true',
             'help' => 'Lista los pasos disponibles y termina'),
         'no-tickets' => array('', '--no-tickets', 'action' => 'store_true',
-            'help' => 'Crea la configuración pero ningún ticket ni tarea'),
+            'help' => 'Crea la configuración, pero ni tickets ni tareas'),
         'domain' => array('', '--domain', 'metavar' => 'DOMINIO',
             'help' => 'Dominio de los correos de demostración (por omisión '
                 . 'example.com, que resuelve por DNS)'),
@@ -1263,13 +1263,18 @@ class SeedManager extends Module {
 
             // El hilo: mensajes alternos del agente y del cliente, con una
             // nota interna de vez en cuando (una «conversación» de verdad).
+            // Un ticket cerrado no puede tener respuestas posteriores al
+            // cierre: la conversación termina el día en que se cierra.
+            $closeDay = ($closedHint && $closedStatuses)
+                ? max(0, $age - $messages - 1) : 0;
+
             $this->seedConversation($ticket, $agent, $messages, $age, $i,
-                $phrases);
+                $phrases, $closeDay);
 
             // Estado final: cerrado de verdad o uno de los estados abiertos
             if ($closedHint && $closedStatuses) {
                 $this->closeTicket($ticket, $agent,
-                    $this->daysAgo(max(0, $age - $messages - 1)),
+                    $this->daysAgo($closeDay),
                     $closedStatuses[$i % count($closedStatuses)]);
             }
             else {
@@ -1306,19 +1311,15 @@ class SeedManager extends Module {
      * cuatro. Las fechas se reparten desde la apertura hasta hoy.
      */
     function seedConversation($ticket, $agent, $count, $age, $offset,
-            $phrases = null) {
+            $phrases = null, $minDay = 0) {
         if (!$phrases)
             $phrases = self::conversation();
 
         $agentLines = $phrases['agent'];
         $clientLines = $phrases['client'];
-        $last = max(0, $age - 1);
 
         for ($r = 1; $r <= $count; $r++) {
-            // Reparto de días: del más antiguo (apertura) al más reciente
-            $days = $count > 1
-                ? (int) round($last * (1 - ($r - 1) / ($count - 1)))
-                : $last;
+            $days = $this->threadDay($age, $count, $r, $minDay);
             $when = $this->daysAgo($days, 20 + $r * 7);
 
             $lines = ($r % 2) ? $agentLines : $clientLines;
@@ -1370,6 +1371,18 @@ class SeedManager extends Module {
 
         // Permisos y departamento del agente que firma
         $thisstaff = $admin;
+
+        // `Task::create()` devuelve `null` sin explicación cuando el agente no
+        // puede crear tareas (un administrador con un rol limitado). Mejor
+        // decirlo una vez que fallar dieciséis veces con «sin más datos».
+        if (method_exists($admin, 'hasPerm')
+                && !$admin->hasPerm(Task::PERM_CREATE, false)) {
+            $this->warn(sprintf('el administrador «%s» no tiene permiso para '
+                . 'crear tareas (rol sin «Create»): no se puede sembrar el paso '
+                . 'tasks con esa cuenta', $admin->getUserName()));
+            $thisstaff = null;
+            return;
+        }
 
         $plan = self::tasks();
         if ($limit !== null)
@@ -1555,6 +1568,34 @@ class SeedManager extends Module {
      * firmar la entrada; si no hay ninguna configurada —una instalación recién
      * creada— se guarda como nota interna, que no manda correo.
      */
+    /**
+     * Día (antigüedad) de la entrada `$r` de un hilo de `$count` mensajes.
+     *
+     * Se reparte entre `$age - 1` (lo más antiguo, justo después de abrir el
+     * ticket) y `$minDay` (lo más reciente: 0 = hoy, o el día del cierre si el
+     * ticket ya está cerrado). Sin ese reparto los mensajes se fechaban hasta
+     * hoy aunque el ticket llevara semanas cerrado, y las cuentas de tiempo de
+     * respuesta y resolución salían raras.
+     *
+     * Es una función pura a propósito: la prueba comprueba el reparto sin
+     * base de datos.
+     */
+    function threadDay($age, $count, $r, $minDay = 0) {
+        $age = max(0, (int) $age);
+        $count = max(1, (int) $count);
+        $r = min($count, max(1, (int) $r));
+
+        $latest = max(0, (int) $age - 1);
+        $earliest = min(max(0, (int) $minDay), $latest);
+
+        if ($count == 1)
+            return $latest;
+
+        // De `$latest` (r=1) a `$earliest` (r=$count)
+        return (int) round($latest
+            - ($latest - $earliest) * ($r - 1) / ($count - 1));
+    }
+
     function agentReply($ticket, $agent, $text, $when) {
         if (!$agent)
             return;

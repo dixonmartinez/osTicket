@@ -503,6 +503,8 @@ class SeedDataTest extends UnitTestCase {
             ->getNumberOfParameters());
         $this->assertSame(2, (new ReflectionMethod($seed, 'daysAgo'))
             ->getNumberOfParameters());
+        $this->assertSame(4, (new ReflectionMethod($seed, 'threadDay'))
+            ->getNumberOfParameters());
         $this->assertSame(1, (new ReflectionMethod($seed, 'sourceFor'))
             ->getNumberOfParameters());
     }
@@ -658,6 +660,51 @@ class SeedDataTest extends UnitTestCase {
 
         $this->assertSame(7, $creates,
             'cada `create()` debe ir seguido de `$errors = array()`');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Fechas del hilo                                                     */
+    /* ------------------------------------------------------------------ */
+
+    public function testElPrimerMensajeVaJustoDespuesDeAbrirElTicket(): void {
+        $seed = new SeedManager();
+        // Ticket abierto hace 10 días: la conversación empieza al día
+        // siguiente, no antes (una respuesta anterior a la apertura da
+        // tiempos de respuesta negativos en los informes).
+        $this->assertSame(9, $seed->threadDay(10, 4, 1));
+        $this->assertSame(9, $seed->threadDay(10, 1, 1));
+    }
+
+    public function testUnTicketCerradoNoTieneMensajesDespuesDelCierre(): void {
+        $seed = new SeedManager();
+        // Abierto hace 20 días, cerrado hace 15 (minDay = 15): el último
+        // mensaje cae el día del cierre, nunca después.
+        $this->assertSame(15, $seed->threadDay(20, 5, 5, 15));
+        $this->assertSame(19, $seed->threadDay(20, 5, 1, 15));
+    }
+
+    public function testElRepartoDeDiasEsMonotonoYAjustado(): void {
+        $seed = new SeedManager();
+        $previous = PHP_INT_MAX;
+
+        for ($r = 1; $r <= 8; $r++) {
+            $day = $seed->threadDay(30, 8, $r, 10);
+            $this->assertLessThan($previous + 1, $day,
+                'los mensajes tienen que ir del más viejo al más nuevo');
+            $this->assertLessThan(30, $day, 'ningún mensaje antes de la apertura');
+            $this->assertGreaterThan(9, $day, 'ningún mensaje después del cierre');
+            $previous = $day;
+        }
+    }
+
+    public function testElRepartoAguantaDatosRaros(): void {
+        $seed = new SeedManager();
+        // Un mensaje, edad cero, cierre «después» de la apertura o índice
+        // fuera de rango: el sembrador nunca debe devolver un día negativo.
+        foreach (array(array(0, 3, 1, 0), array(5, 3, 9, 0), array(2, 4, 1, 30))
+                as $case)
+            $this->assertGreaterThan(-1, $seed->threadDay($case[0], $case[1],
+                $case[2], $case[3]));
     }
 
     public function testElManifiestoNoSeVersiona(): void {

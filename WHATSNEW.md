@@ -22,7 +22,10 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   duplica, no le cambia la contraseña y firma con él tareas y notas; sólo crea
   `admin` / `Demo1234!` si no hay ningún administrador. `--fresh` tiene una
   segunda pasada **por nombre**, para los restos que el manifiesto ya no
-  conocía y que hacían decir «ya existía» en cada ejecución.
+  conocía y que hacían decir «ya existía» en cada ejecución. Las fechas del
+  hilo se reparten entre la apertura y el cierre (`SeedManager::threadDay()`),
+  sin mensajes posteriores al cierre; el paso `tasks` avisa claro si el
+  administrador reutilizado no puede crear tareas.
 * **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 5 departamentos,
   11 temas, 2 equipos, 2 SLA, 5 respuestas predefinidas, 6 categorías de base
   de conocimiento con 33 artículos, **59 tickets** repartidos entre todos los
