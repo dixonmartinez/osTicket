@@ -155,6 +155,47 @@ antes de la apertura aparece como **tiempo de respuesta negativo**.
 
 ---
 
+### Que los informes cuadren
+
+Los datos de demostración no sólo tienen que existir: tienen que **medirse**
+como si fueran reales. Eso obliga a tocar tres relojes que osTicket escribe
+aparte, y los tres se ajustan aquí:
+
+| Dónde | Quién lo escribe | Cómo queda |
+|---|---|---|
+| `ticket.created`, `ticket.closed`, `duedate` | `UPDATE` del sembrador | la fecha histórica |
+| `thread_entry.created` | `create()` pone `NOW()` | la fecha de la entrada, **por su id** (no buscando el texto: en un hilo largo las frases se repiten y se movía la equivocada, y eso producía tiempos de respuesta negativos) |
+| `thread_event.timestamp` (`created`, `closed`, `overdue`) | `logEvent()` pone `NOW()` | la misma fecha del hito |
+
+Lo último importa porque el *Statistics* nativo (`/scp/reports.php`) se calcula
+**sólo** con la tabla de eventos: si todos los eventos quedan en el instante del
+sembrado, «Service Time» sale `0.0`, «Closed» sale `0` aunque haya tickets
+cerrados y «Overdue» no aparece. El sembrador registra ahora el evento de
+cierre (`Ticket::setStatus()` no funciona desde la CLI, el cierre es un
+`UPDATE`) y el de vencimiento, y les pone su fecha.
+
+El administrador de demostración recibe **todos** los permisos, como el que crea
+el instalador: sin ellos `hasPerm('stats.agents')` dice que no y la pantalla de
+analíticas se queda en «sólo ve sus departamentos», con el desglose por agente
+vacío.
+
+### Un departamento «Support» que no se creó aquí
+
+El instalador de osTicket crea un departamento **Support** (en inglés) como
+predeterminado. El sembrador no lo toca ni lo renombra; si en `Statistics`
+aparece con tickets, son tickets cuyo tema no traía departamento y cayeron en el
+predeterminado. Para ver cuáles:
+
+```sql
+SELECT t.number, t.dept_id, d.name AS dept, t.topic_id, h.topic
+  FROM ost_ticket t
+  LEFT JOIN ost_department d ON d.id = t.dept_id
+  LEFT JOIN ost_help_topic h ON h.topic_id = t.topic_id
+ WHERE d.name = 'Support';
+```
+
+---
+
 ## Por qué no es un archivo `.sql`
 
 Porque un `INSERT` a mano deja la base de datos en un estado que la aplicación

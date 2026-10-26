@@ -616,6 +616,15 @@ class Analytics
             ];
         }
 
+        // Mismo alcance que el desglose por agente: quien no puede ver las
+        // métricas del equipo tampoco debería ver la carga de sus compañeros
+        // (el aviso de la página dice justamente eso).
+        if (!$this->seeAgents && $this->staffId) {
+            $rows = array_values(array_filter($rows, function ($r) {
+                return $r['id'] === (int) $this->staffId;
+            }));
+        }
+
         return $rows;
     }
 
@@ -744,8 +753,18 @@ class AnalyticsChart
             $label = $n <= 45
                 ? gmdate('d/m', strtotime($label . ' UTC'))
                 : gmdate('m/y', strtotime($label . ' UTC'));
-            $svg .= sprintf('<text class="axis" x="%.1f" y="%d" text-anchor="middle">%s</text>',
-                $x($idx), $h - 6, $label);
+            // La primera y la última se alinean hacia dentro: centradas en el
+            // borde, la mitad del texto quedaba fuera del `viewBox` y se leía
+            // «26/10» como «26/1».
+            $anchor = 'middle'; $lx = $x($idx);
+            if ($idx === 0) {
+                $anchor = 'start'; $lx = max(0, $lx - 4);
+            }
+            elseif ($idx === $n - 1) {
+                $anchor = 'end'; $lx = min($w, $lx + 4);
+            }
+            $svg .= sprintf('<text class="axis" x="%.1f" y="%d" text-anchor="%s">%s</text>',
+                $lx, $h - 6, $anchor, $label);
         }
 
         return $svg . '</svg>';

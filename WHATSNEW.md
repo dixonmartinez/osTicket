@@ -26,6 +26,12 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   hilo se reparten entre la apertura y el cierre (`SeedManager::threadDay()`),
   sin mensajes posteriores al cierre; el paso `tasks` avisa claro si el
   administrador reutilizado no puede crear tareas.
+* **Los datos cuadran en los informes**: el sembrador fecha también los
+  eventos del hilo (`created`, `closed`, `overdue`) y las entradas por su id,
+  así que `Statistics` deja de mostrar «Service Time 0.0», «Closed 0» y tiempos
+  de respuesta negativos; el administrador de demostración recibe todos los
+  permisos y el desglose por agente y la carga de trabajo aplican el mismo
+  alcance.
 * **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 5 departamentos,
   11 temas, 2 equipos, 2 SLA, 5 respuestas predefinidas, 6 categorías de base
   de conocimiento con 33 artículos, **59 tickets** repartidos entre todos los

@@ -118,6 +118,58 @@ class AnalyticsTest extends UnitTestCase {
                 "falta Analytics::{$method}(), que la clase usa");
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Gráfica de líneas                                                   */
+    /* ------------------------------------------------------------------ */
+
+    public function testLaGraficaNoCortaLasEtiquetasDeLosBordes(): void {
+        // Centrada en el borde, la mitad del texto se salía del `viewBox`: en
+        // la captura del panel la última fecha se leía «26/1» en vez de
+        // «26/10». La primera se alinea a la izquierda y la última a la
+        // derecha, dentro del lienzo.
+        $labels = array('2026-09-26', '2026-09-27', '2026-09-28');
+        $svg = AnalyticsChart::lineSvg(array('labels' => $labels,
+            'created' => array(1, 2, 3), 'closed' => array(0, 1, 1)));
+
+        preg_match_all('/<text class="axis" x="([\d.]+)" y="\d+" '
+            . 'text-anchor="(\w+)">([^<]+)</', $svg, $m, PREG_SET_ORDER);
+
+        $this->assertCount(3, $m);
+        $this->assertSame('start', $m[0][2]);
+        // dd/mm del primer y último día del periodo
+        $this->assertSame('26/09', $m[0][3]);
+        $this->assertSame('end', $m[2][2]);
+        $this->assertSame('28/09', $m[2][3]);
+        // El ancla `end` deja el texto creciendo hacia la izquierda: cabe
+        $this->assertTrue((float) $m[2][1] <= 720);
+        $this->assertSame('middle', $m[1][2]);
+    }
+
+    public function testTodosLosMetodosPublicosDelInformeExisten(): void {
+        // La vista llama a un método por tarjeta: si uno desaparece, el panel
+        // se rompe con un error fatal al abrirlo.
+        $source = file_get_contents(INCLUDE_DIR . 'staff/analytics.inc.php');
+        preg_match_all('/\$analytics->(\w+)\(/', $source, $m);
+
+        $this->assertTrue(count($m[1]) >= 8);
+        foreach (array_unique($m[1]) as $method)
+            $this->assertTrue(method_exists('Analytics', $method),
+                "falta Analytics::{$method}(), que usa la vista");
+    }
+
+    public function testElAlcanceDelAgenteSeAplicaTambienALaCarga(): void {
+        // La página avisa «sólo ves los datos de tus departamentos» y el
+        // desglose por agente se filtra; la tabla de carga mostraba a los
+        // compañeros igual. Mismo criterio en las dos.
+        $source = file_get_contents(INCLUDE_DIR . 'class.analytics.php');
+        $start = strpos($source, 'public function getWorkload()');
+        $end = strpos($source, 'public static function toCsv', $start);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString('!$this->seeAgents', $body);
+        $this->assertStringContainsString('$this->staffId', $body);
+    }
+
     public function testLosMetodosLlamadosConSelfExisten(): void {
         // `self::countIf()` y compañía: el mismo control por el otro camino
         $source = file_get_contents(INCLUDE_DIR . 'class.analytics.php');

@@ -819,7 +819,12 @@ class SeedManager extends Module {
                 'dept_access' => array(),
                 'dept_access_role' => array(),
                 'dept_access_alerts' => array(),
-                'perms' => array(),
+                // El administrador de demostración tiene todos los permisos
+                // del panel, como el que crea el instalador. Con la lista
+                // vacía `hasPerm()` dice que no a todo —incluido «Stats»— y la
+                // pantalla de analíticas se queda en «usted sólo ve sus
+                // departamentos», que no es lo que se quiere demostrar.
+                'perms' => $isadmin ? $this->allPermissions() : array(),
             );
             // Acceso a todos los departamentos menos al primario, que ya lo
             // tiene por serlo (si se repite, `updateAccess()` lo rechaza)
@@ -1268,8 +1273,11 @@ class SeedManager extends Module {
                 $this->failed("el ticket «" . $subject . "»", $errors);
                 continue;
             }
-            // Antigüedad: se corrige después porque create() pone NOW()
+            // Antigüedad: se corrige después porque create() pone NOW(), y
+            // también la del evento «created» del hilo (es lo que lee el
+            // Statistics nativo)
             $this->backdate($ticket, $when);
+            $this->backdateEvent($ticket, 'created', $when);
 
             // El hilo: mensajes alternos del agente y del cliente, con una
             // nota interna de vez en cuando (una «conversación» de verdad).
@@ -1298,12 +1306,15 @@ class SeedManager extends Module {
                 // Un tercio de los tickets abiertos, vencidos: el SLA ya
                 // pasó y la cola de vencidos no queda vacía
                 if ($i % 3 == 0) {
+                    $overdue = $this->daysAgo(max(0, $age - 1));
                     Ticket::objects()
                         ->filter(array('ticket_id' => $ticket->getId()))
                         ->update(array(
-                            'duedate' => $this->daysAgo(max(0, $age - 1)),
+                            'duedate' => $overdue,
                             'isoverdue' => 1,
                         ));
+                    // El evento es lo que cuenta el «Overdue» de Statistics
+                    $this->logEventAt($ticket, 'overdue', $overdue, $agent);
                 }
             }
 
@@ -1557,7 +1568,7 @@ class SeedManager extends Module {
         try {
             // Sin avisos: no hay cuenta de correo configurada en una
             // instalación recién creada y el hilo se llena igual.
-            $ticket->postMessage(array(
+            $entry = $ticket->postMessage(array(
                 'userId' => $ticket->getUserId(),
                 'poster' => (string) $ticket->getName(),
                 'message' => $text,
@@ -1566,7 +1577,8 @@ class SeedManager extends Module {
                 'ccs' => null,
                 'header' => null,
             ), 'Web', false);
-            $this->backdateEntry($ticket, $text, $when);
+            if ($entry)
+                $this->backdateEntry($ticket, $entry, $when);
         }
         catch (Throwable $e) {
             $this->warn('respuesta del cliente: ' . $e->getMessage());
@@ -1623,7 +1635,7 @@ class SeedManager extends Module {
                 'from_email_id' => 0,
             ), $errors, false, false);
 
-            if (!$ok)
+            if (!$ok) {
                 $ok = $ticket->postNote(array(
                     'note' => $text,
                     'staffId' => $agent->getId(),
@@ -1632,15 +1644,59 @@ class SeedManager extends Module {
                     'ip_address' => '127.0.0.1',
                     'note_status_id' => 0,
                 ), $errors, false, false);
+            }
 
             if ($ok)
-                $this->backdateEntry($ticket, $text, $when);
+                $this->backdateEntry($ticket, $ok, $when);
             else
                 $this->warn('respuesta del agente: '
                     . Format::array_implode(' · ', ' · ', $errors));
         }
         catch (Throwable $e) {
             $this->warn('respuesta del agente: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fecha un evento del hilo (`created`, `closed`, `overdue`…).
+     *
+     * `logEvent()` (y `ThreadEvent::create()`) ponen `NOW()` en el timestamp,
+     * y el *Statistics* nativo de osTicket se calcula **sólo** con la tabla de
+     * eventos: si todos quedan en el instante del sembrado, el «Service Time»
+     * sale 0.0 y «Closed» sale 0 aunque haya tickets cerrados. No basta con
+     * ajustar `ticket.created`: hay que ajustar el evento.
+     */
+    function backdateEvent($object, $state, $when) {
+        if (!class_exists('ThreadEvent') || !class_exists('Event'))
+            return;
+
+        if (!($thread = $object->getThread()))
+            return;
+
+        if (!($eventId = Event::getIdByName($state)))
+            return;
+
+        $found = ThreadEvent::objects()
+            ->filter(array('thread_id' => $thread->getId(),
+                'event_id' => $eventId))
+            ->order_by('-id')
+            ->all();
+
+        if ($found) {
+            ThreadEvent::objects()
+                ->filter(array('id' => $found[0]->getId()))
+                ->update(array('timestamp' => $when));
+        }
+    }
+
+    /** Registra un evento del hilo con fecha del pasado. */
+    function logEventAt($object, $state, $when, $staff = null) {
+        try {
+            $object->logEvent($state, null, $staff);
+            $this->backdateEvent($object, $state, $when);
+        }
+        catch (Throwable $e) {
+            $this->warn("evento «{$state}»: " . $e->getMessage());
         }
     }
 
@@ -1656,22 +1712,33 @@ class SeedManager extends Module {
 
     /**
      * Las entradas se crean con NOW(); para que el hilo tenga fechas
-     * distintas se busca la última entrada con ese cuerpo y se ajusta.
+     * distintas hay que ajustarlas **después**.
+     *
+     * `$entry` es la entrada que devolvió `postReply()`/`postNote()`/
+     * `postMessage()`. Antes se buscaba «la última entrada cuyo cuerpo
+     * contenga estas 40 letras», y en un hilo de 14 mensajes las frases se
+     * repiten: se movía la fecha de la entrada equivocada, quedaban respuestas
+     * anteriores a su mensaje padre y el *Statistics* nativo mostraba tiempos
+     * de respuesta **negativos**. Con el id que devuelve el propio método no
+     * hay nada que adivinar.
+     *
+     * `$entry` puede llegar como texto (manifiestos y llamadas antiguas): en
+     * ese caso se conserva la búsqueda por cuerpo como último recurso.
      */
-    function backdateEntry($ticket, $text, $when) {
-        $thread = $ticket->getThread();
+    function backdateEntry($object, $entry, $when) {
+        $thread = $object->getThread();
         if (!$thread)
             return;
 
-        // `one()` lanzaría ObjectNotUnique cuando dos respuestas empiezan
-        // igual (pasaba con los tickets de hilo largo): aquí sólo interesa la
-        // última entrada, así que se pide una y se toma la primera.
-        $found = ThreadEntry::objects()
-            ->filter(array('thread_id' => $thread->getId(),
-                'body__contains' => self::excerpt($text)))
-            ->order_by('-id')
-            ->all();
-        $entry = $found ? $found[0] : null;
+        if (!$entry instanceof ThreadEntry) {
+            $text = (string) $entry;
+            $found = ThreadEntry::objects()
+                ->filter(array('thread_id' => $thread->getId(),
+                    'body__contains' => self::excerpt($text)))
+                ->order_by('-id')
+                ->all();
+            $entry = $found ? $found[0] : null;
+        }
         if ($entry) {
             ThreadEntry::objects()
                 ->filter(array('id' => $entry->getId()))
@@ -1706,6 +1773,12 @@ class SeedManager extends Module {
                     'isanswered' => 1,
                     'lastupdate' => $when,
                 ));
+
+            // El cierre se hace por `UPDATE` (desde la CLI `Ticket::setStatus()`
+            // devuelve `false`), así que el evento «closed» hay que registrarlo
+            // aquí: sin él, `Statistics` cuenta 0 cerrados y el «Service Time»
+            // no tiene con qué calcularse.
+            $this->logEventAt($ticket, 'closed', $when, $agent);
         }
         catch (Throwable $e) {
             $this->warn('no se pudo cerrar el ticket: ' . $e->getMessage());
@@ -1812,7 +1885,7 @@ class SeedManager extends Module {
             ), $errors, $poster, false);
 
             if ($ok)
-                $this->backdateEntry($task, $text, $when);
+                $this->backdateEntry($task, $ok, $when);
             else
                 $this->warn('nota de la tarea: '
                     . Format::array_implode(' · ', ' · ', $errors));
@@ -1839,7 +1912,7 @@ class SeedManager extends Module {
             ), $errors, false, false);
 
             if ($ok)
-                $this->backdateEntry($ticket, $text, $when);
+                $this->backdateEntry($ticket, $ok, $when);
             else
                 $this->warn('nota interna: '
                     . Format::array_implode(' · ', ' · ', $errors));
@@ -1901,6 +1974,15 @@ class SeedManager extends Module {
     }
 
     /** Todos los permisos para el administrador; el siguiente, para el resto. */
+    /** Todas las claves de permiso que entiende osTicket. */
+    function allPermissions() {
+        $keys = array();
+        foreach (RolePermission::allPermissions() as $group)
+            $keys = array_merge($keys, array_keys($group));
+
+        return $keys;
+    }
+
     function roleFor(array $roles, $isadmin) {
         if ($isadmin)
             return $roles['all access'] ?? $roles['_first'];
