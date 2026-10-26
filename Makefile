@@ -27,7 +27,7 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-reset docker-test docker-integration docker-security docker-prod \
 	docker-composer docker-qa \
 	docker-bench docker-urls \
-	seed seed-fresh seed-check mail test-mail
+	seed seed-fresh seed-check seed-verbose seed-list mail test-mail
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -235,13 +235,23 @@ docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 	@echo "→ ¿Sigue accesible /setup/ desde la web?"
 	@docker compose exec -T php php tools/security/setup-probe.php
 
+# Opciones del sembrador: `make seed SEED_ARGS="-v --only=topics"`.
+# Ojo: `make seed -v` NO funciona — `-v` lo consume make y muestra su versión.
+SEED_ARGS ?=
+
 seed: ## Carga datos de demostración (organizaciones, agentes, 59 tickets, 16 tareas)
-	@docker compose exec -T php php manage.php seed
+	@docker compose exec -T php php manage.php seed $(SEED_ARGS)
+
+seed-verbose: ## Lo mismo que `make seed`, mostrando cada registro creado o saltado
+	@docker compose exec -T php php manage.php seed --verbose $(SEED_ARGS)
 
 seed-fresh: ## Borra lo que creó `make seed` y lo vuelve a crear
-	@docker compose exec -T php php manage.php seed --fresh
+	@docker compose exec -T php php manage.php seed --fresh $(SEED_ARGS)
 
 seed-check: ## Lista los pasos del sembrador y lo que crea cada uno (no escribe)
+	@docker compose exec -T php php manage.php seed --list
+
+seed-list: ## Igual que seed-check (alias con el nombre del módulo)
 	@docker compose exec -T php php manage.php seed --list
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar

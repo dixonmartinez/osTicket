@@ -507,6 +507,31 @@ class SeedDataTest extends UnitTestCase {
             ->getNumberOfParameters());
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Purga: a quién corresponde cada entrada del manifiesto              */
+    /* ------------------------------------------------------------------ */
+
+    public function testLaReferenciaDeConocimientoDistingueCategoriaDeArticulo(): void {
+        // Mismo número, dos tablas: sin el tipo se borraba el registro
+        // equivocado y `--fresh` dejaba categorías sueltas.
+        $this->assertSame(array('type' => 'category', 'id' => 3),
+            SeedManager::faqRef('c3'));
+        $this->assertSame(array('type' => 'article', 'id' => 3),
+            SeedManager::faqRef('f3'));
+    }
+
+    public function testLaReferenciaAdmiteManifiestosAntiguos(): void {
+        // Antes se guardaba sólo el id: `null` significa «no sé qué es»
+        $this->assertNull(SeedManager::faqRef(12));
+        $this->assertNull(SeedManager::faqRef('12'));
+    }
+
+    public function testLaReferenciaRechazaLoQueNoReconoce(): void {
+        foreach (array('', 'c', 'x7', 'c7f', 'c-1', null) as $ref)
+            $this->assertNull(SeedManager::faqRef($ref),
+                'no debería reconocer «' . var_export($ref, true) . '»');
+    }
+
     public function testElManifiestoNoSeVersiona(): void {
         // `--fresh` borra por número de identificador: si el manifiesto se
         // versionara, se borrarían registros de otra instalación.

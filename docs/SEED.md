@@ -18,13 +18,18 @@ panel de analíticas, y revisar plantillas de correo con tickets de verdad.
 ```bash
 make seed            # crea todo (no duplica si ya existe)
 make seed-fresh      # borra lo que creó y lo vuelve a crear
+make seed-verbose    # lo mismo, con cada registro creado o saltado
 make seed-check      # lista los pasos disponibles
 ```
+
+> **`make seed -v` no sirve**: la `-v` la consume `make` (imprime su versión y
+> no ejecuta nada). Para pasar opciones al sembrador:
+> `make seed SEED_ARGS="-v --only=topics"`, o `make seed-verbose`.
 
 Todo se ejecuta **dentro del contenedor** (no hace falta PHP en tu equipo):
 
 ```bash
-docker compose exec -T php php manage.php seed            # lo mismo que make seed
+docker compose exec -T php php manage.php seed             # lo mismo que make seed
 docker compose exec -T php php manage.php seed --verbose   # ver cada registro
 docker compose exec -T php php manage.php seed --only=topics
 docker compose exec -T php php manage.php seed --count=10  # sólo diez tickets
@@ -179,12 +184,20 @@ produce.
 ## Qué se puede deshacer, y cómo
 
 `--fresh` borra **sólo** lo que creó el sembrador, y lo sabe por el manifiesto
-`tools/dev/seed-manifest.json` (se genera solo, no se versiona). Nunca toca los
+`tools/dev/seed-manifest.json` (se genera solo, no se versiona). Las entradas de
+la base de conocimiento se guardan con su tipo (`c3` categoría, `f3` artículo)
+porque son dos tablas con numeración independiente: antes compartían número y
+`--fresh` podía borrar el registro equivocado y dejar categorías sueltas. Nunca toca los
 tickets que hayas abierto tú ni la configuración de la instalación.
 
 ```bash
 make seed-fresh          # borra y vuelve a crear
 ```
+
+Algunos modelos de osTicket exigen un agente en sesión para borrarse
+(`Team::delete()` devuelve `false` sin decirlo). Durante la purga el sembrador
+pone al administrador como agente en curso y después lo quita, para que
+`--fresh` no deje equipos ni categorías a medias.
 
 > **Si ya sembró con una versión anterior** (los correos eran
 > `@demo.invalid`), ejecute `make seed-fresh` una vez: el dominio ha cambiado

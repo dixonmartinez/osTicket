@@ -161,6 +161,39 @@ class Analytics
             SqlCase::N()->when(new Q($criteria), 1)->otherwise(0));
     }
 
+    /**
+     * Fragmento `AND …` para las consultas SQL escritas a mano.
+     *
+     * `deptFilter()` es lo mismo para el ORM; las dos consultas que no puede
+     * expresar (MIN() por ticket en una tabla derivada y la comparación
+     * `closed <= duedate`) necesitan la condición en crudo. Por eso existen
+     * los dos: uno no sustituye al otro.
+     *
+     * `$depts` nulo significa «todos los departamentos» (un administrador);
+     * una lista vacía, ninguno.
+     *
+     * @param string $column columna de departamento, ya cualificada con el
+     *                       alias de la tabla (`t.dept_id`)
+     * @return string cadena vacía o ` AND <columna> IN (…)`
+     */
+    private function deptClause($column = 't.dept_id')
+    {
+        if ($this->depts === null)
+            return '';
+
+        if (!$this->depts)
+            return ' AND 1=0';
+
+        // La columna nunca viene del usuario, pero se comprueba igual: una
+        // inyección aquí sería una inyección en SQL crudo.
+        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/',
+                $column))
+            $column = 't.dept_id';
+
+        return sprintf(' AND %s IN (%s)', $column,
+            implode(',', array_map('intval', array_values($this->depts))));
+    }
+
     /** Equivalente para el ORM. */
     private function deptFilter()
     {

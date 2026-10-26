@@ -66,6 +66,12 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   agente, origen y hora de llegada. Exportación CSV/JSON.
 * Resumen de 7 días enlazado desde el dashboard.
 * Gráficas SVG generadas en el servidor (sin dependencias de JavaScript).
+* **Corregido**: al pasar las consultas al ORM desapareció
+  `Analytics::deptClause()` mientras dos consultas seguían usándola, y el
+  panel contestaba con un error fatal (`Call to undefined method`). Restaurada
+  con la columna validada y dos pruebas: una del comportamiento del fragmento
+  SQL y otra que comprueba que **todos** los métodos que la clase se llama a
+  sí misma existen (`tests/AnalyticsTest.php`).
 
 ### Mobile / PWA
 * `css/mobile.css`: panel de agentes usable en pantalla pequeña sin alterar

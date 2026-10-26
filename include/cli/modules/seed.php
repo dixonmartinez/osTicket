@@ -1011,7 +1011,8 @@ class SeedManager extends Module {
                     $this->failed("la categoría " . $categoryName, $errors);
                     continue;
                 }
-                $this->created('faq', $category->getId(), 'categoría: ' . $categoryName);
+                $this->createdRef('faq', 'c', $category->getId(),
+                    'categoría: ' . $categoryName);
             }
             else {
                 $this->skip('categoría ' . $categoryName);
@@ -1039,7 +1040,7 @@ class SeedManager extends Module {
                     $this->failed("el artículo " . $question, $errors);
                     continue;
                 }
-                $this->created('faq', $faq->getId(), $question);
+                $this->createdRef('faq', 'f', $faq->getId(), $question);
             }
         }
     }
@@ -1754,6 +1755,40 @@ class SeedManager extends Module {
             $this->out(sprintf('  + %s (#%s)', $label, $id));
     }
 
+    /**
+     * Interpreta una entrada del manifiesto del paso `faq`.
+     *
+     * Las categorías y los artículos de la base de conocimiento son dos
+     * tablas con numeración independiente: la categoría 3 y el artículo 3
+     * existen a la vez. El manifiesto guarda `c3` / `f3` para no
+     * confundirlos; los manifiestos anteriores tenían sólo el número.
+     *
+     * @param mixed $ref entrada tal como quedó en el manifiesto
+     * @return array{type:string,id:int}|null null si es un id suelto
+     */
+    static function faqRef($ref) {
+        if (!preg_match('/^([cf])(\d+)$/', (string) $ref, $m))
+            return null;
+
+        return array(
+            'type' => $m[1] == 'c' ? 'category' : 'article',
+            'id' => (int) $m[2],
+        );
+    }
+
+    /**
+     * Como `created()`, pero guarda una **referencia con tipo** (`c7`, `f12`).
+     *
+     * En la base de conocimiento, categorías y artículos son dos tablas
+     * distintas con numeración independiente: el artículo 3 y la categoría 3
+     * existen a la vez. Guardar sólo el número hacía que `--fresh` borrara el
+     * artículo correcto y dejara la categoría —o al revés—, y el siguiente
+     * sembrado las veía como «ya existía».
+     */
+    function createdRef($step, $type, $id, $label) {
+        $this->created($step, $type . $id, $label);
+    }
+
     function skip($label, $step = null) {
         $this->counted($step ?: $this->step, 'skipped');
         if ($this->verbose)
@@ -1821,6 +1856,8 @@ class SeedManager extends Module {
      * Nunca toca nada que no esté en el manifiesto.
      */
     function purge() {
+        global $thisstaff;
+
         $m = $this->manifest;
         if (!$m) {
             $this->out('No hay nada que borrar (no existe el manifiesto).');
@@ -1828,6 +1865,13 @@ class SeedManager extends Module {
         }
 
         $this->out('Borrando el conjunto anterior…');
+
+        // `Team::delete()` (y otros modelos) exigen un agente en sesión y
+        // devuelven `false` sin decir nada cuando no lo hay: en la CLI no hay
+        // sesión, así que se pone el administrador y luego se restaura.
+        $previous = $thisstaff;
+        $agents = $this->agentIndex();
+        $thisstaff = $agents['admin'] ?? ($agents ? reset($agents) : null);
 
         // De lo más dependiente a lo más básico: los departamentos antes que
         // los SLA (apuntan a ellos) y los agentes antes que los departamentos.
@@ -1845,8 +1889,19 @@ class SeedManager extends Module {
                             $t->delete();
                         break;
                     case 'faq':
-                        // El manifiesto mezcla categorías y artículos; se
-                        // intenta por los dos lados
+                        // Referencias con tipo (`c7` categoría, `f12` artículo):
+                        // sin ellas el id de un artículo podía coincidir con el
+                        // de una categoría y se borraba el registro equivocado.
+                        if ($ref = self::faqRef($id)) {
+                            $obj = $ref['type'] == 'category'
+                                ? Category::lookup($ref['id'])
+                                : FAQ::lookup($ref['id']);
+                            if ($obj && $obj->delete() === false)
+                                $this->warn(sprintf('no se pudo borrar el '
+                                    . 'registro de conocimiento %s', $id));
+                            break;
+                        }
+                        // Manifiestos de versiones anteriores: id suelto
                         if ($f = FAQ::lookup($id))
                             $f->delete();
                         elseif ($c = Category::lookup($id))
@@ -1865,8 +1920,10 @@ class SeedManager extends Module {
                             $s->delete();
                         break;
                     case 'teams':
-                        if ($t = Team::lookup($id))
-                            $t->delete();
+                        if (($t = Team::lookup($id)) && $t->delete() === false)
+                            $this->warn(sprintf('no se pudo borrar el equipo '
+                                . '#%s: el conjunto anterior queda a medias',
+                                $id));
                         break;
                     case 'agents':
                         if ($s = Staff::lookup($id))
@@ -1892,6 +1949,8 @@ class SeedManager extends Module {
                 }
             }
         }
+
+        $thisstaff = $previous;
 
         $this->manifest = array();
         @unlink($this->manifestPath());
