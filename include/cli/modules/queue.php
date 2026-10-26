@@ -679,6 +679,7 @@ class QueueCheck extends Module {
         }
 
         $result['conditions'] = $this->conditionAudit($queue);
+        $result['visibility'] = $this->visibilityAudit();
         $result['columns'] = $this->columnAudit($queue);
         $result['materialized'] = $this->materializedAudit();
 
@@ -816,6 +817,77 @@ class QueueCheck extends Module {
                 .' WHERE (flags & '.Ticket::FLAG_LINKED.') <> 0'),
             'flag' => Ticket::FLAG_LINKED,
         );
+    }
+
+    /**
+     * Departamentos del agente y tickets que quedan fuera de su alcance.
+     *
+     * La visibilidad que aplica la cola es la del agente: `dept_id IN (...)
+     * OR asignado a él OR referido`. Esos departamentos **no son todos los de
+     * la instalación**: salen de `dept_access`, del departamento principal y
+     * de los que gestiona. Un administrador no ve, sólo por serlo, los
+     * tickets de un departamento al que no está asignado — y una cola puede
+     * contar 23 y no listar ninguno si esos 23 están fuera.
+     */
+    function visibilityAudit() {
+        $audit = array('staff_depts' => array(), 'by_dept' => array(),
+            'outside' => null, 'outside_names' => array(), 'no_dept' => null,
+            'error' => null);
+
+        try {
+            $audit['staff_depts'] = array_map('intval', $this->staff->getDepts());
+        }
+        catch (Throwable $e) {
+            $audit['error'] = $e->getMessage();
+        }
+
+        try {
+            $res = db_query('SELECT d.dept_id, d.name, COUNT(t.ticket_id) AS n'
+                .' FROM '.DEPT_TABLE.' d'
+                .' LEFT JOIN '.TICKET_TABLE.' t ON (t.dept_id = d.dept_id)'
+                .' GROUP BY d.dept_id, d.name ORDER BY d.dept_id', false);
+            while ($res && ($row = db_fetch_array($res)))
+                $audit['by_dept'][(int) $row['dept_id']] = array(
+                    'name' => $row['name'], 'tickets' => (int) $row['n']);
+            if ($res)
+                db_free_result($res);
+        }
+        catch (Throwable $e) {
+            $audit['error'] = $audit['error'] ?: $e->getMessage();
+        }
+
+        $audit['no_dept'] = $this->tabled('SELECT COUNT(*) FROM '.TICKET_TABLE
+            .' WHERE dept_id = 0');
+
+        if ($audit['staff_depts']) {
+            $ids = implode(',', $audit['staff_depts']);
+            $audit['outside'] = $this->tabled('SELECT COUNT(*) FROM '
+                .TICKET_TABLE.' WHERE dept_id NOT IN ('.$ids.')');
+            $audit['outside_names'] = self::outsideNames($audit['by_dept'],
+                $audit['staff_depts']);
+        }
+
+        return $audit;
+    }
+
+    /**
+     * Departamentos con tickets que el agente no tiene asignados, con su
+     * recuento: «Soporte N2 (23)». Es lo que se nombra en el aviso, porque un
+     * número de departamento no dice nada a quien lee el informe.
+     */
+    static function outsideNames($byDept, $staffDepts) {
+        $names = array();
+        foreach ($byDept as $id => $dept) {
+            if (in_array((int) $id, array_map('intval', $staffDepts)))
+                continue;
+            if (empty($dept['tickets']))
+                continue;
+            $names[] = sprintf('%s (%d)',
+                $dept['name'] !== '' ? $dept['name'] : 'dept ' . $id,
+                $dept['tickets']);
+        }
+
+        return $names;
     }
 
     /** El filtro de «esto no es un ticket hijo», igual que la plantilla. */
@@ -1186,6 +1258,26 @@ class QueueCheck extends Module {
                 }
             }
 
+            // Tickets fuera de los departamentos del agente
+            $visibility = $query['visibility'];
+            if (is_int($visibility['outside']) && $visibility['outside'] > 0) {
+                $text = $visibility['outside'].' tickets están en departamentos'
+                    .' que el agente no tiene asignados'
+                    . ($visibility['outside_names']
+                        ? ' ('.implode(', ', $visibility['outside_names']).')'
+                        : '')
+                    .': las colas no los listan. Se arregla en Admin → Agents →'
+                    .' el agente → Departments, o revisando el departamento del'
+                    .' ticket.';
+                $empties = (is_int($baseline) && $baseline === 0);
+                if ($empties) {
+                    $error($text . ' Es la causa de que la consulta salga vacía.');
+                    $explained = true;
+                }
+                else
+                    $warn($text);
+            }
+
             // Tablas materializadas a medias: es la causa habitual
             $materialized = $query['materialized'];
             if (is_int($materialized['cdata_missing'])
@@ -1357,6 +1449,29 @@ class QueueCheck extends Module {
                 || !$conditions['culprit'] && $conditions['steps'][3]['count'] === 0))
             $this->pair('SQL del último tramo', "\n" . $this->indent(
                 self::bindParams($conditions['sql'], $conditions['params']), 4));
+
+        // Visibilidad: el tramo que más veces explica «yo no veo esos tickets»
+        $visibility = $query['visibility'];
+        $this->heading('Departamentos y visibilidad del agente');
+        if ($visibility['error'] && !$visibility['by_dept'])
+            $this->out('  No se pudo leer: ' . $visibility['error']);
+        else {
+            $rows = array();
+            foreach ($visibility['by_dept'] as $id => $dept)
+                $rows[] = array(sprintf('%d — %s', $id, $dept['name']),
+                    $this->number($dept['tickets']),
+                    in_array($id, $visibility['staff_depts']) ? 'sí' : 'NO');
+            $this->table(array('Departamento', 'Tickets', '¿Lo ve el agente?'),
+                $rows);
+            $this->pair('Departamentos del agente',
+                $visibility['staff_depts']
+                    ? implode(', ', $visibility['staff_depts']) : '(ninguno)');
+            $this->pair('Tickets fuera de su alcance',
+                $this->number($visibility['outside'])
+                    . ($visibility['outside_names']
+                        ? ' · ' . implode(', ', $visibility['outside_names'])
+                        : ''));
+        }
 
         // Desglose por columna: es lo que dice *qué* columna recorta el listado
         $audit = $query['columns'];

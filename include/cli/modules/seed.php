@@ -860,6 +860,81 @@ class SeedManager extends Module {
             $this->adminStaff = $this->firstAdmin();
     }
 
+    /**
+     * Da al administrador que ya existía acceso a los departamentos sembrados.
+     *
+     * Esto no es cosmético: las colas aplican la **visibilidad del agente**
+     * (`dept_id IN (sus departamentos) OR asignado OR referido`), y esos
+     * departamentos salen de `dept_access`, del departamento principal y de los
+     * que gestiona. Un administrador no ve, sólo por serlo, los departamentos
+     * que no tiene asignados.
+     *
+     * El sembrador reparte los tickets por los departamentos que crea, así que
+     * sin este paso los tickets existen, los informes los cuentan… y las colas
+     * no los listan: justo el síntoma «23 tickets, tabla vacía». Al
+     * administrador de la instalación no se le toca la contraseña ni los
+     * permisos: sólo se le añaden filas en `staff_dept_access`, y sólo las que
+     * faltan.
+     */
+    function grantAdminDepartments() {
+        $admin = $this->adminStaff ?: $this->firstAdmin();
+        if (!$admin)
+            return;
+
+        $have = array_map('intval', $admin->getDepts());
+        $roles = $this->roleIndex();
+        $role = (int) $admin->get('role_id') ?: $this->roleFor($roles, true);
+        $granted = array();
+
+        $all = array();
+        foreach ($this->deptIndex() as $name => $dept)
+            $all[$dept->getId()] = $name;
+
+        foreach (self::deptsToGrant($all, $have, (int) $admin->getDeptId()) as $deptId) {
+            $exists = StaffDeptAccess::objects()
+                ->filter(array('staff_id' => $admin->getId(),
+                    'dept_id' => $deptId))
+                ->exists();
+            if ($exists)
+                continue;
+
+            $access = new StaffDeptAccess(array(
+                'staff_id' => $admin->getId(),
+                'dept_id' => $deptId,
+                'role_id' => $role,
+            ));
+            // Avisos activados, igual que hace el panel al conceder acceso
+            $access->setAlerts(true);
+            if ($access->save())
+                $granted[] = $all[$deptId];
+        }
+
+        if ($granted) {
+            // No va al manifiesto: no es un dato que se borre con --fresh
+            // (los departamentos se llevan por delante sus accesos).
+            $this->out(sprintf('  · acceso del administrador %s a: %s',
+                $admin->getUserName(), implode(', ', $granted)));
+        }
+    }
+
+    /**
+     * Qué departamentos hay que conceder: todos menos los que el agente ya
+     * tiene y el suyo principal (que ya da acceso por sí mismo y que
+     * `Staff::updateAccess()` rechazaría como duplicado).
+     */
+    static function deptsToGrant($allDepts, $haveDepts, $primaryDept) {
+        $have = array_map('intval', $haveDepts);
+        $missing = array();
+        foreach (array_keys($allDepts) as $id) {
+            $id = (int) $id;
+            if (in_array($id, $have) || $id === (int) $primaryDept)
+                continue;
+            $missing[] = $id;
+        }
+
+        return $missing;
+    }
+
     /** El primer administrador activo de la instalación, o null. */
     function firstAdmin() {
         foreach (Staff::objects()
@@ -912,6 +987,9 @@ class SeedManager extends Module {
             $depts[$name] = $dept;
             $this->created('depts', $dept->getId(), $name);
         }
+
+        // Sin acceso, los tickets de estos departamentos no salen en las colas
+        $this->grantAdminDepartments();
     }
 
     function seedTeams() {
@@ -2367,6 +2445,22 @@ class SeedManager extends Module {
                                  WHERE c.ticket_id = k.ticket_id)',
             true, 'reconstruya la vista con `make db-rebuild-views` (o vuelva a '
                 . 'sembrar: el sembrador la reconstruye al terminar)');
+
+        // 5b. Departamentos con tickets fuera del alcance del administrador:
+        //     las colas filtran por la visibilidad del agente, así que esos
+        //     tickets se cuentan pero no se listan.
+        if (($admin = $this->adminStaff ?: $this->firstAdmin())) {
+            $depts = array_map('intval', $admin->getDepts());
+            if ($depts) {
+                $add('tickets en departamentos que el administrador no ve',
+                    'SELECT COUNT(*) FROM ' . TICKET_TABLE
+                    . ' WHERE dept_id NOT IN (' . implode(',', $depts) . ')',
+                    true, 'las colas aplican la visibilidad del agente: '
+                        . 'Admin → Agents → ' . $admin->getUserName()
+                        . ' → Departments, o vuelva a sembrar (el sembrador '
+                        . 'concede el acceso)');
+            }
+        }
 
         // 6. Artículos de conocimiento sin categoría válida
         $add('artículos sin categoría (huérfanos)',

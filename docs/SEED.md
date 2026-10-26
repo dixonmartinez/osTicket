@@ -358,6 +358,27 @@ fallo:
 La purga de `--fresh` limpia ahora las filas de hilo sin dueño (sólo huérfanas:
 lo que tiene ticket detrás no se toca).
 
+### Que el administrador vea lo sembrado
+
+El sembrador crea departamentos y reparte los tickets entre ellos. Las colas,
+en cambio, aplican la **visibilidad del agente**: `dept_id IN (sus
+departamentos) OR asignado OR referido`, y esos departamentos salen de
+`staff_dept_access`, no de «es administrador». Si al administrador de la
+instalación no se le da acceso a los departamentos nuevos, los tickets existen,
+`Statistics` los cuenta y las colas no los listan.
+
+Por eso el paso `depts` termina llamando a `grantAdminDepartments()`: añade al
+administrador que ya existía (sin tocarlo, sin crear otro) las filas que
+faltan en `staff_dept_access`. Es idempotente y no cambia contraseñas ni
+permisos. Después de sembrar, la salida lo dice:
+
+```
+· acceso del administrador d.martinez a: Soporte N2, Facturación
+```
+
+`make seed-doctor` lo revisa con la comprobación *tickets en departamentos que
+el administrador no ve*.
+
 ### La vista de datos de los tickets
 
 `ost_ticket__cdata` no es una tabla normal: es una **copia derivada** de

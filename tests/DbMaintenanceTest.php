@@ -30,6 +30,11 @@ if (!class_exists('Module')) {
 if (!defined('TABLE_PREFIX'))
     define('TABLE_PREFIX', 'ost_');
 foreach (array('FORM_ENTRY_TABLE' => 'form_entry',
+               'FORM_ANSWER_TABLE' => 'form_entry_values',
+               'TICKET_TABLE' => 'ticket',
+               'TASK_TABLE' => 'task',
+               'USER_TABLE' => 'user',
+               'ORGANIZATION_TABLE' => 'organization',
                'TICKET_CDATA_TABLE' => 'ticket__cdata',
                'TASK_CDATA_TABLE' => 'task__cdata',
                'USER_CDATA_TABLE' => 'user__cdata',
@@ -54,6 +59,7 @@ class DbMaintenanceFake extends DbMaintenance {
     var $numbers = array();
     var $tables = array();
     var $stdout;
+    var $queries = array();
 
     function __construct($numbers, $tables = null) {
         $this->numbers = $numbers;
@@ -63,6 +69,7 @@ class DbMaintenanceFake extends DbMaintenance {
     function tableExists($table) { return true; }
 
     function scalar($sql) {
+        $this->queries[] = $sql;
         foreach ($this->numbers as $needle => $value)
             if (strpos($sql, $needle) !== false)
                 return $value;
@@ -73,7 +80,7 @@ class DbMaintenanceFake extends DbMaintenance {
 class DbMaintenanceTest extends UnitTestCase {
 
     /** Estado como el que devuelve `state()`: filas y filas esperadas. */
-    private function state(array $rows, array $expected) {
+    private function state(array $rows, array $expected, $empty = null) {
         $state = array();
         foreach (DbMaintenance::views() as $name => $view) {
             $state[$name] = array(
@@ -81,6 +88,7 @@ class DbMaintenanceTest extends UnitTestCase {
                 'exists' => true,
                 'rows' => $rows[$name],
                 'expected' => $expected[$name],
+                'empty' => $empty === null ? 0 : ($empty[$name] ?? 0),
             );
         }
         return $state;
@@ -246,6 +254,66 @@ class DbMaintenanceTest extends UnitTestCase {
      * del tipo se equivoca, el «debería tener» sale mal y el comando avisaría
      * de un fallo inexistente.
      */
+    /**
+     * El caso real: 60 tickets, 16 tareas, 13 usuarios y 4 organizaciones,
+     * pero una organización sólo tiene la entrada de formulario, sin ninguna
+     * respuesta. La vista tiene 3 filas y **no** es un fallo: la consulta que
+     * la construye hace `JOIN form_entry_values`.
+     */
+    function testElNumeroEsperadoCuentaSoloRegistrosConRespuestas() {
+        $module = new DbMaintenanceFake(array());
+        $module->stdout = new DbMaintenanceFakeConsole();
+        $module->state();
+
+        $expected = array();
+        foreach ($module->queries as $sql)
+            if (strpos($sql, 'COUNT(DISTINCT entry.object_id)') !== false
+                    && strpos($sql, 'JOIN') !== false
+                    && strpos($sql, 'NOT EXISTS') === false)
+                $expected[] = $sql;
+
+        // Una consulta por vista, y todas con el JOIN de las respuestas
+        $this->assertEquals(count(DbMaintenance::views()), count($expected));
+        foreach ($expected as $sql)
+            $this->assertTrue(strpos($sql, FORM_ANSWER_TABLE) !== false,
+                'El «debería tener» no usa el mismo JOIN que la vista: ' . $sql);
+    }
+
+    /** Y se cuenta aparte lo que sí queda fuera: formulario sin respuestas. */
+    function testCuentaLosRegistrosQueNoTienenNingunaRespuesta() {
+        $module = new DbMaintenanceFake(array());
+        $module->stdout = new DbMaintenanceFakeConsole();
+        $module->state();
+
+        $empty = 0;
+        foreach ($module->queries as $sql)
+            if (strpos($sql, 'NOT EXISTS') !== false
+                    && strpos($sql, FORM_ANSWER_TABLE) !== false)
+                $empty++;
+
+        $this->assertEquals(count(DbMaintenance::views()), $empty);
+    }
+
+    /** Una organización sin respuestas no dispara el aviso de «faltan filas». */
+    function testUnFormularioSinRespuestasNoEsUnDeficit() {
+        $module = new DbMaintenanceFake(array());
+        $module->stdout = new DbMaintenanceFakeConsole();
+
+        // 4 organizaciones con formulario, 3 con respuestas: la vista tiene 3
+        $module->report($this->state(
+            array('ticket' => 60, 'task' => 16, 'user' => 13, 'organization' => 3),
+            array('ticket' => 60, 'task' => 16, 'user' => 13, 'organization' => 3),
+            array('organization' => 1)));
+
+        $text = $module->stdout->text();
+        $this->assertTrue(strpos($text, 'Faltan') === false,
+            "Avisa de filas que faltan cuando la vista es correcta: $text");
+        $this->assertTrue(strpos($text, 'ninguna respuesta guardada') !== false,
+            "No explica el registro que se queda fuera: $text");
+        $this->assertTrue(strpos($text, 'organization__cdata') !== false,
+            "No dice de qué tabla es el registro: $text");
+    }
+
     function testStateQueriesTheSourceByObjectType() {
         $seen = array();
         $module = new DbMaintenanceFake(array(

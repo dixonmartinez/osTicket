@@ -109,6 +109,31 @@ cuente. El valor por omisión de la columna es `NULL`, así que un `0` ahí vien
 de quien escribió los tickets (una importación, un script de siembra, una
 migración antigua).
 
+### La visibilidad del agente: el caso que más veces explica «yo no lo veo»
+
+Las colas no listan «los tickets que cumplen el criterio», sino **los que el
+agente puede ver**: `dept_id IN (sus departamentos) OR asignado a él OR
+referido`. Y esos departamentos no son todos los de la instalación: salen de
+`staff_dept_access`, del departamento principal y de los que gestiona. Un
+administrador no ve, por serlo, los departamentos que no tiene asignados.
+
+El informe lo deja en una tabla:
+
+```
+Departamentos y visibilidad del agente
+  Departamento    Tickets  ¿Lo ve el agente?
+  1 — Support     40       sí
+  4 — Soporte N2  20       NO
+  Departamentos del agente: 1, 2, 3
+  Tickets fuera de su alcance: 20 · Soporte N2 (20)
+```
+
+Si hay tickets fuera, el veredicto lo dice y **no** culpa al SQL: se arregla en
+Admin → Agents → el agente → *Departments*, o cambiando el departamento del
+ticket. Con datos de demostración lo arregla `make seed`, que concede al
+administrador existente el acceso a los departamentos que crea (si no, los
+tickets existen, se cuentan y no se listan).
+
 ### 2. Si el criterio sí encuentra los tickets: ¿qué columna se los come?
 
 ```

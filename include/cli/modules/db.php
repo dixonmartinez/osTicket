@@ -53,16 +53,20 @@ class DbMaintenance extends Module {
         return array(
             'ticket' => array('table' => TICKET_CDATA_TABLE,
                 'source' => FORM_ENTRY_TABLE, 'type' => 'T',
-                'class' => 'TicketForm'),
+                'class' => 'TicketForm', 'entity' => TICKET_TABLE,
+                'id' => 'ticket_id', 'label' => '`number`'),
             'task' => array('table' => TASK_CDATA_TABLE,
                 'source' => FORM_ENTRY_TABLE, 'type' => 'A',
-                'class' => 'TaskForm'),
+                'class' => 'TaskForm', 'entity' => TASK_TABLE,
+                'id' => 'id', 'label' => '`number`'),
             'user' => array('table' => USER_CDATA_TABLE,
                 'source' => FORM_ENTRY_TABLE, 'type' => 'U',
-                'class' => 'UserForm'),
+                'class' => 'UserForm', 'entity' => USER_TABLE,
+                'id' => 'id', 'label' => '`name`'),
             'organization' => array('table' => ORGANIZATION_CDATA_TABLE,
                 'source' => FORM_ENTRY_TABLE, 'type' => 'O',
-                'class' => 'OrganizationForm'),
+                'class' => 'OrganizationForm', 'entity' => ORGANIZATION_TABLE,
+                'id' => 'id', 'label' => '`name`'),
         );
     }
 
@@ -111,9 +115,20 @@ class DbMaintenance extends Module {
                 'exists' => $exists,
                 'rows' => $exists ? $this->scalar('SELECT COUNT(*) FROM '
                     . $view['table']) : null,
-                'expected' => $this->scalar('SELECT COUNT(DISTINCT object_id) FROM '
-                    . $view['source'] . " WHERE object_type = '"
-                    . $view['type'] . "'"),
+                // «Debería tener» no es «cuántos tienen formulario», sino
+                // cuántos producen fila en la vista: `getCrossTabQuery()`
+                // hace `JOIN form_answer`, así que un registro con entrada de
+                // formulario pero **sin ninguna respuesta** no genera fila y
+                // no es un fallo.
+                'expected' => $this->scalar('SELECT COUNT(DISTINCT entry.object_id)'
+                    .' FROM '.FORM_ENTRY_TABLE.' entry'
+                    .' JOIN '.FORM_ANSWER_TABLE.' ans ON (ans.entry_id = entry.id)'
+                    ." WHERE entry.object_type = '".$view['type']."'"),
+                'empty' => $this->scalar('SELECT COUNT(DISTINCT entry.object_id)'
+                    .' FROM '.FORM_ENTRY_TABLE.' entry'
+                    ." WHERE entry.object_type = '".$view['type']."'"
+                    .' AND NOT EXISTS (SELECT 1 FROM '.FORM_ANSWER_TABLE.' ans'
+                    .' WHERE ans.entry_id = entry.id)'),
             );
         }
 
@@ -177,6 +192,26 @@ class DbMaintenance extends Module {
             $this->out('  php manage.php db --rebuild-views');
         }
 
+        // Registros con formulario pero sin respuestas: no están en la vista
+        // y no hay nada que reconstruir. Casi siempre son datos creados por
+        // la mitad (un alta que no llegó a guardar sus campos).
+        $empty = array();
+        foreach ($state as $name => $view)
+            if (!empty($view['empty']))
+                $empty[$name] = $view['empty'];
+
+        if ($empty) {
+            $total = array_sum($empty);
+            $this->out('');
+            $this->out($total . ' registro' . ($total == 1 ? '' : 's')
+                . ' tiene' . ($total == 1 ? '' : 'n') . ' formulario pero'
+                . ' ninguna respuesta guardada:');
+            $this->out('no generan fila en la vista y no hay nada que'
+                .' reconstruir.');
+            foreach ($this->emptyRecords($empty) as $line)
+                $this->out('  - ' . $line);
+        }
+
         if ($deficit['rows']) {
             $this->out('');
             $this->out('Faltan ' . $deficit['rows'] . ' filas. Los registros que no están en'
@@ -217,6 +252,51 @@ class DbMaintenance extends Module {
 
         $this->out('Listo: las tablas coinciden con los formularios guardados.');
         return 0;
+    }
+
+    /**
+     * Los registros que tienen formulario pero ninguna respuesta, con su
+     * nombre visible cuando se puede. Se listan cinco por tipo como mucho:
+     * el objetivo es reconocer de qué se trata, no volcar la tabla.
+     */
+    function emptyRecords($empty) {
+        $lines = array();
+        foreach (self::views() as $name => $view) {
+            if (!isset($empty[$name]))
+                continue;
+            $sql = 'SELECT e.object_id, x.'.$view['label'].' AS visible'
+                .' FROM '.FORM_ENTRY_TABLE.' e'
+                .' LEFT JOIN '.$view['entity'].' x ON (x.'.$view['id']
+                .' = e.object_id)'
+                ." WHERE e.object_type = '".$view['type']."'"
+                .' AND NOT EXISTS (SELECT 1 FROM '.FORM_ANSWER_TABLE.' ans'
+                .' WHERE ans.entry_id = e.id)'
+                .' LIMIT 5';
+            try {
+                $res = db_query($sql, false);
+            }
+            catch (Throwable $ex) {
+                $res = false;
+            }
+            while ($res && ($row = db_fetch_array($res))) {
+                $visible = isset($row['visible']) && $row['visible'] !== null
+                    && $row['visible'] !== '' ? $row['visible'] : null;
+                $lines[] = $view['table'] . ': ' . $view['id'] . ' '
+                    . $row['object_id']
+                    . ($visible !== null ? ' («' . $visible . '»)' : '');
+            }
+            if ($res)
+                db_free_result($res);
+            $shown = 0;
+            foreach ($lines as $line)
+                if (strpos($line, $view['table'] . ': ') === 0)
+                    $shown++;
+            if ($empty[$name] > $shown)
+                $lines[] = $view['table'] . ': … y '
+                    . ($empty[$name] - $shown) . ' más';
+        }
+
+        return $lines;
     }
 
     function tableExists($table) {

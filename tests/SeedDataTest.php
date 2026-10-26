@@ -72,6 +72,54 @@ class SeedDataTest extends UnitTestCase {
         $this->assertSame('SeedManager', Module::$reg['seed']);
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Visibilidad de los datos sembrados                                  */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * El sembrador reparte tickets por departamentos que crea. Las colas
+     * filtran por la visibilidad del agente, así que si al administrador
+     * existente no se le concede acceso, los tickets existen y no se listan
+     * («23 tickets», tabla vacía).
+     */
+    public function testConcedeAccesoAlAdministradorQueYaExistia(): void {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+
+        $this->assertStringContainsString('function grantAdminDepartments', $source);
+        $this->assertStringContainsString('$this->grantAdminDepartments();', $source);
+        $this->assertStringContainsString('StaffDeptAccess', $source,
+            'El acceso se concede con filas de staff_dept_access');
+        $this->assertStringContainsString('setAlerts(true)', $source,
+            'El acceso concedido tiene que llevar avisos, como en el panel');
+    }
+
+    public function testNoConcedeElDepartamentoPrincipalNiLosQueYaTiene(): void {
+        $all = array(1 => 'Support', 2 => 'Soporte N2', 3 => 'Facturación');
+
+        // Ya tiene el 1 (principal) y el 3
+        $this->assertSame(array(2), SeedManager::deptsToGrant($all, array(1, 3), 1));
+        // No tiene ninguno: se conceden todos menos el principal
+        $this->assertSame(array(2, 3), SeedManager::deptsToGrant($all, array(), 1));
+        // Los tiene todos
+        $this->assertSame(array(), SeedManager::deptsToGrant($all, array(1, 2, 3), 1));
+    }
+
+    /** Los ids se comparan como enteros, no como texto. */
+    public function testElAccesoComparaIdsComoEnteros(): void {
+        $all = array('2' => 'Soporte N2', '3' => 'Facturación');
+
+        $this->assertSame(array(3),
+            SeedManager::deptsToGrant($all, array('2'), '1'));
+    }
+
+    /** `seed-doctor` avisa de tickets que el administrador no puede ver. */
+    public function testElDoctorRevisaLaVisibilidadDelAdministrador(): void {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+
+        $this->assertStringContainsString(
+            'tickets en departamentos que el administrador no ve', $source);
+    }
+
     public function testLosPasosVanEnOrdenDeDependencia(): void {
         // Los departamentos antes que los temas y los equipos; las
         // organizaciones antes que los usuarios; los tickets al final.
