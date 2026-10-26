@@ -748,6 +748,31 @@ class TicketPerfTest extends UnitTestCase {
     }
 
     /**
+     * Los avisos del hilo se piden una vez, no dos.
+     *
+     * `count($events)` sobre la consulta compilaba
+     * `SELECT COUNT(*) FROM (SELECT …)` y acto seguido se recorría la misma
+     * tabla para traerlos: dos consultas a `ost_thread_event` por carga, que
+     * el perfil real del ticket 428 señalaba en `thread-entries.tmpl.php:12`
+     * y `:13`. Ahora se traen y se cuentan en memoria.
+     */
+    function testLosAvisosDelHiloSePidenUnaSolaVez() {
+        $template = file_get_contents(
+            INCLUDE_DIR . 'staff/templates/thread-entries.tmpl.php');
+
+        $materialize = strpos($template, 'iterator_to_array');
+        $count = strpos($template, '$eventCount = count($events);');
+
+        $this->assertTrue($materialize !== false,
+            'La plantilla no materializa los avisos antes de contarlos');
+        $this->assertTrue($count !== false);
+        $this->assertTrue($materialize < $count,
+            'Se cuenta la consulta antes de traerla: vuelve el COUNT(*) de más');
+        $this->assertFalse(strpos($template, 'new IteratorIterator') !== false,
+            'Quedó el envoltorio anterior sobre la consulta sin materializar');
+    }
+
+    /**
      * `render()` no repite la consulta de adjuntos que ya hace la plantilla.
      *
      * El «precache» llenaba `AttachmentFile::$keyCache`, y la plantilla lo

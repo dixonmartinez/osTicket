@@ -8,9 +8,15 @@ $cmp = function ($a, $b) use ($sort) {
         ? ($a < $b) : $a > $b;
 };
 
-$events = $events->order_by($sort);
+// Una sola consulta para los avisos: se traen y se cuentan en memoria.
+// `count()` sobre la consulta compilaba `SELECT COUNT(*) FROM (SELECT …)`,
+// otra consulta a la misma tabla para un dato que ya venía en la primera.
+// Lo señaló el perfil real del ticket 428: dos consultas a `ost_thread_event`
+// en el mismo `render()` (`thread-entries.tmpl.php:12` y `:13`).
+$events = array_values(iterator_to_array(
+    $events->order_by($sort)->getIterator()));
 $eventCount = count($events);
-$events = new IteratorIterator($events->getIterator());
+$events = new ArrayIterator($events);
 $events->rewind();
 $event = $events->current();
 $htmlId = $options['html-id'] ?: ('thread-'.$this->getId());

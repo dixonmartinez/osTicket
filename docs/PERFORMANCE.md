@@ -125,7 +125,7 @@ existe para enseñar sin leer el ORM.
 
 ## Lo que ya se arregló
 
-Las dos primeras se veían en el código sin necesidad de medir; las otras dos
+Las dos primeras se veían en el código sin necesidad de medir; las otras tres
 las señaló el perfil real del ticket antes de que nadie las buscara:
 
 1. **Una consulta por entrada al pintar el hilo.**
@@ -158,6 +158,14 @@ las señaló el perfil real del ticket antes de que nadie las buscara:
    también en los modelos que llegan por JOIN (`class.orm.php:2070` →
    `getOrBuild()` → `__onload()` en `:2014`), así que llena ese mismo
    `$keyCache`. Se quitó el precache, no la consulta de la plantilla.
+
+5. **Los avisos del hilo se pedían dos veces.** La plantilla hacía
+   `count($events)` y después recorría la misma consulta: `count()` sobre una
+   consulta compila `SELECT COUNT(*) FROM (SELECT …)`, así que cada carga
+   lanzaba dos consultas a `ost_thread_event` (`thread-entries.tmpl.php:12` y
+   `:13` en el perfil, 3,2 ms entre las dos). Ahora se traen una vez y se
+   cuentan en memoria; el orden es el mismo (`order_by()` sigue aplicándose
+   sobre la consulta).
 
 > Ojo con pedirlo desde `render()`: `$thread->getEvents()` devuelve una
 > `InstrumentedList` y `select_related()` sobre ella recae en un **clon** de la
