@@ -299,6 +299,26 @@ html[data-theme="dark"] table.list tfoot td {
     border-color: var(--dk-border);
 }
 
+/*
+ * Celdas con color propio.
+ *
+ * La prioridad del ticket (y alguna columna más) se pinta con el color que el
+ * administrador eligió para ella —`field->display()` mete
+ * `background-color` en línea—, y esos colores son claros por diseño (#ffdddd
+ * para «High», #ffffcc para «Normal»). Con el texto claro del tema oscuro
+ * quedaban ilegibles: rosa pálido sobre letra casi blanca.
+ *
+ * No se pueden leer los colores en línea desde CSS, pero sí detectar que el
+ * elemento trae uno y, en ese caso, devolverle texto oscuro. El color de la
+ * etiqueta se respeta; lo que cambia es el contraste.
+ */
+html[data-theme="dark"] table.list tbody td[style*="background-color"],
+html[data-theme="dark"] table.list tbody td[style*="background-color"] > div,
+html[data-theme="dark"] table.list tbody td[style*="background-color"] span,
+html[data-theme="dark"] table.list tbody td[style*="background"] > div > span {
+    color: #10202e !important;
+}
+
 html[data-theme="dark"] table.dashboard-stats {
     border-bottom-color: var(--dk-border);
 }

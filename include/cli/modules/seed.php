@@ -73,6 +73,9 @@ class SeedManager extends Module {
             'help' => 'Sólo avisa de los errores'),
         'verbose' => array('-v', '--verbose', 'action' => 'store_true',
             'help' => 'Muestra cada registro creado'),
+        'doctor' => array('', '--doctor', 'action' => 'store_true',
+            'help' => 'No crea nada: revisa que los datos sembrados cuadren con '
+                . 'los informes y las colas del panel'),
     );
 
     /** Contraseña de todos los agentes y de las cuentas de cliente. */
@@ -565,6 +568,10 @@ class SeedManager extends Module {
         // firma las tareas y las notas, y el que se muestra al final. Nunca
         // se crea un segundo administrador.
         $this->adminStaff = $this->firstAdmin();
+
+        // `--doctor` no toca nada: sólo mira y dictamina
+        if ($options['doctor'])
+            return $this->doctor();
 
         if ($options['fresh'] && !$this->purge())
             $this->fail('No se pudo borrar el conjunto anterior; no se crea nada');
@@ -2211,6 +2218,231 @@ class SeedManager extends Module {
     }
 
     /**
+     * Borra las filas de hilo y de entrada que quedaron sin dueño.
+     *
+     * `Ticket::delete()` borra el ticket y su hilo… casi siempre. Cuando no
+     * (o cuando el borrado se hizo por `UPDATE`/SQL), quedan filas en
+     * `thread`, `thread_entry` y `thread_event` sin ticket detrás. No se ven
+     * en ninguna cola, pero **sí cuentan en los informes**: el *Statistics*
+     * nativo recorre `thread_event` sin comprobar que el hilo tenga ticket, y
+     * por eso aparecía «Deleted 20» para un agente que no había borrado nada
+     * a mano. Sólo se borran huérfanas: lo que tiene dueño no se toca.
+     *
+     * @return int filas borradas
+     */
+    function cleanupOrphans() {
+        if (!function_exists('db_query'))
+            return 0;
+
+        $removed = 0;
+        $queries = array(
+            // Eventos de hilos que ya no existen
+            'DELETE e FROM ' . THREAD_EVENT_TABLE . ' e
+                LEFT JOIN ' . THREAD_TABLE . ' t ON t.id = e.thread_id
+              WHERE t.id IS NULL',
+            // Entradas de hilos que ya no existen
+            'DELETE en FROM ' . THREAD_ENTRY_TABLE . ' en
+                LEFT JOIN ' . THREAD_TABLE . ' t ON t.id = en.thread_id
+              WHERE t.id IS NULL',
+            // Hilos sin objeto detrás (ni ticket, ni tarea)
+            'DELETE t FROM ' . THREAD_TABLE . ' t
+                LEFT JOIN ' . TICKET_TABLE . ' k
+                    ON k.ticket_id = t.object_id AND t.object_type = \'T\'
+                LEFT JOIN ' . TASK_TABLE . ' a
+                    ON a.id = t.object_id AND t.object_type = \'A\'
+              WHERE t.object_type IN (\'T\', \'A\')
+                AND k.ticket_id IS NULL AND a.id IS NULL',
+        );
+
+        foreach ($queries as $sql) {
+            // sql-audit:legacy borrado de huérfanos con LEFT JOIN
+            if (db_query($sql, false))
+                $removed += db_affected_rows();
+            else
+                $this->warn('no se pudieron limpiar filas huérfanas de hilo');
+        }
+
+        if ($removed)
+            $this->out(sprintf('  · %d fila(s) de hilo sin dueño eliminadas '
+                . '(no cuentan en los informes)', $removed));
+
+        return $removed;
+    }
+
+    /**
+     * Revisa que los datos sembrados cuadren con lo que el panel muestra.
+     *
+     * Nació de las capturas: el sembrador decía «59 tickets, 0 avisos»
+     * mientras el *Statistics* mostraba servicios de 0.0 s, la cola «Open»
+     * pintaba menos filas de las que decía el paginador y un agente aparecía
+     * con 20 tickets borrados. Todo eso son **relaciones entre tablas** que
+     * ninguna consulta suelta del sembrador comprueba.
+     *
+     * Cada revisión imprime su veredicto y, si falla, qué hacer. El comando
+     * sale con error si algo no cuadra, así que sirve en un `make`.
+     *
+     * @return int 0 si todo cuadra, 1 si no
+     */
+    function doctor() {
+        $this->out('Revisión de los datos sembrados (no se crea ni se borra nada)');
+        $this->out('');
+
+        $checks = array();
+        $add = function ($label, $sql, $expectZero = true, $hint = '') use (&$checks) {
+            $checks[] = array('label' => $label, 'sql' => $sql,
+                'zero' => $expectZero, 'hint' => $hint);
+        };
+
+        // 1. Tickets sin evento de creación: el Statistics los ignora y su
+        //    «Service Time» sale 0.0
+        $add('tickets con hilo pero sin evento «created»',
+            'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+               JOIN ' . THREAD_TABLE . " t
+                 ON t.object_id = k.ticket_id AND t.object_type = 'T'
+              WHERE NOT EXISTS (SELECT 1 FROM " . THREAD_EVENT_TABLE . " e
+                                  WHERE e.thread_id = t.id
+                                    AND e.event_id = (SELECT id FROM " . EVENT_TABLE . "
+                                                       WHERE name = 'created'))",
+            true, 'vuelva a sembrar: el sembrador fecha los eventos desde la '
+                . 'última versión');
+
+        // 2. Tickets cerrados sin evento «closed»: Statistics dice 0 cerrados
+        $add('tickets cerrados sin evento «closed»',
+            'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+              WHERE k.closed IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM ' . THREAD_TABLE . " t
+                  JOIN " . THREAD_EVENT_TABLE . " e ON e.thread_id = t.id
+                 WHERE t.object_id = k.ticket_id AND t.object_type = 'T'
+                   AND e.event_id = (SELECT id FROM " . EVENT_TABLE . "
+                                      WHERE name = 'closed'))",
+            true, 'el paso `tickets` registra el cierre desde la última versión');
+
+        // 3. Filas de hilo sin dueño: se cuentan en los informes aunque no
+        //    salgan en ninguna cola («Deleted 20»)
+        $add('filas de evento de hilo sin hilo detrás',
+            'SELECT COUNT(*) FROM ' . THREAD_EVENT_TABLE . ' e
+               LEFT JOIN ' . THREAD_TABLE . ' t ON t.id = e.thread_id
+              WHERE t.id IS NULL',
+            true, 'ejecute `--fresh` (limpia huérfanos) o `--doctor --repair`');
+
+        // 4. Respuestas fechadas antes que su mensaje padre: tiempos de
+        //    respuesta negativos
+        $add('entradas anteriores a su mensaje padre',
+            'SELECT COUNT(*) FROM ' . THREAD_ENTRY_TABLE . ' e
+               JOIN ' . THREAD_ENTRY_TABLE . ' p ON p.id = e.pid
+              WHERE e.created < p.created',
+            true, 'vuelva a sembrar: el sembrador fecha cada entrada por su id');
+
+        // 5. Tickets sin fila en la vista de datos: invisibles en el panel
+        $add('tickets sin datos de formulario (ticket__cdata)',
+            'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+              WHERE NOT EXISTS (SELECT 1 FROM ' . TICKET_CDATA_TABLE . ' c
+                                 WHERE c.ticket_id = k.ticket_id)',
+            true, 'ejecute el actualizador del panel o siembre de nuevo');
+
+        // 6. Artículos de conocimiento sin categoría válida
+        $add('artículos sin categoría (huérfanos)',
+            'SELECT COUNT(*) FROM ' . FAQ_TABLE . ' f
+               LEFT JOIN ' . FAQ_CATEGORY_TABLE . ' c
+                 ON c.category_id = f.category_id
+              WHERE c.category_id IS NULL',
+            true, 'los artículos sin categoría no se ven en la base de '
+                . 'conocimiento: `--fresh` los recoloca o los borra');
+
+        // 7. Tickets cuyo departamento no es el del tema (el tema manda)
+        $add('tickets en un departamento distinto al de su tema',
+            'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+               JOIN ' . TOPIC_TABLE . ' h ON h.topic_id = k.topic_id
+              WHERE h.dept_id > 0 AND k.dept_id <> h.dept_id',
+            true, 'el departamento lo pone el tema al crear el ticket');
+
+        // 8. Duplicados: mismo asunto
+        $add('asuntos de ticket repetidos',
+            'SELECT COUNT(*) FROM (
+                SELECT subject FROM ' . TICKET_CDATA_TABLE . '
+                 GROUP BY subject HAVING COUNT(*) > 1) d',
+            true, 'el sembrador salta los asuntos repetidos');
+
+        // 9. Cola «Open»: el paginador cuenta por un lado y la consulta
+        //    devuelve por otro cuando faltan filas en la vista
+        $add('tickets activos que no salen en ninguna cola',
+            'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+               JOIN ' . TICKET_STATUS_TABLE . ' s ON s.id = k.status_id
+              WHERE s.state IN (\'open\', \'in_progress\', \'answered\')
+                AND NOT EXISTS (SELECT 1 FROM ' . TICKET_CDATA_TABLE . ' c
+                                 WHERE c.ticket_id = k.ticket_id)',
+            true, 'sin fila en la vista, la cola los cuenta pero no los pinta');
+
+        $failed = 0;
+        foreach ($checks as $check) {
+            $value = $this->scalar($check['sql']);
+            if ($value === null) {
+                $this->err(sprintf('  ?  %s — no se pudo comprobar', $check['label']));
+                $failed++;
+                continue;
+            }
+            $value = (int) $value;
+            if ($check['zero'] ? $value === 0 : $value > 0) {
+                $this->out(sprintf('  ✓  %s', $check['label']));
+            }
+            else {
+                $failed++;
+                $this->err(sprintf('  ✗  %s: %d', $check['label'], $value));
+                if ($check['hint'])
+                    $this->err('       → ' . $check['hint']);
+            }
+        }
+
+        // Resumen de cifras, para comparar con las capturas
+        $this->out('');
+        $this->out('Cifras');
+        foreach (array(
+            'tickets' => 'SELECT COUNT(*) FROM ' . TICKET_TABLE,
+            'abiertos' => 'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+                JOIN ' . TICKET_STATUS_TABLE . " s ON s.id = k.status_id
+                WHERE s.state IN ('open', 'in_progress', 'answered')",
+            'cerrados' => 'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' WHERE closed IS NOT NULL',
+            'eventos de hilo' => 'SELECT COUNT(*) FROM ' . THREAD_EVENT_TABLE,
+            'artículos' => 'SELECT COUNT(*) FROM ' . FAQ_TABLE,
+            'categorías' => 'SELECT COUNT(*) FROM ' . FAQ_CATEGORY_TABLE,
+            'agentes' => 'SELECT COUNT(*) FROM ' . STAFF_TABLE . ' WHERE isactive = 1',
+            // Sin agente no hay «Assigned To» en la cola: el sembrador deja
+            // algunos a propósito, pero conviene ver cuántos son
+            'activos sin agente' => 'SELECT COUNT(*) FROM ' . TICKET_TABLE . ' k
+                JOIN ' . TICKET_STATUS_TABLE . " s ON s.id = k.status_id
+                WHERE s.state IN ('open', 'in_progress', 'answered')
+                  AND k.staff_id = 0",
+        ) as $label => $sql) {
+            $value = $this->scalar($sql);
+            $this->out(sprintf('  %-18s %s', $label . ':', $value === null ? '?' : $value));
+        }
+
+        $this->out('');
+        if ($failed) {
+            $this->err(sprintf('%d comprobación(es) con problemas.', $failed));
+            return 1;
+        }
+
+        $this->out('Todo cuadra.');
+        return 0;
+    }
+
+    /** Un único valor de una consulta, o null si falla. */
+    function scalar($sql) {
+        if (!function_exists('db_query'))
+            return null;
+
+        // sql-audit:legacy consultas de sólo lectura del chequeo
+        $res = db_query($sql, false);
+        if (!$res)
+            return null;
+
+        $row = db_fetch_row($res);
+
+        return ($row && isset($row[0])) ? $row[0] : null;
+    }
+
+    /**
      * Borra lo que devuelve un QuerySet, uno a uno (para que cada modelo haga
      * su limpieza) y sin que un fallo detenga el resto.
      *
@@ -2360,6 +2592,11 @@ class SeedManager extends Module {
                 . 'anteriores', $loose));
 
         $thisstaff = $previous;
+
+        // Las filas de hilo que quedaron sin dueño (sus tickets se borraron)
+        // siguen contando en los informes: `Statistics` sumaba «Deleted 20»
+        // al administrador por los tickets que había borrado `--fresh`.
+        $this->cleanupOrphans();
 
         // Lo borrado ya no tiene que estar apuntado: si la ejecución se corta
         // ahora, no debe quedar un manifiesto que cite ids muertos.

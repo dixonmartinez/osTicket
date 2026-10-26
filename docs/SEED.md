@@ -310,6 +310,56 @@ make docker-up           # vuelve a levantar
 
 ---
 
+## Comprobar que los datos cuadran (`make seed-doctor`)
+
+El sembrador puede decir «59 tickets, 0 avisos» y el panel, aun así, mostrar
+cosas raras: los informes cruzan tablas que el sembrador escribe por caminos
+distintos (`thread_event` para *Statistics*, `ticket__cdata` para las colas,
+`faq_category` para la base de conocimiento). Este comando revisa esas
+relaciones y **no escribe nada**:
+
+```bash
+make seed-doctor
+```
+
+```
+Revisión de los datos sembrados (no se crea ni se borra nada)
+
+  ✓  tickets con hilo pero sin evento «created»
+  ✓  tickets cerrados sin evento «closed»
+  ✓  filas de evento de hilo sin hilo detrás
+  ✗  entradas anteriores a su mensaje padre: 3
+       → vuelva a sembrar: el sembrador fecha cada entrada por su id
+
+Cifras
+  tickets:           59
+  abiertos:          33
+  cerrados:          26
+  eventos de hilo:   214
+  artículos:         33
+  categorías:        6
+  agentes:           5
+
+1 comprobación(es) con problemas.
+```
+
+Sale con error si algo no cuadra, así que sirve en un `make`. Qué significa cada
+fallo:
+
+| Revisión | Síntoma en el panel | Causa |
+|---|---|---|
+| sin evento «created» / «closed» | *Statistics* con `Service Time 0.0` y `Closed 0` | los eventos se quedaron con la fecha del sembrado o no se registraron |
+| entradas antes que su padre | tiempos de respuesta **negativos** | se fechó la entrada equivocada |
+| filas de hilo sin hilo | «Deleted N» a un agente que no borró nada | la purga borró tickets y dejó sus eventos |
+| sin fila en `ticket__cdata` | la cola dice «about 37» y pinta menos filas | el ticket no está en la vista de datos |
+| artículos sin categoría | artículos que no salen en `/kb/` | categoría borrada, artículo huérfano |
+| departamento ≠ tema | tickets en «Support» | el tema manda: se creó sin departamento |
+
+La purga de `--fresh` limpia ahora las filas de hilo sin dueño (sólo huérfanas:
+lo que tiene ticket detrás no se toca).
+
+---
+
 ## Si un paso falla
 
 Cada paso está aislado: un error se informa, los demás siguen, y al final el

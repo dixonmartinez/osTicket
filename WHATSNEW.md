@@ -32,6 +32,14 @@ osTicket — seguridad, entorno de desarrollo y móvil (rama de trabajo)
   de respuesta negativos; el administrador de demostración recibe todos los
   permisos y el desglose por agente y la carga de trabajo aplican el mismo
   alcance.
+* **`make seed-doctor`**: revisa (sin escribir) que los datos sembrados cuadren
+  con lo que el panel muestra —eventos del hilo, entradas fechadas, colas,
+  artículos sin categoría, departamento del tema— y sale con error si algo no
+  cuadra. `--fresh` limpia además las filas de hilo sin dueño, que hacían
+  aparecer «Deleted N» en *Statistics*.
+* **Tema oscuro**: las celdas con color propio (la prioridad del ticket, rosa y
+  amarillo claros) vuelven a ser legibles; el color se respeta y se cambia el
+  del texto.
 * **`make seed`**: 3 organizaciones, 12 clientes, 5 agentes, 5 departamentos,
   11 temas, 2 equipos, 2 SLA, 5 respuestas predefinidas, 6 categorías de base
   de conocimiento con 33 artículos, **59 tickets** repartidos entre todos los

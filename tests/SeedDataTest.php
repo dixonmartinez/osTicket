@@ -782,6 +782,67 @@ class SeedDataTest extends UnitTestCase {
         $this->assertStringContainsString('recolocado', $body);
     }
 
+    /* ------------------------------------------------------------------ */
+    /* El chequeo de los datos sembrados (`make seed-doctor`)              */
+    /* ------------------------------------------------------------------ */
+
+    public function testElChequeoSePuedePedirSinCrearNada(): void {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+
+        $this->assertTrue(method_exists('SeedManager', 'doctor'));
+        $this->assertStringContainsString("'doctor' => array('', '--doctor'",
+            $source);
+        // Se resuelve antes de purgar y de crear
+        $doctor = strpos($source, "if (\$options['doctor'])");
+        $purge = strpos($source, "if (\$options['fresh'] && !\$this->purge())");
+        $this->assertTrue($doctor !== false && $doctor < $purge,
+            'el chequeo debe ejecutarse antes de crear nada');
+    }
+
+    public function testElChequeoRevisaLoQueSalioMalEnLasCapturas(): void {
+        // Cada revisión es una relación entre tablas que el sembrador puede
+        // dejar mal y que se ve en el panel: «Service Time 0.0», «Closed 0»,
+        // «Deleted 20», tiempos negativos, colas que cuentan y no pintan.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $start = strpos($source, 'function doctor(');
+        $end = strpos($source, 'function scalar(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        foreach (array('created', 'closed', 'thread_event', 'ticket__cdata',
+                'pid', 'category_id') as $needle)
+            $this->assertStringContainsString(
+                $needle === 'thread_event' ? 'THREAD_EVENT_TABLE'
+                    : ($needle === 'ticket__cdata' ? 'TICKET_CDATA_TABLE'
+                        : ($needle === 'category_id' ? 'FAQ_CATEGORY_TABLE'
+                            : $needle)),
+                $body, "el chequeo no revisa $needle");
+    }
+
+    public function testLaPurgaLimpiaLasFilasDeHiloHuerfanas(): void {
+        // Un ticket borrado deja sus eventos en `thread_event`; el Statistics
+        // nativo los sigue contando (era el «Deleted 20» del administrador).
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+
+        $this->assertTrue(method_exists('SeedManager', 'cleanupOrphans'));
+        $purge = strpos($source, '$this->cleanupOrphans();');
+        $this->assertTrue($purge !== false, 'la purga no limpia huérfanos');
+        // Sólo borra lo que no tiene dueño: nunca un ticket vivo
+        $start = strpos($source, 'function cleanupOrphans(');
+        $end = strpos($source, 'function doctor(', $start);
+        $body = substr($source, $start, $end - $start);
+        $this->assertStringContainsString('LEFT JOIN', $body);
+        $this->assertStringContainsString('IS NULL', $body);
+    }
+
+    public function testElTemaOscuroDevuelveTextoLegibleEnLasCeldasConColor(): void {
+        // La prioridad se pinta con `background-color` en línea (rosa y
+        // amarillo claros): con el texto claro del tema oscuro no se leía.
+        $css = file_get_contents(ROOT_DIR . '/css/dark.css');
+
+        $this->assertStringContainsString('td[style*="background-color"]', $css);
+        $this->assertStringContainsString('color: #10202e !important', $css);
+    }
+
     public function testElManifiestoNoSeVersiona(): void {
         // `--fresh` borra por número de identificador: si el manifiesto se
         // versionara, se borrarían registros de otra instalación.
