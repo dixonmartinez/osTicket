@@ -1075,7 +1075,7 @@ class SeedManager extends Module {
                     'pid' => 0,
                     'ispublic' => Category::VISIBILITY_FEATURED,
                     'description' => sprintf('Artículos sobre %s',
-                        mb_strtolower($categoryName)),
+                        self::lower($categoryName)),
                     'notes' => 'Categoría de demostración',
                 );
                 $category = Category::create();
@@ -1890,7 +1890,7 @@ class SeedManager extends Module {
 
         $index = array();
         foreach (Role::objects()->order_by('id')->all() as $i => $role) {
-            $index[mb_strtolower((string) $role->getName())] = $role->getId();
+            $index[self::lower((string) $role->getName())] = $role->getId();
             if ($i == 0)
                 $index['_first'] = $role->getId();
             elseif ($i == 1)
