@@ -14,8 +14,9 @@
     página**, por pasos, cronometrando cada uno y contando las consultas.
 
     La medición sale del propio `db_query()`: cuando `$GLOBALS['__db_profile']`
-    tiene una función, `include/mysqli.php` se la pasa con el SQL y lo que
-    tardó. No hace falta activar nada en la aplicación ni en MariaDB, y no
+    tiene una función, `include/mysqli.php` se la pasa con el SQL, lo que tardó
+    y la línea que lo disparó (ver `include/class.db.origin.php`), para que un
+    paso de 13 consultas diga también de dónde salen. No hace falta activar nada en la aplicación ni en MariaDB, y no
     queda nada encendido al terminar el proceso.
 
     Released under the GNU General Public License WITHOUT ANY WARRANTY.
@@ -226,8 +227,8 @@ class PerfCheck extends Module {
         $this->queries = array();
         $this->steps = array();
         $self = $this;
-        $GLOBALS['__db_profile'] = function($sql, $ms) use ($self) {
-            $self->record($sql, $ms);
+        $GLOBALS['__db_profile'] = function($sql, $ms, $origin = null) use ($self) {
+            $self->record($sql, $ms, $origin);
         };
     }
 
@@ -251,16 +252,69 @@ class PerfCheck extends Module {
             || stripos($sql, 'SHOW COLUMNS') === 0;
     }
 
-    function record($sql, $ms) {
+    function record($sql, $ms, $origin = null) {
         $key = self::pattern($sql);
         if (!isset($this->queries[$key]))
             $this->queries[$key] = array('sql' => $key, 'n' => 0, 'ms' => 0.0,
-                'example' => $sql, 'steps' => array());
+                'example' => $sql, 'steps' => array(), 'origins' => array());
         $this->queries[$key]['n']++;
         $this->queries[$key]['ms'] += $ms;
         $this->queries[$key]['schema'] = self::isSchemaQuery($key);
+        if ($origin)
+            $this->queries[$key]['origins'][$origin] =
+                (isset($this->queries[$key]['origins'][$origin])
+                    ? $this->queries[$key]['origins'][$origin] : 0) + 1;
         if ($this->currentStep >= 0)
             $this->queries[$key]['steps'][$this->currentStep] = true;
+    }
+
+    /**
+     * Las líneas de código que disparan consultas, de la que más tiempo suma
+     * a la que menos.
+     *
+     * Es lo que convierte «este paso hace 13 consultas» en «esta línea, una
+     * vez por entrada». Se agrupa por origen y se cuentan también las
+     * consultas distintas: una línea que pide tres cosas distintas no es lo
+     * mismo que una que repite la misma tres veces.
+     */
+    function topOrigins($includeSchema = null) {
+        if ($includeSchema === null)
+            $includeSchema = (bool) $this->getOption('schema');
+        $origins = array();
+        foreach ($this->queries as $q) {
+            if (!$includeSchema && !empty($q['schema']))
+                continue;
+            if (empty($q['origins']))
+                continue;
+            foreach ($q['origins'] as $origin => $n) {
+                if (!isset($origins[$origin]))
+                    $origins[$origin] = array('origin' => $origin, 'n' => 0,
+                        'ms' => 0.0, 'sql' => array());
+                $origins[$origin]['n'] += $n;
+                // El tiempo de la consulta se reparte entre sus orígenes; en
+                // la práctica cada patrón tiene uno solo.
+                $origins[$origin]['ms'] += $q['ms'] * $n / max($q['n'], 1);
+                $origins[$origin]['sql'][$q['sql']] = true;
+            }
+        }
+        foreach ($origins as $i => $o)
+            $origins[$i]['distinct'] = count($o['sql']);
+        usort($origins, function($a, $b) {
+            return $b['ms'] <=> $a['ms'];
+        });
+        return $origins;
+    }
+
+    /** Un origen sin la ruta del proyecto: `include/class.thread.php:1012`. */
+    static function shortOrigin($origin, $root = null) {
+        if (!$origin)
+            return '';
+        if ($root === null)
+            $root = defined('ROOT_DIR') ? ROOT_DIR : dirname(INCLUDE_DIR) . '/';
+        $root = rtrim($root, '/') . '/';
+        if (strpos($origin, $root) === 0)
+            $origin = substr($origin, strlen($root));
+        return $origin;
     }
 
     /** Cronometra un paso y cuenta cuántas consultas provoca. */
@@ -348,6 +402,11 @@ class PerfCheck extends Module {
                         'error' => $s['error']);
                 }, $this->steps),
                 'queries' => $top,
+                'origins' => array_map(function($o) {
+                    return array('origin' => PerfCheck::shortOrigin($o['origin']),
+                        'queries' => $o['n'], 'distinct' => $o['distinct'],
+                        'ms' => round($o['ms'], 1));
+                }, array_slice($this->topOrigins(), 0, 10)),
             ), JSON_PRETTY_PRINT), "\n";
             return;
         }
@@ -398,6 +457,22 @@ class PerfCheck extends Module {
             foreach ($top as $q) {
                 $this->out(sprintf('  %5.1f ms · %3d × · %s', $q['ms'] * 1000,
                     $q['n'], $this->cut($q['sql'], 100)));
+            }
+        }
+
+        // Qué línea de código dispara las consultas. Sin esto, «13 consultas
+        // en render()» sólo se puede adivinar leyendo el código.
+        $origins = $this->topOrigins();
+        if ($origins) {
+            $this->out('');
+            $this->out(sprintf('De dónde salen las consultas%s',
+                $this->getOption('schema') ? '' : ' (sin la introspección del esquema)'));
+            $this->out(str_repeat('-', 62));
+            foreach (array_slice($origins, 0, 10) as $o) {
+                $this->out(sprintf('  %5.1f ms · %3d × · %2d SQL distinta%s · %s',
+                    $o['ms'] * 1000, $o['n'], $o['distinct'],
+                    $o['distinct'] == 1 ? '' : 's',
+                    self::shortOrigin($o['origin'])));
             }
         }
 
@@ -469,13 +544,36 @@ class PerfCheck extends Module {
             foreach ($queries as $q) {
                 $this->out(sprintf('  %5.1f ms · %3d × · %s', $q['ms'] * 1000,
                     $q['n'], $this->cut($q['sql'], 120)));
+                if ($origin = $this->mainOrigin($q))
+                    $this->out('        desde ' . self::shortOrigin($origin));
                 $shown++;
             }
         }
 
-        if (!$matched)
+        if (!$matched) {
+            // Un filtro que no encuentra nada no puede dejar el informe mudo:
+            // así se ve qué nombres de paso hay para elegir.
             $this->out(''
-                . "\nNingún paso coincide con «" . $filter . "».");
+                . "\nNingún paso coincide con «" . $filter . "». Los pasos"
+                . " medidos son:");
+            foreach ($this->steps as $step)
+                $this->out('  · ' . $step['label']);
+        }
+    }
+
+    /** El origen que más veces disparó una consulta, si se conoce. */
+    static function mainOrigin($query) {
+        if (empty($query['origins']))
+            return null;
+        $best = null;
+        $count = 0;
+        foreach ($query['origins'] as $origin => $n) {
+            if ($n > $count) {
+                $best = $origin;
+                $count = $n;
+            }
+        }
+        return $best;
     }
 
     function topQueries() {

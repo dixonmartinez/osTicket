@@ -106,10 +106,37 @@ make ticket-perf TICKET=405 PERF_ARGS="--step=hilo --schema"
 ```
 
 ```
-Consultas de «Hilo: render() completo» — 38.4 ms, 17 SQL
+Consultas de «Hilo: render() completo» — 26.1 ms, 13 SQL
 --------------------------------------------------------------
    1.5 ms ·   4 × · SELECT ... FROM ost_thread_entry__merge WHERE thread_entry_id = ?
+        desde include/class.thread.php:1012
 ```
+
+Y debajo de cada consulta, la línea de código que la disparó (`desde …`). Es lo
+que evita leer el ORM para adivinar quién pide qué.
+
+Si el texto no coincide con ningún paso, el informe **lo dice y lista los pasos
+medidos**, para poder repetir el comando con el nombre correcto.
+
+## De dónde salen las consultas
+
+Cada consulta se atribuye a la primera línea de osTicket que la disparó (se
+saltan los marcos del ORM y de `mysqli.php`, que sólo son el mensajero). El
+informe lo resume en un bloque propio:
+
+```
+De dónde salen las consultas (sin la introspección del esquema)
+--------------------------------------------------------------
+    7.2 ms ·  12 × ·  4 SQL distintas · include/class.thread.php:1012
+    4.1 ms ·  20 × ·  1 SQL distinta  · include/class.ticket.php:1188
+```
+
+La columna `SQL distintas` distingue una línea que repite **la misma** consulta
+(una por entrada: hay que arreglarla con `select_related` o precargando) de una
+que pide cuatro cosas distintas (no es un bucle, es trabajo suyo).
+
+El origen se recoge **después** de parar el cronómetro de cada consulta: el
+coste de mirar la pila no se cuenta como tiempo de base de datos.
 
 ## La introspección del esquema se cuenta aparte
 

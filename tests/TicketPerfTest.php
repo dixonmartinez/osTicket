@@ -33,6 +33,7 @@ if (!defined('ROOT_DIR'))
     define('ROOT_DIR', dirname(__DIR__));
 
 require_once INCLUDE_DIR . 'cli/modules/perf.php';
+require_once INCLUDE_DIR . 'class.db.origin.php';
 
 /**
  * El `Module` falso de las pruebas es el mínimo común a todos los ficheros de
@@ -344,6 +345,160 @@ class TicketPerfTest extends UnitTestCase {
 
         $perf->_options['schema'] = true;
         $this->assertSame(2, count($perf->topQueries()));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* El origen de cada consulta                                          */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * El primer marco que no es del acceso a datos ni del ORM es la línea de
+     * la aplicación que pidió los datos. Es lo que convierte «13 consultas»
+     * en un número de línea.
+     */
+    function testElOrigenEsLaPrimeraLineaDeLaAplicacion() {
+        $frames = array(
+            array('file' => '/app/include/class.db.origin.php', 'line' => 47),
+            array('file' => '/app/include/mysqli.php', 'line' => 258),
+            array('file' => '/app/include/class.orm.php', 'line' => 1200),
+            array('file' => '/app/include/class.orm.select.php', 'line' => 88),
+            array('file' => '/app/include/class.thread.php', 'line' => 1012),
+            array('file' => '/app/scp/tickets.php', 'line' => 30),
+        );
+
+        $this->assertSame('/app/include/class.thread.php:1012',
+            DbSource::fromFrames($frames));
+    }
+
+    /** Sin marcos de la aplicación no hay origen inventado. */
+    function testSinMarcosDeLaAplicacionNoHayOrigen() {
+        $this->assertSame(null, DbSource::fromFrames(array(
+            array('file' => '/app/include/mysqli.php', 'line' => 10),
+            array('function' => 'sin-archivo'),
+        )));
+    }
+
+    /** Una consulta se atribuye a las líneas que la dispararon. */
+    function testLasConsultasSeAgrupanPorSuOrigen() {
+        $perf = $this->probe();
+
+        $perf->record('SELECT * FROM ost_thread_entry WHERE id = 1', 0.002,
+            '/app/include/class.thread.php:1012');
+        $perf->record('SELECT * FROM ost_thread_entry WHERE id = 2', 0.002,
+            '/app/include/class.thread.php:1012');
+        $perf->record('SELECT * FROM ost_user WHERE id = 3', 0.001,
+            '/app/include/class.thread.php:900');
+
+        $origins = $perf->topOrigins();
+        $this->assertSame(2, count($origins));
+        // El que dispara más consultas y más tiempo suma va primero
+        $this->assertSame('/app/include/class.thread.php:1012',
+            $origins[0]['origin']);
+        $this->assertSame(2, $origins[0]['n']);
+        $this->assertEquals(0.004, round($origins[0]['ms'], 4));
+        $this->assertSame(1, $origins[0]['distinct']);
+    }
+
+    /** Una línea que pide tres cosas distintas se ve distinta de una repetida. */
+    function testElOrigenCuentaCuantasConsultasDistintasDispara() {
+        $perf = $this->probe();
+
+        $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.001,
+            '/app/include/class.ticket.php:99');
+        $perf->record('SELECT * FROM ost_user WHERE id = 1', 0.001,
+            '/app/include/class.ticket.php:99');
+        $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 2', 0.001,
+            '/app/include/class.ticket.php:99');
+
+        $origins = $perf->topOrigins();
+        $this->assertSame(3, $origins[0]['n']);
+        $this->assertSame(2, $origins[0]['distinct']);
+    }
+
+    /** En la consola la ruta del proyecto sobra; en el informe se recorta. */
+    function testElOrigenSeMuestraSinLaRutaDelProyecto() {
+        $this->assertSame('include/class.thread.php:1012',
+            PerfCheck::shortOrigin('/var/www/html/include/class.thread.php:1012',
+                '/var/www/html/'));
+        $this->assertSame('include/class.thread.php:1012',
+            PerfCheck::shortOrigin('/var/www/html/include/class.thread.php:1012',
+                '/var/www/html'));
+        // Un origen de fuera del proyecto se deja tal cual
+        $this->assertSame('/otro/sitio/x.php:1',
+            PerfCheck::shortOrigin('/otro/sitio/x.php:1', '/var/www/html'));
+    }
+
+    /** La introspección del esquema no aparece como origen salvo con --schema. */
+    function testElOrigenOcultaElEsquemaSalvoQueSePida() {
+        $perf = $this->probe();
+        $perf->record("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS"
+            . " WHERE TABLE_NAME = 'a'", 0.010, '/app/include/class.orm.php:3247');
+        $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.001,
+            '/app/include/class.ticket.php:99');
+
+        $this->assertSame(1, count($perf->topOrigins()));
+
+        $perf->_options['schema'] = true;
+        $this->assertSame(2, count($perf->topOrigins()));
+    }
+
+    /** Y el informe lo escribe: sin esta línea hay que leer el código. */
+    function testElInformeDiceDeDondeSalenLasConsultas() {
+        $perf = $this->probe();
+        $perf->record('SELECT * FROM ost_thread_entry WHERE id = 1', 0.002,
+            ROOT_DIR . '/include/class.thread.php:1012');
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        $this->assertTrue(strpos($text, 'De dónde salen las consultas') !== false);
+        $this->assertTrue(strpos($text, 'include/class.thread.php:1012') !== false);
+        // Y sin repetir la ruta del proyecto
+        $this->assertFalse(strpos($text, ROOT_DIR . '/include/class.thread.php') !== false);
+    }
+
+    /*
+     * Un `--step` que no encuentra nada no puede dejar el informe mudo: el
+     * usuario lanzó `--step=lookup` y no vio ni el detalle ni el motivo.
+     */
+    function testUnFiltroDePasoQueNoCoincideListaLosPasos() {
+        $perf = $this->probe(array('step' => 'inexistente'));
+        $perf->step('Ticket::lookup()', function() { return 1; });
+        $perf->step('Hilo: render() completo', function() { return 1; });
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        $this->assertTrue(strpos($text, 'Ningún paso coincide con «inexistente»') !== false);
+        $this->assertTrue(strpos($text, '· Ticket::lookup()') !== false);
+        $this->assertTrue(strpos($text, '· Hilo: render() completo') !== false);
+    }
+
+    /** Y si coincide, el detalle del paso sale con sus consultas. */
+    function testElDetalleDelPasoListaSusConsultas() {
+        $perf = $this->probe(array('step' => 'render'));
+        $perf->step('Ticket::lookup()', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.001,
+                ROOT_DIR . '/include/class.ticket.php:1200');
+            return 1;
+        });
+        $perf->step('Hilo: render() completo', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_file WHERE id = 1', 0.002,
+                ROOT_DIR . '/include/class.file.php:213');
+            return 1;
+        });
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        $this->assertTrue(strpos($text, 'Consultas de «Hilo: render() completo»') !== false);
+        $this->assertTrue(strpos($text, 'FROM ost_file') !== false);
+        $this->assertTrue(strpos($text, 'desde include/class.file.php:213') !== false);
+        // El paso que no coincide no se cuela
+        $this->assertFalse(strpos($text, 'Consultas de «Ticket::lookup()»') !== false);
     }
 
     /** El perfil avisa de que sin APCu las medidas son pesimistas. */

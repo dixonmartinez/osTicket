@@ -234,12 +234,29 @@ function db_query($query, $logError=true, $buffered=true) {
     finally {
         // `finally` también corre cuando hay `return` dentro, que es el caso
         // normal. Un fallo del perfilador no puede tumbar la consulta.
+        $ms = microtime(true) - $started;
         try {
-            call_user_func($GLOBALS['__db_profile'], $query,
-                microtime(true) - $started);
+            // El origen se busca **después** de parar el cronómetro: recorrer
+            // la pila cuesta microsegundos que no deben contarse como tiempo
+            // de base de datos.
+            call_user_func($GLOBALS['__db_profile'], $query, $ms,
+                db_query_origin());
         }
         catch (Throwable $e) {}
     }
+}
+
+/**
+ * Dónde nació la consulta, como `ruta:línea`.
+ *
+ * Se salta los marcos del propio acceso a datos (`mysqli.php` y el ORM):
+ * el primero que queda es el código de la aplicación que disparó la
+ * consulta, que es lo que sirve para saber qué línea pedir por cada entrada.
+ * La lógica —y sus pruebas— están en `class.db.origin.php`.
+ */
+function db_query_origin() {
+    require_once INCLUDE_DIR . 'class.db.origin.php';
+    return DbSource::current();
 }
 
 function db_query_untimed($query, $logError=true, $buffered=true) {
