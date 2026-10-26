@@ -31,7 +31,9 @@ class Option {
     function handleValue(&$destination, $args) {
         $nargs = 0;
         $value = ($this->hasArg()) ? array_shift($args) : null;
-        if ($value[0] == '-')
+        // `$value` es `null` en las opciones sin argumento (`--json`), y
+        // `null[0]` dejaba un aviso de PHP en cada bandera.
+        if ($value !== null && $value !== '' && $value[0] == '-')
             $value = null;
         elseif ($value)
             $nargs = 1;
@@ -118,7 +120,19 @@ class Module {
     var $stdout;
     var $stderr;
 
+    /** Opciones ya analizadas; `null` mientras no se hayan leído. */
     var $_options;
+    /**
+     * Si las opciones ya se analizaron.
+     *
+     * Antes el centinela era `is_array($this->_options)`, y bastaba que un
+     * módulo declarara `var $_options = array();` para que `parseOptions()`
+     * saliera sin analizar nada: el módulo `perf` lo hacía, así que
+     * `--ticket`, `--top`, `--step`, `--schema` y `--json` **nunca** se leían
+     * y el informe siempre usaba los valores por omisión. Con una bandera
+     * aparte, una declaración en un módulo ya no puede desactivar el análisis.
+     */
+    var $_parsed = false;
     var $_args;
 
     function __construct() {
@@ -196,8 +210,9 @@ class Module {
     }
 
     function parseOptions() {
-        if (is_array($this->_options))
+        if ($this->_parsed)
             return;
+        $this->_parsed = true;
 
         global $argv;
         list($this->_options, $this->_args) =

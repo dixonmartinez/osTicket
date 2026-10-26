@@ -291,12 +291,11 @@ ticket-perf-xdebug: ## Perfil por función de la carga de un ticket (Xdebug; TIC
 	@# tools/quality/php-profile.php. Ver docs/PERFORMANCE.md.
 	@# Xdebug 3 lee el modo de XDEBUG_MODE y esa variable manda sobre el ini,
 	@# así que se pasa al contenedor; con `-d xdebug.mode` no bastaría.
+	@# Una sola línea para `sh -c`: al partirla, la barra invertida de la
+	@# continuación se pegaba al `-d` siguiente y PHP intentaba abrir un
+	@# archivo llamado «-d» («Could not open input file: t-d»).
 	@docker compose exec -T -e XDEBUG_MODE=profile php sh -c \
-		'rm -f /tmp/cachegrind.out.*; \
-		php -d xdebug.start_with_request=yes -d xdebug.output_dir=/tmp \
-		\t-d opcache.enable_cli=1 -d apc.enable_cli=1 \
-		manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS) >/dev/null; \
-		php tools/quality/php-profile.php $(if $(TOP),--top=$(TOP)) /tmp/cachegrind.out.*'
+		'rm -f /tmp/cachegrind.out.*; php -d xdebug.start_with_request=yes -d xdebug.output_dir=/tmp -d opcache.enable_cli=1 -d apc.enable_cli=1 manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS) > /dev/null; php tools/quality/php-profile.php $(if $(TOP),--top=$(TOP)) /tmp/cachegrind.out.*'
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar
 	@$(MAKE) --no-print-directory docker-urls

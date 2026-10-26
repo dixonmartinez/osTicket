@@ -423,6 +423,10 @@ implements Searchable {
             'attachments__thread_entry__thread__id' => $this->id
         ))->all();
 
+        // El autor de cada aviso viaja con los avisos: `ThreadEvent` declara
+        // `user` y `agent` como `select_related` en su meta (ver
+        // class.thread.event.php). Aquí no sirve pedirlo: `$this->events` es
+        // una lista y `select_related()` acabaría en un clon de su consulta.
         $events = $this->getEvents();
         $inc = ($mode == self::MODE_STAFF) ? STAFFINC_DIR : CLIENTINC_DIR;
         include $inc . 'templates/thread-entries.tmpl.php';

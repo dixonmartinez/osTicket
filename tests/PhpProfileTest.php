@@ -113,6 +113,36 @@ CACHEGRIND;
         $this->assertSame(3, count(PhpProfile::grep($functions, 'include/')));
     }
 
+    /**
+     * Un patrón que no encuentra nada tiene que decirlo: «0 funciones» en
+     * silencio hacía pensar que el perfil estaba vacío cuando el problema era
+     * que Xdebug nunca escribió el archivo (o el glob no apuntaba a él).
+     */
+    function testAvisaDeLosPatronesQueNoEncuentranNada() {
+        list($functions, $missing) = PhpProfile::load(
+            array('/tmp/perfil-que-no-existe-*'));
+
+        $this->assertSame(array(), $functions);
+        $this->assertSame(array('/tmp/perfil-que-no-existe-*'), $missing);
+    }
+
+    /** Varios perfiles (o un comodín que expande a varios) se suman. */
+    function testSumaVariosPerfiles() {
+        $one = tempnam(sys_get_temp_dir(), 'cg') . '.out';
+        $two = tempnam(sys_get_temp_dir(), 'cg') . '.out';
+        file_put_contents($one, "fl=(1) /app/a.php\nfn=(2) A::b\n1 100 0\n");
+        file_put_contents($two, "fl=(1) /app/a.php\nfn=(2) A::b\n1 50 0\n");
+
+        list($functions, $missing) = PhpProfile::load(array($one, $two));
+
+        $this->assertSame(array(), $missing);
+        $found = reset($functions);
+        $this->assertEquals(150, $found['time']);
+
+        unlink($one);
+        unlink($two);
+    }
+
     /** Las duraciones se leen sin calculadora. */
     function testFormateaDuraciones() {
         $this->assertSame('500 µs', PhpProfile::duration(500));

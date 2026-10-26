@@ -54,8 +54,16 @@ class PerfCheck extends Module {
     var $currentLabel = '';
     var $json = false;
     var $staff;
-    /** Los pone `Module::parseOptions()`; se declara para no crearla al vuelo. */
-    var $_options = array();
+    /**
+     * Los pone `Module::parseOptions()`; se declara para no crearla al vuelo.
+     *
+     * En `null`, no en `array()`: `parseOptions()` usa la bandera `_parsed`
+     * para saber si ya analizó, y hasta hace poco el centinela era
+     * `is_array($this->_options)`. Declararlo como array hacía que el módulo
+     * se saltara el análisis **entero** y todas las opciones se quedaran en
+     * su valor por omisión (ver el comentario en `class.cli.php`).
+     */
+    var $_options;
     /** La consola de `Module`; se declara por el mismo motivo. */
     var $stdout;
 
@@ -509,10 +517,26 @@ class PerfCheck extends Module {
 
         $this->out('');
         $requested = (string) $this->getOption('ticket');
+        $filter = (string) $this->getOption('step');
         $this->out(sprintf('Ticket #%s — perfil de la carga%s', $id,
             $requested !== '' && $requested !== (string) $id
                 ? ' (se pidió «' . $requested . '»: no existe, se usó el último)'
                 : ''));
+        // Qué opciones se aplicaron de verdad. El informe las callaba y eso
+        // escondía un defecto: `parseOptions()` no se ejecutaba en este
+        // módulo, así que `--step` y `--top` se ignoraban en silencio y el
+        // que leía el informe creía estar viendo otra cosa.
+        $applied = array();
+        if ($requested !== '')
+            $applied[] = '--ticket=' . $requested;
+        if ((int) $this->getOption('top') !== 12)
+            $applied[] = '--top=' . (int) $this->getOption('top');
+        if ($filter !== '')
+            $applied[] = '--step=«' . $filter . '»';
+        if ($this->getOption('schema'))
+            $applied[] = '--schema';
+        if ($applied)
+            $this->out('Opciones: ' . implode(' · ', $applied));
         $this->out(str_repeat('-', 62));
         $this->reportTable();
 
@@ -532,7 +556,6 @@ class PerfCheck extends Module {
         // Detalle por paso: qué consultas hace cada uno. Es lo que permite
         // pasar de «este paso cuesta 24 ms» a «estas cuatro consultas son la
         // misma, una por entrada».
-        $filter = (string) $this->getOption('step');
         if ($filter !== '')
             $this->detailStep($filter);
 

@@ -705,4 +705,87 @@ class TicketPerfTest extends UnitTestCase {
             strpos($source, "if (!isset(\$this->ht['num_collaborators']))") !== false,
             'getNumCollaborators() volvería a lanzar un COUNT por llamada');
     }
+
+    /**
+     * Los avisos del hilo traen su autor en la misma consulta.
+     *
+     * El perfil real del ticket mostró dos consultas por carga atribuidas a
+     * `class.thread.event.php:112` —la línea que hace `$this->user->getName()`
+     * al pintar cada aviso—: una por evento con autor, y otra vez en la
+     * segunda pasada del render.
+     */
+    function testLosAvisosDelHiloTraenSuAutorEnLaMismaConsulta() {
+        $source = file_get_contents(INCLUDE_DIR . 'class.thread.event.php');
+        $this->assertTrue(
+            strpos($source, "'select_related' => array('user', 'agent')") !== false,
+            'ThreadEvent volvería a pedir el autor aviso por aviso');
+
+        // Y no se pide desde `render()`: `$this->events` es una lista y
+        // `select_related()` se aplicaría a un clon de la consulta.
+        $thread = file_get_contents(INCLUDE_DIR . 'class.thread.php');
+        $this->assertFalse(
+            strpos($thread, "\$events->select_related(") !== false,
+            'select_related() sobre una InstrumentedList no tiene efecto');
+    }
+
+    /**
+     * El informe dice qué opciones aplicó.
+     *
+     * Es la mitad visible del arreglo anterior: si una opción se ignora, se
+     * ve en la cabecera en vez de descubrirse comparando filas a ojo.
+     */
+    function testElInformeDiceQueOpcionesAplico() {
+        $perf = $this->probe(array('ticket' => '428', 'top' => '20',
+            'step' => 'render'));
+
+        ob_start();
+        $perf->report(428);
+        $text = ob_get_clean();
+
+        $this->assertTrue(strpos($text, 'Opciones: --ticket=428') !== false);
+        $this->assertTrue(strpos($text, '--top=20') !== false);
+        $this->assertTrue(strpos($text, '--step=«render»') !== false);
+    }
+
+    /** Sin opciones no se inventa la línea. */
+    function testSinOpcionesNoHayLineaDeOpciones() {
+        $perf = $this->probe(array('top' => '12'));
+
+        ob_start();
+        $perf->report(7);
+        $text = ob_get_clean();
+
+        $this->assertFalse(strpos($text, 'Opciones:') !== false);
+    }
+
+    /**
+     * El módulo no puede saltarse el análisis de sus propias opciones.
+     *
+     * `parseOptions()` sabía si ya había analizado mirando si `$_options` era
+     * un arreglo, y el módulo `perf` lo declaraba como `array()`. Resultado:
+     * `--ticket`, `--top`, `--step`, `--schema` y `--json` **nunca** se leían
+     * —siempre el último ticket y las 12 filas— y el informe no lo decía.
+     * Esta prueba vigila las dos mitades del arreglo, que viven en archivos
+     * que no se pueden cargar aquí (`class.cli.php` define la clase real).
+     */
+    function testElModuloNoSeSaltaElAnalisisDeSusOpciones() {
+        $cli = file_get_contents(INCLUDE_DIR . 'class.cli.php');
+        $this->assertTrue(strpos($cli, 'if ($this->_parsed)') !== false,
+            'parseOptions() debe usar la bandera _parsed');
+        $this->assertFalse(strpos($cli, 'is_array($this->_options))') !== false,
+            'el centinela ya no puede ser is_array($_options)');
+
+        $perf = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+        $this->assertFalse(strpos($perf, 'var $_options = array()') !== false,
+            'declarar $_options como array() desactiva parseOptions()');
+        $this->assertTrue(strpos($perf, 'var $_options;') !== false);
+    }
+
+    /** Las banderas sin argumento (`--json`, `--schema`) no dejan avisos. */
+    function testLasBanderasSinArgumentoNoTocanLaCadenaVacia() {
+        $cli = file_get_contents(INCLUDE_DIR . 'class.cli.php');
+        $this->assertTrue(strpos($cli, '$value !== null && $value !== \'\'') !== false,
+            'handleValue() debe proteger el valor nulo antes de mirar $value[0]');
+    }
+
 }

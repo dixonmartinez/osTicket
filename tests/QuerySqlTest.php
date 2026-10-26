@@ -63,6 +63,36 @@ if (!class_exists('QuerySqlChild')) {
     }
 }
 
+/**
+ * Autor y aviso: para comprobar que el `select_related` declarado en la meta
+ * del modelo viaja en la misma consulta. Es lo que hace que el autor de cada
+ * aviso del hilo no cueste una consulta más (`ThreadEvent::$meta`).
+ */
+if (!class_exists('QuerySqlAuthor')) {
+    class QuerySqlAuthor extends \VerySimpleModel {
+        static $meta = array(
+            'table' => 'author',
+            'pk' => array('id'),
+        );
+    }
+}
+if (!class_exists('QuerySqlNotice')) {
+    class QuerySqlNotice extends \VerySimpleModel {
+        static $meta = array(
+            'table' => 'notice',
+            'pk' => array('id'),
+            'select_related' => array('author'),
+            'joins' => array(
+                'author' => array(
+                    'local' => 'author_id',
+                    'constraint' => array('author_id' => 'QuerySqlAuthor.id'),
+                    'null' => true,
+                ),
+            ),
+        );
+    }
+}
+
 class QuerySqlTest extends UnitTestCase {
 
     /**
@@ -75,6 +105,8 @@ class QuerySqlTest extends UnitTestCase {
             'QuerySqlBare' => array('id', 'name'),
             'QuerySqlParent' => array('id', 'name'),
             'QuerySqlChild' => array('id', 'parent_id', 'title'),
+            'QuerySqlAuthor' => array('id', 'name'),
+            'QuerySqlNotice' => array('id', 'author_id', 'title'),
         );
         foreach ($fields as $model => $names)
             $model::getMeta()->fields = $names;
@@ -90,6 +122,25 @@ class QuerySqlTest extends UnitTestCase {
 
     private function probe(): \QuerySet {
         return new \QuerySet('QuerySqlProbe');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* select_related declarado en la meta                                 */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * El `select_related` de la meta se aplica solo.
+     *
+     * `ThreadEvent` lo usa para que `$event->user` y `$event->agent` lleguen
+     * con la consulta de los avisos: en el perfil real del ticket, el autor de
+     * cada aviso costaba una consulta aparte (`class.thread.event.php:112`).
+     */
+    public function testElSelectRelatedDeLaMetaViajaEnLaConsulta(): void {
+        $q = $this->compile(new \QuerySet('QuerySqlNotice'));
+
+        $this->assertStringContainsString('LEFT JOIN `author`', $q['sql']);
+        // Y sus columnas viajan en el SELECT, con el alias del JOIN.
+        $this->assertStringContainsString('A2.`name`', $q['sql']);
     }
 
     /* ------------------------------------------------------------------ */

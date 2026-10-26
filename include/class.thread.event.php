@@ -25,6 +25,12 @@ class ThreadEvent extends VerySimpleModel {
     static $meta = array(
         'table' => THREAD_EVENT_TABLE,
         'pk' => array('id'),
+        // `thread-entry.tmpl.php` pide el autor de cada aviso
+        // (`getUserName()`, `getAvatar()`, que leen `$event->user` y
+        // `$event->agent`). Sin esto, cada aviso con autor costaba una
+        // consulta propia: en el perfil real del ticket salía atribuida a
+        // `class.thread.event.php:112`, dos veces por carga.
+        'select_related' => array('user', 'agent'),
         'joins' => array(
             // Originator of activity
             'agent' => array(

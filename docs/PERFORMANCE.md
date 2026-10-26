@@ -53,6 +53,7 @@ administrador (ve todos los departamentos y todos los botones).
 
 ```
 Ticket #428 — perfil de la carga
+Opciones: --ticket=428 · --top=20 · --step=«render»
 -------------------------------------------------------------
   Paso                                   ms   SQLms  SQL  Esq  N
   Ticket::lookup()                      13.4     1.7    1   10  1
@@ -81,6 +82,15 @@ La consulta más repetida: 7 veces — SELECT * FROM ost_thread_entry WHERE id =
   consola, un paso que toca ocho tablas nuevas suma ocho `INFORMATION_SCHEMA`
   que la web no paga, y contarlas juntas hacía creer que
   `Ticket::lookup()` necesitaba once consultas.
+* La línea **Opciones** dice qué se aplicó de verdad en esa ejecución (sólo
+  aparece lo que se pasó; sin opciones no se imprime). Nació de un defecto:
+  el módulo declaraba `var $_options = array();` y `Module::parseOptions()`
+  daba por hecho que ya había analizado las opciones —el centinela era
+  `is_array($this->_options)`—, así que `--ticket`, `--top`, `--step`,
+  `--schema` y `--json` **se ignoraban en silencio** y el informe mostraba
+  siempre el último ticket y doce filas. Con la línea delante, un filtro que
+  no llega se ve en la primera pantalla en vez de descubrirse comparando
+  filas a ojo.
 * La lista final agrupa por **patrón**: la misma consulta con otro id es la
   misma fila, y se ordena por tiempo **total**, no por una ejecución. Una
   consulta de 1 ms repetida 40 veces pesa más que una de 8 ms, y es la que hay
@@ -129,6 +139,21 @@ comprobaron con el perfilador:
    `Thread::getNumCollaborators()` hacía un `COUNT(*)` en cada llamada y la
    página lo llama desde la pestaña, el menú y la cabecera del hilo. Ahora se
    cuenta una vez y se recuerda en la instancia del hilo.
+
+3. **El autor de cada aviso del hilo costaba una consulta.** Lo dijo el
+   perfil real del ticket 428, no una lectura del código: dos consultas por
+   carga atribuidas a `include/class.thread.event.php:112`, que es la línea que
+   hace `$this->user->getName()` al pintar un aviso. `ThreadEvent` no declaraba
+   esas relaciones, así que cada aviso con autor las buscaba por su cuenta (y
+   otra vez en la segunda pasada del render). Ahora `user` y `agent` están en
+   el `select_related` de la meta del modelo, así que viajan en la consulta de
+   los avisos: `tests/QuerySqlTest.php` comprueba con el compilador de SQL que
+   el `LEFT JOIN` se añade.
+
+> Ojo con pedirlo desde `render()`: `$thread->getEvents()` devuelve una
+> `InstrumentedList` y `select_related()` sobre ella recae en un **clon** de la
+> consulta (su `__call()` proxya a `objects()`, que clona). No tiene efecto y no
+> da error: hay una prueba que vigila que no se vuelva a intentar por ahí.
 
 ## Detallar un paso
 
@@ -269,6 +294,11 @@ Dos advertencias, por orden de importancia:
 * La primera llamada incluye la compilación de las plantillas. El objetivo
   activa opcache y APCu para que eso no aparezca como si fuera trabajo de la
   función.
+
+Si el patrón de archivos no encuentra nada, la herramienta lo dice y sale
+con error: un informe de «0 µs en 0 funciones» hacía dudar del perfil cuando
+el problema era que Xdebug no había escrito el archivo (o que el glob no
+apuntaba a `/tmp` del contenedor).
 
 El lector del formato (`PhpProfile::parse()`) está cubierto por
 `tests/PhpProfileTest.php`: resuelve los nombres comprimidos `(1)` del

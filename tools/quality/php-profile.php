@@ -147,6 +147,40 @@ class PhpProfile {
         return implode("\n", $lines) . "\n";
     }
 
+    /**
+     * Carga uno o varios perfiles (se admiten comodines) y los suma.
+     *
+     * @param array $patterns rutas o comodines
+     * @return array [funciones acumuladas, patrones que no encontraron nada]
+     */
+    static function load(array $patterns) {
+        $functions = array();
+        $missing = array();
+
+        foreach ($patterns as $pattern) {
+            $found = glob($pattern);
+            if (!$found) {
+                $missing[] = $pattern;
+                continue;
+            }
+            foreach ($found as $file) {
+                $text = @file_get_contents($file);
+                if ($text === false) {
+                    $missing[] = $file;
+                    continue;
+                }
+                foreach (self::parse($text) as $key => $info) {
+                    if (!isset($functions[$key]))
+                        $functions[$key] = $info;
+                    else
+                        $functions[$key]['time'] += $info['time'];
+                }
+            }
+        }
+
+        return array($functions, $missing);
+    }
+
     static function duration($microseconds) {
         if ($microseconds >= 1000000)
             return sprintf('%.2f s', $microseconds / 1000000);
@@ -166,26 +200,16 @@ if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === basename(__FILE__)) {
         exit(isset($options['help']) ? 0 : 2);
     }
 
-    $files = array_slice($argv, 1);
-    $functions = array();
-    foreach ($files as $file) {
-        foreach (glob($file) ?: array() as $one) {
-            $text = @file_get_contents($one);
-            if ($text === false) {
-                fwrite(STDERR, "No se pudo leer $one\n");
-                continue;
-            }
-            foreach (PhpProfile::parse($text) as $key => $info) {
-                if (!isset($functions[$key]))
-                    $functions[$key] = $info;
-                else
-                    $functions[$key]['time'] += $info['time'];
-            }
-        }
-    }
+    list($functions, $missing) = PhpProfile::load(array_slice($argv, 1));
+
+    foreach ($missing as $what)
+        fwrite(STDERR, "No encontré ningún perfil en «$what»\n");
 
     if (!$functions) {
-        fwrite(STDERR, "No hay funciones en el perfil (¿está vacío?)\n");
+        // Un informe de «0 µs en 0 funciones» no dice nada: o no hay perfil o
+        // el patrón no apunta a donde se escribió. Las dos cosas se avisan.
+        fwrite(STDERR, "No hay funciones en el perfil."
+            . " ¿Se generó con xdebug.mode=profile?\n");
         exit(1);
     }
 
