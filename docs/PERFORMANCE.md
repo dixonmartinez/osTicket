@@ -93,6 +93,47 @@ comprobaron con el perfilador:
    página lo llama desde la pestaña, el menú y la cabecera del hilo. Ahora se
    cuenta una vez y se recuerda en la instancia del hilo.
 
+## Detallar un paso
+
+`--step=TEXTO` lista, debajo del informe, las consultas de los pasos cuyo
+nombre contenga ese texto. Es lo que convierte «este paso cuesta 38 ms» en
+«estas cuatro consultas son la misma, una por entrada»:
+
+```bash
+make ticket-perf TICKET=405 PERF_ARGS="--step=hilo"
+```
+
+```
+Consultas de «Hilo: render() completo» — 38.4 ms, 17 SQL
+--------------------------------------------------------------
+   1.5 ms ·   4 × · SELECT ... FROM ost_thread_entry__merge WHERE thread_entry_id = ?
+```
+
+## La nota de APCu
+
+Si el informe termina con un aviso sobre APCu, es importante:
+
+```
+Nota: APCu no está activo en este proceso (apc.enable_cli=0).
+```
+
+Con APCu, osTicket guarda en memoria el esquema de cada tabla y la
+introspección (`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS …`) se paga
+**una vez por tabla cada 30 minutos**, no en cada petición. En la línea de
+comandos `apc.enable_cli` está en `0` (ver `docker/php/conf.d/00-osticket.ini`),
+así que ese proceso **no tiene caché** y el perfil muestra esas consultas como
+si fueran de cada carga.
+
+Consecuencia práctica: el número de consultas del perfil por CLI es más alto
+que el de la página real. Para comparar de verdad:
+
+```bash
+# Cuántas consultas hace una petición web de verdad
+docker compose exec -T php php -d apc.enable_cli=1 manage.php perf --ticket=405
+```
+
+(o mirar el `Cluster`/`Query count` en la barra de depuración del navegador).
+
 ## Si un paso falla
 
 Un paso roto no se lleva el informe: se marca `ERROR` en su fila, el motivo

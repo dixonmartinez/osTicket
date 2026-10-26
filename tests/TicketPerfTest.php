@@ -256,6 +256,58 @@ class TicketPerfTest extends UnitTestCase {
         $this->assertTrue(method_exists('PerfCheck', 'out'));
     }
 
+    /** Las consultas quedan atribuidas al paso que las lanzó. */
+    function testLasConsultasSeAtribuyenASuPaso() {
+        $perf = $this->probe(array('step' => 'hilo'));
+        $perf->startProfile();
+
+        $perf->step('Ticket::lookup()', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_ticket WHERE ticket_id = 1', 0.001);
+            return 1;
+        });
+        $perf->step('Hilo: getEntries()', function() use ($perf) {
+            $perf->record('SELECT * FROM ost_thread_entry WHERE thread_id = 1', 0.002);
+            $perf->record('SELECT * FROM ost_thread_entry WHERE thread_id = 2', 0.002);
+            return 2;
+        });
+
+        $property = new ReflectionProperty('PerfCheck', 'queries');
+        $property->setAccessible(true);
+        $queries = $property->getValue($perf);
+
+        foreach ($queries as $q) {
+            if (strpos($q['sql'], 'ost_thread_entry') !== false) {
+                $this->assertSame(array(1), array_keys($q['steps']),
+                    'La consulta del hilo no está atribuida al segundo paso');
+                $this->assertSame(2, $q['n']);
+            }
+            else
+                $this->assertSame(array(0), array_keys($q['steps']));
+        }
+    }
+
+    /** El perfil avisa de que sin APCu las medidas son pesimistas. */
+    function testAvisaCuandoApcuNoEstaActivo() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+
+        $this->assertTrue(strpos($source, "function_exists('apcu_fetch')") !== false,
+            'El perfil no comprueba APCu');
+        $this->assertTrue(strpos($source, 'más lento') !== false,
+            'El perfil no avisa de que en CLI el resultado es pesimista');
+    }
+
+    /**
+     * Las entradas del hilo traen su `merge_info` en el mismo SELECT: era una
+     * consulta por entrada en cada carga (`SELECT … FROM
+     * ost_thread_entry__merge WHERE thread_entry_id = ?`).
+     */
+    function testLasEntradasTraenSuInformacionDeMezclaEnLaMismaConsulta() {
+        $source = file_get_contents(INCLUDE_DIR . 'class.thread.php');
+
+        $this->assertTrue(strpos($source, "select_related('merge_info')") !== false,
+            'getEntries() volvería a pedir merge_info entrada por entrada');
+    }
+
     function testLosColaboradoresSeCuentanUnaSolaVez() {
         $source = file_get_contents(INCLUDE_DIR . 'class.thread.php');
 

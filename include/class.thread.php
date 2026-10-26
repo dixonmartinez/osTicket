@@ -103,6 +103,12 @@ implements Searchable {
                     ->otherwise(null)
                 ),
             ));
+            // `merge_info` es una relación inversa de uno a uno: sin esto, el
+            // template pedía `getMergeData()` por entrada y cada una costaba
+            // una consulta (`SELECT … FROM ost_thread_entry__merge WHERE
+            // thread_entry_id = ?`). Con `select_related` viaja en el mismo
+            // SELECT que las entradas.
+            $this->_entries->select_related('merge_info');
             $this->_entries->exclude(array('flags__hasbit'=>ThreadEntry::FLAG_HIDDEN));
             if ($criteria)
                 $this->_entries->filter($criteria);

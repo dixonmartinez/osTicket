@@ -37,12 +37,16 @@ class PerfCheck extends Module {
             'help' => 'Cuántas consultas se listan, por tiempo total (12)'),
         'json' => array('-j', '--json', 'action' => 'store_true',
             'help' => 'Salida JSON, para engancharla a otra herramienta'),
+        'step' => array('', '--step', 'default' => '', 'metavar' => 'TEXTO',
+            'help' => 'Detalla las consultas de los pasos cuyo nombre contenga TEXTO'),
     );
 
     /** @var array Consultas acumuladas: patrón => [n, ms, ejemplo] */
     var $queries = array();
     /** @var array Pasos: [nombre, ms, consultas] */
     var $steps = array();
+    /** Paso en curso, para poder atribuirle cada consulta. */
+    var $currentStep = -1;
     var $json = false;
     var $staff;
     /** Los pone `Module::parseOptions()`; se declara para no crearla al vuelo. */
@@ -234,14 +238,17 @@ class PerfCheck extends Module {
         $key = self::pattern($sql);
         if (!isset($this->queries[$key]))
             $this->queries[$key] = array('sql' => $key, 'n' => 0, 'ms' => 0.0,
-                'example' => $sql);
+                'example' => $sql, 'steps' => array());
         $this->queries[$key]['n']++;
         $this->queries[$key]['ms'] += $ms;
+        if ($this->currentStep >= 0)
+            $this->queries[$key]['steps'][$this->currentStep] = true;
     }
 
     /** Cronometra un paso y cuenta cuántas consultas provoca. */
     function step($label, $callback) {
         $before = $this->totals();
+        $this->currentStep = count($this->steps);
         $started = microtime(true);
         $result = null;
         $error = null;
@@ -361,6 +368,23 @@ class PerfCheck extends Module {
                 $slowest['label'], $slowest['ms'], $slowest['queries']));
         }
 
+        // Detalle por paso: qué consultas hace cada uno. Es lo que permite
+        // pasar de «este paso cuesta 38 ms» a «estas cuatro consultas son la
+        // misma, una por entrada».
+        $filter = (string) $this->getOption('step');
+        if ($filter !== '')
+            $this->detailStep($filter);
+
+        // Aviso honesto: en CLI no hay APCu, así que la introspección del
+        // esquema se paga aquí y no en la web.
+        if (!function_exists('apcu_fetch'))
+            $this->out(''
+                . "\nNota: APCu no está activo en este proceso (apc.enable_cli=0)."
+                . "\nLas consultas a INFORMATION_SCHEMA que salen arriba se pagan"
+                . "\nuna vez por tabla en cada proceso; en la web (FPM) quedan"
+                . "\ncacheadas 30 minutos. El perfil por CLI es, en eso, más lento"
+                . "\nque la página real.");
+
         $repeated = null;
         foreach ($top as $q)
             if (!$repeated || $q['n'] > $repeated['n'])
@@ -368,6 +392,45 @@ class PerfCheck extends Module {
         if ($repeated && $repeated['n'] > 1)
             $this->out(sprintf('La consulta más repetida: %d veces — %s',
                 $repeated['n'], $this->cut($repeated['sql'], 90)));
+    }
+
+    /** Lista las consultas de los pasos cuyo nombre contenga `$filter`. */
+    function detailStep($filter) {
+        $shown = 0;
+        $matched = 0;
+        foreach ($this->steps as $index => $step) {
+            if (stripos($step['label'], $filter) === false)
+                continue;
+            $matched++;
+
+            $queries = array();
+            foreach ($this->queries as $q) {
+                if (!isset($q['steps'][$index]))
+                    continue;
+                $queries[] = $q;
+            }
+            usort($queries, function($a, $b) {
+                return $b['ms'] <=> $a['ms'];
+            });
+
+            $this->out('');
+            $this->out(sprintf('Consultas de «%s» — %.1f ms, %d SQL',
+                $step['label'], $step['ms'], $step['queries']));
+            $this->out(str_repeat('-', 62));
+            if (!$queries) {
+                $this->out('  (ninguna: el tiempo de este paso es de PHP)');
+                continue;
+            }
+            foreach ($queries as $q) {
+                $this->out(sprintf('  %5.1f ms · %3d × · %s', $q['ms'] * 1000,
+                    $q['n'], $this->cut($q['sql'], 120)));
+                $shown++;
+            }
+        }
+
+        if (!$matched)
+            $this->out(''
+                . "\nNingún paso coincide con «" . $filter . "».");
     }
 
     function topQueries() {
