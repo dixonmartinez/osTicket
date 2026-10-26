@@ -169,6 +169,29 @@ class SeedPurgeManager extends SeedManager {
     function manifestPath() {
         return sys_get_temp_dir() . '/seed-purge-test-manifest.json';
     }
+
+    /**
+     * Las dos búsquedas del conocimiento van a la base de datos por SQL; en
+     * las pruebas se resuelven sobre los modelos simulados, con el mismo
+     * criterio (pregunta exacta y nombre exacto).
+     */
+    function faqIdByQuestion($question) {
+        $question = trim((string) $question);
+        foreach (SeedPurgeModel::$rows['FAQ'] ?? array() as $row)
+            if ($row->question === $question)
+                return $row->getId();
+
+        return null;
+    }
+
+    function categoryByName($name) {
+        $name = trim((string) $name);
+        foreach (SeedPurgeModel::$rows['Category'] ?? array() as $row)
+            if ($row->name === $name)
+                return $row;
+
+        return null;
+    }
 }
 
 class SeedPurgeTest extends UnitTestCase {

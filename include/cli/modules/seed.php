@@ -1106,17 +1106,13 @@ class SeedManager extends Module {
                 $this->skip('categoría ' . $categoryName);
             }
 
+            $moved = 0;
             foreach ($articles as $article) {
                 list($question, $answer) = $article;
 
                 // El mismo criterio que usa `FAQ::update()` para rechazar
                 // duplicados (`findIdByQuestion`), pero sin su `first()`, que
                 // avisa al no encontrar nada.
-                if ($this->faqIdByQuestion($question)) {
-                    $this->skip($question);
-                    continue;
-                }
-
                 $vars = array(
                     'id' => 0,
                     'question' => $question,
@@ -1126,6 +1122,24 @@ class SeedManager extends Module {
                     'notes' => 'Artículo de demostración',
                     'topics' => array_keys($topics),
                 );
+                if ($id = $this->faqIdByQuestion($question)) {
+                    // Ya existe. Si se quedó sin categoría —o en otra— se
+                    // recoloca: un artículo huérfano no se ve en la base de
+                    // conocimiento y su categoría es de las que crea este
+                    // módulo, así que no se toca nada ajeno.
+                    $existing = FAQ::lookup($id);
+                    $vars['id'] = $id;
+                    $errors = array();
+                    if ($existing && $existing->getCategoryId() != $category->getId()
+                            && $existing->update($vars, $errors)) {
+                        $moved++;
+                        $this->createdRef('faq', 'f', $id, $question . ' (recolocado)');
+                        continue;
+                    }
+                    $this->createdRef('faq', 'f', $id, $question);
+                    $this->skip($question);
+                    continue;
+                }
 
                 $faq = FAQ::create();
                 $errors = array();
@@ -1141,6 +1155,10 @@ class SeedManager extends Module {
                 }
                 $this->createdRef('faq', 'f', $faq->getId(), $question);
             }
+
+            if ($moved)
+                $this->out(sprintf('  · %d artículo(s) de «%s» recolocados a '
+                    . 'su categoría (estaban sueltos)', $moved, $categoryName));
         }
     }
 
@@ -1667,6 +1685,7 @@ class SeedManager extends Module {
      * ajustar `ticket.created`: hay que ajustar el evento.
      */
     function backdateEvent($object, $state, $when) {
+      try {
         if (!class_exists('ThreadEvent') || !class_exists('Event'))
             return;
 
@@ -1683,10 +1702,20 @@ class SeedManager extends Module {
             ->all();
 
         if ($found) {
+            // `ThreadEvent` no declara `getId()` (sólo `Event` lo tiene): el
+            // id es la columna `id`, que se lee como propiedad.
             ThreadEvent::objects()
-                ->filter(array('id' => $found[0]->getId()))
+                ->filter(array('id' => $found[0]->id))
                 ->update(array('timestamp' => $when));
         }
+      }
+      catch (Throwable $e) {
+        // Fechar es cosmético para el hilo, pero imprescindible para los
+        // informes: se avisa y se sigue con el resto (un fallo aquí no debe
+        // dejar el paso `tickets` a medias).
+        $this->warn("no se pudo fechar el evento «{$state}»: "
+            . $e->getMessage());
+      }
     }
 
     /** Registra un evento del hilo con fecha del pasado. */
@@ -2148,19 +2177,27 @@ class SeedManager extends Module {
     function purgeByName() {
         $removed = 0;
 
-        // Conocimiento: primero los artículos, después sus categorías
-        $questions = array();
-        foreach (self::faqs() as $articles)
-            foreach ($articles as $article)
-                $questions[] = $article[0];
-        if ($questions)
-            $removed += $this->purgeAll(FAQ::objects()->filter(
-                array('question__in' => $questions)), 'artículo');
+        // Conocimiento: primero los artículos, después sus categorías.
+        //
+        // Se buscan **con la misma función que usa el sembrador para decidir
+        // si algo ya existe** (`faqIdByQuestion()`, `categoryByName()`), no con
+        // un `IN` aparte. Cuando los dos criterios no coinciden, la purga
+        // borra las categorías, deja los artículos huérfanos y el paso `faq`
+        // responde «6 creadas, 33 ya existían»: los artículos quedan sin
+        // categoría y no se ven en la base de conocimiento.
+        $articles = array();
+        foreach (self::faqs() as $items)
+            foreach ($items as $article)
+                if ($id = $this->faqIdByQuestion($article[0]))
+                    if ($faq = FAQ::lookup($id))
+                        $articles[] = $faq;
+        $removed += $this->purgeAll($articles, 'artículo');
 
-        $categories = array_keys(self::faqs());
-        if ($categories)
-            $removed += $this->purgeAll(Category::objects()->filter(
-                array('name__in' => $categories)), 'categoría');
+        $categories = array();
+        foreach (array_keys(self::faqs()) as $name)
+            if ($category = $this->categoryByName($name))
+                $categories[] = $category;
+        $removed += $this->purgeAll($categories, 'categoría');
 
         // Los equipos de demostración tienen nombres que no se repiten
         $teams = array();

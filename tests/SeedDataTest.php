@@ -634,9 +634,14 @@ class SeedDataTest extends UnitTestCase {
             $method->getStartLine() - 1,
             $method->getEndLine() - $method->getStartLine() + 1));
 
-        foreach (array('FAQ', 'Category', 'Team') as $class)
-            $this->assertStringContainsString($class . '::objects()', $body,
-                "la purga por nombre no borra $class");
+        // El conocimiento se busca con las mismas funciones que usa el
+        // sembrador para decidir si algo existe (un `IN` aparte se
+        // desincronizaba y dejaba artículos huérfanos); los equipos, por
+        // nombre.
+        foreach (array('FAQ::lookup', 'faqIdByQuestion', 'categoryByName',
+                'Team::objects') as $needle)
+            $this->assertStringContainsString($needle, $body,
+                "la purga por nombre no usa $needle");
 
         foreach (array('Ticket', 'Task', 'Canned', 'Topic', 'Staff', 'Dept',
                 'SLA', 'User', 'Organization') as $class)
@@ -735,6 +740,46 @@ class SeedDataTest extends UnitTestCase {
                 as $case)
             $this->assertGreaterThan(-1, $seed->threadDay($case[0], $case[1],
                 $case[2], $case[3]));
+    }
+
+    public function testLosEventosDelHiloSeFechannSinSuponerGetters(): void {
+        // `ThreadEvent` no declara `getId()` (sólo `Event`): la primera versión
+        // de `backdateEvent()` llamaba a `->getId()` y `make seed-fresh` moría
+        // con «Call to undefined method ThreadEvent::getId()», dejando el paso
+        // `tickets` sin crear nada.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $start = strpos($source, 'function backdateEvent(');
+        $end = strpos($source, 'function logEventAt(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertTrue(strpos($body, '$found[0]->getId()') === false,
+            'ThreadEvent no tiene getId(): el id se lee como propiedad');
+        $this->assertStringContainsString('$found[0]->id', $body);
+    }
+
+    public function testUnFalloAlFecharNoTumbaElPaso(): void {
+        // Fechar es cosmético para el hilo pero imprescindible para los
+        // informes: si el ajuste falla, se avisa y se sigue. Antes una
+        // excepción aquí abortaba el paso entero (59 tickets a la basura).
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $start = strpos($source, 'function backdateEvent(');
+        $end = strpos($source, 'function logEventAt(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString('catch (Throwable $e)', $body);
+    }
+
+    public function testLosArticulosHuerfanosSeRecolocan(): void {
+        // Si un artículo quedó sin su categoría, el paso `faq` lo recoloca en
+        // vez de decir «ya existía» y dejarlo invisible en la base de
+        // conocimiento.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $start = strpos($source, 'function seedFaq(');
+        $end = strpos($source, 'function faqIdByQuestion(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString('getCategoryId()', $body);
+        $this->assertStringContainsString('recolocado', $body);
     }
 
     public function testElManifiestoNoSeVersiona(): void {
