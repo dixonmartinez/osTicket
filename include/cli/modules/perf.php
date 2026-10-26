@@ -177,6 +177,17 @@ class PerfCheck extends Module {
             return $n;
         });
 
+        // `render()` carga este archivo la primera vez (trae las clases de los
+        // botones de cada entrada). Sin cargarlo, `hasActions()` no tiene
+        // registro que recorrer y el paso de acciones mediría cero: hay que
+        // medirlo en el mismo orden que la plantilla.
+        $this->step('Hilo: carga de acciones (thread_actions.php)',
+            function() {
+                if (!class_exists('tea_showemailheaders'))
+                    include_once INCLUDE_DIR . 'class.thread_actions.php';
+                return count(ThreadEntry::$action_registry);
+            });
+
         // Desglose de lo que la plantilla hace **una vez por entrada**: es lo
         // que convierte «render() tarda 27 ms» en un culpable concreto.
         // El cuerpo se vuelve a pedir frío (`_body` a null) para que el paso
@@ -202,7 +213,41 @@ class PerfCheck extends Module {
             return $n;
         });
 
+        // Lo que la plantilla hace **antes** del bucle: precargar adjuntos,
+        // contar entradas y eventos, y ordenar. Va aparte para poder restar.
+        $this->step('Hilo: proemio del template', function() use ($thread, $entries, $ticket) {
+            AttachmentFile::objects()->filter(array(
+                'attachments__thread_entry__thread__id' => $thread->getId()
+            ))->all();
+
+            $n = 0;
+            foreach (Attachment::objects()->filter(array(
+                    'thread_entry__thread__id' => $thread->getId(),
+                ))->select_related('thread_entry', 'file') as $A)
+                $n++;
+
+            $entries->exists(true);
+            $entries->count();
+            $events = $thread->getEvents()->order_by('id');
+            count($events);
+            ThreadEntry::sortEntries($entries, $ticket);
+            return $n;
+        });
+
         $this->step('Hilo: render() completo', function() use ($thread) {
+            ob_start();
+            $thread->render(array('M', 'R', 'N'), array(
+                'html-id' => 'ticketThread',
+                'mode' => Thread::MODE_STAFF,
+                'sort' => $this->staff ? $this->staff->thread_view_order : 'ASC',
+            ));
+            return strlen(ob_get_clean());
+        });
+
+        // La segunda pasada distingue lo que se paga una vez (compilar el
+        // template, cargar clases, hidratar) de lo que se paga en cada
+        // pintado.
+        $this->step('Hilo: render() otra vez (caché tibia)', function() use ($thread) {
             ob_start();
             $thread->render(array('M', 'R', 'N'), array(
                 'html-id' => 'ticketThread',

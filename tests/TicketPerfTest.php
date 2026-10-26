@@ -240,6 +240,34 @@ class TicketPerfTest extends UnitTestCase {
         }
     }
 
+    /**
+     * Las acciones de una entrada sólo existen si se ha cargado
+     * `class.thread_actions.php`: medirlas antes daba 0.0 ms y escondía el
+     * trabajo de verdad. El paso tiene que cargarlo, igual que `render()`.
+     */
+    function testElPerfilCargaLasAccionesAntesDeMedirlas() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+
+        $this->assertTrue(
+            strpos($source, "include_once INCLUDE_DIR . 'class.thread_actions.php'") !== false,
+            'El perfil mide las acciones sin cargar el archivo que las registra');
+        $this->assertTrue(
+            strpos($source, 'ThreadEntry::$action_registry') !== false);
+        $this->assertTrue(strpos(file_get_contents(INCLUDE_DIR . 'class.thread.php'),
+            'static $action_registry') !== false);
+    }
+
+    /** El desglose tiene que separar el proemio y una segunda pasada. */
+    function testElPerfilMideElProemioYLaSegundaPasada() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
+
+        foreach (array('Hilo: proemio del template',
+                       'Hilo: render() otra vez (caché tibia)',
+                       'Hilo: carga de acciones (thread_actions.php)') as $label)
+            $this->assertTrue(strpos($source, $label) !== false,
+                'Falta el paso: ' . $label);
+    }
+
     /** `Ticket::getTasks()` no existe: las tareas no se cargan así. */
     function testElPerfilNoInventaMetodosDeTareas() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');

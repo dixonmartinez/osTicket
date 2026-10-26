@@ -36,9 +36,12 @@ make ticket-perf TICKET=405 PERF_ARGS="--json"
 | `getEntries()` | Las entradas del hilo, hidratadas como en el `foreach` del template |
 | Eventos | Los eventos del hilo |
 | Adjuntos | La consulta de adjuntos del hilo |
-| Cuerpo → HTML | Lo que la plantilla hace **una vez por entrada**: `getBody()->toHtml()`, con el cuerpo sin cachear, que es donde se paga el saneado y el equilibrado del HTML |
-| Acciones por entrada | `hasActions()` y `getMergeData()` de cada entrada: los botones que se ofrecen en cada una |
+| Carga de acciones | El `include` de `class.thread_actions.php`, que es lo que registra los botones de cada entrada |
+| Cuerpo → HTML | Lo que la plantilla hace **una vez por entrada**: `getBody()->toHtml()`, con el cuerpo sin cachear |
+| Acciones por entrada | `hasActions()` y `getMergeData()` de cada entrada: los botones que se ofrecen en cada una. **Ojo:** sin cargar el archivo antes, el registro está vacío y el paso mide cero |
+| Proemio del template | Lo que la plantilla hace antes del bucle: precargar adjuntos, contar entradas y eventos, ordenar |
 | `render()` | El hilo completo pintado (se descarta la salida, se mide el trabajo) |
+| `render()` otra vez | La segunda pasada, con las clases y los modelos ya cargados: separa lo que se paga una vez de lo que se paga en cada pintado |
 | Formulario | `DynamicFormEntry::forTicket()`, los campos personalizados |
 | Tareas: el número | Lo único que la página hace con las tareas: `getNumTasks()` y `getNumOpenTasks()`, el número de la pestaña |
 | Tareas: listado | La consulta del listado, que **sólo** se hace al abrir la pestaña (llega por AJAX) |
