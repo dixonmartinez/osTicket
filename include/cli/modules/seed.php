@@ -2102,6 +2102,14 @@ class SeedManager extends Module {
     function purgeAll($set, $what) {
         $removed = 0;
 
+        // `all()` y no el iterador: el QuerySet lee las filas de la consulta
+        // según se recorre (resultado sin buffer del driver), y borrar una
+        // fila mientras se recorre la misma tabla descuadra el resto —se
+        // saltaban registros—. Materializar primero no cuesta nada: son las
+        // decenas de registros del sembrador.
+        if (!is_array($set) && $set instanceof QuerySet)
+            $set = $set->all();
+
         foreach ($set as $obj) {
             try {
                 if ($obj->delete() === false)
