@@ -88,6 +88,36 @@ class SeedDataTest extends UnitTestCase {
         $this->assertLessThan(array_search('tasks', $steps), array_search('tickets', $steps));
     }
 
+    public function testCadaPaqueteQueSeUsaEstaDefinido(): void {
+        // `self::teams()` se llamaba desde la purga sin existir —los equipos
+        // eran un array dentro de `seedTeams()`— y `make seed-fresh` moría con
+        // un `Error` fatal antes de borrar nada. Aquí se recorren todas las
+        // llamadas `self::x()` del módulo.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        preg_match_all('/self::([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', $source, $found);
+        $names = array_values(array_unique($found[1]));
+
+        $this->assertTrue(count($names) > 5, 'no se encontraron llamadas self::');
+        foreach ($names as $name)
+            $this->assertTrue(method_exists('SeedManager', $name),
+                "SeedManager::$name() no existe");
+    }
+
+    public function testCadaMetodoPropioQueSeUsaEstaDefinido(): void {
+        // Un `$this->metodo()` que no existe es un `Error` fatal en tiempo de
+        // ejecución, y sólo se ve al correr el comando contra la base. Aquí se
+        // comparan todas las llamadas con lo que declara la clase.
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        preg_match_all('/\$this->([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', $source, $found);
+        $names = array_values(array_unique($found[1]));
+
+        $this->assertTrue(count($names) > 20, 'no se encontraron llamadas $this->');
+        foreach ($names as $name)
+            $this->assertTrue(method_exists('SeedManager', $name)
+                || method_exists('Module', $name),
+                "SeedManager::$name() no existe");
+    }
+
     public function testCadaPasoTieneSuMetodo(): void {
         foreach (SeedManager::steps() as $step)
             $this->assertTrue(method_exists('SeedManager', 'seed' . ucfirst($step)),

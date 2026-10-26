@@ -210,6 +210,23 @@ class SeedManager extends Module {
         );
     }
 
+    /**
+     * Equipos de demostración: nombre, notas y miembros.
+     *
+     * Es un paquete de datos y no un array dentro de `seedTeams()` porque la
+     * purga también necesita los nombres: `purgeByName()` borra por nombre lo
+     * que dejaron ejecuciones antiguas, y sin esta lista la llamada
+     * `self::teams()` terminaba en un `Error` fatal a mitad de `--fresh`.
+     */
+    static function teams() {
+        return array(
+            array('Turno de noche', 'Quienes cubren las 22:00-06:00',
+                array('agente1', 'agente3')),
+            array('Escalado', 'Casos que necesitan dos miradas',
+                array('supervisor', 'agente2', 'agente3')),
+        );
+    }
+
     static function faqs() {
         // categoría => artículos (pregunta, respuesta)
         return array(
@@ -895,14 +912,7 @@ class SeedManager extends Module {
         }
         $soporte = reset($depts);
 
-        $teams = array(
-            array('Turno de noche', 'Quienes cubren las 22:00-06:00',
-                array('agente1', 'agente3')),
-            array('Escalado', 'Casos que necesitan dos miradas',
-                array('supervisor', 'agente2', 'agente3')),
-        );
-
-        foreach ($teams as $row) {
+        foreach (self::teams() as $row) {
             list($name, $notes, $members) = $row;
             if (Team::getIdByName($name)) {
                 $this->skip($name);
@@ -2112,13 +2122,13 @@ class SeedManager extends Module {
     function purge() {
         global $thisstaff;
 
-        $m = $this->manifest;
-        if (!$m) {
-            $this->out('No hay nada que borrar (no existe el manifiesto).');
-            return true;
-        }
-
-        $this->out('Borrando el conjunto anterior…');
+        // Sin manifiesto (una ejecución antigua lo perdió, o nunca se
+        // escribió) todavía queda la pasada por nombre: no se sale sin
+        // intentarlo.
+        $m = $this->manifest ?: array();
+        $this->out($m
+            ? 'Borrando el conjunto anterior…'
+            : 'No hay manifiesto: se buscan restos por nombre…');
 
         // `Team::delete()` (y otros modelos) exigen un agente en sesión y
         // devuelven `false` sin decir nada cuando no lo hay: en la CLI no hay
