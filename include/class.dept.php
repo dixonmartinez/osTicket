@@ -15,6 +15,7 @@
 **********************************************************************/
 require_once INCLUDE_DIR . 'class.search.php';
 require_once INCLUDE_DIR.'class.role.php';
+require_once INCLUDE_DIR . 'class.model.rules.php';
 
 class Dept extends VerySimpleModel
 implements TemplateVariable, Searchable {
@@ -883,20 +884,9 @@ implements TemplateVariable, Searchable {
         if ($cfg && ($this->getId() == $cfg->getDefaultDeptId()))
             $vars['status'] = 'active';
 
-        switch ($vars['status']) {
-          case 'active':
-            $this->setFlag(self::FLAG_ACTIVE, true);
-            $this->setFlag(self::FLAG_ARCHIVED, false);
-            break;
-
-          case 'disabled':
-            $this->setFlag(self::FLAG_ACTIVE, false);
-            $this->setFlag(self::FLAG_ARCHIVED, false);
-            break;
-
-          case 'archived':
-            $this->setFlag(self::FLAG_ACTIVE, false);
-            $this->setFlag(self::FLAG_ARCHIVED, true);
+        if ($flags = ModelRules::statusFlags($vars['status'])) {
+            $this->setFlag(self::FLAG_ACTIVE, $flags['active']);
+            $this->setFlag(self::FLAG_ARCHIVED, $flags['archived']);
         }
 
         switch ($vars['assignment_flag']) {

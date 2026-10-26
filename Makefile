@@ -28,7 +28,8 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-composer docker-qa \
 	docker-bench docker-urls \
 	seed seed-fresh seed-check seed-verbose seed-list seed-doctor \
-	queues queue-check db-views db-rebuild-views ticket-perf ticket-perf-raw mail test-mail
+	queues queue-check db-views db-rebuild-views ticket-perf ticket-perf-raw \
+\tticket-perf-xdebug mail test-mail
 
 help: ## Muestra esta ayuda
 	@printf '\nUso: make <objetivo>\n\n'
@@ -283,6 +284,19 @@ ticket-perf: ## Perfila la carga de un ticket (TICKET=405; sin TICKET, el últim
 
 ticket-perf-raw: ## Lo mismo, pero sin opcache ni APCu: para ver los artefactos de la consola
 	@docker compose exec -T php php manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS)
+
+ticket-perf-xdebug: ## Perfil por función de la carga de un ticket (Xdebug; TICKET=405)
+	@# `perf` dice en qué paso se va el tiempo; éste dice en qué función. El
+	@# perfil queda en el contenedor, en /tmp/cachegrind.out.*; se lee con
+	@# tools/quality/php-profile.php. Ver docs/PERFORMANCE.md.
+	@# Xdebug 3 lee el modo de XDEBUG_MODE y esa variable manda sobre el ini,
+	@# así que se pasa al contenedor; con `-d xdebug.mode` no bastaría.
+	@docker compose exec -T -e XDEBUG_MODE=profile php sh -c \
+		'rm -f /tmp/cachegrind.out.*; \
+		php -d xdebug.start_with_request=yes -d xdebug.output_dir=/tmp \
+		\t-d opcache.enable_cli=1 -d apc.enable_cli=1 \
+		manage.php perf $(if $(TICKET),--ticket=$(TICKET)) $(PERF_ARGS) >/dev/null; \
+		php tools/quality/php-profile.php $(if $(TOP),--top=$(TOP)) /tmp/cachegrind.out.*'
 
 mail: ## Muestra las URLs de Mailpit y los datos SMTP que hay que configurar
 	@$(MAKE) --no-print-directory docker-urls

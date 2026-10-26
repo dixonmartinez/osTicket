@@ -16,6 +16,7 @@
 require_once INCLUDE_DIR . 'class.sequence.php';
 require_once INCLUDE_DIR . 'class.filter.php';
 require_once INCLUDE_DIR . 'class.search.php';
+require_once INCLUDE_DIR . 'class.model.rules.php';
 
 class Topic extends VerySimpleModel
 implements TemplateVariable, Searchable {
@@ -453,13 +454,13 @@ implements TemplateVariable, Searchable {
 
         if ($cfg) {
             //Make sure at least 1 Topic is Public
-            $publicTopics = Topic::getHelpTopics(true);
-            if ((count($publicTopics) == 1) && array_key_exists($this->getId(), $publicTopics) && ($vars['ispublic'] == 0))
+            if (ModelRules::wouldEmpty(Topic::getHelpTopics(true),
+                    $this->getId(), $vars['ispublic']))
                 $errors['ispublic'] = __('At least one Topic must be Public');
 
             //Make sure at least 1 Topic is Active
-            $activeTopics = Topic::getHelpTopics(false, false);
-            if ((count($activeTopics) == 1) && array_key_exists($this->getId(), $activeTopics) && ($vars['status'] != 'active'))
+            if (ModelRules::wouldEmpty(Topic::getHelpTopics(false, false),
+                    $this->getId(), $vars['status'] == 'active'))
                 $errors['status'] = __('At least one Topic must be Active');
         }
 
@@ -496,36 +497,15 @@ implements TemplateVariable, Searchable {
         else
           FilterAction::setFilterFlags($filter_actions, 'Filter::FLAG_INACTIVE_HT', true);
 
-        switch ($vars['status']) {
-          case 'active':
-            $this->setFlag(self::FLAG_ACTIVE, true);
-            $this->setFlag(self::FLAG_ARCHIVED, false);
-            break;
-
-          case 'disabled':
-            $this->setFlag(self::FLAG_ACTIVE, false);
-            $this->setFlag(self::FLAG_ARCHIVED, false);
-            break;
-
-          case 'archived':
-            $this->setFlag(self::FLAG_ACTIVE, false);
-            $this->setFlag(self::FLAG_ARCHIVED, true);
-            break;
+        if ($flags = ModelRules::statusFlags($vars['status'])) {
+            $this->setFlag(self::FLAG_ACTIVE, $flags['active']);
+            $this->setFlag(self::FLAG_ARCHIVED, $flags['archived']);
         }
 
-        //Auto assign ID is overloaded...
-        if ($vars['assign'] && $vars['assign'][0] == 's') {
-            $this->team_id = 0;
-            $this->staff_id = preg_replace("/[^0-9]/", "", $vars['assign']);
-        }
-        elseif ($vars['assign'] && $vars['assign'][0] == 't') {
-            $this->staff_id = 0;
-            $this->team_id = preg_replace("/[^0-9]/", "", $vars['assign']);
-        }
-        else {
-            $this->staff_id = 0;
-            $this->team_id = 0;
-        }
+        // Auto assign ID is overloaded: `s123` es un agente y `t45` un equipo
+        $assign = ModelRules::assignTarget($vars['assign']);
+        $this->staff_id = $assign['staff_id'];
+        $this->team_id = $assign['team_id'];
 
         $rv = false;
         if ($this->__new__) {

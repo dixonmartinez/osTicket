@@ -230,6 +230,54 @@ docker compose exec -T php php -d apc.enable_cli=1 manage.php perf --ticket=405
 
 (o mirar el `Cluster`/`Query count` en la barra de depuración del navegador).
 
+## Cuando el tiempo es PHP: el perfil por función
+
+`perf` contesta «este paso tarda 27 ms». Si ese paso es `render()` o
+`Ticket::lookup()`, el siguiente escalón es saber **en qué función** están esos
+milisegundos. Para eso está Xdebug, que el contenedor ya trae instalado
+(`docker/php/Dockerfile`), y un lector propio del perfil:
+`tools/quality/php-profile.php`.
+
+```bash
+# Perfila la carga del ticket 428 y enseña las 20 funciones más caras
+make ticket-perf-xdebug TICKET=428
+
+# Con más filas, o solo lo que toque a una parte del código
+make ticket-perf-xdebug TICKET=428 TOP=40
+docker compose exec -T php php tools/quality/php-profile.php \
+    --filter=thread /tmp/cachegrind.out.*
+```
+
+Qué hace el objetivo: lanza `manage.php perf` con `XDEBUG_MODE=profile` y lee
+el `cachegrind.out.*` que Xdebug deja en `/tmp` del contenedor. El modo se pasa
+como **variable de entorno** y no como `-d xdebug.mode=profile` porque en
+Xdebug 3 `XDEBUG_MODE` manda sobre el ini, y el contenedor trae
+`XDEBUG_MODE=develop,debug` (`docker/php/Dockerfile`).
+
+Cómo se lee la tabla: la columna de la izquierda es el **tiempo propio** —lo
+que gasta la función sin contar lo que llama— y no el tiempo acumulado. Es a
+propósito: el acumulado siempre corona a `main()` o a `include`, porque todos
+los demás cuelgan de ahí. Con el tiempo propio se ve dónde está el trabajo.
+Los nombres salen con su archivo al lado para que se pueda saltar al código.
+
+Dos advertencias, por orden de importancia:
+
+* **El perfilador no mide, estorba.** Con Xdebug en modo `profile` todo va
+  entre 2 y 5 veces más lento. Los milisegundos absolutos de esta tabla **no**
+  se comparan con los de `make ticket-perf`; lo que vale es el **reparto**: qué
+  porcentaje del tiempo se lleva cada función.
+* La primera llamada incluye la compilación de las plantillas. El objetivo
+  activa opcache y APCu para que eso no aparezca como si fuera trabajo de la
+  función.
+
+El lector del formato (`PhpProfile::parse()`) está cubierto por
+`tests/PhpProfileTest.php`: resuelve los nombres comprimidos `(1)` del
+cachegrind, no suma al tiempo propio la línea de una llamada (`calls=`) y
+tolera un perfil vacío sin romperse. **Pendiente de comprobar con un perfil
+real de este contenedor**: la herramienta está probada contra el formato, pero
+todavía no se ha ejecutado sobre la salida de Xdebug de una instalación con
+datos, así que las cifras por función siguen sin confirmar.
+
 ## Si un paso falla
 
 Un paso roto no se lleva el informe: se marca `ERROR` en su fila, el motivo

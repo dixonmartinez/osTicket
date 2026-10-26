@@ -14,6 +14,7 @@
     vim: expandtab sw=4 ts=4 sts=4:
 **********************************************************************/
 include_once(INCLUDE_DIR.'class.ticket.post.php');
+include_once(INCLUDE_DIR.'class.ticket.edit.php');
 include_once(INCLUDE_DIR.'class.ticket.create.php');
 include_once(INCLUDE_DIR.'class.thread.php');
 include_once(INCLUDE_DIR.'class.staff.php');
@@ -3672,33 +3673,26 @@ implements RestrictedAccess, Threadable, Searchable {
             return false;
         }
 
-        $fields = array();
-        $fields['topicId']  = array('type'=>'int',      'required'=>1, 'error'=>__('Help topic selection is required'));
-        $fields['slaId']    = array('type'=>'int',      'required'=>0, 'error'=>__('Select a valid SLA'));
-        $fields['duedate']  = array('type'=>'date',     'required'=>0, 'error'=>__('Invalid date format - must be MM/DD/YY'));
-
-        $fields['user_id']  = array('type'=>'int',      'required'=>0, 'error'=>__('Invalid user-id'));
-
-        if (!Validator::process($fields, $vars, $errors) && !$errors['err'])
+        if (!Validator::process(TicketEdit::fields(), $vars, $errors)
+                && !$errors['err'])
             $errors['err'] = sprintf('%s — %s',
                 __('Missing or invalid data'),
                 __('Correct any errors below and try again'));
 
         $vars['note'] = ThreadEntryBody::clean($vars['note']);
 
-        if ($vars['duedate']) {
-            if ($this->isClosed())
-                $errors['duedate']=__('Due date can NOT be set on a closed ticket');
-            elseif (strtotime($vars['duedate']) === false)
-                $errors['duedate']=__('Invalid due date');
-            elseif (Misc::user2gmtime($vars['duedate']) <= Misc::user2gmtime())
-                $errors['duedate']=__('Due date must be in the future');
-        }
+        $due = function($date) {
+            return strtotime($date) === false ? false : Misc::user2gmtime($date);
+        };
+        if ($error = TicketEdit::dueDateError($vars['duedate'],
+                $this->isClosed(), $due, Misc::user2gmtime()))
+            $errors['duedate'] = $error;
 
-        if (isset($vars['source']) // Check ticket source if provided
-                && !array_key_exists($vars['source'], Ticket::getSources()))
-            $errors['source'] = sprintf( __('Invalid source given - %s'),
-                    Format::htmlchars($vars['source']));
+        // Check ticket source if provided
+        if ($error = TicketEdit::sourceError(
+                isset($vars['source']) ? $vars['source'] : null,
+                Ticket::getSources()))
+            $errors['source'] = $error;
 
         $topic = Topic::lookup($vars['topicId']);
         if($topic && !$topic->isActive())
@@ -3738,22 +3732,13 @@ implements RestrictedAccess, Threadable, Searchable {
             // We are setting new duedate...
             $this->isoverdue = 0;
 
-        $changes = array();
-        foreach ($this->dirty as $F=>$old) {
-            switch ($F) {
-            case 'topic_id':
-            case 'user_id':
-            case 'source':
-            case 'duedate':
-            case 'sla_id':
-                $changes[$F] = array($old, $this->{$F});
-            }
-        }
+        $changes = TicketEdit::trackedChanges($this->dirty,
+            function($field) { return $this->{$field}; });
 
         if (!$this->save())
             return false;
 
-        $vars['note'] = ThreadEntryBody::clean($vars['note']);
+        // `$vars['note']` ya viene limpio de arriba
         if ($vars['note'])
             $this->logNote(_S('Ticket Updated'), $vars['note'], $thisstaff);
 
