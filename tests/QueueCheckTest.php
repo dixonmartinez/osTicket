@@ -243,4 +243,77 @@ class QueueCheckTest extends UnitTestCase {
     function testLenCountsAccentedCharactersOnce() {
         $this->assertEquals(6, QueueCheck::len('Año 26'));
     }
+
+    /* ------------------------------------------------------------------ */
+    /* ¿Dónde se pierden las filas?                                        */
+    /* ------------------------------------------------------------------ */
+
+    private function steps(array $counts) {
+        $steps = array();
+        foreach ($counts as $i => $count)
+            $steps[] = array('label' => 'tramo ' . $i, 'count' => $count);
+        return $steps;
+    }
+
+    /**
+     * El caso del usuario: los 60 tickets están, el criterio encuentra 23 y
+     * la consulta devuelve 0. El culpable es el tramo donde cae a cero, y
+     * los posteriores ya no importan.
+     */
+    function testElPrimerTramoQueCaeACeroEsElCulpable() {
+        $culprit = QueueCheck::firstDrop($this->steps(array(60, 23, 23, 0)));
+
+        $this->assertEquals('tramo 3', $culprit);
+    }
+
+    /** Si el criterio ya no encuentra nada, el culpable es ese tramo. */
+    function testSiElCriterioNoEncuentraNadaElCulpableEsElCriterio() {
+        $culprit = QueueCheck::firstDrop($this->steps(array(60, 0, 0, 0)));
+
+        $this->assertEquals('tramo 1', $culprit);
+    }
+
+    /** Sin caídas no hay culpable: la cola funciona. */
+    function testSinCaidasNoHayCulpable() {
+        $this->assertSame(null, QueueCheck::firstDrop(
+            $this->steps(array(60, 23, 23, 23))));
+        $this->assertSame(null, QueueCheck::firstDrop(
+            $this->steps(array(0, 0, 0, 0))));
+    }
+
+    /**
+     * Un tramo con error no es un cero: no se puede acusar de perder filas a
+     * una consulta que ni siquiera se ejecutó, y menos cortar la búsqueda ahí
+     * dejando sin revisar los siguientes.
+     */
+    function testLosTramosConErrorNoCuentanComoCero() {
+        $steps = array(
+            array('label' => 'tramo 0', 'count' => 60),
+            array('label' => 'tramo 1', 'count' => 'error: sin conexión'),
+            array('label' => 'tramo 2', 'count' => 0),
+            array('label' => 'tramo 3', 'count' => 0),
+        );
+
+        $this->assertEquals('tramo 2', QueueCheck::firstDrop($steps));
+    }
+
+    /** El desglose admite enteros sueltos, no sólo arrays con etiqueta. */
+    function testFirstDropAceptaNumerosSueltos() {
+        $this->assertSame(null, QueueCheck::firstDrop(array(60, 0, 23)));
+    }
+
+    /**
+     * La consulta del último tramo se imprime para poder pegarla en MariaDB;
+     * si el módulo no la puede compilar, el desglose sigue sirviendo.
+     */
+    function testElDiagnosticoPublicaElSqlDelUltimoTramo() {
+        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/queue.php');
+
+        $this->assertTrue(strpos($source, "'SQL del último tramo'") !== false,
+            'El diagnóstico no imprime el SQL que se puede ejecutar a mano');
+        $this->assertTrue(strpos($source, 'conditionAudit') !== false,
+            'Falta el desglose por tramos');
+        $this->assertTrue(strpos($source, 'firstDrop') !== false,
+            'Falta la detección del tramo que pierde las filas');
+    }
 }

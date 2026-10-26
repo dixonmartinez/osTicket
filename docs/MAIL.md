@@ -162,6 +162,7 @@ mano cuando se prueban avisos de vencimiento.
 | `getaddrinfo for mailpit failed` al ejecutar `make test-mail` **en el equipo** | `mailpit` sólo existe dentro de la red de Docker | `make test-mail` ya ejecuta el script **dentro** del contenedor; si lo lanzas a mano, usa `docker compose exec -T php php tools/dev/mail-test.php` |
 | El puerto 8025 no responde | otro proceso lo ocupa o cambiaste `MAILPIT_UI_PORT` | mira `.env` y `make docker-urls` |
 | osTicket dice «Unable to connect to SMTP» | hostname `localhost` en vez de `mailpit` | cámbialo en la cuenta de correo |
+| `Fallo en «EHLO»` / `esperado 250, recibido 220` | el script no leía el saludo `220` del servidor (corregido) | actualice el repositorio; si lo ve en otro cliente, lea primero el saludo |
 | `sendmail: can't connect to remote host (127.0.0.1)` en la cola de correo | la cuenta apunta a `127.0.0.1`, que **dentro del contenedor** es el propio contenedor | Admin → Emails → la cuenta → *Hostname*: `mail`, puerto `1025` (sin TLS) |
 | No llega la respuesta automática | la cuenta no está activa o el departamento usa otra | Admin → Emails: debe estar *Active*; revisa el departamento del tema |
 | Llega todo a la papelera de Mailpit | reglas de Mailpit (`MP_*`) | interfaz → *Settings* |

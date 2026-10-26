@@ -145,7 +145,10 @@ class DbMaintenance extends Module {
                 $view['rows'] === null ? '—' : $view['rows'],
                 $view['expected'] === null ? '—' : $view['expected'],
                 ($view['rows'] !== null && $view['expected'] !== null
-                    && $view['rows'] < $view['expected']) ? 'faltan filas' : '',
+                    && $view['rows'] < $view['expected']) ? 'faltan filas'
+                    : (($view['rows'] !== null && $view['expected'] !== null
+                        && $view['rows'] > $view['expected'])
+                        ? 'sobran (huérfanas)' : ''),
             );
         }
 
@@ -156,6 +159,23 @@ class DbMaintenance extends Module {
             $rows);
 
         $deficit = self::deficit($state);
+
+        // Filas de más: registros borrados que siguen en la copia
+        $extra = 0;
+        foreach ($state as $view)
+            if ($view['rows'] !== null && $view['expected'] !== null
+                    && $view['rows'] > $view['expected'])
+                $extra += $view['rows'] - $view['expected'];
+
+        if ($extra) {
+            $this->out('');
+            $this->out('Sobran ' . $extra . ' filas: son registros que ya no'
+                .' existen en `form_entry_values`');
+            $this->out('(tickets, tareas o usuarios borrados) y siguen en la'
+                .' copia. No rompen los listados,');
+            $this->out('pero descuadran los recuentos que usan la vista:');
+            $this->out('  php manage.php db --rebuild-views');
+        }
 
         if ($deficit['rows']) {
             $this->out('');

@@ -577,11 +577,7 @@ class QueueCheck extends Module {
             $query->filter($this->staff->getTicketsVisibility());
 
         // Los tickets hijos no se listan en las colas
-        if ($queue->isAQueue() || $queue->isASubQueue())
-            $query->filter(Q::any(array(
-                'ticket_pid' => null,
-                'flags__hasbit' => Ticket::FLAG_LINKED,
-            )));
+        $this->filterChildren($query, $queue);
 
         // Las tablas `*__cdata` son vistas materializadas: sin esto, las
         // columnas de asunto y de formulario no existen y la consulta falla.
@@ -682,10 +678,154 @@ class QueueCheck extends Module {
             $result['queue_total'] = null;
         }
 
+        $result['conditions'] = $this->conditionAudit($queue);
         $result['columns'] = $this->columnAudit($queue);
         $result['materialized'] = $this->materializedAudit();
 
         return $result;
+    }
+
+    /**
+     * Dónde se pierden las filas: se cuenta la consulta por tramos.
+     *
+     * `getCount()` dice 23 y la consulta 0; el desglose por columnas dirá que
+     * el problema no son las columnas (la referencia sin columnas también da
+     * 0). Entonces la pregunta es **qué condición** deja la consulta sin
+     * filas. Se aplican por orden, contando después de cada una:
+     *
+     *   1. todos los tickets, sin nada;
+     *   2. sólo el criterio de la cola;
+     *   3. + la visibilidad del agente;
+     *   4. + el filtro de tickets hijos (lo que lista la página).
+     *
+     * El tramo donde el número cae a cero es el culpable, y ahí se imprime
+     * el SQL completo con los parámetros ya sustituidos para poder
+     * ejecutarlo a mano.
+     */
+    function conditionAudit($queue) {
+        $root = $queue->getRoot();
+        $steps = array();
+
+        $count = function($callback) {
+            try {
+                return (int) $callback()->count();
+            }
+            catch (Throwable $e) {
+                return 'error: ' . $e->getMessage();
+            }
+        };
+
+        $steps[] = array(
+            'label' => 'Todos los tickets (sin criterio, sin columnas)',
+            'count' => $count(function() use ($root) { return $root::objects(); }),
+            'sql' => null,
+        );
+
+        $steps[] = array(
+            'label' => 'Sólo el criterio de la cola',
+            'count' => $count(function() use ($queue) {
+                return $queue->getBasicQuery();
+            }),
+            'sql' => function() use ($queue) { return $queue->getBasicQuery(); },
+        );
+
+        $staff = $this->staff;
+        $steps[] = array(
+            'label' => '+ visibilidad del agente',
+            'count' => $count(function() use ($queue, $staff) {
+                return $queue->getBasicQuery()
+                    ->filter($staff->getTicketsVisibility());
+            }),
+            'sql' => function() use ($queue, $staff) {
+                return $queue->getBasicQuery()
+                    ->filter($staff->getTicketsVisibility());
+            },
+        );
+
+        $steps[] = array(
+            'label' => '+ sin tickets hijos (lo que lista la página)',
+            'count' => $count(function() use ($queue) {
+                $query = $queue->getBasicQuery()
+                    ->filter($this->staff->getTicketsVisibility());
+                return $this->filterChildren($query, $queue);
+            }),
+            'sql' => function() use ($queue) {
+                $query = $queue->getBasicQuery()
+                    ->filter($this->staff->getTicketsVisibility());
+                return $this->filterChildren($query, $queue);
+            },
+        );
+
+        // El SQL del último tramo, que es el que la página ejecuta
+        $audit = array('steps' => $steps, 'sql' => null, 'params' => array(),
+            'culprit' => null);
+        try {
+            $compiled = $steps[3]['sql']()->getQuery();
+            $audit['sql'] = $compiled->sql;
+            $audit['params'] = $compiled->params ?: array();
+        }
+        catch (Throwable $e) {
+            // Sin SQL queda el desglose, que ya dice dónde se cae
+        }
+
+        // Si el tramo que falla es el de los hijos, hacen falta los números
+        // de las dos ramas del OR: `ticket_pid IS NULL` y la bandera.
+        $audit['children'] = $this->childrenAudit();
+
+        $audit['culprit'] = self::firstDrop($steps);
+
+        return $audit;
+    }
+
+    /**
+     * El primer tramo en el que el número cae de positivo a cero.
+     *
+     * Es el tramo que deja la consulta vacía; los siguientes ya no importan.
+     * Se compara con el tramo anterior *con filas*: si una condición ya venía
+     * fallando desde el principio (todos los tickets = 0), el culpable es ese
+     * y no el siguiente.
+     */
+    static function firstDrop($steps) {
+        $previous = null;
+        foreach ($steps as $step) {
+            $count = is_array($step) ? ($step['count'] ?? null) : $step;
+            if (!is_int($count))
+                continue;
+            if ($previous !== null && $previous > 0 && $count === 0)
+                return is_array($step) ? $step['label'] : null;
+            $previous = $count;
+        }
+
+        return null;
+    }
+
+    /**
+     * Las dos ramas del filtro de hijos, contadas por separado.
+     *
+     * La condición es `ticket_pid IS NULL OR (flags & FLAG_LINKED)`. Si
+     * ninguna de las dos se cumple, la cola se queda sin filas aunque los
+     * tickets existan y el criterio los encuentre.
+     */
+    function childrenAudit() {
+        return array(
+            'no_parent' => $this->tabled('SELECT COUNT(*) FROM '.TICKET_TABLE
+                .' WHERE ticket_pid IS NULL'),
+            'zero_parent' => $this->tabled('SELECT COUNT(*) FROM '.TICKET_TABLE
+                .' WHERE ticket_pid = 0'),
+            'linked' => $this->tabled('SELECT COUNT(*) FROM '.TICKET_TABLE
+                .' WHERE (flags & '.Ticket::FLAG_LINKED.') <> 0'),
+            'flag' => Ticket::FLAG_LINKED,
+        );
+    }
+
+    /** El filtro de «esto no es un ticket hijo», igual que la plantilla. */
+    function filterChildren($query, $queue) {
+        if ($queue->isAQueue() || $queue->isASubQueue())
+            $query->filter(Q::any(array(
+                'ticket_pid' => null,
+                'flags__hasbit' => Ticket::FLAG_LINKED,
+            )));
+        return $query;
     }
 
     /**
@@ -967,7 +1107,7 @@ class QueueCheck extends Module {
             $status = 'error';
             $notes[] = $text;
         };
-        $warn = function($text) use (&$notes) {
+        $warn = function($text) use (&$status, &$notes) {
             if ($status == 'ok')
                 $status = 'warning';
             $notes[] = $text;
@@ -991,6 +1131,13 @@ class QueueCheck extends Module {
 
             // Si ya sabemos *por qué* no salen filas, no se acusa al SQL
             $explained = false;
+
+            // Dónde se pierden las filas (criterio, visibilidad, hijos)
+            $conditions = $query['conditions'];
+            if ($conditions['culprit'])
+                $error('La consulta se queda sin filas en el tramo «'
+                    .$conditions['culprit'].'»: el resto de la cola no llega a'
+                    .' ejecutarse. Mire el SQL de ese tramo.');
 
             // Qué columna deja el listado a cero
             $baseline = $query['columns']['baseline'];
@@ -1175,6 +1322,41 @@ class QueueCheck extends Module {
             array('`getTotal()` de la cola (sin caché)',
                 $this->number($query['queue_total'])),
         ));
+
+        // Por tramos: criterio, visibilidad y filtro de hijos. Es lo primero
+        // que hay que mirar cuando *sin columnas* tampoco salen filas.
+        $conditions = $query['conditions'];
+        $this->heading('¿Dónde se pierden las filas?');
+        $rows = array();
+        foreach ($conditions['steps'] as $step)
+            $rows[] = array($step['label'], $this->number($step['count']));
+        $this->table(array('Tramo de la consulta', 'Tickets'), $rows);
+        if ($conditions['culprit']) {
+            $this->out('  Las filas desaparecen en: ' . $conditions['culprit']);
+            if (strpos($conditions['culprit'], 'hijos') !== false) {
+                $children = $conditions['children'];
+                $this->table(array('Rama del filtro de hijos', 'Tickets'), array(
+                    array('Sin ticket padre (`ticket_pid IS NULL`)',
+                        $this->number($children['no_parent'])),
+                    array('`ticket_pid = 0` (no es NULL: nunca pasa el filtro)',
+                        $this->number($children['zero_parent'])),
+                    array('Marcados como enlazados (`flags & '
+                        .$children['flag'].' <> 0`)',
+                        $this->number($children['linked'])),
+                ));
+                if (is_int($children['no_parent']) && $children['no_parent'] === 0
+                        && is_int($children['linked']) && $children['linked'] === 0)
+                    $this->out('  Ningún ticket cumple ninguna de las dos ramas: la'
+                        .' cola los cuenta y no los puede listar.');
+            }
+        }
+
+        // El SQL del tramo final, con los parámetros ya puestos: es lo que se
+        // puede pegar en un cliente de MariaDB para verlo con los ojos.
+        if ($conditions['sql'] && ($this->showSql || $this->json
+                || !$conditions['culprit'] && $conditions['steps'][3]['count'] === 0))
+            $this->pair('SQL del último tramo', "\n" . $this->indent(
+                self::bindParams($conditions['sql'], $conditions['params']), 4));
 
         // Desglose por columna: es lo que dice *qué* columna recorta el listado
         $audit = $query['columns'];

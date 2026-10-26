@@ -89,9 +89,14 @@ function smtp_read($socket, $timeout = 5) {
     return $response;
 }
 
-/** Manda un comando y comprueba que la respuesta empiece por el código esperado. */
-function smtp_cmd($socket, $command, $expected = '250') {
-    fwrite($socket, $command . "\r\n");
+/**
+ * Manda un comando y comprueba que la respuesta empiece por el código
+ * esperado. Con `$command = ''` sólo se lee: sirve para el saludo inicial
+ * del servidor, que llega sin que hayamos mandado nada.
+ */
+function smtp_cmd($socket, $command, $expected = '250', $send = true) {
+    if ($send)
+        fwrite($socket, $command . "\r\n");
     $response = smtp_read($socket);
     if (strpos(trim($response), $expected) !== 0) {
         fwrite(STDERR, sprintf("Fallo en «%s»\n  esperado %s, recibido: %s\n",
@@ -102,6 +107,11 @@ function smtp_cmd($socket, $command, $expected = '250') {
     }
     return $response;
 }
+
+/* El servidor saluda primero con «220 …». Si no se lee, ese 220 se toma
+   como respuesta al EHLO y el script se cae con «esperado 250, recibido
+   220» —que es justo lo que pasaba en Mailpit. */
+smtp_cmd($socket, '', '220', false);
 
 smtp_cmd($socket, 'EHLO osticket.local', '250');
 smtp_cmd($socket, 'MAIL FROM:<' . $from . '>', '250');
@@ -138,4 +148,4 @@ fwrite($socket, "QUIT\r\n");
 
 printf("✓ Aceptado por %s:%d para <%s>\n", $host, $port, $to);
 printf("  Abre la interfaz de Mailpit y busca el marcador %s.\n", $marker);
-printf("  Si no aparece, revisa `docker compose logs mailpit`.\n");
+printf("  Si no aparece, revisa `docker compose logs --tail=30 mail`.\n");
