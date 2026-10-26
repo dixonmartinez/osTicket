@@ -16,6 +16,7 @@
 require_once INCLUDE_DIR . 'class.search.php';
 require_once INCLUDE_DIR.'class.role.php';
 require_once INCLUDE_DIR . 'class.model.rules.php';
+require_once INCLUDE_DIR . 'class.staff.check.php';
 
 class Dept extends VerySimpleModel
 implements TemplateVariable, Searchable {
@@ -806,30 +807,23 @@ implements TemplateVariable, Searchable {
             $errors['pid'] = sprintf(__('%s cannot contain the current %s'), __('Parent Department'), __('Department'));
         }
 
-        if ($vars['sla_id'] && !SLA::lookup($vars['sla_id']))
-            $errors['sla_id'] = __('Invalid SLA');
+        // Referencias opcionales: si vienen, tienen que existir. La errata de
+        // «Unkown System Email» se conserva: es el texto que ya ve el agente.
+        $errors += ModelRules::unknownReferences($vars, array(
+            'sla_id' => array(__('Invalid SLA'), array('SLA', 'lookup')),
+            'manager_id' => array(__('Unknown Staff'), array('Staff', 'lookup')),
+            'email_id' => array(__('Unknown System Email'), array('Email', 'lookup')),
+            'tpl_id' => array(__('Unknown Template Set'), array('EmailTemplateGroup', 'lookup')),
+            'autoresp_email_id' => array(__('Unkown System Email'), array('Email', 'lookup')),
+        ));
 
-        if ($vars['manager_id'] && !Staff::lookup($vars['manager_id']))
-            $errors['manager_id'] = __('Unknown Staff');
-
-        if ($vars['email_id'] && !Email::lookup($vars['email_id']))
-            $errors['email_id'] = __('Unknown System Email');
-
-        if ($vars['tpl_id'] && !EmailTemplateGroup::lookup($vars['tpl_id']))
-            $errors['tpl_id'] = __('Unknown Template Set');
-
-        if ($vars['autoresp_email_id'] && !Email::lookup($vars['autoresp_email_id']))
-            $errors['autoresp_email_id'] = __('Unkown System Email');
-
-        // Format access update as [array(dept_id, role_id, alerts?)]
-        $access = array();
-        if (isset($vars['members'])) {
-            foreach (@$vars['members'] as $staff_id) {
-                $access[] = array($staff_id, $vars['member_role'][$staff_id],
-                    @$vars['member_alerts'][$staff_id]);
-            }
-        }
-        $this->updateAccess($access, $errors);
+        // Accesos: mismo formato que `Staff::update()` — [agente, rol,
+        // avisos]— y sin avisos de PHP si falta alguno.
+        $this->updateAccess(StaffCheck::accessPairs(
+            isset($vars['members']) ? $vars['members'] : null,
+            isset($vars['member_role']) ? $vars['member_role'] : array(),
+            isset($vars['member_alerts']) ? $vars['member_alerts'] : array()),
+            $errors);
 
         if ($errors)
             return false;
@@ -840,36 +834,38 @@ implements TemplateVariable, Searchable {
             $disableAutoClaim = $this->flagChanged(self::FLAG_DISABLE_AUTO_CLAIM, $vars['disable_auto_claim']);
             $disableAutoAssign = $this->flagChanged(self::FLAG_DISABLE_REOPEN_AUTO_ASSIGN, $vars['disable_reopen_auto_assign']);
             $ticketAssignment = ($this->getAssignmentFlag() != $vars['assignment_flag']);
-            foreach ($vars as $key => $value) {
-                if ($key == 'status' && $this->getStatus() && strtolower($this->getStatus()) != $value) {
-                    $type = array('type' => 'edited', 'status' => ucfirst($value));
-                    Signal::send('object.edited', $this, $type);
-                } elseif ((isset($this->$key) && ($this->$key != $value) && $key != 'members') ||
-                         ($disableAutoClaim && $key == 'disable_auto_claim') ||
-                          $ticketAssignment && $key == 'assignment_flag' ||
-                          $disableAutoAssign && $key == 'disable_reopen_auto_assign') {
-                    $type = array('type' => 'edited', 'key' => $key);
-                    Signal::send('object.edited', $this, $type);
-                }
-            }
+            // `isset($this->$key)` no sirve como «existe»: `__isset()` del ORM
+            // responde por las columnas hidratadas aunque su valor sea nulo.
+            $self = $this;
+            $current = function($key) use ($self) {
+                return array(isset($self->$key),
+                    isset($self->$key) ? $self->$key : null);
+            };
+            foreach (ModelRules::editedSignals($vars, $current,
+                    $this->getStatus(), array(
+                        'disable_auto_claim' => $disableAutoClaim,
+                        'disable_reopen_auto_assign' => $disableAutoAssign,
+                        'assignment_flag' => $ticketAssignment)) as $type)
+                Signal::send('object.edited', $this, $type);
         }
         if ($vars['disable_auto_claim'] !== 1)
             unset($vars['disable_auto_claim']);
 
-        $this->pid = $vars['pid'] ?: null;
-        $this->ispublic = isset($vars['ispublic']) ? (int) $vars['ispublic'] : 0;
-        $this->email_id = isset($vars['email_id']) ? (int) $vars['email_id'] : 0;
-        $this->tpl_id = isset($vars['tpl_id']) ? (int) $vars['tpl_id'] : 0;
-        $this->sla_id = isset($vars['sla_id']) ? (int) $vars['sla_id'] : 0;
-        $this->schedule_id = isset($vars['schedule_id']) ? (int) $vars['schedule_id'] : 0;
-        $this->autoresp_email_id = isset($vars['autoresp_email_id']) ? (int) $vars['autoresp_email_id'] : 0;
-        $this->manager_id = $vars['manager_id'] ?: 0;
+        // Columnas del departamento: el tipo y los valores por omisión, en una
+        // tabla. El nombre y la firma pasan por el saneado del formato y se
+        // quedan aquí.
+        foreach (ModelRules::fieldValues($vars, array(
+                'pid' => 'nullable', 'ispublic' => 'int', 'email_id' => 'int',
+                'tpl_id' => 'int', 'sla_id' => 'int', 'schedule_id' => 'int',
+                'autoresp_email_id' => 'int', 'manager_id' => 'int',
+                'group_membership' => 'raw', 'flags' => 'int',
+                'ticket_auto_response' => 'raw',
+                'message_auto_response' => 'raw'),
+            array('ticket_auto_response' => 1, 'message_auto_response' => 1))
+                as $field => $value)
+            $this->{$field} = $value;
         $this->name = Format::striptags($vars['name']);
         $this->signature = Format::sanitize($vars['signature']);
-        $this->group_membership = $vars['group_membership'];
-        $this->ticket_auto_response = isset($vars['ticket_auto_response'])?$vars['ticket_auto_response']:1;
-        $this->message_auto_response = isset($vars['message_auto_response'])?$vars['message_auto_response']:1;
-        $this->flags = $vars['flags'] ?: 0;
 
         $this->setFlag(self::FLAG_ASSIGN_MEMBERS_ONLY, isset($vars['assign_members_only']));
         $this->setFlag(self::FLAG_DISABLE_AUTO_CLAIM, isset($vars['disable_auto_claim']));
@@ -889,19 +885,13 @@ implements TemplateVariable, Searchable {
             $this->setFlag(self::FLAG_ARCHIVED, $flags['archived']);
         }
 
-        switch ($vars['assignment_flag']) {
-          case 'all':
-            $this->setFlag(self::FLAG_ASSIGN_MEMBERS_ONLY, false);
-            $this->setFlag(self::FLAG_ASSIGN_PRIMARY_ONLY, false);
-            break;
-          case 'members':
-            $this->setFlag(self::FLAG_ASSIGN_MEMBERS_ONLY, true);
-            $this->setFlag(self::FLAG_ASSIGN_PRIMARY_ONLY, false);
-            break;
-          case 'primary':
-            $this->setFlag(self::FLAG_ASSIGN_MEMBERS_ONLY, false);
-            $this->setFlag(self::FLAG_ASSIGN_PRIMARY_ONLY, true);
-            break;
+        // Un valor desconocido deja las banderas como estaban (como el
+        // `switch` sin `default` de antes).
+        if ($aflags = ModelRules::assignmentFlags($vars['assignment_flag'])) {
+            $this->setFlag(self::FLAG_ASSIGN_MEMBERS_ONLY,
+                $aflags['members_only']);
+            $this->setFlag(self::FLAG_ASSIGN_PRIMARY_ONLY,
+                $aflags['primary_only']);
         }
 
         $this->path = $this->getFullPath();

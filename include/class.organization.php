@@ -17,6 +17,7 @@ require_once(INCLUDE_DIR . 'class.forms.php');
 require_once(INCLUDE_DIR . 'class.dynamic_forms.php');
 require_once(INCLUDE_DIR . 'class.user.php');
 require_once INCLUDE_DIR . 'class.search.php';
+require_once INCLUDE_DIR . 'class.model.rules.php';
 
 class OrganizationModel extends VerySimpleModel {
     static $meta = array(
@@ -459,41 +460,33 @@ implements TemplateVariable, Searchable {
                 $this->updated = SqlFunction::NOW();
         }
 
-        if ($auditCollabAll = $this->autoFlagChanged($this->autoAddMembersAsCollabs(),
-            $vars['collab-all-flag']))
-                $key = 'collab-all-flag';
-        if ($auditCollabPc = $this->autoFlagChanged($this->autoAddPrimaryContactsAsCollabs(),
-            $vars['collab-pc-flag']))
-                $key = 'collab-pc-flag';
-        if ($auditAssignAm = $this->autoFlagChanged($this->autoAssignAccountManager(),
-            $vars['assign-am-flag']))
-                $key = 'assign-am-flag';
+        // Qué banderas de compartición cambian (se avisa de la última, como
+        // antes) y qué columnas propias cambian. La comparación de listas va
+        // aparte porque los contactos llegan como texto y se guardan como
+        // objetos; sin contactos guardados no se avisa.
+        if ($key = ModelRules::lastFlagAudit(array(
+                'collab-all-flag' => array($this->autoAddMembersAsCollabs(),
+                    $vars['collab-all-flag']),
+                'collab-pc-flag' => array($this->autoAddPrimaryContactsAsCollabs(),
+                    $vars['collab-pc-flag']),
+                'assign-am-flag' => array($this->autoAssignAccountManager(),
+                    $vars['assign-am-flag']))))
+            Signal::send('object.edited', $this,
+                array('type' => 'edited', 'key' => $key));
 
-        if ($auditCollabAll || $auditCollabPc || $auditAssignAm) {
-            $type = array('type' => 'edited', 'key' => $key);
-            Signal::send('object.edited', $this, $type);
+        if (isset($vars['contacts']) && ($contacts = $this->getVar('contacts'))) {
+            $ids = array_map(function($c) { return $c->getId(); },
+                iterator_to_array($contacts));
+            if (ModelRules::idListChanged($vars['contacts'], $ids))
+                Signal::send('object.edited', $this,
+                    array('type' => 'edited', 'key' => 'contacts'));
         }
 
-        foreach ($vars as $key => $value) {
-            // Primary Contacts List Changes
-            if ($key == 'contacts') {
-                $ogContacts = $value;
-                if ($contacts = $this->getVar('contacts')) {
-                    $allContacts = array();
-                    foreach ($contacts as $key => $value)
-                        $allContacts[] = strval($value->getId());
-
-                    if ($ogContacts != $allContacts) {
-                        $type = array('type' => 'edited', 'key' => 'contacts');
-                        Signal::send('object.edited', $this, $type);
-                    }
-                }
-            }
-            if ($key != 'id' && $this->get($key) && $value != $this->get($key)) {
-                    $type = array('type' => 'edited', 'key' => $key);
-                    Signal::send('object.edited', $this, $type);
-            }
-        }
+        $self = $this;
+        $current = function($key) use ($self) { return $self->get($key); };
+        foreach (ModelRules::editedColumns($vars, $current, array('id')) as $key)
+            Signal::send('object.edited', $this,
+                array('type' => 'edited', 'key' => $key));
 
         $sharingPrimary = $this->sharingFlagChanged($this->shareWithPrimaryContacts(),
             $vars['sharing'], 'sharing-primary');

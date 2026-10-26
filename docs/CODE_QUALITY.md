@@ -256,12 +256,12 @@ integración.
 
 **Dónde está** (medido el 2026-10-26 con `make metrics`): la primera tanda está
 hecha y en uso —once piezas puras sacadas de las funciones más largas, con
-235 pruebas nuevas y siete defectos reales corregidos—, y ninguna de esas
+276 pruebas nuevas y siete defectos reales corregidos—, y ninguna de esas
 funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **19 funciones de la
+El criterio de éxito **no se cumple todavía**: quedan **18 funciones de la
 aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 (`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
@@ -278,10 +278,12 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `Staff::update()` | 137 líneas | **118** (`StaffCheck`) |
 | `Ticket::update()` | 133 líneas | **116** (`TicketEdit`) |
 | `Topic::update()` | 126 líneas | **105** (`ModelRules`) |
+| `Dept::update()` | 159 líneas | **137** (`ModelRules` + `StaffCheck`) |
+| `Organization::update()` | 128 líneas | **120** (`ModelRules`) |
 | `QuerySet::compileSelect()` | 222 líneas | **100** (`SelectSql`; `fields()` 148) |
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
-| Funciones de la aplicación por encima de 120 líneas | — | **19** |
+| Funciones de la aplicación por encima de 120 líneas | — | **18** |
 | Funciones de la aplicación por encima de 150 líneas | 10 | **8** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
@@ -295,12 +297,12 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Catorce funciones intermedias (120–175 líneas) que nadie ha tocado**,
+2. **Trece funciones intermedias (120–175 líneas) que nadie ha tocado**,
    y que no estaban en el plan: `Report::getTabularData()` (158),
    `Thread::create()` (158), `Queue::update()` (157), `SelectSql::fields()`
-   (148, la pieza que se sacó de `compileSelect()`), `Dept::update()` (148),
-   `Search::IndexOldStuff()` (137), `I18n::loadDefaultData()` (131),
-   `Ticket::open()` (129), `Organization::update()` (128),
+   (148, la pieza que se sacó de `compileSelect()`),
+   `Search::IndexOldStuff()` (137), `Dept::update()` (137),
+   `I18n::loadDefaultData()` (131), `Ticket::open()` (129),
    `MailParse::getAttachments()` (127), `Thread::lookupByEmailHeaders()`
    (126), `File::create()` (122) y `Ticket::setStatus()` (121). Varias son del mismo
    tipo que las que ya se partieron (armar campos, validar, componer
@@ -327,8 +329,8 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    dar la tanda por terminada.
 
 **Comprobación de las cifras de arriba** (2026-10-26, tras esta tanda, con
-`make metrics --top=400`): 19 funciones de la aplicación por encima de 120
-líneas —tres menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
+`make metrics --top=400`): 18 funciones de la aplicación por encima de 120
+líneas —cuatro menos que al empezar la tanda, ninguna nueva—, 8 por encima de 150 y
 3 archivos por encima de 3.000 (`class.ticket.php` 4.516, `class.forms.php`
 4.515, `class.orm.php` 3.643). La función más larga de la aplicación sigue
 siendo `massProcess()` con 321 líneas. Fuera del criterio, por ser librerías
@@ -341,7 +343,7 @@ datos, a una clase pequeña con nombre propio y con pruebas. Los tramos que sí
 tocan la base de datos se quedan donde están hasta que haya una prueba de
 integración con base de datos.
 
-Pasos hechos: **235 casos nuevos** sin base de datos.
+Pasos hechos: **276 casos nuevos** sin base de datos.
 
 | Pieza | Qué contiene | Pruebas |
 |---|---|---|
@@ -354,8 +356,8 @@ Pasos hechos: **235 casos nuevos** sin base de datos.
 | `include/class.orm.select.php` | `SelectSql::fields()`: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`) | `tests/QuerySqlTest.php`, 26 casos |
 | `include/class.validator.rule.php` | `ValidatorRule::check()`: la tabla de tipos de la definición de un campo (`int`, `double`, `text`, `date`, `email`, `phone`, `zipcode`, `username`, `password`, `url`, `cs-domain`, `cs-url`, `ipaddr`) y qué pasa cada valor, devolviendo el mensaje de error del campo o `null`; `everyValue()` (listas de valores) y los ayudantes de correo, URL, teléfono y usuario | `tests/ValidatorRuleTest.php`, 18 casos |
 | `include/class.ticket.edit.php` | `TicketEdit`: los cuatro campos que se validan al editar un ticket y sus mensajes, la regla de la fecha límite (ticket cerrado, fecha legible y futura, con el conversor inyectado), la comprobación del origen y **qué cambios quedan en el historial** (`trackedChanges()`) | `tests/TicketEditTest.php`, 13 casos |
-| `include/class.model.rules.php` | `ModelRules`: las banderas por estado (`active`/`archived`), la regla de «no dejar la lista vacía» (`wouldEmpty()`) y el destino de una asignación (`assignTarget()`: `s123` a un agente, `t45` a un equipo) | `tests/ModelRulesTest.php`, 12 casos |
-| `include/class.staff.check.php` | `StaffCheck`: campos obligatorios del agente, la regla del **último administrador** activo (que ya escondía un defecto: comparaba con una variable que sólo existe cuando cambian usuario o correo) y el formato de los accesos a departamentos y de las pertenencias a equipos | `tests/StaffCheckTest.php`, 11 casos |
+| `include/class.model.rules.php` | `ModelRules`: las banderas por estado (`active`/`archived`), la regla de «no dejar la lista vacía» (`wouldEmpty()`), el destino de una asignación (`assignTarget()`: `s123` a un agente, `t45` a un equipo), las referencias opcionales que deben existir (`unknownReferences()`), las banderas de a quién se puede asignar (`assignmentFlags()`), qué señales de «editado» manda un guardado (`editedSignals()`, `editedColumns()`), la última bandera que cambió en una organización (`lastFlagAudit()`), la comparación de la lista de contactos (`idListChanged()`) y el volcado de columnas con su tipo (`fieldValues()`) | `tests/ModelRulesTest.php`, 36 casos |
+| `include/class.staff.check.php` | `StaffCheck`: campos obligatorios del agente, la regla del **último administrador** activo (que ya escondía un defecto: comparaba con una variable que sólo existe cuando cambian usuario o correo) y el formato de los accesos a departamentos y de las pertenencias a equipos. `Dept::update()` reutiliza `accessPairs()`, así que las dos pantallas arman los accesos igual | `tests/StaffCheckTest.php`, 11 casos |
 | `include/class.schedule.fields.php` | `ScheduleEntryFormFields::build()`: los 13 campos del formulario de horario (nombre, fecha, todo el día, hora de inicio y fin, repetición, día de la semana, del mes y del año), sus valores por omisión y **cuándo se muestra cada uno** (`allday`, `repeats`, `monthly`, `yearly`), armados por bloques (`head()`, `weekly()`, `monthly()`, `yearly()`) | `tests/ScheduleFieldsTest.php`, 17 casos |
 
 Las doce piezas ya están en uso (`Ticket::postMessage()`, `Thread::postEmail()`,
