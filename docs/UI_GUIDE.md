@@ -606,6 +606,13 @@ forma sin tocar el tema ni el marcado.
 **después de `ui.css` y antes de `dark.css`**. El orden lo comprueba
 `make theme`.
 
+**Las hojas se sirven con versión en la URL.** nginx las cachea **7 días**
+(`expires 7d` en `docker/nginx/default.conf`) y `GIT_VERSION` no sirve como
+versión: en el árbol es la cadena literal `'$git'` y no cambia. Todas las
+hojas y scripts propios se piden por `Http::asset()`, que añade
+`?v=<filemtime>`; al cambiar el archivo cambia la URL y el navegador vuelve a
+pedirlo. `make theme` falla si alguna plantilla carga un recurso sin versión.
+
 **Cómo verla sin levantar el panel.** Las maquetas de `docs/` cargan las hojas
 de verdad, así que sirven para revisar el resultado sin PHP ni base de datos:
 
@@ -835,7 +842,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 144 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 150 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -868,6 +875,7 @@ respuesta, acceso y FAQ).
 | Se queda el recuadro **«Loading …»** encima de la página y la consola dice `e.indexOf is not a function` en `jquery` | Algún elemento lleva `data-dialog` con un número (p. ej. `data-dialog="201"`). Ese atributo es de osTicket y guarda una **URL**: jQuery convierte `"201"` a `Number` y `.load()` falla | Usa `data-ost-dialog="201"` en su lugar. Desde esta versión `scp.js` ignora los valores que no sean texto, así que el modal ya no se queda colgado |
 | `make dark-audit` dice **«Falta playwright» dentro de la imagen** | La imagen oficial solo trae los navegadores, no el paquete de Node | Corregido: `browser-audit.sh` instala `playwright-core` en el volumen `osticket-playwright` la primera vez. Si no hay red, se omite la auditoría |
 | `make theme` responde **`Could not open input file: /ruta/del/equipo/tools/ui/theme-check.php`** | `tools/php.sh` pasaba al contenedor la ruta del equipo, pero el proyecto está montado en `/var/www/html` | Corregido: `php.sh` traduce las rutas al montaje del contenedor (`OST_CONTAINER_DIR` para cambiarlo). Actualiza el repo |
+| **Los cambios de interfaz «no se ven»**: el HTML es nuevo (un texto, un campo o un botón que acabas de añadir) pero el CSS sigue siendo el viejo | Las hojas se sirven con `expires 7d`: el navegador no vuelve a preguntar. Pasó de verdad con una tanda entera de `css/modern.css` | Corregido: las hojas y scripts propios llevan `?v=<filemtime>` (`Http::asset()`), así que una URL nueva trae el archivo nuevo. Basta **una** recarga. Si vienes de una versión anterior, una última recarga forzada (`Ctrl+Shift+R`) y ya no hace falta más |
 | `make theme` / `make inline-audit` responden `php: No such file or directory` | No hay PHP en el equipo | Ya no hace falta: `tools/php.sh` ejecuta el comando dentro del contenedor de herramientas (`docker compose run --rm tools …`). Basta con tener Docker y el stack levantado alguna vez |
 
 

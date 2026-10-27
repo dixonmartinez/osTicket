@@ -49,43 +49,43 @@ if (osTicket::is_ie())
     <link rel="apple-touch-icon" href="<?php echo ROOT_PATH ?>images/pwa/apple-touch-icon.png">
     <link rel="manifest" href="<?php echo ROOT_PATH ?>manifest.php?scope=client">
 	<!-- Tema claro/oscuro: se aplica antes del primer pintado (sin destello) -->
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/theme.js"></script>
-	<link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/osticket.css" media="screen">
+    <script type="text/javascript" src="<?php echo Http::asset('js/theme.js') ?>"></script>
+	<link rel="stylesheet" href="<?php echo Http::asset('css/osticket.css') ?>" media="screen">
     <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/theme.css" media="screen">
     <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/print.css" media="print">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/typeahead.css"
+    <link rel="stylesheet" href="<?php echo Http::asset('css/typeahead.css') ?>"
          media="screen" />
-    <link type="text/css" href="<?php echo ROOT_PATH; ?>css/ui-lightness/jquery-ui-1.13.2.custom.min.css"
+    <link type="text/css" href="<?php echo Http::asset('css/ui-lightness/jquery-ui-1.13.2.custom.min.css') ?>"
         rel="stylesheet" media="screen" />
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/jquery-ui-timepicker-addon.css" media="all">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/thread.css" media="screen">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/redactor.css" media="screen">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/font-awesome.min.css">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/flags.css">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/rtl.css"/>
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/select2.min.css">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/jquery-ui-timepicker-addon.css') ?>" media="all">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/thread.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/redactor.css') ?>" media="screen">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/font-awesome.min.css') ?>">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/flags.css') ?>">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/rtl.css') ?>"/>
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/select2.min.css') ?>">
     <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/ui.css') ?>" media="screen">
     <!-- Capa moderna: mismo cromo en el portal (ver docs/UI_GUIDE.md, cap. 4) -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/modern.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/modern.css') ?>" media="screen">
     <!-- Tema oscuro: la última hoja propia para poder corregir a las anteriores
          (ver docs/UI_GUIDE.md). Los estilos de plugins se cargan después. -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/dark.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/density.css') ?>" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/pwa.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-ui-1.13.2.custom.min.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-ui-timepicker-addon.js"></script>
-    <script src="<?php echo ROOT_PATH; ?>js/osticket.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/filedrop.field.js"></script>
-    <script src="<?php echo ROOT_PATH; ?>js/bootstrap-typeahead.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/redactor.min.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/redactor-plugins.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/redactor-osticket.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/select2.min.js"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/jquery-3.7.0.min.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/pwa.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/jquery-ui-1.13.2.custom.min.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/jquery-ui-timepicker-addon.js') ?>"></script>
+    <script src="<?php echo Http::asset('js/osticket.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/filedrop.field.js') ?>"></script>
+    <script src="<?php echo Http::asset('js/bootstrap-typeahead.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/redactor.min.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/redactor-plugins.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/redactor-osticket.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/select2.min.js') ?>"></script>
     <?php
     if($ost && ($headers=$ost->getExtraHeaders())) {
         echo "\n\t".implode("\n\t", $headers)."\n";

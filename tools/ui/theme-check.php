@@ -148,6 +148,24 @@ check(strpos($modern, 'var(--mod-ring)') !== false
     'css/modern.css consume los tokens de color de css/ui.css',
     'css/modern.css no usa los tokens --ui-* / --mod-ring');
 
+/* 2c. Version en la URL del recurso -------------------------------------- */
+// nginx sirve CSS y JS con `expires 7d`: sin una version en la URL, tras un
+// `git pull` el navegador pinta el HTML nuevo con la hoja vieja y parece que
+// los cambios no se aplicaron.
+$http = read("$root/include/class.http.php");
+
+check(strpos($http, 'static function asset(') !== false,
+    'Http::asset() existe',
+    'falta Http::asset(): las hojas se sirven sin version y el navegador las cachea 7 dias');
+
+check(strpos($http, 'filemtime($file)') !== false,
+    'Http::asset() versiona con filemtime (GIT_VERSION es literalmente $git)',
+    'Http::asset() no usa filemtime(): la version no cambiaria al actualizar');
+
+check(strpos(read("$root/sw.js"), 'cache.match(url.pathname)') !== false,
+    'el service worker encuentra la copia sin ?v= (sin red sigue habiendo estilos)',
+    'sw.js no busca la copia por ruta: sin red, las hojas versionadas no aparecen');
+
 /* 3 y 4. Cabeceras ------------------------------------------------------- */
 $headers = [
     'include/staff/header.inc.php' => 'panel de agentes',
@@ -226,6 +244,17 @@ foreach ($headers as $file => $what) {
     check(strpos($html, 'color-scheme') !== false,
         "$what: declara color-scheme (controles nativos a juego)",
         "$what: falta <meta name=\"color-scheme\">: los controles nativos seguirían en claro");
+
+    // Todos, no sólo alguno: una sola hoja sin `?v=` se queda 7 días en el
+    // navegador y es justo la que se acaba de tocar.
+    $versionados = strpos($html, 'Http::asset(') !== false;
+    $sinVersion = preg_match_all(
+        '/<\?php echo ROOT_PATH;? \?>\s*[^"\s]+\.(?:css|js)/', $html);
+
+    check($versionados && $sinVersion === 0,
+        "$what: todos sus recursos llevan version",
+        "$what: $sinVersion recurso(s) sin version: el navegador los guardará"
+            . ' 7 días y los cambios no se verán');
 
     check(strpos($html, 'theme-toggle.inc.php') !== false,
         "$what: incluye el botón de cambio de tema",

@@ -11,14 +11,14 @@ header('Content-Security-Policy: '.Http::csp($cfg));
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <meta http-equiv="refresh" content="7200" />
     <title>osTicket :: <?php echo __('Agent Login'); ?></title>
-    <link rel="stylesheet" href="css/login.css" type="text/css" />
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/font-awesome.min.css">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('scp/css/login.css') ?>" type="text/css" />
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/font-awesome.min.css') ?>">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/ui.css') ?>" media="screen">
     <!-- Capa moderna (ver docs/UI_GUIDE.md, cap. 4) -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/modern.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/modern.css') ?>" media="screen">
     <!-- Tema oscuro (ver docs/UI_GUIDE.md) -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/dark.css" media="screen">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/dark.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/density.css') ?>" media="screen">
     <meta name="robots" content="noindex" />
     <meta http-equiv="cache-control" content="no-cache" />
     <meta http-equiv="pragma" content="no-cache" />
@@ -28,8 +28,8 @@ header('Content-Security-Policy: '.Http::csp($cfg));
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />
     <!-- Tema claro/oscuro: se aplica antes del primer pintado (sin destello) -->
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/theme.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/theme.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/jquery-3.7.0.min.js') ?>"></script>
     <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
         $(document).ready(function() {
             $("input:not(.dp):visible:enabled:first").focus();

@@ -46,39 +46,39 @@ if (osTicket::is_ie())
     </style>
     <![endif]-->
     <!-- Tema claro/oscuro: se aplica antes del primer pintado (sin destello) -->
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/theme.js"></script>
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/jquery-3.7.0.min.js"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/theme.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo Http::asset('js/jquery-3.7.0.min.js') ?>"></script>
     <!-- PWA: registro del service worker (ver docs/MOBILE.md) -->
-    <script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/pwa.js"></script>
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/thread.css" media="all">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>scp/css/scp.css" media="all">
+    <script type="text/javascript" src="<?php echo Http::asset('js/pwa.js') ?>"></script>
+    <link rel="stylesheet" href="<?php echo Http::asset('css/thread.css') ?>" media="all">
+    <link rel="stylesheet" href="<?php echo Http::asset('scp/css/scp.css') ?>" media="all">
     <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/ui.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/ui.css') ?>" media="screen">
     <!-- Capa moderna: cromo, tablas y formularios. Va despues de ui.css y
          antes de dark.css, que manda en color (ver docs/UI_GUIDE.md, cap. 4). -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/modern.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/modern.css') ?>" media="screen">
     <!-- Adaptación a móvil y tablet (reglas aditivas, ver docs/MOBILE.md) -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/mobile.css" media="screen">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/redactor.css" media="screen">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/typeahead.css" media="screen">
-    <link type="text/css" href="<?php echo ROOT_PATH; ?>css/ui-lightness/jquery-ui-1.13.2.custom.min.css"
+    <link rel="stylesheet" href="<?php echo Http::asset('css/mobile.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/redactor.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/typeahead.css') ?>" media="screen">
+    <link type="text/css" href="<?php echo Http::asset('css/ui-lightness/jquery-ui-1.13.2.custom.min.css') ?>"
          rel="stylesheet" media="screen" />
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/jquery-ui-timepicker-addon.css" media="all">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/font-awesome.min.css">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/jquery-ui-timepicker-addon.css') ?>" media="all">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/font-awesome.min.css') ?>">
     <!--[if IE 7]>
-    <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/font-awesome-ie7.min.css">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/font-awesome-ie7.min.css') ?>">
     <![endif]-->
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH ?>scp/css/dropdown.css">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/loadingbar.css"/>
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/flags.css">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/select2.min.css">
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/rtl.css"/>
-    <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH ?>scp/css/translatable.css"/>
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('scp/css/dropdown.css') ?>">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/loadingbar.css') ?>"/>
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/flags.css') ?>">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/select2.min.css') ?>">
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('css/rtl.css') ?>"/>
+    <link type="text/css" rel="stylesheet" href="<?php echo Http::asset('scp/css/translatable.css') ?>"/>
     <!-- Tema oscuro: la última hoja propia para poder corregir a scp.css,
          mobile.css y jQuery UI (ver docs/UI_GUIDE.md). Los estilos de plugins
          (getExtraHeaders) se cargan después y pueden sobreescribirlo. -->
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">
-    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/dark.css') ?>" media="screen">
+    <link rel="stylesheet" href="<?php echo Http::asset('css/density.css') ?>" media="screen">
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-32x32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="<?php echo ROOT_PATH ?>images/oscar-favicon-16x16.png" sizes="16x16" />

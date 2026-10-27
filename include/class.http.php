@@ -253,6 +253,39 @@ class Http {
         return self::$nonce = $nonce;
     }
 
+    /**
+     * URL de un recurso propio con su versión de contenido.
+     *
+     * nginx sirve las hojas y los scripts con `expires 7d`
+     * (`docker/nginx/default.conf`), así que el navegador **no vuelve a
+     * preguntar** en una semana. Tras un `git pull` eso significa que el
+     * HTML nuevo se pinta con el CSS viejo, y el síntoma es el peor posible:
+     * parece que el arreglo no se aplicó. Pasó de verdad —una tanda entera de
+     * cambios de interfaz «no se veía» porque el navegador seguía con la
+     * primera versión de `css/modern.css`—.
+     *
+     * `GIT_VERSION` no sirve para esto: es la cadena literal `'$git'` del
+     * paquete de distribución y no cambia en un checkout. Lo que sí cambia
+     * cuando el archivo cambia es su `filemtime()`.
+     *
+     * Si el recurso no está en disco (un tema servido desde otro host, una
+     * ruta de un complemento) se devuelve la URL tal cual: mejor una hoja sin
+     * versión que una ruta rota.
+     *
+     * @param string $path  ruta relativa a la raíz del proyecto
+     * @param string $base  prefijo de la URL (por omisión, `ROOT_PATH`)
+     */
+    static function asset($path, $base=null) {
+        $path = ltrim((string) $path, '/');
+        if ($base === null)
+            $base = defined('ROOT_PATH') ? ROOT_PATH : '/';
+
+        $file = (defined('ROOT_DIR') ? ROOT_DIR : '.') . '/' . $path;
+        $version = is_file($file) ? filemtime($file) : false;
+
+        return $base . $path . ($version ? '?v=' . $version : '');
+    }
+
     /** Descarta el nonce en memoria (pruebas y cambio de sesión). */
     static function resetNonce() {
         self::$nonce = null;

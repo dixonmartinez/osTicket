@@ -60,7 +60,10 @@
 //     el indicador de orden deja de ser un bloque de color.
 // v28: los controles de la barra de la cola (Sort, filtro, More) se ven
 //     pulsables y el buscador dice que busca.
-const VERSION = 'ost-v30';
+// v31: las hojas y los scripts se piden con ?v=<mtime> (Http::asset). Si el
+//     navegador recibe HTML nuevo con CSS de la cache de 7 dias de nginx,
+//     los cambios de interfaz "no se ven".
+const VERSION = 'ost-v31';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -187,7 +190,13 @@ self.addEventListener('fetch', (event) => {
         return response;
       }
       catch (e) {
-        const cached = await cache.match(request);
+        // Las hojas y los scripts se piden con `?v=<mtime>` (Http::asset),
+        // asi que la copia precacheada (sin sufijo) no coincide con la
+        // peticion. Se busca primero exacta y despues por ruta: sin red, la
+        // version antigua de la hoja sigue sirviendo y la pagina no sale sin
+        // estilos.
+        const cached = await cache.match(request)
+          || await cache.match(url.pathname);
 
         return cached || Response.error();
       }

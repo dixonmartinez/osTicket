@@ -15,9 +15,9 @@ if (($lang = Internationalization::getCurrentLanguage()) && $lang != 'en_US') { 
     <script type="text/javascript" src="<?php echo ROOT_PATH; ?>ajax.php/i18n/<?php
         echo $lang; ?>/js"></script>
 <?php } ?>
-<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/dialog-focus.js"></script>
-<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/icons.js"></script>
-<script type="text/javascript" src="<?php echo ROOT_PATH; ?>js/actions.js"></script>
+<script type="text/javascript" src="<?php echo Http::asset('js/dialog-focus.js') ?>"></script>
+<script type="text/javascript" src="<?php echo Http::asset('js/icons.js') ?>"></script>
+<script type="text/javascript" src="<?php echo Http::asset('js/actions.js') ?>"></script>
 <?php include INCLUDE_DIR . 'templates/password-strength.inc.php'; ?>
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
     getConfig().resolve(<?php
