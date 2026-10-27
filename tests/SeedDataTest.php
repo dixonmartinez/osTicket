@@ -957,7 +957,7 @@ class SeedDataTest extends UnitTestCase {
         $end = strpos($source, 'function scalar(', $start);
         $body = substr($source, $start, $end - $start);
 
-        $this->assertStringContainsString("->values('id', 'pid', 'created'", $body,
+        $this->assertStringContainsString("'pid' => (int) \$entry->pid", $body,
             'hace falta el padre de cada entrada para comparar');
         $this->assertStringContainsString('lastmessage', $body,
             'la ultima actividad del hilo se queda atras y la columna '

@@ -430,6 +430,20 @@ Hace cuatro cosas y **no borra ni crea registros**:
    (`DynamicForm::rebuildDynamicDataViews()`), que es lo que hace
    `make db-rebuild-views`.
 
+Cada paso imprime **cuántos elementos ha mirado y cuántos ha tocado**, además
+de cuántos artículos hay en la base y a qué categorías apuntan:
+
+```
+  · 33 artículo(s) del manifiesto: 0 en la base, 0 ya en su categoría,
+    0 recolocados
+  · 33 artículo(s) en la base; apuntan a las categorías: 0
+  · 131 entrada(s): 0 con mensaje padre, 0 antes de su padre, 0 recolocadas
+```
+
+Esas cifras distinguen los tres casos que antes se veían igual («0
+recolocados»): que los artículos no se encuentren por su pregunta, que ya
+estén en su sitio, o que apunten a una categoría que no existe.
+
 Después de reparar se pasa la misma revisión, así que la salida termina en
 «Todo cuadra.» cuando ya no queda nada. Lo que **no** repara —un ticket sin
 evento de creación o de cierre, o un departamento que el administrador no

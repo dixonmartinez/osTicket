@@ -291,7 +291,7 @@ seed-doctor: ## Revisa que los datos sembrados cuadren con los informes (no escr
 	@docker compose exec -T php php manage.php seed --doctor
 
 seed-repair: ## Arregla lo que el doctor detecta, sin borrar ni volver a sembrar
-	@docker compose exec -T php php manage.php seed --repair
+	@docker compose exec -T php php manage.php seed --repair $(SEED_ARGS)
 
 # Diagnóstico de colas: `make queue-check QUEUE=8`, `make queue-check QUEUE=8 QUEUE_ARGS=--sql`
 QUEUE ?=

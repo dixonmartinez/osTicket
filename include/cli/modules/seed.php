@@ -1779,8 +1779,8 @@ class SeedManager extends Module {
      * exacta; lo que no está en el manifiesto no se toca.
      */
     function repairFaqCategories() {
-        $fixed = 0;
-        $missing = 0;
+        $seen = $found = $ok = $fixed = $missing = 0;
+        $notfound = array();
 
         foreach (self::faqs() as $name => $articles) {
             if (!($category = $this->categoryByName($name))) {
@@ -1792,15 +1792,30 @@ class SeedManager extends Module {
 
             foreach ($articles as $article) {
                 list($question) = $article;
-                if (!($id = $this->faqIdByQuestion($question))
-                        || !($faq = FAQ::lookup($id)))
-                    continue;
+                $seen++;
 
-                if ($faq->getCategoryId() == $category->getId())
+                // Por la tabla (misma columna con la que `FAQ::update()`
+                // decide que hay duplicado) y, si no aparece, por el ORM.
+                $faq = null;
+                if (($id = $this->faqIdByQuestion($question)))
+                    $faq = FAQ::lookup($id);
+                if (!$faq)
+                    $faq = FAQ::lookup(array('question' => $question));
+                if (!$faq) {
+                    if (count($notfound) < 3)
+                        $notfound[] = $question;
                     continue;
+                }
+
+                $found++;
+
+                if ($faq->getCategoryId() == $category->getId()) {
+                    $ok++;
+                    continue;
+                }
 
                 $vars = array(
-                    'id' => $id,
+                    'id' => $faq->getId(),
                     'question' => $faq->getQuestion(),
                     'answer' => $faq->getAnswer(),
                     'category_id' => $category->getId(),
@@ -1819,8 +1834,35 @@ class SeedManager extends Module {
             }
         }
 
-        $this->out(sprintf('  · %d artículo(s) recolocados en su categoría',
-            $fixed));
+        // Las cifras van siempre: sin ellas, un «0 recolocados» no dice si el
+        // problema es que no se encuentran los artículos, que ya están en su
+        // sitio o que la categoría no existe.
+        $this->out(sprintf('  · %d artículo(s) del manifiesto: %d en la base, '
+            . '%d ya en su categoría, %d recolocados',
+            $seen, $found, $ok, $fixed));
+
+        // Y el estado real de la tabla: cuántos artículos hay y a qué
+        // categorías apuntan. Un `category_id` que no existe en
+        // `ost_faq_category` es lo que cuenta el chequeo del doctor.
+        try {
+            $used = array();
+            foreach (FAQ::objects()->values('category_id')
+                    ->distinct('category_id') as $row)
+                $used[] = $row['category_id'] === null
+                    ? 'NULL' : (string) $row['category_id'];
+
+            $this->out(sprintf('  · %d artículo(s) en la base; apuntan a las '
+                . 'categorías: %s', FAQ::objects()->count(),
+                $used ? implode(', ', $used) : '—'));
+        }
+        catch (Throwable $e) {
+            $this->warn('no se pudo leer la tabla de artículos: '
+                . $e->getMessage());
+        }
+
+        if ($notfound)
+            $this->warn('no se encuentran por su pregunta (pueden ser de otra '
+                . 'versión del sembrador): ' . implode(' · ', $notfound));
 
         if ($missing)
             $this->warn(sprintf('%d categoría(s) del manifiesto no existen: '
@@ -1841,22 +1883,37 @@ class SeedManager extends Module {
      * se guardan con el ORM, sin SQL a mano.
      */
     function repairEntryDates() {
+        // Se leen los modelos, no un `values()`: así se usan los mismos
+        // campos que el resto del módulo (`$entry->pid`, `$entry->created`) y
+        // no se depende de cómo se llamen las columnas en el SELECT.
         $entries = array();
-        foreach (ThreadEntry::objects()
-                ->values('id', 'pid', 'created', 'thread_id') as $row)
-            $entries[(int) $row['id']] = $row;
+        foreach (ThreadEntry::objects()->all() as $entry)
+            $entries[(int) $entry->getId()] = array(
+                'id' => (int) $entry->getId(),
+                'pid' => (int) $entry->pid,
+                'created' => $entry->created,
+                'thread_id' => (int) $entry->thread_id,
+            );
 
         ksort($entries);
 
         $fixed = 0;
+        $withParent = 0;
+        $outOfOrder = 0;
         $threads = array();
         $offset = array();
 
         foreach ($entries as $id => $row) {
-            $pid = (int) $row['pid'];
-            if (!$pid || !isset($entries[$pid])
-                    || strtotime($row['created']) >= strtotime($entries[$pid]['created']))
+            $pid = (int) ($row['pid'] ?? 0);
+            if (!$pid || !isset($entries[$pid]))
                 continue;
+
+            $withParent++;
+
+            if (strtotime($row['created']) >= strtotime($entries[$pid]['created']))
+                continue;
+
+            $outOfOrder++;
 
             // Un minuto más por hermano ya recolocado, para no dejar dos
             // entradas con la misma marca de tiempo.
@@ -1878,10 +1935,9 @@ class SeedManager extends Module {
         foreach (array_keys($threads) as $threadId) {
             $last = null;
             foreach (ThreadEntry::objects()
-                    ->filter(array('thread_id' => $threadId))
-                    ->values('created') as $row)
-                if ($last === null || $row['created'] > $last)
-                    $last = $row['created'];
+                    ->filter(array('thread_id' => $threadId))->all() as $entry)
+                if ($last === null || $entry->created > $last)
+                    $last = $entry->created;
 
             if ($last)
                 Thread::objects()
@@ -1889,8 +1945,12 @@ class SeedManager extends Module {
                     ->update(array('lastmessage' => $last));
         }
 
-        $this->out(sprintf('  · %d entrada(s) recolocadas detrás de su mensaje '
-            . 'padre', $fixed));
+        // Las cifras también aquí: distinguen «no hay ninguna entrada con
+        // padre» (el dato que se leyó no era el que se creía) de «no hay
+        // ninguna fuera de orden» (ya estaba bien).
+        $this->out(sprintf('  · %d entrada(s): %d con mensaje padre, '
+            . '%d antes de su padre, %d recolocadas',
+            count($entries), $withParent, $outOfOrder, $fixed));
     }
 
     /** Un único valor de una consulta, o null si falla. */
