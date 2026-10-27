@@ -251,6 +251,33 @@ class SeedPurgeManager extends SeedManager {
 
 class SeedPurgeTest extends UnitTestCase {
 
+    /**
+     * El código del sembrador: la clase **y sus rasgos**.
+     *
+     * Desde el reparto del frente 6 los pasos que escriben viven en
+     * `seed.writes.php` (`use SeedWrites;`). Estas pruebas miran el texto del
+     * módulo para comprobar que ciertas líneas siguen ahí, así que tienen que
+     * mirar también los rasgos; si no, un traslado las hace fallar y la
+     * tentación es borrarlas en vez de arreglarlas.
+     */
+    private function fuente() {
+        $base = INCLUDE_DIR . 'cli/modules/seed.php';
+        $source = file_get_contents($base);
+
+        preg_match_all('/^\s+use (\w+);/m', $source, $m);
+        foreach (array_unique($m[1]) as $trait) {
+            foreach (glob(dirname($base) . '/*.php') as $file) {
+                if ($file === $base)
+                    continue;
+                $text = file_get_contents($file);
+                if (preg_match('/^trait ' . $trait . '\b/m', $text))
+                    $source .= "\n" . $text;
+            }
+        }
+
+        return $source;
+    }
+
     private SeedPurgeStream $err;
 
     /** Modelos vacíos y manifiesto limpio antes de cada prueba. */

@@ -34,6 +34,33 @@ require_once INCLUDE_DIR . 'cli/modules/seed.php';
 
 class SeedDataTest extends UnitTestCase {
 
+    /**
+     * El código del sembrador: la clase **y sus rasgos**.
+     *
+     * Desde el reparto del frente 6 los pasos que escriben viven en
+     * `seed.writes.php` (`use SeedWrites;`). Estas pruebas miran el texto del
+     * módulo para comprobar que ciertas líneas siguen ahí, así que tienen que
+     * mirar también los rasgos; si no, un traslado las hace fallar y la
+     * tentación es borrarlas en vez de arreglarlas.
+     */
+    private function fuente() {
+        $base = INCLUDE_DIR . 'cli/modules/seed.php';
+        $source = file_get_contents($base);
+
+        preg_match_all('/^\s+use (\w+);/m', $source, $m);
+        foreach (array_unique($m[1]) as $trait) {
+            foreach (glob(dirname($base) . '/*.php') as $file) {
+                if ($file === $base)
+                    continue;
+                $text = file_get_contents($file);
+                if (preg_match('/^trait ' . $trait . '\b/m', $text))
+                    $source .= "\n" . $text;
+            }
+        }
+
+        return $source;
+    }
+
     /** Los datos de un paso, como pares [clave => valor] normalizados. */
     private function tickets(): array {
         return SeedManager::tickets();
@@ -83,7 +110,7 @@ class SeedDataTest extends UnitTestCase {
      * («23 tickets», tabla vacía).
      */
     public function testConcedeAccesoAlAdministradorQueYaExistia(): void {
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
 
         $this->assertStringContainsString('function grantAdminDepartments', $source);
         $this->assertStringContainsString('$this->grantAdminDepartments();', $source);
@@ -114,7 +141,7 @@ class SeedDataTest extends UnitTestCase {
 
     /** `seed-doctor` avisa de tickets que el administrador no puede ver. */
     public function testElDoctorRevisaLaVisibilidadDelAdministrador(): void {
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
 
         $this->assertStringContainsString(
             'tickets en departamentos que el administrador no ve', $source);
@@ -141,7 +168,7 @@ class SeedDataTest extends UnitTestCase {
         // eran un array dentro de `seedTeams()`— y `make seed-fresh` moría con
         // un `Error` fatal antes de borrar nada. Aquí se recorren todas las
         // llamadas `self::x()` del módulo.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         preg_match_all('/self::([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', $source, $found);
         $names = array_values(array_unique($found[1]));
 
@@ -155,7 +182,7 @@ class SeedDataTest extends UnitTestCase {
         // Un `$this->metodo()` que no existe es un `Error` fatal en tiempo de
         // ejecución, y sólo se ve al correr el comando contra la base. Aquí se
         // comparan todas las llamadas con lo que declara la clase.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         preg_match_all('/\$this->([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', $source, $found);
         $names = array_values(array_unique($found[1]));
 
@@ -621,7 +648,7 @@ class SeedDataTest extends UnitTestCase {
         // `agents` sólo debe crear el de demostración cuando no hay ninguno,
         // y para saberlo hay que preguntar por `isadmin`, no por el nombre de
         // usuario: el instalador deja elegir cualquiera.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
 
         $this->assertStringContainsString('function firstAdmin()', $source);
         $this->assertStringContainsString("'isadmin' => 1", $source);
@@ -645,7 +672,7 @@ class SeedDataTest extends UnitTestCase {
     public function testElAdministradorEnUsoSeEligeAlEmpezar(): void {
         // `--only=tasks` no pasa por el paso `agents`: el administrador tiene
         // que quedar resuelto antes de los pasos, no dentro de uno.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $start = strpos($source, '$this->loadManifest();');
         $set = strpos($source, '$this->adminStaff = $this->firstAdmin();');
 
@@ -665,7 +692,7 @@ class SeedDataTest extends UnitTestCase {
         $this->assertTrue(method_exists('SeedManager', 'purgeByName'));
         $this->assertTrue(method_exists('SeedManager', 'purgeAll'));
 
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $this->assertStringContainsString('$loose = $this->purgeByName();', $source);
     }
 
@@ -676,7 +703,7 @@ class SeedDataTest extends UnitTestCase {
         // departamento «Soporte» propio, borrarlo por parecerse sería perder
         // su configuración. Esos van sólo por identificador.
         $method = new ReflectionMethod('SeedManager', 'purgeByName');
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $lines = explode("\n", $source);
         $body = implode("\n", array_slice($lines,
             $method->getStartLine() - 1,
@@ -701,7 +728,7 @@ class SeedDataTest extends UnitTestCase {
         // Si la ejecución se corta a mitad, lo creado hasta ahí tiene que
         // poder borrarse: el manifiesto se escribe registro a registro, no al
         // final del comando.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $init = strpos($source, 'function __construct');
         $created = strpos($source, 'function created(');
         $end = strpos($source, 'function counted(', $created);
@@ -714,7 +741,7 @@ class SeedDataTest extends UnitTestCase {
         // Si la instalación nació con la cuenta de demostración (`admin`, con
         // correo en el dominio de prueba), el manifiesto la conoce y `--fresh`
         // la borraría: el panel se quedaría sin acceso. Se excluye por id.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $this->assertStringContainsString(
             "if (\$this->adminStaff\n                                && \$this->adminStaff->getId() == \$id)",
             $source);
@@ -725,7 +752,7 @@ class SeedDataTest extends UnitTestCase {
         // `FAQ::update()` rechazaba la pregunta por duplicada: 8 artículos
         // quedaban sin crear con un aviso. Se pregunta por el id directamente.
         $this->assertTrue(method_exists('SeedManager', 'faqIdByQuestion'));
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $this->assertStringContainsString('FROM %s WHERE question = %s LIMIT 1',
             $source);
         $this->assertStringContainsString('FAQ_TABLE, db_input($question)', $source);
@@ -735,7 +762,7 @@ class SeedDataTest extends UnitTestCase {
     public function testCadaActualizacionEmpiezaSinErrores(): void {
         // `$errors` es acumulativo: reutilizarlo entre registros hacía que el
         // aviso de un fallo anterior se pegara al siguiente registro creado.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $creates = preg_match_all(
             '/\$(staff|dept|team|sla|topic|category|faq) = \w+::create\(\);\s*\n'
             . '\s*\$errors = array\(\);/',
@@ -795,7 +822,7 @@ class SeedDataTest extends UnitTestCase {
         // de `backdateEvent()` llamaba a `->getId()` y `make seed-fresh` moría
         // con «Call to undefined method ThreadEvent::getId()», dejando el paso
         // `tickets` sin crear nada.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $start = strpos($source, 'function backdateEvent(');
         $end = strpos($source, 'function logEventAt(', $start);
         $body = substr($source, $start, $end - $start);
@@ -809,7 +836,7 @@ class SeedDataTest extends UnitTestCase {
         // Fechar es cosmético para el hilo pero imprescindible para los
         // informes: si el ajuste falla, se avisa y se sigue. Antes una
         // excepción aquí abortaba el paso entero (59 tickets a la basura).
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $start = strpos($source, 'function backdateEvent(');
         $end = strpos($source, 'function logEventAt(', $start);
         $body = substr($source, $start, $end - $start);
@@ -821,7 +848,7 @@ class SeedDataTest extends UnitTestCase {
         // Si un artículo quedó sin su categoría, el paso `faq` lo recoloca en
         // vez de decir «ya existía» y dejarlo invisible en la base de
         // conocimiento.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $start = strpos($source, 'function seedFaq(');
         $end = strpos($source, 'function faqIdByQuestion(', $start);
         $body = substr($source, $start, $end - $start);
@@ -835,7 +862,7 @@ class SeedDataTest extends UnitTestCase {
     /* ------------------------------------------------------------------ */
 
     public function testElChequeoSePuedePedirSinCrearNada(): void {
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
 
         $this->assertTrue(method_exists('SeedManager', 'doctor'));
         $this->assertStringContainsString("'doctor' => array('', '--doctor'",
@@ -851,7 +878,7 @@ class SeedDataTest extends UnitTestCase {
         // Cada revisión es una relación entre tablas que el sembrador puede
         // dejar mal y que se ve en el panel: «Service Time 0.0», «Closed 0»,
         // «Deleted 20», tiempos negativos, colas que cuentan y no pintan.
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
         $start = strpos($source, 'function doctor(');
         $end = strpos($source, 'function scalar(', $start);
         $body = substr($source, $start, $end - $start);
@@ -869,7 +896,7 @@ class SeedDataTest extends UnitTestCase {
     public function testLaPurgaLimpiaLasFilasDeHiloHuerfanas(): void {
         // Un ticket borrado deja sus eventos en `thread_event`; el Statistics
         // nativo los sigue contando (era el «Deleted 20» del administrador).
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/seed.php');
+        $source = $this->fuente();
 
         $this->assertTrue(method_exists('SeedManager', 'cleanupOrphans'));
         $purge = strpos($source, '$this->cleanupOrphans();');
