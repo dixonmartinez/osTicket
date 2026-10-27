@@ -606,6 +606,18 @@ forma sin tocar el tema ni el marcado.
 **después de `ui.css` y antes de `dark.css`**. El orden lo comprueba
 `make theme`.
 
+**Cómo verla sin levantar el panel.** Las maquetas de `docs/` cargan las hojas
+de verdad, así que sirven para revisar el resultado sin PHP ni base de datos:
+
+```bash
+python3 -m http.server 8088        # desde la raíz del proyecto
+# luego: http://localhost:8088/docs/
+```
+
+`docs/index.html` es el índice de las tres maquetas (panel, portal y
+analíticas). En el panel de la maqueta hay una sección con el estado vacío de
+la cola.
+
 **Cómo quitarla.** Borrar `css/modern.css` y sus tres `<link>`: la aplicación
 vuelve exactamente al aspecto anterior, porque ninguna plantilla depende de
 ella.

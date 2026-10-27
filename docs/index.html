@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vistas previas de la interfaz — osTicket</title>
+<meta name="color-scheme" content="light dark">
+<!--
+  Índice de las maquetas de docs/. No forma parte de la aplicación: nginx no
+  sirve docs/ (ver docs/UI_GUIDE.md). Sirve para abrir las vistas previas sin
+  levantar el panel, por ejemplo con:
+
+      python3 -m http.server 8088            # desde la raíz del proyecto
+      https://<host>/docs/
+
+  Cada maqueta carga las hojas de verdad, así que lo que se ve es lo que se
+  aplica en la aplicación.
+-->
+<style>
+    :root {
+        --bg: #f6f8fa; --fg: #1f2933; --muted: #5b6670; --border: #cfd6dd;
+        --card: #fff; --accent: #2a67ac;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg: #12161b; --fg: #e6ebf0; --muted: #a6b2be; --border: #333e4a;
+            --card: #171d24; --accent: #83b7ee;
+        }
+    }
+    body {
+        margin: 0; padding: 40px 20px;
+        font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg); color: var(--fg);
+    }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.01em; }
+    p.lead { color: var(--muted); margin: 0 0 28px; }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+    a.card {
+        display: block; padding: 16px 18px; text-decoration: none;
+        background: var(--card); color: inherit;
+        border: 1px solid var(--border); border-radius: 10px;
+        transition: border-color .15s ease, transform .08s ease;
+    }
+    a.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    a.card strong { display: block; font-size: 15px; margin-bottom: 2px; }
+    a.card span { color: var(--muted); font-size: 13px; }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+    footer { margin-top: 28px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+    <h1>Vistas previas de la interfaz</h1>
+    <p class="lead">Maquetas con el marcado real de las plantillas y las hojas de
+    estilo de verdad (incluida <code>css/modern.css</code>). No necesitan PHP ni
+    base de datos.</p>
+
+    <ul>
+        <li><a class="card" href="theme-preview.html">
+            <strong>Panel de agentes</strong>
+            <span>Cabecera, navegación, colas, formularios, diálogos, entradas de ticket y el estado vacío de la cola.</span>
+        </a></li>
+        <li><a class="card" href="theme-preview-client.html">
+            <strong>Portal del cliente</strong>
+            <span>Lista de tickets, ficha, respuesta, acceso y preguntas frecuentes.</span>
+        </a></li>
+        <li><a class="card" href="analytics-preview.html">
+            <strong>Panel de analíticas</strong>
+            <span>Tarjetas y gráficas SVG, sin JavaScript y sin base de datos.</span>
+        </a></li>
+    </ul>
+
+    <footer>
+        El botón de la cabecera de cada maqueta alterna claro/oscuro igual que
+        en la aplicación. Documentación: <code>docs/UI_GUIDE.md</code>.
+    </footer>
+</main>
+</body>
+</html>
