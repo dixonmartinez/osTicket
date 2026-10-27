@@ -197,6 +197,15 @@ class SelectSql {
      */
     private static function plainFields(QuerySet $queryset,
             SqlCompiler $compiler, $meta, $rootAlias) {
+        // Una consulta agregada no pide columnas del modelo: su SELECT son
+        // las anotaciones (COUNT, SUM, MAX...). Pedir ademas `raiz.*` deja un
+        // SELECT de dos columnas, y una anotacion con esta consulta dentro
+        // -el recuento del hilo, TicketThreadCount::annotate()- deja de ser
+        // una subconsulta escalar: MySQL responde [1241] Operand should
+        // contain 1 column(s) y la lista de tickets sale vacia.
+        if ($queryset->aggregated)
+            return array();
+
         if (!$queryset->defer)
             return array($rootAlias.'.*');
 

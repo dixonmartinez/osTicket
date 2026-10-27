@@ -440,6 +440,49 @@ class QuerySqlTest extends UnitTestCase {
         $this->assertStringContainsString('GROUP BY A1.id', $q['sql']);
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Consultas agregadas                                                 */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Una consulta agregada no pide columnas del modelo: el SELECT son las
+     * anotaciones.
+     *
+     * Si además se pide `raíz.*`, el SELECT tiene dos columnas y una
+     * subconsulta escalar como la del recuento del hilo
+     * (`TicketThreadCount::annotate()`) deja de ser escalar: MySQL responde
+     * *«[1241] Operand should contain 1 column(s)»* y la lista de tickets
+     * sale vacía. Es el fallo que se vio en `/scp/` con capturas.
+     */
+    public function testUnaConsultaAgregadaSoloPideElAgregado(): void {
+        $q = $this->compile($this->probe()->order_by(false)
+            ->aggregate(array('total' => new \SqlAggregate('COUNT',
+                new \SqlField('id')))));
+
+        $this->assertSame('SELECT COUNT(A1.`id`) AS `total` FROM `probe` A1',
+            $q['sql']);
+    }
+
+    /** Y una anotación con esa consulta dentro es una subconsulta escalar. */
+    public function testLaSubconsultaAgregadaTieneUnaSolaColumna(): void {
+        $sub = (new \QuerySet('QuerySqlProbe'))->order_by(false)
+            ->filter(array('name__contains' => 'x'))
+            ->aggregate(array('count' => new \SqlAggregate('COUNT',
+                new \SqlField('id'))));
+
+        $q = $this->compile($this->probe()->order_by(false)
+            ->annotate(array('total' => $sub)));
+
+        // El alias de la tabla de dentro lo pone el contador del compilador,
+        // asi que se comprueba la forma: UNA sola columna, sin `.*`.
+        $this->assertMatchesRegularExpression(
+            '/^SELECT A1\.\*, \(SELECT COUNT\(Q\d+\.`id`\) AS `count`'
+            . ' FROM `probe` Q\d+ WHERE Q\d+\.`name` LIKE :1\) AS total'
+            . ' FROM `probe` A1$/', $q['sql']);
+        // Y el parametro sigue siendo el del filtro de dentro
+        $this->assertSame(array('%x%'), $q['params']);
+    }
+
     public function testColumnaExtra(): void {
         $q = $this->compile($this->probe()->extra(array(
             'select' => array('ahora' => 'NOW()'))));

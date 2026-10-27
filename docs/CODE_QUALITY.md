@@ -374,7 +374,7 @@ Pasos hechos: **417 casos nuevos** sin base de datos.
 | `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
 | `include/class.mailer.message.php` | `MailerMessage::cleanSubject()` (asunto en una línea, sin saltos), `extraHeaders()` (boletín, respuesta automática y aviso, con el orden de siempre), `wrapMid()` (el `div` invisible con el identificador del mensaje), `textBody()` (HTML a texto y `Ref-Mid`) y `contentIdDomain()` (dominio de las imágenes incrustadas) | `tests/MailerMessageTest.php`, 24 casos |
 | `include/class.queue.sort.php` | `QueueSortPlan::reconcile()`: qué pasa con las ordenaciones de una cola guardada cuando el formulario manda otra lista —las que se quedan y en qué posición, las que se quitan y las que se añaden—, sin tocar la base de datos. La prueba incluye una copia literal del bucle anterior y compara las dos salidas con siete entradas, cadenas del POST incluidas | `tests/QueueSortTest.php`, 9 casos |
-| `include/class.orm.select.php` | `SelectSql::fields()` 148 → **57**: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`), ahora en cinco tramos (`relatedFields()`, `valueFields()`, `plainFields()`, `addAnnotations()`, `extraFields()`) que devuelven sus columnas y su GROUP BY | `tests/QuerySqlTest.php`, 27 casos |
+| `include/class.orm.select.php` | `SelectSql::fields()` 148 → **57**: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`), ahora en cinco tramos (`relatedFields()`, `valueFields()`, `plainFields()`, `addAnnotations()`, `extraFields()`) que devuelven sus columnas y su GROUP BY | `tests/QuerySqlTest.php`, 39 casos |
 | `include/class.validator.rule.php` | `ValidatorRule::check()`: la tabla de tipos de la definición de un campo (`int`, `double`, `text`, `date`, `email`, `phone`, `zipcode`, `username`, `password`, `url`, `cs-domain`, `cs-url`, `ipaddr`) y qué pasa cada valor, devolviendo el mensaje de error del campo o `null`; `everyValue()` (listas de valores) y los ayudantes de correo, URL, teléfono y usuario | `tests/ValidatorRuleTest.php`, 18 casos |
 | `include/class.ticket.edit.php` | `TicketEdit`: los cuatro campos que se validan al editar un ticket y sus mensajes, la regla de la fecha límite (ticket cerrado, fecha legible y futura, con el conversor inyectado), la comprobación del origen y **qué cambios quedan en el historial** (`trackedChanges()`) | `tests/TicketEditTest.php`, 13 casos |
 | `include/class.search.record.php` | `SearchRecord`: cómo se arma cada registro del índice (`object_type`, id, título, contenido) para los cinco tipos —entrada del hilo, ticket, usuario, organización y artículo de la base de conocimiento— con sus diferencias: la entrada vacía no se indexa, el ticket no recorta y el usuario y la organización sí, y las palabras clave van delante de la pregunta | `tests/SearchRecordTest.php`, 18 casos |
@@ -425,6 +425,20 @@ compilador y el alias, y devuelve texto. La prueba compara el SQL completo
 (con sus `:1`, `:2` y sus parámetros) para 26 consultas: simple, filtros,
 orden, límite, bloqueos, `values()`, diferidos, `distinct`, anotaciones,
 columnas extra y JOIN.
+
+**Al partir ese tramo en `plainFields()` se perdió una condición**, y con ella
+la lista de tickets de `/scp/`. El código original pedía `raíz.*` sólo si la
+consulta no era agregada (`!$queryset->aggregated`); la extracción dejó la
+condición fuera, así que una consulta agregada —la que sólo pide `COUNT(...)`—
+volvía a pedir `raíz.*` y su SELECT quedaba con dos columnas. Ejecutada sola no
+se nota. Dentro de una anotación, que es como `TicketThreadCount::annotate()`
+pinta el número de mensajes de cada ticket, deja de ser una subconsulta escalar
+y MySQL responde «[1241] Operand should contain 1 column(s)»: la cola se queda
+sin filas y el error sólo aparece en el log del contenedor. Ninguna de las 26
+consultas que había entonces era agregada, así que la suite siguió en verde
+durante todo el frente. Ahora hay dos casos —una consulta agregada sola y una
+subconsulta escalar dentro de una anotación— que reproducen ese SQL sin base de
+datos; el segundo falla con el código que había y pasa con el arreglo.
 
 `Validator::validate()` mezclaba tres cosas en un bucle de 129 líneas: campos
 obligatorios y vacíos, la comprobación de tipo y el armado de los errores. La
