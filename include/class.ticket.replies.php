@@ -266,49 +266,12 @@ trait TicketReplies {
             && ($msg = $tpl->getNewMessageAlertMsgTemplate())
         ) {
             $msg = $ticket->replaceVars($msg->asArray(), $variables);
-            // Build list of recipients and fire the alerts.
-            $recipients = array();
-            //Last respondent.
-            if ($cfg->alertLastRespondentONNewMessage() && ($lr = $ticket->getLastRespondent()))
-                $recipients[] = $lr;
-
-            //Assigned staff if any...could be the last respondent
-            if ($cfg->alertAssignedONNewMessage() && $ticket->isAssigned()) {
-                if ($staff = $ticket->getStaff())
-                    $recipients[] = $staff;
-                elseif ($team = $ticket->getTeam())
-                    $recipients = array_merge($recipients, $team->getMembersForAlerts());
-            }
-
-            // Dept manager
-            if ($cfg->alertDeptManagerONNewMessage()
-                && $dept
-                && ($manager = $dept->getManager())
-            ) {
-                $recipients[]=$manager;
-            }
-
-            // Account manager
-            if ($cfg->alertAcctManagerONNewMessage()
-                    && ($org = $this->getOwner()->getOrganization())
-                    && ($acct_manager = $org->getAccountManager())) {
-                if ($acct_manager instanceof Team)
-                    $recipients = array_merge($recipients, $acct_manager->getMembersForAlerts());
-                else
-                    $recipients[] = $acct_manager;
-            }
-
-            $sentlist = array(); //I know it sucks...but..it works.
-            foreach ($recipients as $k=>$staff) {
-                if (!$staff || !$staff->getEmail()
-                    || !$staff->isAvailable()
-                    || in_array($staff->getEmail(), $sentlist)
-                ) {
-                    continue;
-                }
+            // A quién le toca y quién puede recibirlo: ver
+            // TicketPost::alertRecipients() y alertableRecipients()
+            foreach (TicketPost::alertableRecipients(
+                    TicketPost::alertRecipients($cfg, $ticket, $dept, $this)) as $staff) {
                 $alert = $this->replaceVars($msg, array('recipient' => $staff));
                 $email->sendAlert($staff, $alert['subj'], $alert['body'], null, $options);
-                $sentlist[] = $staff->getEmail();
             }
         }
         $type = array('type' => 'message', 'uid' => $vars['userId']);

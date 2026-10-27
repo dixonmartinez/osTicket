@@ -325,6 +325,16 @@ aplicación ya no es un flujo de 500 líneas.
   al `From` original) y `deliverViaSendmail()` (el `mail()` de PHP con
   `from_address`). No se tocó ni el envío ni el orden de los transportes: es
   la misma secuencia, ahora con nombres.
+- **`Ticket::postMessage()`: de 178 a 142 líneas.** El bloque que decidía a
+  quién le llega el aviso de mensaje nuevo —último en responder, asignado o su
+  equipo, jefe del departamento y gestor de la cuenta— estaba dentro del
+  método, mezclado con el envío. Ahora es `TicketPost::alertRecipients()`, que
+  devuelve a quién preguntar en el mismo orden, y `alertableRecipients()`, que
+  deja fuera a los vacíos, a los agentes sin correo, a los no disponibles y a
+  los repetidos (comparando la dirección). Once pruebas con dobles en
+  `tests/TicketPostTest.php`, incluida la del hijo combinado: el mensaje va al
+  padre pero la organización del gestor de cuenta se seguía leyendo del ticket
+  donde se escribió, y por eso `alertRecipients()` acepta un cuarto argumento.
 - `MassAction::mergePermissions()` sale del diálogo de combinar/enlazar: el
   permiso se resuelve **por departamento** y basta uno sin permiso para que el
   diálogo avise. Tres pruebas, con un agente de mentira que reparte roles. De
@@ -334,10 +344,10 @@ aplicación ya no es un flujo de 500 líneas.
 
 El criterio de éxito **no se cumple todavía**: quedan **5 funciones de la
 aplicación por encima de 120 líneas** (`massProcess()` de tickets 230,
-`Ticket::create()` 219, `massProcess()` de tareas 191,
-`Ticket::postMessage()` 178 y `Mailer::send()` 147, que ya sólo pasa por tres
-líneas), pero **ninguna pasa de 230** y el envío de correo dejó de ser la más
-larga. Los archivos por encima de 3.000 ya no existen: los tres se repartieron
+`Ticket::create()` 219, `massProcess()` de tareas 191, `Mailer::send()` 147 y
+`Ticket::postMessage()` 142, que ya sólo pasan por 27 y 22 líneas), pero
+**ninguna pasa de 230** y ni el envío de correo ni la respuesta del cliente
+son las más largas. Los archivos por encima de 3.000 ya no existen: los tres se repartieron
 en el frente 6. Lo que queda pendiente son las dos `massProcess()` —el caso
 `assign`, gemelo letra por letra en tickets y tareas—, `Ticket::create()` y
 `Ticket::postMessage()`: los cuatro tocan la base, así que antes hay que
@@ -351,7 +361,7 @@ ampliar el banco de `make docker-integration` (hoy 19 casos y sólo ORM).
 | `run()` de `include/cli/modules/file.php` | 408 líneas | **12** (nueve `actionXxx()` + `matchingFiles()` / `oneFile()`) |
 | `Mailer::send()` | 297 líneas | **147** (`MailerMessage` + cuatro pasos privados: destinatarios, adjuntos, SMTP y Sendmail) |
 | `Ticket::create()` | 536 líneas | **219** (nueve fases en `TicketCreate`) |
-| `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
+| `Ticket::postMessage()` | 190 líneas | **142** (`TicketPost`: `alertRecipients()` y `alertableRecipients()`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`), y después **33** (cuatro pasos: `applyCollaboratorSender()`, `applyReplyType()`, `stampUnknownSender()` y `postReply()`) |
 | `Queue::update()` | 157 líneas | **13** (ocho pasos: `setupTitle()` … `setupCriteria()`) |
 | `I18n::loadDefaultData()` | 131 líneas | **9** (siete pasos: `loadModels()` … `loadEmailTemplates()`) |

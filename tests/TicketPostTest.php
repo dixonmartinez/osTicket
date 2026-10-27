@@ -132,6 +132,132 @@ class TicketPostTest extends UnitTestCase {
         $this->assertTrue(TicketPost::shouldAutoRespond(
             array('mailflags' => array('bounce' => false, 'auto-reply' => false))));
     }
+
+    /* ------------------------------------------------------------------ */
+    /* A quién le llega el aviso de mensaje nuevo                          */
+    /* ------------------------------------------------------------------ */
+
+    private function config(array $opciones = array()) {
+        return new TicketPostFakeConfig($opciones);
+    }
+
+    private function agente($direccion, $disponible = true) {
+        return new TicketPostFakeStaff($direccion, $disponible);
+    }
+
+    private function ticket($opciones = array()) {
+        return new TicketPostFakeTicket($opciones);
+    }
+
+    private function equipo(array $miembros) {
+        return new TicketPostFakeTeam($miembros);
+    }
+
+    /** Todo apagado: no hay a quién avisar. */
+    public function testSinOpcionesActivasNoHayDestinatarios(): void {
+        $this->assertSame(array(), TicketPost::alertRecipients(
+            $this->config(), $this->ticket(), null));
+    }
+
+    public function testElUltimoEnResponderEntra(): void {
+        $lr = $this->agente('lr@example.com');
+        $ticket = $this->ticket(array('lastRespondent' => $lr));
+
+        $this->assertSame(array($lr), TicketPost::alertRecipients(
+            $this->config(array('lastRespondent' => true)), $ticket, null));
+    }
+
+    public function testElAsignadoEntraYNoHaceFaltaSuEquipo(): void {
+        $staff = $this->agente('ana@example.com');
+        $equipo = $this->equipo(array($this->agente('equipo@example.com')));
+        $ticket = $this->ticket(array('staff' => $staff, 'team' => $equipo));
+
+        $this->assertSame(array($staff), TicketPost::alertRecipients(
+            $this->config(array('assigned' => true)), $ticket, null));
+    }
+
+    public function testSinAsignadoAvisaAlEquipo(): void {
+        $equipo = $this->equipo(array($this->agente('uno@example.com'),
+                                     $this->agente('dos@example.com')));
+        $ticket = $this->ticket(array('team' => $equipo));
+
+        $this->assertCount(2, TicketPost::alertRecipients(
+            $this->config(array('assigned' => true)), $ticket, null));
+    }
+
+    public function testElJefeDelDepartamentoEntra(): void {
+        $jefe = $this->agente('jefe@example.com');
+        $dept = new TicketPostFakeDept($jefe);
+
+        $this->assertSame(array($jefe), TicketPost::alertRecipients(
+            $this->config(array('deptManager' => true)), $this->ticket(), $dept));
+    }
+
+    public function testElGestorDeLaCuentaEntra(): void {
+        $gestor = $this->agente('gestor@example.com');
+        $ticket = $this->ticket(array('accountManager' => $gestor));
+
+        $this->assertSame(array($gestor), TicketPost::alertRecipients(
+            $this->config(array('acctManager' => true)), $ticket, null));
+    }
+
+    public function testElOrdenEsElDelCodigoOriginal(): void {
+        // Último, asignado, jefe y gestor: el mismo orden de antes
+        $lr = $this->agente('lr@example.com');
+        $staff = $this->agente('ana@example.com');
+        $jefe = $this->agente('jefe@example.com');
+        $gestor = $this->agente('gestor@example.com');
+
+        $ticket = $this->ticket(array('lastRespondent' => $lr, 'staff' => $staff,
+            'accountManager' => $gestor));
+        $config = $this->config(array('lastRespondent' => true,
+            'assigned' => true, 'deptManager' => true, 'acctManager' => true));
+
+        $this->assertSame(array($lr, $staff, $jefe, $gestor),
+            TicketPost::alertRecipients($config, $ticket,
+                new TicketPostFakeDept($jefe)));
+    }
+
+    public function testLaOrganizacionSeLeeDelCuartoArgumento(): void {
+        // En un hijo combinado el mensaje va al padre, pero la organización se
+        // leía del ticket donde se escribió: así se sigue haciendo
+        $gestorHijo = $this->agente('gestor@example.com');
+        $hijo = $this->ticket(array('accountManager' => $gestorHijo));
+        $padre = $this->ticket();
+
+        $this->assertSame(array($gestorHijo), TicketPost::alertRecipients(
+            $this->config(array('acctManager' => true)), $padre, null, $hijo));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Quién puede recibir el aviso de verdad                              */
+    /* ------------------------------------------------------------------ */
+
+    public function testFueraLosAgentesSinCorreoYLosNoDisponibles(): void {
+        $ok = $this->agente('ok@example.com');
+        $lista = array(
+            null,
+            $this->agente(null),
+            $this->agente('vacaciones@example.com', false),
+            $ok,
+        );
+
+        $this->assertSame(array($ok),
+            TicketPost::alertableRecipients($lista));
+    }
+
+    public function testLosRepetidosSeComparanPorDireccion(): void {
+        $ana = $this->agente('ana@example.com');
+        $otraVezAna = $this->agente('ana@example.com');
+        $beto = $this->agente('beto@example.com');
+
+        $this->assertSame(array($ana, $beto),
+            TicketPost::alertableRecipients(array($ana, $otraVezAna, $beto)));
+    }
+
+    public function testSinListaNoQuedaNadie(): void {
+        $this->assertSame(array(), TicketPost::alertableRecipients(array()));
+    }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -165,5 +291,128 @@ class TicketPostFakeRecipient {
 
     function getContact() {
         return $this->contact;
+    }
+}
+
+class TicketPostFakeConfig {
+    private $opciones;
+
+    function __construct(array $opciones) {
+        $this->opciones = $opciones;
+    }
+
+    private function activa($clave) {
+        return !empty($this->opciones[$clave]);
+    }
+
+    function alertLastRespondentONNewMessage() {
+        return $this->activa('lastRespondent');
+    }
+
+    function alertAssignedONNewMessage() {
+        return $this->activa('assigned');
+    }
+
+    function alertDeptManagerONNewMessage() {
+        return $this->activa('deptManager');
+    }
+
+    function alertAcctManagerONNewMessage() {
+        return $this->activa('acctManager');
+    }
+}
+
+class TicketPostFakeStaff {
+    private $direccion;
+    private $disponible;
+
+    function __construct($direccion, $disponible = true) {
+        $this->direccion = $direccion;
+        $this->disponible = $disponible;
+    }
+
+    function getEmail() {
+        return $this->direccion;
+    }
+
+    function isAvailable() {
+        return $this->disponible;
+    }
+}
+
+class TicketPostFakeTeam {
+    private $miembros;
+
+    function __construct(array $miembros) {
+        $this->miembros = $miembros;
+    }
+
+    function getMembersForAlerts() {
+        return $this->miembros;
+    }
+}
+
+class TicketPostFakeOrg {
+    private $gestor;
+
+    function __construct($gestor) {
+        $this->gestor = $gestor;
+    }
+
+    function getAccountManager() {
+        return $this->gestor;
+    }
+}
+
+class TicketPostFakeUser {
+    private $org;
+
+    function __construct($org) {
+        $this->org = $org;
+    }
+
+    function getOrganization() {
+        return $this->org;
+    }
+}
+
+class TicketPostFakeTicket {
+    private $opciones;
+
+    function __construct(array $opciones = array()) {
+        $this->opciones = $opciones;
+    }
+
+    function getLastRespondent() {
+        return $this->opciones['lastRespondent'] ?? null;
+    }
+
+    function isAssigned() {
+        return !empty($this->opciones['staff']) || !empty($this->opciones['team']);
+    }
+
+    function getStaff() {
+        return $this->opciones['staff'] ?? null;
+    }
+
+    function getTeam() {
+        return $this->opciones['team'] ?? null;
+    }
+
+    function getOwner() {
+        return new TicketPostFakeUser(
+            new TicketPostFakeOrg($this->opciones['accountManager'] ?? null));
+    }
+}
+
+class TicketPostFakeDept {
+    private $jefe;
+
+    function __construct($jefe) {
+        $this->jefe = $jefe;
+    }
+
+    function getManager() {
+        return $this->jefe;
     }
 }

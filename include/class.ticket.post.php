@@ -113,4 +113,88 @@ class TicketPost {
 
         return empty($flags['bounce']) && empty($flags['auto-reply']);
     }
+
+    /**
+     * A quién le llega el aviso de mensaje nuevo, en el orden del original:
+     * el último que respondió, el asignado (o su equipo), el jefe del
+     * departamento y el gestor de la cuenta (o los miembros de su equipo).
+     *
+     * Cada bloque tiene su propia opción en la configuración; si está
+     * apagada, ese destinatario no entra. El aviso se manda después, y ahí se
+     * descartan los repetidos y los agentes sin correo o no disponibles
+     * (`alertableRecipients()`).
+     *
+     * @param object $cfg    configuración del sistema
+     * @param object $ticket el ticket (o su padre, si es un hijo combinado)
+     * @param object $dept   departamento del ticket
+     * @param object $owner  de quién se lee la organización para el gestor de
+     *                       la cuenta; por omisión, el mismo `$ticket`. En un
+     *                       hijo combinado el mensaje va al padre pero la
+     *                       organización se leía del hijo, y así se sigue
+     *                       haciendo
+     *
+     * @return array agentes y equipos por los que preguntar
+     */
+    static function alertRecipients($cfg, $ticket, $dept, $owner = null) {
+        if (!$owner)
+            $owner = $ticket;
+
+        $recipients = array();
+
+        // Last respondent.
+        if ($cfg->alertLastRespondentONNewMessage()
+                && ($lr = $ticket->getLastRespondent()))
+            $recipients[] = $lr;
+
+        // Assigned staff if any… could be the last respondent
+        if ($cfg->alertAssignedONNewMessage() && $ticket->isAssigned()) {
+            if ($staff = $ticket->getStaff())
+                $recipients[] = $staff;
+            elseif ($team = $ticket->getTeam())
+                $recipients = array_merge($recipients,
+                    $team->getMembersForAlerts());
+        }
+
+        // Dept manager
+        if ($cfg->alertDeptManagerONNewMessage()
+                && $dept
+                && ($manager = $dept->getManager()))
+            $recipients[] = $manager;
+
+        // Account manager
+        if ($cfg->alertAcctManagerONNewMessage()
+                && ($org = $owner->getOwner()->getOrganization())
+                && ($acct_manager = $org->getAccountManager())) {
+            if ($acct_manager instanceof Team)
+                $recipients = array_merge($recipients,
+                    $acct_manager->getMembersForAlerts());
+            else
+                $recipients[] = $acct_manager;
+        }
+
+        return $recipients;
+    }
+
+    /**
+     * Los destinatarios del aviso que de verdad pueden recibirlo: fuera los
+     * vacíos, los que no tienen correo, los agentes no disponibles y los
+     * repetidos (se compara la dirección, que es lo que llega al correo).
+     *
+     * @param array $recipients agentes y equipos de `alertRecipients()`
+     *
+     * @return array agentes únicos, en el mismo orden
+     */
+    static function alertableRecipients(array $recipients) {
+        $list = $sent = array();
+        foreach ($recipients as $staff) {
+            if (!$staff || !$staff->getEmail() || !$staff->isAvailable()
+                    || in_array($staff->getEmail(), $sent))
+                continue;
+
+            $list[] = $staff;
+            $sent[] = $staff->getEmail();
+        }
+
+        return $list;
+    }
 }
