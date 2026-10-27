@@ -200,8 +200,31 @@
                         <td>10/22/26 9:10 AM</td>
                         <td><a class="subject" href="#">No puedo adjuntar archivos</a></td>
                         <td>Ana Pérez</td>
-                        <td>Alta</td>
+                        <!-- La prioridad llega asi del servidor: el color en
+                             linea va en el <td> Y en el <div>, porque lo pone
+                             PriorityField::display(). La celda tiene que
+                             quedar transparente y el color quedarse en la
+                             etiqueta (css/modern.css 6, css/dark.css). -->
+                        <td style="background-color:#ffdddd"><div style="background-color:#ffdddd">High</div></td>
                         <td>Dixon</td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox"></td>
+                        <td><i class="icon-file"></i> <a href="#">392578</a></td>
+                        <td>10/22/26 9:14 AM</td>
+                        <td><a class="subject" href="#">Pregunta sobre la factura</a></td>
+                        <td>Jorge Medina</td>
+                        <td style="background-color:#ffffdd"><div style="background-color:#ffffdd">Normal</div></td>
+                        <td>Gabriela Núñez</td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox"></td>
+                        <td><i class="icon-file"></i> <a href="#">392579</a></td>
+                        <td>10/22/26 9:31 AM</td>
+                        <td><a class="subject" href="#">Sugerencia de mejora</a></td>
+                        <td>Inés Bravo</td>
+                        <td style="background-color:#ddffdd"><div style="background-color:#ddffdd">Low</div></td>
+                        <td>Sergio Supervisor</td>
                     </tr>
                 </tbody>
                 <tfoot>

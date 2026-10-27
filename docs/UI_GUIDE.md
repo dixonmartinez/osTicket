@@ -741,15 +741,60 @@ La prioridad trae su color en línea (lo elige el administrador): se respeta,
 pero se dibuja como **etiqueta redondeada**, no como un rectángulo que cubre
 media celda.
 
-**Los tres `!important` que hay**, ninguno de adorno: uno devuelve a `auto` la
-altura de un bloque que lleva `style="height:25px"` en la plantilla, y los
-otros dos son las excepciones ya conocidas de `prefers-reduced-motion` y de la
+**Los cuatro `!important` que hay**, ninguno de adorno: uno devuelve a `auto`
+la altura de un bloque que lleva `style="height:25px"` en la plantilla, otro
+anula el fondo en línea de la celda de prioridad (ver §3.11), y los otros dos
+son las excepciones ya conocidas de `prefers-reduced-motion` y de la
 impresión (que oculta cabecera, navegación y buscador). Ninguno toca datos.
 
 **Texto sobre el acento.** El token `--mod-on-accent` se deriva de
 `--ui-surface`: en claro da blanco sobre azul y en oscuro casi negro sobre
 azul claro. Es la forma de escribir un solo botón que funcione en los dos
 temas sin duplicar reglas.
+
+### 3.11 Tamaño del texto y etiqueta de prioridad
+
+**El texto se leía pequeño.** El cuerpo de `scp.css` está en 14 px, y encima
+los controles de formulario no fijan tamaño: un `<input>`, `<select>`,
+`<textarea>` o `<button>` **no hereda la tipografía del `body`**, así que el
+navegador les pone su `13.3px Arial` por omisión (`scp.css` además les da
+`font-size: .95em`). En una pantalla grande, el buscador y los botones se leen
+más pequeños que el texto de al lado.
+
+La escala vive en tres tokens, en `:root` de `css/modern.css`:
+
+```css
+--mod-text:    15px;   /* cuerpo, tablas y campos */
+--mod-text-sm: 14px;   /* navegación, botones, pies y textos de apoyo */
+--mod-text-xs: 12px;   /* cabeceras de tabla en versalitas y etiquetas */
+```
+
+- El `body` usa `var(--mod-text)`; las cabeceras de tabla, la navegación y los
+  botones usan los otros dos. **Para agrandar o achicar todo el panel se
+  cambia `--mod-text`** y lo demás acompaña.
+- Los campos llevan `font-family: var(--mod-font)` y
+  `font-size: var(--mod-text)` explícitos. Sin eso vuelven al tamaño del
+  navegador, que es justo el defecto que esto corrige.
+- `theme-check` comprueba que los tres tokens existen, que `body` usa la
+  escala, que los campos fijan su tamaño y que **ningún texto baja de 12 px**.
+- Esto es tipografía, no espaciado: `css/density.css` (modo compacto) sigue
+  mandando en `padding` y `line-height` sin tocar tamaños.
+- La barra de colas no se ve afectada: `jb.overflowmenu` mide los elementos en
+  tiempo de ejecución, así que con el texto más grande reparte de nuevo y
+  manda al menú secundario lo que ya no cabe.
+
+**La etiqueta de prioridad.** `PriorityField::display()` mete el mismo
+`background-color` en el `<td>` y en el `<div>` de dentro
+(`queue-tickets.tmpl.php`), así que la celda entera salía pintada de punta a
+punta: en la captura del usuario era un rectángulo rosa de todo el ancho de la
+columna, con el texto pegado a la izquierda, y parecía una columna rota.
+
+Ahora el `<td>` se anula (`background: transparent !important`, la única forma
+de ganarle a un `style` en línea) y el color se queda sólo en la etiqueta, que
+es `inline-block` con `border-radius` de píldora. **El color no se pierde: se
+mueve** de la celda a la etiqueta. El contraste en oscuro lo sigue resolviendo
+`css/dark.css` (§3.10), que devuelve texto oscuro a las celdas con color en
+línea.
 
 ## 4. Reglas para no romper nada
 
@@ -914,7 +959,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 150 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 158 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -922,8 +967,12 @@ queda en §6.2.
 | 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
 | 17 | **CSP con nonce**: los 98 `<script>` en línea de las plantillas llevan `nonce`, `script-src` deja de anunciar `'unsafe-inline'` y el instalador tampoco lo necesita (§6.2-1b, OST-102) | ✅ Hecho | `include/class.http.php`, `tools/quality/csp-nonce.php`, `tests/CspNonceTest.php` |
 | 17b | **Datos de demostración** para poder mirar la interfaz con contenido real: 59 tickets repartidos entre **todos los estados** de la lista interna (abierto, en progreso, contestado, resuelto y cerrado) con hilos de hasta 14 mensajes que alternan cliente, agente y nota interna, 16 tareas abiertas/completadas/vencidas, 12 clientes en 3 organizaciones, 5 agentes, 5 departamentos, 2 equipos, 2 SLA, 11 temas, 5 respuestas y 6 categorías de conocimiento con 33 artículos, creados con la API del panel y borrables con `--fresh` | ✅ Hecho | `include/cli/modules/seed.php`, `make seed`, `docs/SEED.md` |
-| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema a 14 px, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones de 13 px con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v26), `make theme` |
+| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v33), `make theme` |
 | 17c | **Buzón de pruebas documentado**: Mailpit paso a paso (host `mailpit`, puerto 1025, sin TLS ni usuario, qué mirar, entrante con `api/pipe.php`, cron a mano) y `make test-mail` para un envío sin pasar por la aplicación. Es lo que permite comprobar los correos reales en claro y en oscuro | ✅ Hecho | `docs/MAIL.md`, `tools/dev/mail-test.php` |
+
+| 19 | **Escala del texto**: el cuerpo pasa a 15 px y los campos de formulario fijan su tamaño (`input`, `select`, `textarea` no heredan: salían a los 13.3 px de Arial del navegador). Tres tokens (`--mod-text`, `--mod-text-sm`, `--mod-text-xs`), ningún texto por debajo de 12 px y ninguna medida suelta en el modo compacto (§3.11) | ✅ Hecho | `css/modern.css`, `tests/TextScaleTest.php`, `make theme` |
+| 20 | **Etiqueta de prioridad**: el color en línea que `PriorityField::display()` escribe en el `<td>` **y** en el `<div>` ya no pinta la celda entera; queda en una etiqueta redondeada del tamaño de su texto. El contraste en oscuro se mantiene (§3.11) | ✅ Hecho | `css/modern.css`, `css/dark.css`, `docs/theme-preview.html` |
+| 21 | **Barra de colas recuperada**: la causa era el mapa de campos del ORM (`SelectSql::addAnnotations()` se quedaba el `fieldMap` y `buildModel()` repartía la fila corrida, dejando `parent_id` contaminado). `queue --nav` lo verifica y `--trace` lo explica paso a paso (§3.5.3) | ✅ Hecho | `include/class.orm.select.php`, `tests/QuerySqlTest.php`, `include/cli/modules/queue.php`, `make queue-nav` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

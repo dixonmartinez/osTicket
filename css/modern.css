@@ -29,6 +29,16 @@
     --mod-radius-pill: 999px;
     --mod-gap: 16px;
     --mod-field: 34px;
+    /* Escala tipografica, en un solo sitio. El texto de osTicket se quedaba
+       en 14 px (y los campos, en los 13.3 px que pone el navegador si nadie
+       los toca), que en pantallas grandes se lee pequeno. Tres pasos:
+         --mod-text     cuerpo, tablas y campos
+         --mod-text-sm  navegacion, botones, pies y textos de apoyo
+         --mod-text-xs  cabeceras de tabla en versalitas y etiquetas
+       Subir o bajar --mod-text mueve todo lo que lo usa. */
+    --mod-text: 15px;
+    --mod-text-sm: 14px;
+    --mod-text-xs: 12px;
     --mod-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Noto Sans", sans-serif;
     --mod-ease: cubic-bezier(.2, .7, .3, 1);
@@ -44,7 +54,7 @@
 /* ================================================================== */
 body {
     font-family: var(--mod-font);
-    font-size: 14px;
+    font-size: var(--mod-text);
     line-height: 1.5;
     color: var(--ui-text);
     background: var(--ui-surface-alt);
@@ -144,7 +154,7 @@ table.list td,
     border: 0;
     text-align: right;
     color: var(--ui-text-muted);
-    font-size: 13px;
+    font-size: var(--mod-text-sm);
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -361,7 +371,7 @@ ul#sub_nav {
     /* 24 px a la izquierda: el icono (mascara en ::before) va a 3 px */
     padding: 5px 12px 5px 24px;
     border-radius: var(--mod-radius-pill);
-    font-size: 13px;
+    font-size: var(--mod-text-sm);
     color: var(--ui-text-muted);
     transition: background .15s var(--mod-ease), color .15s var(--mod-ease);
 }
@@ -413,7 +423,7 @@ ul#sub_nav {
 }
 
 .sticky.bar h2 {
-    font-size: 15px;
+    font-size: 16px;
     margin: 0;
     display: flex;
     align-items: center;
@@ -503,7 +513,7 @@ table.list thead th {
     z-index: 3;
     background: var(--ui-surface-alt);
     color: var(--ui-text-muted);
-    font-size: 11px;
+    font-size: var(--mod-text-xs);
     font-weight: 700;
     letter-spacing: .04em;
     text-transform: uppercase;
@@ -584,7 +594,7 @@ table.list tfoot td {
 /* "Query returned 0 results.": se lee como aviso, no como pie de tabla */
 table.list tfoot td i {
     font-style: normal;
-    font-size: 13px;
+    font-size: var(--mod-text-sm);
 }
 
 /* Cola sin resultados: un aviso con forma propia en vez de una linea suelta
@@ -609,7 +619,7 @@ table.list tfoot td i {
 
 .empty-state p {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--mod-text-sm);
     max-width: 46ch;
 }
 
@@ -623,14 +633,26 @@ table.list tfoot td a {
 }
 
 /* La prioridad (y alguna columna mas) trae su color en linea, elegido por el
-   administrador: se respeta, pero en forma de etiqueta redondeada. Antes era
-   un rectangulo que solo cubria media celda y parecia un fallo de pintado. */
+   administrador. `field->display()` mete el mismo `background-color` en el
+   <td> **y** en el <div> de dentro (queue-tickets.tmpl.php), asi que la celda
+   entera sale pintada de punta a punta: en la captura del usuario era un
+   rectangulo rosa de todo el ancho de la columna, con el texto pegado a la
+   izquierda, y parecia una columna rota.
+
+   Se anula el fondo del <td> y el color se queda solo en la etiqueta. El
+   `!important` es la unica forma de ganarle a un `style` en linea; el color
+   no se pierde, se mueve. */
+table.list tbody td[style*="background"] {
+    background: transparent !important;
+}
+
 table.list tbody td[style*="background-color"] > div,
 table.list tbody td[style*="background"] > div {
     display: inline-block;
-    padding: 1px 10px;
+    padding: 2px 10px;
     border-radius: var(--mod-radius-pill);
-    line-height: 1.5;
+    line-height: 1.45;
+    white-space: nowrap;
 }
 
 table.list input[type="checkbox"] {
@@ -659,6 +681,12 @@ select {
     background: var(--ui-surface);
     color: var(--ui-text);
     padding: 7px 10px;
+    /* Los controles de formulario no heredan la tipografia: sin esto se
+       quedan en los 13.3 px de Arial del navegador y, al lado del texto de
+       la pagina, se leen mas pequenos. scp.css ademas les pone 0.95em. */
+    font-family: var(--mod-font);
+    font-size: var(--mod-text);
+    line-height: 1.4;
     transition: border-color .15s var(--mod-ease), box-shadow .15s var(--mod-ease);
 }
 
@@ -700,7 +728,7 @@ a.button {
     border-radius: var(--mod-radius-sm);
     padding: 7px 14px;
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--mod-text-sm);
     line-height: 1.4;
     border: 1px solid var(--ui-border);
     background: var(--ui-surface);
@@ -806,7 +834,7 @@ button:disabled {
 span.state {
     border-radius: var(--mod-radius-pill);
     padding: 1px 8px;
-    font-size: 11px;
+    font-size: var(--mod-text-xs);
     font-weight: 600;
 }
 
@@ -881,7 +909,7 @@ span.state {
 #loginBox input[type="text"],
 #loginBox input[type="password"] {
     height: 40px;
-    font-size: 14px;
+    font-size: var(--mod-text);
 }
 
 #login-box button[type="submit"],
@@ -890,7 +918,7 @@ span.state {
 .login-box input[type="submit"],
 #loginBox button[type="submit"] {
     height: 40px;
-    font-size: 14px;
+    font-size: var(--mod-text);
 }
 
 /* ================================================================== */

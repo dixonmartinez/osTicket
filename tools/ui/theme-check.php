@@ -148,6 +148,49 @@ check(strpos($modern, 'var(--mod-ring)') !== false
     'css/modern.css consume los tokens de color de css/ui.css',
     'css/modern.css no usa los tokens --ui-* / --mod-ring');
 
+/* Escala tipografica ------------------------------------------------------ */
+// El texto se leia pequeno: el cuerpo estaba en 14 px y los campos, ademas,
+// en los 13.3 px que pone el navegador si nadie los toca (los controles de
+// formulario no heredan la tipografia). Ahora la escala vive en tres tokens
+// y los campos la usan.
+foreach (array('--mod-text', '--mod-text-sm', '--mod-text-xs') as $token)
+    check(strpos($modern, $token . ':') !== false,
+        "css/modern.css define la escala $token",
+        "falta $token: la escala tipografica se queda repartida en numeros sueltos");
+
+check(preg_match('/body\s*\{[^}]*font-size:\s*var\(--mod-text\)/s', $modern) === 1,
+    'el cuerpo usa la escala (var(--mod-text))',
+    'body no usa var(--mod-text): la escala y el texto irian por separado');
+
+// Los <input>, <select>, <textarea> y <button> no heredan la fuente del body.
+// Sin font-size propio se quedan en el tamano por omision del navegador.
+$campos = preg_match('/input\[type="text"\][^{]*\{[^}]*font-size:\s*var\(--mod-text\)/s',
+    $modern) === 1;
+check($campos,
+    'los campos de formulario fijan su tamano (no heredan y saldrian mas pequenos)',
+    'input/select/textarea no fijan font-size: el navegador les pone ~13.3 px de Arial');
+
+// La prioridad llega con el color en linea en el <td> y en el <div>.
+check(strpos($modern, 'table.list tbody td[style*="background"] {') !== false
+    && strpos($modern, 'background: transparent !important;') !== false,
+    'el color de prioridad no pinta la celda entera (solo la etiqueta)',
+    'la celda con color en linea se pinta de punta a punta: parece una columna rota');
+
+check(strpos($modern, 'border-radius: var(--mod-radius-pill);') !== false
+    && strpos($modern, '> div {') !== false,
+    'la prioridad se dibuja como etiqueta redondeada',
+    'la prioridad no tiene forma de etiqueta: se queda en un rectangulo');
+
+// Ningun tamano suelto por debajo de 12 px: se lee mal y no sigue la escala.
+$chicos = array();
+if (preg_match_all('/font-size:\s*(\d+)px/', $sinComentarios, $m, PREG_SET_ORDER))
+    foreach ($m as $hit)
+        if ((int) $hit[1] < 12)
+            $chicos[] = $hit[0];
+check(!$chicos,
+    'ningun texto de css/modern.css baja de 12 px',
+    'hay tamanos por debajo de 12 px: ' . implode(', ', array_slice($chicos, 0, 5)));
+
 /* 2c. Version en la URL del recurso -------------------------------------- */
 // nginx sirve CSS y JS con `expires 7d`: sin una version en la URL, tras un
 // `git pull` el navegador pinta el HTML nuevo con la hoja vieja y parece que

@@ -63,7 +63,7 @@
 // v31: las hojas y los scripts se piden con ?v=<mtime> (Http::asset). Si el
 //     navegador recibe HTML nuevo con CSS de la cache de 7 dias de nginx,
 //     los cambios de interfaz "no se ven".
-const VERSION = 'ost-v32';
+const VERSION = 'ost-v33';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

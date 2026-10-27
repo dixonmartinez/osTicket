@@ -448,11 +448,11 @@ class QuerySqlTest extends UnitTestCase {
      * Una consulta agregada no pide columnas del modelo: el SELECT son las
      * anotaciones.
      *
-     * Si además se pide `raíz.*`, el SELECT tiene dos columnas y una
+     * Si ademÃ¡s se pide `raÃ­z.*`, el SELECT tiene dos columnas y una
      * subconsulta escalar como la del recuento del hilo
      * (`TicketThreadCount::annotate()`) deja de ser escalar: MySQL responde
-     * *«[1241] Operand should contain 1 column(s)»* y la lista de tickets
-     * sale vacía. Es el fallo que se vio en `/scp/` con capturas.
+     * *Â«[1241] Operand should contain 1 column(s)Â»* y la lista de tickets
+     * sale vacÃ­a. Es el fallo que se vio en `/scp/` con capturas.
      */
     public function testUnaConsultaAgregadaSoloPideElAgregado(): void {
         $q = $this->compile($this->probe()->order_by(false)
@@ -499,7 +499,7 @@ class QuerySqlTest extends UnitTestCase {
             'si el mapa no cubre todas las columnas, la fila se reparte corrida');
     }
 
-    /** Y una anotación con esa consulta dentro es una subconsulta escalar. */
+    /** Y una anotaciÃ³n con esa consulta dentro es una subconsulta escalar. */
     public function testLaSubconsultaAgregadaTieneUnaSolaColumna(): void {
         $sub = (new \QuerySet('QuerySqlProbe'))->order_by(false)
             ->filter(array('name__contains' => 'x'))
