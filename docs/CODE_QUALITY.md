@@ -881,6 +881,10 @@ que no ejecutan código).
 - Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
   de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
   cambios y cuerpos de entrada.
+- **`class.search.php` (1.955) y `class.dynamic_forms.php` (1.937) también
+  bajan de 2.000**: se fueron los campos anotados y los contadores del ticket
+  (`class.search.fields.php`, 104) y el buscador de la lista de selección
+  (`class.dynamic_forms.widget.php`, 107).
 - **`class.queue.php` (1.600) y `class.thread.php` (1.900) ya están por debajo
   de 2.000.** Del primero se fueron diez clases a `class.queue.objects.php`
   (815): columnas y condiciones, exportación y ordenaciones, con `CustomQueue`
@@ -927,7 +931,7 @@ que no ejecutan código).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan seis**, medidos
+- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan cuatro**, medidos
   el 2026-10-27:
 
   | Archivo | Líneas | Qué le queda por hacer |
@@ -935,12 +939,11 @@ que no ejecutan código).
   | `class.ticket.php` | 4.529 | una sola clase de 4.429: exige rasgos o clases colaboradoras |
   | `class.orm.php` | 3.643 | 34 clases: compiladores y ejecutores SQL a un archivo, modelo y conjuntos de resultados a otro |
   | `include/cli/modules/seed.php` | 2.934 | una clase, método por método |
-  | `class.search.php` | 2.030 | los campos anotados y contadores del final (85 líneas) |
-  | `class.dynamic_forms.php` | 2.026 | `TypeaheadSelectionWidget` (93 líneas) |
   | `ajax.tickets.php` | 2.021 | una clase, `TicketsAjaxAPI`; depende del frente 2 (su `massProcess()` es la función más larga) |
 
-  Los tres últimos están a menos de 30 líneas del criterio y se resuelven
-  moviendo una familia; los otros tres necesitan el reparto por dentro.
+  Los dos primeros son reparto de clases (el patrón de los formularios); los
+  otros dos son **una sola clase** cada uno, así que exigen mover métodos a
+  rasgos o a clases colaboradoras, no archivos de clases.
 - Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
   ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
   y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el
