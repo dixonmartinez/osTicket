@@ -881,6 +881,20 @@ que no ejecutan código).
 - Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
   de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
   cambios y cuerpos de entrada.
+- **`ajax.tickets.php` bajó de 2.021 a 1.771** con la primera pieza hecha con
+  **rasgos** (`trait`) en vez de archivos de clases: `TicketsAjaxUser`
+  (`ajax.tickets.user.php`, 282) se lleva los ocho métodos que buscan al
+  usuario del ticket y editan su ficha. Un rasgo es lo correcto aquí porque son
+  métodos de la misma API —usan `$thisstaff` y `$this->response()`— y no una
+  clase aparte con estado propio. El `use TicketsAjaxUser;` va dentro de la
+  clase y el `include_once` **antes** de declararla, porque en PHP el rasgo
+  tiene que existir cuando se compila la clase.
+  Efecto colateral que hubo que resolver: el contador del frente 4 pasó a ver
+  «un archivo nuevo con acceso directo» (17 accesos que antes estaban dentro de
+  `ajax.tickets.php`). No es deuda nueva —el total no cambió, 1.232— así que la
+  línea base se actualizó: `ajax.tickets.php` 55 → 38 y el rasgo con 17. En la
+  misma pasada se consolidaron diez accesos que ya se habían migrado a `Http` en
+  tandas anteriores y seguían contados: la línea base pasa de 1.242 a 1.232.
 - **`class.orm.php` bajó de 3.643 a 1.661**, el reparto más grande del frente
   después de los formularios. Las 34 clases quedaron así: el modelo en el
   archivo original (`ModelMeta`, `VerySimpleModel`, las anotaciones, `QuerySet`
@@ -945,18 +959,17 @@ que no ejecutan código).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan tres**, medidos
-  el 2026-10-27:
+- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan dos**:
 
   | Archivo | Líneas | Qué le queda por hacer |
   |---|---|---|
-  | `class.ticket.php` | 4.529 | una sola clase de 4.429: exige rasgos o clases colaboradoras |
+  | `class.ticket.php` | 4.529 | una sola clase de 4.429 |
   | `include/cli/modules/seed.php` | 2.934 | una clase, método por método |
-  | `ajax.tickets.php` | 2.021 | una clase, `TicketsAjaxAPI`; depende del frente 2 (su `massProcess()` es la función más larga) |
 
-  Los tres son **una sola clase** cada uno, así que ya no vale mover archivos de
-  clases: hay que repartir métodos en rasgos o en clases colaboradoras, como se
-  hizo con `Ticket::create()` y sus nueve fases.
+  Los dos son **una sola clase**, así que no vale mover archivos de clases: hay
+  que repartir métodos en rasgos o en clases colaboradoras, como se hizo con
+  `Ticket::create()` y sus nueve fases. El primero es el trozo caro del frente:
+  4.429 líneas en una clase que todo el proyecto usa.
 - Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
   ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
   y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el
