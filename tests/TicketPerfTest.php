@@ -220,13 +220,39 @@ class TicketPerfTest extends UnitTestCase {
         $this->assertTrue(strpos($steps[0]['error'], 'getTasks') !== false);
     }
 
+    /**
+     * El archivo de la clase **y el de sus rasgos**.
+     *
+     * Desde el reparto del frente 6, `Ticket` y `Thread` tienen métodos en
+     * rasgos (`use TicketEvents;`), así que mirar sólo el archivo de la clase
+     * daría por perdidos métodos que siguen existiendo. El rasgo se busca por
+     * su declaración en el mismo directorio: si mañana se mueve, la prueba
+     * sigue encontrándolo sin que haya que tocar una lista.
+     */
+    private function conRasgos($file) {
+        $source = file_get_contents($file);
+        preg_match_all('/^\s+use (\w+);/m', $source, $m);
+
+        foreach (array_unique($m[1]) as $trait) {
+            foreach (glob(dirname($file) . '/*.php') as $candidate) {
+                if ($candidate === $file)
+                    continue;
+                $text = file_get_contents($candidate);
+                if (preg_match('/^trait ' . $trait . '\b/m', $text))
+                    $source .= "\n" . $text;
+            }
+        }
+
+        return $source;
+    }
+
     function testLosMetodosQueUsaElPerfilExisten() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/perf.php');
         $orm = file_get_contents(INCLUDE_DIR . 'class.orm.php');
 
         foreach (array('ticket' => 'class.ticket.php',
                        'thread' => 'class.thread.php') as $var => $file) {
-            $class = file_get_contents(INCLUDE_DIR . $file);
+            $class = $this->conRasgos(INCLUDE_DIR . $file);
             preg_match_all('/\$' . $var . '->(\w+)\(/', $source, $m);
             $used = array_unique($m[1]);
             $this->assertGreaterThan(3, count($used),
