@@ -127,8 +127,8 @@ trait SeedRepair {
                 . 'conocimiento: `make seed-repair` los recoloca si su '
                 . 'pregunta está en el manifiesto; si no (artículos de una '
                 . 'versión anterior), `make seed-repair '
-                . 'SEED_ARGS=--purge-orphans` los borra y `make seed '
-                . '--only=faq` vuelve a crearlos');
+                . 'SEED_ARGS=--purge-orphans` los borra y `make seed-faq` '
+                . '(o `make seed SEED_ARGS=--only=faq`) vuelve a crearlos');
 
         // 7. Tickets cuyo departamento no es el del tema (el tema manda)
         $add('tickets en un departamento distinto al de su tema',
@@ -247,6 +247,28 @@ trait SeedRepair {
     }
 
     /**
+     * Un artículo leído **sin** la relación con su categoría.
+     *
+     * `FAQ::$meta` declara `select_related('category')`, y ese JOIN es
+     * interno: `FAQ::lookup()` no devuelve un artículo cuya categoría no
+     * exista, que es exactamente el que hay que reparar. Esta consulta apaga
+     * la relación para poder llegar a él.
+     *
+     * @param array $criteria condiciones del ORM (`faq_id`, `question`, …)
+     * @return FAQ|null
+     */
+    function faqWithoutCategory($criteria) {
+        $query = FAQ::objects();
+        $query->related = false;
+        try {
+            return $query->filter($criteria)->one();
+        }
+        catch (DoesNotExist $e) {
+            return null;
+        }
+    }
+
+    /**
      * Recoloca los artículos de demostración que se quedaron sin categoría.
      *
      * Pasa cuando la purga borra las categorías y los artículos sobreviven
@@ -273,11 +295,18 @@ trait SeedRepair {
 
                 // Por la tabla (misma columna con la que `FAQ::update()`
                 // decide que hay duplicado) y, si no aparece, por el ORM.
+                // El ORM puede no encontrarlo aunque la fila exista: la
+                // relacion implicita con la categoria es un JOIN interno y
+                // esconde justo los articulos sin categoria (los que hay que
+                // reparar). Por eso se busca tambien sin la relacion.
                 $faq = null;
                 if (($id = $this->faqIdByQuestion($question)))
-                    $faq = FAQ::lookup($id);
+                    $faq = FAQ::lookup($id)
+                        ?: $this->faqWithoutCategory(array('faq_id' => $id));
                 if (!$faq)
-                    $faq = FAQ::lookup(array('question' => $question));
+                    $faq = FAQ::lookup(array('question' => $question))
+                        ?: $this->faqWithoutCategory(
+                            array('question' => $question));
                 if (!$faq) {
                     if (count($notfound) < 3)
                         $notfound[] = $question;
@@ -363,7 +392,7 @@ trait SeedRepair {
 
         if ($missing)
             $this->warn(sprintf('%d categoría(s) del manifiesto no existen: '
-                . 'créalas con `make seed --only=faq`', $missing));
+                . 'créalas con `make seed SEED_ARGS=--only=faq`', $missing));
     }
 
     /**
@@ -380,6 +409,13 @@ trait SeedRepair {
      * enumeran las preguntas, para que se vea qué se va; y **nunca** se toca
      * un artículo cuya pregunta esté en el manifiesto (ese se recoloca) ni uno
      * cuya categoría exista (ese se ve en el panel).
+     *
+     * La lista se lee **sin** la relación implícita del modelo. `FAQ::$meta`
+     * declara `select_related('category')` y ese JOIN es interno, así que
+     * `FAQ::objects()->all()` descarta en SQL las mismas filas que hay que
+     * borrar: la primera versión de esta purga leía cero artículos y avisaba
+     * «no hay artículos que borrar» con 33 huérfanos en la tabla (`--repair`
+     * los contaba con su propia consulta y sí los veía).
      */
     function purgeOrphanFaq() {
         // Las preguntas que el sembrador conoce, normalizadas como las guarda
@@ -389,10 +425,19 @@ trait SeedRepair {
             foreach ($articles as $article)
                 $known[Format::striptags(trim($article[0]))] = true;
 
+        $query = FAQ::objects();
+        // Sin relaciones: el JOIN con la categoría es interno y escondería
+        // justo las filas que se buscan (ver la nota del método).
+        $query->related = false;
+
+        $read = 0;
         $orphans = array();
-        foreach (FAQ::objects()->all() as $faq) {
-            if (!$faq->getCategoryId()
-                    || Category::lookup($faq->getCategoryId()))
+        foreach ($query->all() as $faq) {
+            $read++;
+            $categoryId = (int) $faq->getCategoryId();
+            // Con la categoría detrás el artículo se ve en el panel y se
+            // puede recolocar: no se toca.
+            if ($categoryId && Category::lookup($categoryId))
                 continue;
 
             $question = Format::striptags(trim($faq->getQuestion()));
@@ -403,32 +448,45 @@ trait SeedRepair {
         }
 
         if (!$orphans) {
-            $this->out('  · no hay artículos que borrar: los que quedan se '
-                . 'pueden recolocar');
+            $this->out(sprintf('  · %d artículo(s) leídos: ninguno sin '
+                . 'categoría que no se pueda recolocar', $read));
             return;
         }
 
-        foreach (array_slice($orphans, 0, 10) as $faq)
-            $this->out(sprintf('    - «%s» (categoría %s, que no existe)',
-                $faq->getQuestion(), $faq->getCategoryId()));
+        foreach (array_slice($orphans, 0, 10) as $faq) {
+            $categoryId = (int) $faq->getCategoryId();
+            $this->out(sprintf('    - «%s» (%s)', $faq->getQuestion(),
+                $categoryId
+                    ? sprintf('categoría %d, que no existe', $categoryId)
+                    : 'sin categoría'));
+        }
         if (count($orphans) > 10)
             $this->out(sprintf('    - … y %d más', count($orphans) - 10));
 
-        $removed = 0;
+        $removed = $failed = 0;
         foreach ($orphans as $faq) {
             try {
-                $faq->delete();
+                // `FAQ::delete()` no lanza: devuelve `false` cuando el ORM
+                // falla. Se mira el resultado para que el contador no mienta.
+                if ($faq->delete() === false)
+                    throw new OrmException('el ORM no borró la fila');
                 $removed++;
             }
             catch (Throwable $e) {
+                $failed++;
                 $this->warn(sprintf('no se pudo borrar «%s»: %s',
                     $faq->getQuestion(), $e->getMessage()));
             }
         }
 
-        $this->out(sprintf('  · %d artículo(s) sin categoría borrados '
-            . '(no se podían recolocar); ejecute `make seed --only=faq` para '
-            . 'volver a crear los de demostración', $removed));
+        $this->out(sprintf('  · %d de %d artículo(s) sin categoría borrados '
+            . '(%d leídos); ejecute `make seed-faq` (o `make seed '
+            . 'SEED_ARGS=--only=faq`) para volver a crear los de demostración',
+            $removed, count($orphans), $read));
+
+        if ($failed)
+            $this->warn(sprintf('%d artículo(s) siguen en la base: revise '
+                . 'los avisos de arriba', $failed));
     }
 
     /**

@@ -639,14 +639,16 @@ líneas) y separa cuatro cosas que no son lo mismo:
 | driver de base de datos | 6 | 1 | `include/mysqli.php`: ahí `db_query()` *es* el trabajo | no |
 | dobles de prueba | 22 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
 
-De las 38 de la aplicación, **25 están marcadas como no migrables** con su
-motivo (`sql-audit:legacy`), así que **quedan 13 por migrar**: el objetivo
-era bajar de 100 y se cumple con holgura. Quedan **6 `SELECT`, 3 DML, 2 DDL
-y 2 «otras»**; **ninguna concatenación de datos de la petición** (eso lo
-vigila `tools/audit` con OST-SQLI y también el propio `sql-audit`, que falla
-si aparece una en el punto de llamada). Lo que resta son consultas de campos
-dinámicos, el índice `FULLTEXT` de los informes, la carga de idiomas y la
-importación por lotes; ninguna es una lista paginada.
+Medido el 2026-10-27, con los módulos de línea de comandos ya dentro de la
+cuenta: **53 llamadas de la aplicación, 27 marcadas como no migrables** con su
+motivo (`sql-audit:legacy`) y **26 por migrar** (`13 SELECT`, `3 DML`, `2 DDL`
+y `8 «otras»`; 4 con el SQL escrito de un tirón y 22 construidas
+concatenando). El objetivo era bajar de 100 y se cumple con holgura. **Ninguna
+concatenación de datos de la petición** (eso lo vigila `tools/audit` con
+OST-SQLI y también el propio `sql-audit`, que falla si aparece una en el punto
+de llamada). Lo que resta son consultas de campos dinámicos, el índice
+`FULLTEXT` de los informes, la carga de idiomas, la importación por lotes y las
+consultas de los módulos de diagnóstico; ninguna es una lista paginada.
 
 **La marca, y por qué no es una salida.** Hay SQL que no puede pasar por el
 ORM y no por pereza:
@@ -661,10 +663,13 @@ ORM y no por pereza:
   qué sigue ahí.
 - Alcanza **tres líneas hacia arriba**, así que no se puede «marcar el
   archivo» de una vez.
-- Hay un **tope de 25 marcas** (`SqlAudit::LEGACY_MAX`): si se pudiera marcar
-  todo, el contador volvería a no significar nada. Ahora mismo se usa
-  **entero** (25), así que el frente 3 no admite una marca más sin migrar
-  otra cosa a la vez.
+- Hay un **tope de marcas** (`SqlAudit::LEGACY_MAX`): si se pudiera marcar
+  todo, el contador volvería a no significar nada. Está en **27** —se subió
+  desde 25 al entrar los módulos del sembrador— y se usa **entero**, así que el
+  frente 3 no admite una marca más sin migrar otra cosa a la vez. Las dos
+  nuevas son de `include/cli/modules/seed.php`: el borrado de filas de hilo sin
+  dueño es un `DELETE` con `LEFT JOIN` (el ORM no lo sabe expresar) y
+  `scalar()` es el ayudante de sólo lectura de las comprobaciones del doctor.
 
 **Un falso positivo del escáner, corregido.** `tools/audit/scan.php` marcaba
 como XSS cualquier `echo` cuyo texto contuviera `$_GET`, aunque fuera una
@@ -679,7 +684,7 @@ fallar `make docker-test` por un mensaje de ayuda. La regla ignora ahora las
 apariciones escapadas; las que sí interpolan se siguen marcando, y está
 comprobado con los dos casos.
 
-Las 25 marcas son de nueve archivos, y ninguna es una consulta de la
+Las 27 marcas son de diez archivos, y ninguna es una consulta de la
 aplicación que se pueda escribir con el ORM (o, en el caso de `class.staff.php`,
 que se pueda escribir **sin coste**: la versión ORM está al lado, en el mismo
 método, y tarda 2 ms más en cada carga de sesión del agente):
@@ -695,6 +700,7 @@ método, y tarda 2 ms más en cada carga de sesión del agente):
 | `include/class.timezone.php` | 1 | `SELECT` de expresiones sin tabla: el ORM siempre añade `FROM` |
 | `include/class.staff.php` | 1 | `getDepartments()`: la versión ORM (al lado, comentada) hace un `OR` sobre `path` y tarda 2 ms más, y esto corre en cada carga de sesión |
 | `include/class.analytics.php` | 2 | primera respuesta: es un `MIN()` por ticket, o sea una tabla derivada, y el ORM no une vistas calculadas; SLA: `t.closed <= t.duedate` compara **dos columnas**, y el ORM compara columnas con valores |
+| `include/cli/modules/seed.php` | 2 | el borrado de filas de hilo sin dueño es un `DELETE` con `LEFT JOIN`, fuera del ORM; `scalar()` es el ayudante de sólo lectura de las comprobaciones del doctor, que arma sus consultas con constantes |
 
 **Lo migrado**, por áreas y con la suite en verde después de cada tanda:
 
@@ -778,6 +784,16 @@ seguía leyéndose con SQL a mano.
 - **Agrupar por expresión exige `order_by(false)`**: el orden por defecto del
   modelo es una columna suelta y, con `ONLY_FULL_GROUP_BY` (el valor por
   omisión en MySQL 5.7+), la consulta sería inválida.
+- **`select_related()` es un `JOIN` interno, y esconde filas**: `FAQ::$meta`
+  declara `select_related('category')`, así que `FAQ::objects()->all()` sólo
+  devuelve artículos **cuya categoría existe**. La purga de la base de
+  conocimiento leía por ahí y enumeraba cero huérfanos con 33 en la tabla
+  (`docs/UI_GUIDE.md` §3.13.10). Cuando hay que recorrer filas que pueden
+  tener la relación rota —huérfanas, «sin padre», «sin dueño»—, se apaga la
+  relación (`$query->related = false`, lo mismo que hace `compileCount()`) o
+  se cuenta con SQL, pero **no se comparan dos vistas distintas del mismo
+  dato**: un chequeo con `LEFT JOIN` y una reparación con `INNER JOIN` nunca
+  cuadran.
 
 **Un filtro vacío ya no emite `WHERE`.** El error que llegó del contenedor en
 producción era éste:
@@ -810,6 +826,24 @@ pruebas de `tests/QuerySqlTest.php` fijan el SQL resultante.
 
 Ya está dentro de `make ci`, detrás de `input-audit`. Para consolidar una
 bajada: `php tools/quality/sql-audit.php --update`.
+
+**En rojo hoy (2026-10-27), y por qué.** `make sql-audit` **falla**: hay cuatro
+archivos nuevos con SQL a mano que no están en la línea base (**14 llamadas**).
+
+| Archivo | Llamadas | Qué es |
+|---|---|---|
+| `include/class.orm.sql.php` | 1 | es el **movimiento** de la llamada que estaba en `class.orm.php` (la línea base sigue al archivo): el ORM ejecutando su propia consulta |
+| `include/cli/modules/queue.php` | 9 | módulo de diagnóstico de colas: ejecuta y mide el SQL de la cola |
+| `include/cli/modules/db.php` | 3 | módulo `manage.php db`: pregunta al esquema (`SHOW TABLES`, `information_schema`, vistas calculadas) |
+| `include/cli/modules/perf.php` | 1 | módulo de perfiles: busca el último ticket tocado para medir la ficha |
+
+Ninguna es una consulta de la aplicación que un modelo pueda describir, pero
+tampoco se marcan como `legacy` a la ligera: la decisión pendiente es **una
+categoría propia** en `sql-audit` para `include/cli/` —como ya existe para el
+`driver`, «ahí `db_query()` *es* el trabajo»—, de modo que el diagnóstico
+reporte sus llamadas aparte y el número de la aplicación vuelva a significar
+lo mismo. Mientras tanto el rojo es **visible y está aquí**, no tapado con una
+línea base nueva ni con trece marcas más.
 
 ### Frente 4 — Entrada única y tipada 🔄 En curso (la regla ya se cumple)
 

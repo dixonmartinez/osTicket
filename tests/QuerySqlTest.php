@@ -93,6 +93,35 @@ if (!class_exists('QuerySqlNotice')) {
     }
 }
 
+/**
+ * Articulo y su categoria: el `select_related` de la meta sin `null`, que es
+ * como `FAQ::$meta` declara la suya. Sirve para fijar que ese JOIN es
+ * **interno** y que apagar la relacion lo quita de la consulta.
+ */
+if (!class_exists('QuerySqlCategory')) {
+    class QuerySqlCategory extends \VerySimpleModel {
+        static $meta = array(
+            'table' => 'category',
+            'pk' => array('id'),
+        );
+    }
+}
+if (!class_exists('QuerySqlOrphan')) {
+    class QuerySqlOrphan extends \VerySimpleModel {
+        static $meta = array(
+            'table' => 'orphan',
+            'pk' => array('id'),
+            'select_related' => array('category'),
+            'joins' => array(
+                'category' => array(
+                    'local' => 'category_id',
+                    'constraint' => array('category_id' => 'QuerySqlCategory.id'),
+                ),
+            ),
+        );
+    }
+}
+
 class QuerySqlTest extends UnitTestCase {
 
     /**
@@ -107,6 +136,8 @@ class QuerySqlTest extends UnitTestCase {
             'QuerySqlChild' => array('id', 'parent_id', 'title'),
             'QuerySqlAuthor' => array('id', 'name'),
             'QuerySqlNotice' => array('id', 'author_id', 'title'),
+            'QuerySqlCategory' => array('id', 'name'),
+            'QuerySqlOrphan' => array('id', 'category_id', 'question'),
         );
         foreach ($fields as $model => $names)
             $model::getMeta()->fields = $names;
@@ -141,6 +172,43 @@ class QuerySqlTest extends UnitTestCase {
         $this->assertStringContainsString('LEFT JOIN `author`', $q['sql']);
         // Y sus columnas viajan en el SELECT, con el alias del JOIN.
         $this->assertStringContainsString('A2.`name`', $q['sql']);
+    }
+
+    /**
+     * La relacion implicita quita filas, y apagarla las devuelve.
+     *
+     * `select_related()` se compila como `JOIN` **interno**: un articulo cuya
+     * categoria no existe no sale de la base. La purga de la base de
+     * conocimiento leia por ahi y enumeraba cero huerfanos con 33 en la tabla
+     * (`docs/UI_GUIDE.md` §3.13.10). Aqui se fija el SQL de las dos formas:
+     * con la relacion puesta y con `$qs->related = false`.
+     */
+    public function testApagarLaRelacionQuitaElJoinQueEscondeFilas(): void {
+        $conRelacion = $this->compile(new \QuerySet('QuerySqlOrphan'))['sql'];
+
+        $this->assertStringContainsString('JOIN `category`', $conRelacion,
+            'la relacion implicita tiene que viajar en la consulta');
+        $this->assertFalse(strpos($conRelacion, 'LEFT JOIN') !== false,
+            'si el JOIN fuera externo no esconderia las filas huerfanas');
+
+        $qs = new \QuerySet('QuerySqlOrphan');
+        $qs->related = false;
+        $sinRelacion = $this->compile($qs)['sql'];
+
+        $this->assertSame(false, strpos($sinRelacion, 'JOIN'),
+            'sin la relacion no queda ningun JOIN: la tabla se lee entera');
+        $this->assertStringContainsString('FROM `orphan` A1', $sinRelacion);
+
+        // Y sigue sin haber JOIN al filtrar, que es como se busca el articulo
+        // concreto (`faqWithoutCategory()` en el reparador del sembrador).
+        $filtrado = new \QuerySet('QuerySqlOrphan');
+        $filtrado->related = false;
+        $q = $this->compile($filtrado->filter(array('category_id' => 4)));
+
+        $this->assertSame(false, strpos($q['sql'], 'JOIN'),
+            'el filtro de la busqueda tampoco puede arrastrar el JOIN');
+        $this->assertStringContainsString('WHERE A1.`category_id` = :1', $q['sql']);
+        $this->assertSame(array(4), $q['params']);
     }
 
     /* ------------------------------------------------------------------ */

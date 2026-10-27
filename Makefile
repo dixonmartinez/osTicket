@@ -266,6 +266,8 @@ docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 
 # Opciones del sembrador: `make seed SEED_ARGS="-v --only=topics"`.
 # Ojo: `make seed -v` NO funciona — `-v` lo consume make y muestra su versión.
+# Tampoco `make seed --only=faq`: make lo rechaza (`unrecognized option`);
+# para la base de conocimiento está el atajo `make seed-faq`.
 SEED_ARGS ?=
 
 seed: ## Carga datos de demostración (organizaciones, agentes, 59 tickets, 16 tareas)
@@ -280,6 +282,9 @@ seed-verbose: ## Lo mismo que `make seed`, mostrando cada registro creado o salt
 
 seed-fresh: ## Borra lo que creó `make seed` y lo vuelve a crear
 	@docker compose exec -T php php manage.php seed --fresh $(SEED_ARGS)
+
+seed-faq: ## Recrea sólo la base de conocimiento de demostración (paso `faq`)
+	@docker compose exec -T php php manage.php seed --only=faq $(SEED_ARGS)
 
 seed-check: ## Lista los pasos del sembrador y lo que crea cada uno (no escribe)
 	@docker compose exec -T php php manage.php seed --list

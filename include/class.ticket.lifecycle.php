@@ -7,7 +7,7 @@
     TicketCreate; `open()` es la validacion de la pantalla de alta.
 
     Es un rasgo de Ticket y no una clase aparte porque estos metodos
-    guardan con `$this->save()`, emiten sus seÒales y devuelven los errores en
+    guardan con `$this->save()`, emiten sus se√±ales y devuelven los errores en
     el array que reciben. Se sacaron de include/class.ticket.php (frente 6 de
     docs/CODE_QUALITY.md) moviendo los metodos enteros, sin tocar su codigo.
 

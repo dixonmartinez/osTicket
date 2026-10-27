@@ -61,8 +61,14 @@ class SqlAudit {
      * La marca es una excepción razonada, no una salida: si se pudiera marcar
      * todo, el contador volvería a no significar nada. Al pasar del tope hay
      * que justificarlo en docs/CODE_QUALITY.md y subirlo a mano.
+     *
+     * 25 → 27: el sembrador (`include/cli/modules/seed.php`) suma dos marcas
+     * al llegar sus módulos: el borrado de filas de hilo sin dueño es un
+     * `DELETE` con `LEFT JOIN`, que el ORM no sabe expresar, y `scalar()` es
+     * el ayudante de sólo lectura de las comprobaciones del doctor. El motivo
+     * largo está en docs/CODE_QUALITY.md (frente 3).
      */
-    const LEGACY_MAX = 25;
+    const LEGACY_MAX = 27;
 
     /** Categorías, de la que no se toca a la que sí. */
     static function categories() {

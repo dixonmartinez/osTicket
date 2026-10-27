@@ -7,7 +7,7 @@
 
     Es un rasgo de Ticket y no una clase aparte porque cada respuesta pasa por
     `$this->getThread()`, el estado y los permisos del propio ticket. Lo que no
-    necesita saber del ticket ya se sacó a TicketPost y ThreadEmailInfo en el
+    necesita saber del ticket ya se sacÃ³ a TicketPost y ThreadEmailInfo en el
     frente 2. Los metodos se movieron enteros, sin tocar su codigo
     (frente 6 de docs/CODE_QUALITY.md).
 

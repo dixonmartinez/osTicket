@@ -425,7 +425,21 @@ Hace cuatro cosas y **no borra ni crea registros**:
    anterior, con preguntas que ya no existen y categorías borradas— no hay a
    qué recolocarlos: se quedan en la tabla pero **no se ven en el panel**. Para
    esos está `make seed-repair SEED_ARGS=--purge-orphans`, que los enumera y los
-   borra; después, `make seed --only=faq` vuelve a crear los de demostración.
+   borra; después, `make seed-faq` (o `make seed SEED_ARGS=--only=faq`) vuelve
+   a crear los de demostración.
+
+   > **Ojo con la forma del comando.** Pasar las opciones del sembrador
+   > directamente a make **no funciona**: make se las queda como suyas y
+   > responde `unrecognized option` sin llegar a ejecutar nada. Van en
+   > `SEED_ARGS`, o se usa el atajo `make seed-faq`.
+   >
+   > La purga lee los artículos **sin** la relación implícita de `FAQ`
+   > (`$meta['select_related'] = array('category')`): ese JOIN es interno y
+   > dejaba fuera de la consulta justo los huérfanos, así que la primera
+   > versión enumeraba cero y decía «no hay artículos que borrar» con 33 en la
+   > tabla. Ahora imprime cuántos ha leído, cuántos va a borrar y cuántos ha
+   > borrado, y trata el `false` que devuelve `FAQ::delete()` como un fallo
+   > (antes se contaba como borrado).
 2. **Entradas fechadas antes que su mensaje padre**: se recorren los hilos y
    cada respuesta se coloca detrás de su padre, separando un minuto a los
    hermanos y respetando el orden de escritura (por id). Después se recalcula

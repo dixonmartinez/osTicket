@@ -925,13 +925,13 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
 #### 3.12.6 Cómo se comprueba
 
 - `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158), hoy
-  **188** tras la segunda pasada (§3.13.10). Las
+  **188** tras la segunda pasada (§3.13.11). Las
   nuevas: `.redactor-in` en el tema y ninguna regla de `.redactor-editor`, la
   regla de cuatro clases de la barra, `#response_options > form`, `#note`,
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 879, §3.13.10).
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 881, §3.13.11).
   `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
   propio Redactor.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
@@ -1083,17 +1083,54 @@ fecha **anterior** a su mensaje padre, la resta sale por debajo de cero.
   revisión real de la instalación encontró **48** entradas así. Es el arreglo
   de datos; la cota del informe es la red por si queda alguna.
 
-#### 3.13.10 Cómo se comprueba
+#### 3.13.10 La purga de la base de conocimiento no veía lo que tenía que borrar
 
-- `php tools/ui/theme-check.php` → **188** comprobaciones (antes 178). Las
+La instalación del usuario tenía **33 artículos huérfanos** —su `category_id`
+apunta a categorías que ya no existen y su pregunta no está en el manifiesto
+del sembrador—, y el doctor los contaba con su propia consulta (`SELECT … LEFT
+JOIN ost_faq_category … WHERE c.category_id IS NULL`). Al pedir la purga,
+`make seed-repair SEED_ARGS=--purge-orphans` respondía **«no hay artículos que
+borrar»** y los 33 seguían ahí.
+
+- **Causa**: `FAQ::$meta` declara `select_related('category')` y ese JOIN se
+  compila como **interno**. `FAQ::objects()->all()` devuelve modelos `FAQ`
+  hidratados con la categoría, y un artículo cuya categoría no existe **no
+  sobrevive al JOIN**: la purga recorría cero filas. El desajuste de fondo es
+  que el chequeo contaba con SQL y la reparación leía con el ORM, y los dos no
+  veían lo mismo.
+- **Arreglo**: la purga apaga la relación para leer la tabla tal cual
+  (`$query->related = false`, el mismo recurso que usa el núcleo en
+  `compileCount()`), cuenta cuántos artículos ha leído, enumera los que va a
+  borrar y comprueba el valor que devuelve `FAQ::delete()` —devuelve `false`
+  en vez de lanzar— para que «borrados» no sea una suposición.
+- **Segundo defecto, en los textos**: el doctor y `docs/SEED.md` recomendaban
+  `make seed --only=faq`, que **no funciona**: make se queda con `--only` como
+  opción suya y responde `unrecognized option '--only=faq'` (lo reportó el
+  usuario al ejecutarlo). Ahora se recomienda `make seed-faq`, objetivo nuevo
+  del Makefile que ejecuta el paso `faq`, y la forma general
+  `make seed SEED_ARGS=--only=faq`. `tests/SeedDataTest.php` falla si vuelve a
+  aparecer la forma rota, si la purga no apaga la relación o si el contador no
+  mira el resultado del borrado.
+
+#### 3.13.11 Cómo se comprueba
+
+- `php tools/ui/theme-check.php` → **188** comprobaciones (antes 178), sin
+  cambios en esta tanda. Las
   nuevas: select2 v4, el buscador por tipo, la ficha en los dos temas,
   `.type-icon::after`, `body #line-chart-here`, las etiquetas del gráfico, el
   guardia del pie de la cola, la fecha de la entrada de apertura, la cota del
   informe y la opción `--repair` del doctor.
-- `php tests/run.php` → **879** pruebas, 0 fallos, 1 omitida.
-  `tests/ReportTimeTest.php` (2), dos en `tests/QueueCheckTest.php` (una de
-  ellas para `--hydrate`), cuatro en `tests/SeedDataTest.php` y una en
-  `tests/QueueEmptyStateTest.php`.
+- `php tools/quality/sql-audit.php` → **en rojo** desde que entraron los módulos
+  de diagnóstico del CLI: 4 archivos nuevos, 14 llamadas fuera de la línea base
+  (de ellas una es el **movimiento** de la llamada del ORM a
+  `class.orm.sql.php`). Queda documentado y visible en `docs/CODE_QUALITY.md`
+  (frente 3), con la decisión pendiente: una categoría propia para
+  `include/cli/`, como la del `driver`.
+- `php tests/run.php` → medido en **php-wasm** (sin `dom` ni `mbstring`):
+  **878 correctas, 0 fallos, 5 omitidas**, tres de ellas nuevas en esta tanda
+  (dos en `tests/SeedDataTest.php` y una en `tests/QuerySqlTest.php`).
+  En el contenedor de referencia, con `dom`, esa cuenta sube en las que se
+  omiten aquí.
 - `sw.js` sube a **`ost-v35`** para que el service worker suelte las hojas
   viejas.
 
@@ -1285,6 +1322,7 @@ queda en §6.2.
 | 30 | **Iconos de la línea de tiempo y avatar**: el borde blanco de 16 px de `.type-icon::after` pasa al tema, se retira el segundo icono del aviso de vencimiento y el avatar —que el servidor dibuja sobre lienzo blanco— va en círculo con anillo del tema. El realce de las tablas pasa de la celda a la fila, así una celda vacía no queda de otro tono (§3.13.5, §3.13.6) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
 | 31 | **Verdades de la pantalla**: la cola ya no dice «Showing 1 - 23» con la tabla vacía (`$rendered` + `setTotal(0)`), y el tiempo de respuesta no puede ser negativo (la apertura se fecha con el ticket en `SeedManager::backdate()` y el informe acota con `GREATEST`). El origen de las filas invisibles —la vista `ost_ticket__cdata`— lo detecta `make seed-doctor` (§3.13.8, §3.13.9) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/seed.php`, `include/class.report.php`, `tests/QueueEmptyStateTest.php`, `tests/ReportTimeTest.php` |
 | 32 | **`make seed-repair`**: el doctor prometía `--doctor --repair` en sus pistas y la opción **no existía**. Ahora repara sin borrar ni volver a sembrar: artículos sin categoría (por pregunta del manifiesto), entradas fechadas antes que su padre (y `thread.lastmessage`), restos de hilo y vistas de datos. Repasa la revisión al terminar (`docs/SEED.md`) | ✅ Hecho | `include/cli/modules/seed.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
+| 33 | **La purga de la base de conocimiento ve lo que cuenta el doctor**: `--purge-orphans` leía con el ORM, cuyo `select_related('category')` es un JOIN interno, así que enumeraba **cero** artículos con 33 huérfanos en la tabla; ahora lee sin la relación, dice cuántos ha leído y comprueba el resultado de `FAQ::delete()`. Los textos ya no recomiendan `make seed --only=faq` (make lo rechaza): `make seed-faq` es un objetivo nuevo (§3.13.10) | ✅ Hecho | `include/cli/modules/seed.repair.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -1300,7 +1338,8 @@ respuesta, acceso y FAQ).
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
 | 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | `make queue-check QUEUE=14 QUEUE_ARGS=--sql` ya descartó el dato, la consulta, las columnas, la vista `ticket__cdata` y la visibilidad: los cuatro números son 23 y el veredicto es «cuadran». Falta la hidratación (`--hydrate`) y confirmar en el navegador si la página sigue vacía después de una recarga dura |
-| 4 | Pasada de `make seed-repair` en la instalación del usuario | Las 418 entradas ya están en orden (0 antes de su padre) y las vistas reconstruidas. Los 33 artículos son de otra versión: su categoría no existe y su pregunta no está en el manifiesto, así que no se pueden recolocar — quedan `make seed-repair SEED_ARGS=--purge-orphans` y `make seed --only=faq` (`docs/SEED.md`) |
+| 4 | Segunda pasada de la purga en la instalación del usuario | La primera pasada no borró nada porque la purga no veía los huérfanos (§3.13.10); ya está corregido. Queda confirmar con la salida real: `make seed-repair SEED_ARGS=--purge-orphans` tiene que enumerar y borrar los 33, `make seed-faq` volver a crearlos y `make seed-doctor` terminar en «Todo cuadra.» (`docs/SEED.md`) |
+| 7 | `make sql-audit` en rojo: 4 archivos nuevos con SQL a mano (14 llamadas) fuera de la línea base | No son consultas de la aplicación sino de los módulos de diagnóstico (`queue.php` 9, `db.php` 3, `perf.php` 1) más el movimiento de la llamada del ORM a `class.orm.sql.php`. Se deja **visible**: ni línea base nueva ni marcas `legacy` en bloque. La decisión propuesta es una categoría propia para `include/cli/` en `SqlAudit`, como la que ya tiene el `driver` (`docs/CODE_QUALITY.md`, frente 3) |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 
 ## 7. Si la interfaz se ve mal después de actualizar

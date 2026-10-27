@@ -6,7 +6,7 @@
     derivarlo, cambiarle el estado y bloquearlo mientras alguien lo edita.
 
     Es un rasgo de Ticket y no una clase aparte: todas estas operaciones
-    cambian el propio ticket y avisan con las señales del modelo. Se sacaron
+    cambian el propio ticket y avisan con las seÃ±ales del modelo. Se sacaron
     de include/class.ticket.php (frente 6 de docs/CODE_QUALITY.md) moviendo
     los metodos enteros, sin tocar su codigo.
 

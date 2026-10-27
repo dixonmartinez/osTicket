@@ -747,16 +747,29 @@ class SeedDataTest extends UnitTestCase {
             $source);
     }
 
-    public function testLaExistenciaDeUnArticuloNoDependeDelORM(): void {
-        // La comprobación anterior (`FAQ::lookup`) decía «no existe» y luego
-        // `FAQ::update()` rechazaba la pregunta por duplicada: 8 artículos
-        // quedaban sin crear con un aviso. Se pregunta por el id directamente.
+    public function testLaExistenciaDeUnArticuloNoDependeDelJoin(): void {
+        // `FAQ::lookup()` decía «no existe» y luego `FAQ::update()` rechazaba
+        // la pregunta por duplicada: 8 artículos quedaban sin crear con un
+        // aviso. La causa era el JOIN interno de `select_related('category')`,
+        // que esconde los artículos sin categoría. La búsqueda apaga ahora la
+        // relación en vez de escribir SQL a mano.
         $this->assertTrue(method_exists('SeedManager', 'faqIdByQuestion'));
         $source = $this->fuente();
-        $this->assertStringContainsString('FROM %s WHERE question = %s LIMIT 1',
+
+        $start = strpos($source, 'function faqIdByQuestion(');
+        $this->assertTrue($start !== false);
+        $body = substr($source, $start, strpos($source, 'function seedTickets(', $start)
+            ?: strlen($source));
+
+        $this->assertStringContainsString('$query->related = false;', $body,
+            'la busqueda del articulo tiene que leer sin el JOIN de la '
+            . 'categoria, o no encuentra los que estan sin categorizar');
+        $this->assertStringContainsString("values('faq_id')", $body,
+            'basta el id: no hay que hidratar el modelo entero');
+        $this->assertSame(false, strpos($body, 'db_input('),
+            'la busqueda ya no necesita SQL a mano');
+        $this->assertStringContainsString('$this->faqIdByQuestion($question)',
             $source);
-        $this->assertStringContainsString('FAQ_TABLE, db_input($question)', $source);
-        $this->assertStringContainsString('$this->faqIdByQuestion($question)', $source);
     }
 
     public function testCadaActualizacionEmpiezaSinErrores(): void {
@@ -969,6 +982,73 @@ class SeedDataTest extends UnitTestCase {
             'no se puede borrar un articulo cuya categoria existe');
         $this->assertStringContainsString('self::faqs()', $body,
             'la lista de preguntas conocidas sale del manifiesto');
+
+        // `FAQ::$meta` declara `select_related('category')` y ese JOIN es
+        // interno: `FAQ::objects()->all()` no devuelve los huerfanos. La
+        // primera version de la purga leia cero y decia «no hay articulos
+        // que borrar» con 33 en la tabla.
+        $this->assertStringContainsString('$query->related = false;', $body,
+            'la purga tiene que leer los articulos sin el JOIN implicito de '
+            . 'la categoria, o no ve ninguno de los que tiene que borrar');
+        $this->assertSame(false, strpos($body, 'FAQ::objects()->all()'),
+            'FAQ::objects()->all() esconde los articulos sin categoria');
+
+        // `FAQ::delete()` no lanza: devuelve `false`. Sin mirarlo, el
+        // contador dice «borrados» aunque no se haya borrado nada.
+        $this->assertStringContainsString('=== false', $body,
+            'hay que mirar el resultado de FAQ::delete() antes de contarlo');
+    }
+
+    /**
+     * La purga y el doctor tienen que ver lo mismo: el chequeo cuenta los
+     * articulos con su propia consulta y la purga recorre los modelos.
+     */
+    public function testLaPurgaYElDoctorCuentanLosMismosHuerfanos(): void {
+        $source = $this->fuente();
+
+        $start = strpos($source, 'function purgeOrphanFaq(');
+        $this->assertTrue($start !== false);
+        $body = substr($source, $start, strpos($source, 'function scalar(', $start)
+            ?: strlen($source));
+
+        // El doctor dice cuantos ha leido la purga: sin esa cifra, un «0
+        // borrados» no distingue «no hay» de «no se han visto».
+        $this->assertStringContainsString('%d artículo(s) leídos', $body,
+            'la purga tiene que decir cuantos articulos ha leido');
+        $this->assertStringContainsString('count($orphans)', $body,
+            'la purga tiene que decir cuantos va a borrar');
+        $this->assertStringContainsString('$failed', $body,
+            'un borrado que falla no puede contarse como hecho');
+    }
+
+    /**
+     * Los comandos que recomiendan el doctor y `docs/SEED.md` tienen que
+     * existir. `make seed --only=faq` no funciona: make se queda con
+     * `--only` y responde `unrecognized option '--only=faq'` (lo reporto el
+     * usuario al ejecutarlo). Las opciones del sembrador van en `SEED_ARGS`.
+     */
+    public function testLosComandosQueSeRecomiendanParaLaBaseDeConocimientoFuncionan(): void {
+        $source = $this->fuente();
+        // Las cadenas largas van partidas en el codigo: se juntan antes de
+        // buscar, para no depender de donde corta la linea.
+        $flat = preg_replace("/'\s*\.\s*'/", '', $source);
+
+        $this->assertStringContainsString('make seed SEED_ARGS=--only=faq', $flat,
+            'el doctor tiene que recomendar la forma que funciona');
+        $this->assertStringContainsString('make seed-faq', $flat,
+            'falta el atajo `make seed-faq` en el texto de la ayuda');
+
+        $makefile = (string) file_get_contents(ROOT_DIR . '/Makefile');
+        $this->assertStringContainsString('seed-faq: ##', $makefile,
+            'el atajo `make seed-faq` tiene que existir en el Makefile');
+        $this->assertStringContainsString('manage.php seed --only=faq', $makefile,
+            '`make seed-faq` tiene que ejecutar el paso faq');
+
+        $doc = (string) file_get_contents(ROOT_DIR . '/docs/SEED.md');
+        $this->assertStringContainsString('make seed SEED_ARGS=--only=faq', $doc);
+        $this->assertSame(false, strpos($doc, 'make seed --only=faq'),
+            'docs/SEED.md no puede recomendar `make seed --only=faq`: make lo '
+            . 'rechaza con «unrecognized option»');
     }
 
     /** Los articulos huerfanos se recolocan por pregunta exacta. */
@@ -983,6 +1063,13 @@ class SeedDataTest extends UnitTestCase {
             'sin la pregunta exacta se recolocaria un articulo que no es');
         $this->assertStringContainsString('categoryByName(', $body);
         $this->assertStringContainsString("'category_id'", $body);
+
+        // El articulo huerfano no lo devuelve `FAQ::lookup()`: la relacion
+        // implicita con la categoria es un JOIN interno. Sin esta segunda
+        // lectura, la reparacion dice «0 en la base» con la fila delante.
+        $this->assertStringContainsString('faqWithoutCategory(', $body,
+            'la reparacion tiene que buscar tambien sin el JOIN de la '
+            . 'categoria, o no encuentra justo lo que repara');
     }
 
     /** Las entradas se recolocan detras de su padre, sin SQL a mano. */

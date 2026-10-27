@@ -626,44 +626,38 @@ function seedFaq() {
         if (!strlen($name))
             return null;
 
-        // Por el nombre (búsqueda del ORM) y, si no aparece, por id: la
-        // comprobación por nombre ya falló una vez con los artículos, así que
-        // no se deja el resultado en manos de un solo camino.
-        if ($category = Category::lookup(array('name' => $name)))
-            return $category;
+        // Por el nombre, sin relaciones: aquí sólo se busca una fila por una
+        // columna, y la relación con el padre (`parent`) es un JOIN que no
+        // hace falta.
+        $query = Category::objects();
+        $query->related = false;
 
-        if (!function_exists('db_query') || !defined('FAQ_CATEGORY_TABLE'))
-            return null;
-
-        $res = db_query(sprintf('SELECT category_id FROM %s WHERE name = %s LIMIT 1',
-            FAQ_CATEGORY_TABLE, db_input($name)));
-        $row = $res ? db_fetch_row($res) : null;
-
-        return ($row && $row[0]) ? Category::lookup((int) $row[0]) : null;
+        return $query->filter(array('name' => $name))->first() ?: null;
     }
 
 /**
      * Id del artículo con esa pregunta exacta, o null.
      *
-     * Se pregunta a la tabla y no al ORM a propósito: `FAQ::lookup(['question'
-     * => …])` devolvía «no existe» para artículos que sí estaban —y que
-     * `FAQ::update()` rechazaba después por duplicados, con el consiguiente
-     * aviso—, así que la comprobación se hace con la misma columna con la que
-     * el modelo decide que hay duplicado.
+     * Antes se preguntaba a la tabla con SQL a mano porque `FAQ::lookup()`
+     * devolvía «no existe» para artículos que sí estaban —y `FAQ::update()`
+     * los rechazaba después por duplicados—. La causa era la relación
+     * implícita del modelo: `FAQ::$meta` declara `select_related('category')`
+     * y ese JOIN es **interno**, así que el ORM escondía justo los artículos
+     * sin categoría. Se consulta al ORM **sin la relación** —la misma
+     * solución que `faqWithoutCategory()` en el reparador— y no se suma SQL
+     * a mano.
      */
     function faqIdByQuestion($question) {
         $question = trim((string) $question);
-        if (!strlen($question) || !function_exists('db_query'))
+        if (!strlen($question))
             return null;
 
-        $res = db_query(sprintf('SELECT faq_id FROM %s WHERE question = %s LIMIT 1',
-            FAQ_TABLE, db_input($question)));
-        if (!$res)
-            return null;
+        $query = FAQ::objects();
+        $query->related = false;
+        $row = $query->filter(array('question' => $question))
+            ->values('faq_id')->first();
 
-        $row = db_fetch_row($res);
-
-        return ($row && $row[0]) ? (int) $row[0] : null;
+        return ($row && !empty($row['faq_id'])) ? (int) $row['faq_id'] : null;
     }
 
 function seedTickets($limit = null) {
@@ -925,7 +919,7 @@ function seedTickets($limit = null) {
      * @param int|null $limit  cuántas tareas (del plan curado o generadas)
      * @param array|null $plan filas ya armadas; `--with-tasks` pasa las suyas
      */
-    function seedTasks($limit = null, array $plan = null) {
+    function seedTasks($limit = null, ?array $plan = null) {
         global $thisstaff;
 
         // Red de seguridad: si se ejecuta `--only=tasks` sobre una instalación
