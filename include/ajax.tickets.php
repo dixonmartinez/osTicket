@@ -832,9 +832,8 @@ class TicketsAjaxAPI extends AjaxController {
             $w = 'me';
         case 'assign':
             $inc = 'assign.tmpl.php';
-            $info[':action'] = "#tickets/mass/assign/$w";
-            $info[':title'] = sprintf('Assign %s',
-                    _N('selected ticket', 'selected tickets', $count));
+            // Textos del diálogo: ver MassAction::assignPrompt()
+            $info = array_merge($info, MassAction::assignPrompt('ticket', $w, $count));
 
             $form = AssignmentForm::instantiate($_POST);
 
@@ -879,16 +878,8 @@ class TicketsAjaxAPI extends AjaxController {
                         }
                     }
 
-                    switch ($cfg->getAgentNameFormat()) {
-                    case 'last':
-                    case 'lastfirst':
-                    case 'legal':
-                        $members->order_by('lastname', 'firstname');
-                        break;
-
-                    default:
-                        $members->order_by('firstname', 'lastname');
-                    }
+                    call_user_func_array(array($members, 'order_by'),
+                        MassAction::agentOrder($cfg->getAgentNameFormat()));
 
                     $prompt  = __('Select an Agent');
                     $assignees = array();
@@ -908,12 +899,8 @@ class TicketsAjaxAPI extends AjaxController {
                         $info['warn'] =  __('No teams available for assignment');
                     break;
                 case 'me':
-                    $info[':action'] = '#tickets/mass/claim';
-                    $info[':title'] = sprintf('Claim %s',
-                            _N('selected ticket', 'selected tickets', $count));
-                    $info['warn'] = sprintf(
-                            __('Are you sure you want to CLAIM %s?'),
-                            _N('selected ticket', 'selected tickets', $count));
+                    $info = array_merge($info,
+                        MassAction::assignPrompt('ticket', 'me', $count));
                     $verb = sprintf('%s, %s', __('Yes'), __('Claim'));
                     $id = sprintf('s%s', $thisstaff->getId());
                     $assignees = array($id => $thisstaff->getName());
@@ -946,19 +933,13 @@ class TicketsAjaxAPI extends AjaxController {
                         $i++;
                 }
 
-                if (!$i) {
-                    $info['error'] = sprintf(
-                            __('Unable to %1$s %2$s'),
-                            __('assign'),
-                            _N('selected ticket', 'selected tickets', $count));
-                }
+                if (!$i)
+                    $info['error'] = MassAction::failure('ticket', 'assign', $count);
             }
             break;
         case 'transfer':
             $inc = 'transfer.tmpl.php';
-            $info[':action'] = '#tickets/mass/transfer';
-            $info[':title'] = sprintf(__('Transfer %s'),
-                    _N('selected ticket', 'selected tickets', $count));
+            $info = array_merge($info, MassAction::confirm('ticket', $action, $count));
             $form = TransferForm::instantiate($_POST);
             $form->hideDisabled();
             if ($_POST && $form->isValid()) {
@@ -973,29 +954,13 @@ class TicketsAjaxAPI extends AjaxController {
                         $i++;
                 }
 
-                if (!$i) {
-                    $info['error'] = sprintf(
-                            __('Unable to %1$s %2$s'),
-                            __('transfer'),
-                            _N('selected ticket', 'selected tickets', $count));
-                }
+                if (!$i)
+                    $info['error'] = MassAction::failure('ticket', 'transfer', $count);
             }
             break;
         case 'delete':
             $inc = 'delete.tmpl.php';
-            $info[':action'] = '#tickets/mass/delete';
-            $info[':title'] = sprintf('Delete %s',
-                    _N('selected ticket', 'selected tickets', $count));
-
-            $info[':placeholder'] = sprintf(__(
-                        'Optional reason for deleting %s'),
-                    _N('selected ticket', 'selected tickets', $count));
-            $info['warn'] = sprintf(__(
-                        'Are you sure you want to DELETE %s?'),
-                    _N('selected ticket', 'selected tickets', $count));
-            $info[':extra'] = sprintf('<strong>%s</strong>',
-                        __('Deleted tickets CANNOT be recovered, including any associated attachments.')
-                        );
+            $info = array_merge($info, MassAction::confirm('ticket', $action, $count));
 
             // Generic permission check.
             if (!$thisstaff->hasPerm(Ticket::PERM_DELETE, false))
@@ -1012,12 +977,8 @@ class TicketsAjaxAPI extends AjaxController {
                         $i++;
                 }
 
-                if (!$i) {
-                    $info['error'] = sprintf(
-                            __('Unable to %1$s %2$s'),
-                            __('delete'),
-                            _N('selected ticket', 'selected tickets', $count));
-                }
+                if (!$i)
+                    $info['error'] = MassAction::failure('ticket', 'delete', $count);
             }
             break;
         default:

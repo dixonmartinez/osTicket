@@ -254,22 +254,53 @@ integración.
 
 ### Frente 2 — Reducir las funciones y archivos que concentran la dificultad 🔄 En curso
 
-**Dónde está** (medido el 2026-10-26 con `make metrics`): la primera tanda está
+**Dónde está** (medido el 2026-10-27 con `make metrics`): la primera tanda está
 hecha y en uso —catorce piezas puras sacadas de las funciones más largas, con
 417 pruebas nuevas y once defectos reales corregidos—, y ninguna de esas
 funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **7 funciones de la
-aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
-(`class.ticket.php`, `class.forms.php` y `class.orm.php`).
+**Tanda del 2026-10-27** (frentes 2 y 6 a la vez):
+
+- `MassAction` gana los **textos de los diálogos en lote**, que estaban escritos
+  dos veces —una por cada `massProcess()`— letra por letra:
+  `assignPrompt()`, `confirm()`, `failure()`, `selection_noun()` y
+  `agentOrder()`. El orden de la lista de agentes según el formato de nombre
+  era un `switch` duplicado; ahora es una función con prueba. `massProcess()`
+  de tickets baja de **321 a 282** y el de tareas de **287 a 237**.
+  Cinco pruebas nuevas en `tests/MassActionTest.php` fijan los textos tal como
+  estaban (son de caracterización: si alguien cambia un mensaje, salta).
+- `run()` de `include/cli/modules/file.php`: **408 → 12 líneas**. Las nueve
+  acciones son ahora `actionBackends()`, `actionList()`, `actionDump()`,
+  `actionLoad()`, `actionMigrate()`, `actionExport()`, `actionImport()`,
+  `actionZip()` y `actionExpunge()`, y el despacho es una tabla
+  (`'action' . ucfirst($args['action'])`). De paso se corrigieron dos cosas:
+  el `switch` **no tenía `default`**, así que una acción inventada terminaba
+  con código 0 y sin decir nada (ahora se para con `unknown action`), y las
+  cinco copias de «archivos que cumplen el criterio» y las dos de «el archivo
+  único» son `matchingFiles()` y `oneFile()`. Cuatro pruebas en
+  `tests/FileManagerTest.php`, una de ellas comprobando que **toda** acción
+  del listado de ayuda tiene su método.
+- Frente 6: `class.ticket.php` baja de **1.982 a 1.834** líneas al moverse la
+  familia de vencimientos y SLA a `include/class.ticket.sla.php` (rasgo
+  `TicketSla`: once métodos, 182 líneas). Cuatro pruebas en
+  `tests/TicketSlaTest.php`, entre ellas que **no queden definiciones
+  duplicadas** —PHP no avisa y una copia vieja en el modelo taparía la del
+  rasgo— y que el archivo siga con margen bajo el tope.
+
+El criterio de éxito **no se cumple todavía**: quedan **5 funciones de la
+aplicación por encima de 120 líneas** (`massProcess()` de tickets 282,
+`Mailer::send()` 270, `massProcess()` de tareas 237, `Ticket::create()` 219 y
+`Ticket::postMessage()` 178). Los archivos por encima de 3.000 ya no existen:
+los tres se repartieron en el frente 6.
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Función más larga de la aplicación | 536 líneas | **321** (`massProcess()` de tickets) |
-| `massProcess()` de tickets | 377 líneas | **321** (`MassAction`) |
-| `massProcess()` de tareas | 330 líneas | **287** (`MassAction`) |
+| Función más larga de la aplicación | 536 líneas | **302** (`install()` del instalador; la de la aplicación es `massProcess()` con **282**) |
+| `massProcess()` de tickets | 377 líneas | **282** (`MassAction`, textos de los diálogos) |
+| `massProcess()` de tareas | 330 líneas | **237** (`MassAction`) |
+| `run()` de `include/cli/modules/file.php` | 408 líneas | **12** (nueve `actionXxx()` + `matchingFiles()` / `oneFile()`) |
 | `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |
 | `Ticket::create()` | 536 líneas | **219** (nueve fases en `TicketCreate`) |
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
@@ -293,8 +324,8 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `SelectSql::fields()` | 148 líneas | **57** (cinco tramos: relaciones, `values()`, simple, anotaciones y extras) |
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
-| Funciones de la aplicación por encima de 120 líneas | — | **7** |
-| Funciones de la aplicación por encima de 150 líneas | 10 | **7** |
+| Funciones de la aplicación por encima de 120 líneas | — | **5** |
+| Funciones de la aplicación por encima de 150 líneas | 10 | **4** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
 **Lo que queda, y por qué no es sólo «seguir partiendo»:**
@@ -318,9 +349,9 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    frente 2 los incluye. `class.forms.php` es el que más se resiste: 36 clases
    y 4.516 líneas.
 4. **Las herramientas del propio proyecto** también aparecen en la lista
-   (`run()` de `include/cli/modules/file.php` con 408 líneas, `_build()` del
-   módulo de idiomas con 190, `install()` del instalador con 302,
-   `sqlaudit_main()` con 172). El sembrador de datos de demostración
+   (`_build()` del módulo de idiomas con 190, `install()` del instalador con
+   302, `sqlaudit_main()` con 172). El `run()` del gestor de archivos ya no:
+   son nueve métodos de menos de 60 líneas. El sembrador de datos de demostración
    (`include/cli/modules/seed.php`) nace ya repartido en diez pasos cortos, uno
    por tipo de registro, para no engordar esa lista. No son código de la aplicación —el criterio
    habla de la aplicación, y las tres primeras son CLI— pero están a la vista
@@ -961,9 +992,19 @@ que no ejecutan código).
   traslado las haría fallar y la tentación sería borrarlas. `tools/ui/theme-check.php`
   hace lo mismo con las dos piezas del sembrador que comprueba.
 
-  Medido después del reparto: **ningún archivo propio pasa de 2.000 líneas**;
-  el mayor es `class.ticket.php` (1.982) y le siguen `class.search.php` (1.956)
-  y `class.dynamic_forms.php` (1.937).
+  Medido después del reparto: **ningún archivo propio pasa de 2.000 líneas**.
+
+  **Margen (2026-10-27).** El mayor era `class.ticket.php` con **1.982**: la
+  siguiente función que se le añadiera rompía la regla. La familia de
+  vencimientos y SLA se fue entera a `include/class.ticket.sla.php` (rasgo
+  `TicketSla`, 11 métodos: `isOverdue()`, `getDueDate()`, `getSLADueDate()`,
+  `updateEstDueDate()`, `getEstDueDate()`, `setSLAId()`, `selectSLAId()`,
+  `markOverdue()`, `clearOverdue()`, `checkOverdue()` y `duedateField()`), y el
+  modelo queda en **1.834**. Los mayores son ahora `class.ticket.php` (1.834),
+  `class.search.php` (1.956) y `class.dynamic_forms.php` (1.937).
+  `tests/TicketSlaTest.php` comprueba que el rasgo se carga y se usa, que los
+  once métodos **no quedan duplicados** en el modelo (PHP no avisa: la copia
+  vieja taparía la del rasgo) y que el archivo sigue por debajo de 1.900.
 
   **Cómo se comprobó cada reparto**, sin fiarse del aspecto del archivo:
   1. Los límites de cada clase o método los da el **tokenizador de PHP**

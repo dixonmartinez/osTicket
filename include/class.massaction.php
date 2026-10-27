@@ -206,6 +206,121 @@ class MassAction {
     }
 
     /**
+     * Orden de la lista de agentes asignables, según el formato de nombre.
+     *
+     * `System Settings → Agents → Name Format` decide si el nombre empieza
+     * por el apellido; la lista de «Assign to» tiene que ordenarse igual que
+     * se llama a los agentes. Estaba escrito dos veces (tickets y tareas).
+     *
+     * @param string $format 'first' | 'last' | 'lastfirst' | 'legal'
+     * @return array campos para `order_by()`
+     */
+    static function agentOrder($format) {
+        switch ($format) {
+        case 'last':
+        case 'lastfirst':
+        case 'legal':
+            return array('lastname', 'firstname');
+        }
+
+        return array('firstname', 'lastname');
+    }
+
+    /**
+     * Textos del diálogo de asignación o reclamo.
+     *
+     * `$w` es el destino: `agents`, `teams` o `me` (que es el reclamo). Antes
+     * de elegir destino el formulario ya apunta a `assign`, así que el valor
+     * de partida es ése.
+     *
+     * @return array  claves que espera la plantilla (`:action`, `:title`, `warn`)
+     */
+    static function assignPrompt($kind, $w, $count) {
+        $base = $kind === 'task' ? '#tasks/mass' : '#tickets/mass';
+        $info = array(
+            ':action' => sprintf('%s/assign/%s', $base, $w),
+            ':title' => sprintf('Assign %s', self::selection_noun($kind, $count)),
+        );
+
+        if ($w !== 'me')
+            return $info;
+
+        // Reclamar: el verbo en mayúsculas es el de la confirmación
+        return array(
+            ':action' => $base . '/claim',
+            ':title' => sprintf('Claim %s', self::selection_noun($kind, $count)),
+            'warn' => sprintf(__('Are you sure you want to CLAIM %s?'),
+                self::selection_noun($kind, $count)),
+        );
+    }
+
+    /**
+     * Textos de confirmación de los demás diálogos en lote.
+     *
+     * @return array|null  null si la acción no tiene diálogo propio aquí
+     */
+    static function confirm($kind, $action, $count) {
+        $base = $kind === 'task' ? '#tasks/mass' : '#tickets/mass';
+        $what = self::selection_noun($kind, $count);
+
+        switch ($action) {
+        case 'transfer':
+            return array(
+                ':action' => $base . '/transfer',
+                ':title' => sprintf(__('Transfer %s'), $what),
+            );
+        case 'delete':
+            return array(
+                ':action' => $base . '/delete',
+                ':title' => sprintf('Delete %s', $what),
+                ':placeholder' => sprintf(__('Optional reason for deleting %s'),
+                    $what),
+                'warn' => sprintf(__('Are you sure you want to DELETE %s?'), $what),
+                ':extra' => sprintf('<strong>%s</strong>',
+                    $kind === 'task'
+                        ? __('Deleted tasks CANNOT be recovered, including any associated attachments.')
+                        : __('Deleted tickets CANNOT be recovered, including any associated attachments.')),
+            );
+        case 'reopen':
+        case 'close':
+            $verb = $action === 'reopen' ? __('REOPEN') : __('CLOSE');
+            return array(
+                ':action' => sprintf('%s/%s', $base, $action),
+                ':title' => sprintf($action === 'reopen' ? 'Reopen %s' : 'Close %s',
+                    $what),
+                'warn' => sprintf(__('Are you sure you want to %s %s?'), $verb, $what),
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * «Unable to transfer 3 selected tickets.» El verbo va traducido y el
+     * verbo de la acción también: en tareas el mensaje de status es otro.
+     */
+    static function failure($kind, $action, $count) {
+        $what = self::selection_noun($kind, $count);
+
+        // Cambiar el estado de una tarea no dice el estado nuevo: lo elige el
+        // formulario, así que el mensaje habla de «cambiar el estado».
+        if ($kind === 'task' && in_array($action, array('reopen', 'close')))
+            return sprintf(__('Unable to change status of %1$s'), $what);
+
+        if ($kind === 'task' && $action === 'delete')
+            return sprintf(__('Unable to delete %s.'), $what);
+
+        return sprintf(__('Unable to %1$s %2$s'), __($action), $what);
+    }
+
+    /** «3 selected tickets», con el número delante. */
+    static function selection_noun($kind, $count) {
+        list($one, $many) = self::noun($kind);
+
+        return sprintf('%1$d %2$s', $count, _N($one, $many, $count));
+    }
+
+    /**
      * El script que copia las casillas marcadas al formulario del diálogo.
      *
      * Estaba escrito dos veces, letra por letra, en los dos `massProcess()`.

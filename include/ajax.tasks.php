@@ -320,9 +320,8 @@ class TasksAjaxAPI extends AjaxController {
             $w = 'me';
         case 'assign':
             $inc = 'assign.tmpl.php';
-            $info[':action'] = "#tasks/mass/assign/$w";
-            $info[':title'] = sprintf('Assign %s',
-                    _N('selected task', 'selected tasks', $count));
+            // Textos del diálogo: ver MassAction::assignPrompt()
+            $info = array_merge($info, MassAction::assignPrompt('task', $w, $count));
 
             $form = AssignmentForm::instantiate($_POST);
 
@@ -363,16 +362,8 @@ class TasksAjaxAPI extends AjaxController {
                                     )));
                 }
 
-                switch ($cfg->getAgentNameFormat()) {
-                case 'last':
-                case 'lastfirst':
-                case 'legal':
-                    $members->order_by('lastname', 'firstname');
-                    break;
-
-                default:
-                    $members->order_by('firstname', 'lastname');
-                }
+                call_user_func_array(array($members, 'order_by'),
+                    MassAction::agentOrder($cfg->getAgentNameFormat()));
 
                 $prompt  = __('Select an Agent');
                 $assignees = array();
@@ -392,12 +383,8 @@ class TasksAjaxAPI extends AjaxController {
                     $info['warn'] =  __('No teams available for assignment');
                 break;
             case 'me':
-                $info[':action'] = '#tasks/mass/claim';
-                $info[':title'] = sprintf('Claim %s',
-                        _N('selected task', 'selected tasks', $count));
-                $info['warn'] = sprintf(
-                        __('Are you sure you want to CLAIM %s?'),
-                        _N('selected task', 'selected tasks', $count));
+                $info = array_merge($info,
+                    MassAction::assignPrompt('task', 'me', $count));
                 $verb = sprintf('%s, %s', __('Yes'), __('Claim'));
                 $id = sprintf('s%s', $thisstaff->getId());
                 $assignees = array($id => $thisstaff->getName());
@@ -427,18 +414,13 @@ class TasksAjaxAPI extends AjaxController {
                         $i++;
                 }
 
-                if (!$i) {
-                    $info['error'] = sprintf(
-                            __('Unable to assign %s' /* %s may be pluralized */),
-                            _N('selected task', 'selected tasks', $count));
-                }
+                if (!$i)
+                    $info['error'] = MassAction::failure('task', 'assign', $count);
             }
             break;
         case 'transfer':
             $inc = 'transfer.tmpl.php';
-            $info[':action'] = '#tasks/mass/transfer';
-            $info[':title'] = sprintf(__('Transfer %s'),
-                    _N('selected task', 'selected tasks', $count));
+            $info = array_merge($info, MassAction::confirm('task', $action, $count));
             $form = TransferForm::instantiate($_POST);
             $form->hideDisabled();
             if ($_POST && $form->isValid()) {
@@ -453,17 +435,13 @@ class TasksAjaxAPI extends AjaxController {
                         $i++;
                 }
 
-                if (!$i) {
-                    $info['error'] = sprintf(
-                            __('Unable to transfer %s' /* %s may be pluralized */),
-                            _N('selected task', 'selected tasks', $count));
-                }
+                if (!$i)
+                    $info['error'] = MassAction::failure('task', 'transfer', $count);
             }
             break;
         case 'reopen':
         case 'close':
             $inc = 'task-status.tmpl.php';
-            $info[':action'] = "#tasks/mass/$action";
             $info['status'] = MassAction::statusFor($action);
             $perm = '';
             switch ($info['status']) {
@@ -471,25 +449,14 @@ class TasksAjaxAPI extends AjaxController {
                 // If an agent can create a task then they're allowed to
                 // reopen closed ones.
                 $perm = Task::PERM_CREATE;
-                $info[':title'] = sprintf('Reopen %s',
-                         _N('selected task', 'selected tasks', $count));
-
-                $info['warn'] = sprintf(__('Are you sure you want to REOPEN %s?'),
-                             _N('selected task', 'selected tasks', $count)
-                             );
                 break;
             case 'closed':
                 $perm = Task::PERM_CLOSE;
-                $info[':title'] = sprintf('Close %s',
-                         _N('selected task', 'selected tasks', $count));
-
-                $info['warn'] = sprintf(__('Are you sure you want to CLOSE %s?'),
-                             _N('selected task', 'selected tasks', $count)
-                             );
                 break;
             default:
                 Http::response(404, __('Unknown action'));
             }
+            $info = array_merge($info, MassAction::confirm('task', $action, $count));
             // Check generic permissions --  department specific permissions
             // will be checked below.
             if ($perm && !$thisstaff->hasPerm($perm, false))
@@ -513,28 +480,14 @@ class TasksAjaxAPI extends AjaxController {
                             $i++;
                     }
 
-                    if (!$i) {
-                        $info['error'] = sprintf(
-                                __('Unable to change status of %1$s'),
-                                _N('selected task', 'selected tasks', $count));
-                    }
+                    if (!$i)
+                        $info['error'] = MassAction::failure('task', $action, $count);
                 }
             }
             break;
         case 'delete':
             $inc = 'delete.tmpl.php';
-            $info[':action'] = '#tasks/mass/delete';
-            $info[':title'] = sprintf('Delete %s',
-                    _N('selected task', 'selected tasks', $count));
-            $info[':placeholder'] = sprintf(__(
-                        'Optional reason for deleting %s'),
-                    _N('selected task', 'selected tasks', $count));
-            $info['warn'] = sprintf(__(
-                        'Are you sure you want to DELETE %s?'),
-                    _N('selected task', 'selected tasks', $count));
-            $info[':extra'] = sprintf('<strong>%s</strong>',
-                        __('Deleted tasks CANNOT be recovered, including any associated attachments.')
-                        );
+            $info = array_merge($info, MassAction::confirm('task', $action, $count));
 
             if ($_POST && !$errors) {
                 foreach (Http::post('tids', array()) as $tid) {
@@ -546,11 +499,8 @@ class TasksAjaxAPI extends AjaxController {
                         $i++;
                 }
 
-                if (!$i) {
-                    $info['error'] = sprintf(
-                            __('Unable to delete %s.'),
-                            _N('selected task', 'selected tasks', $count));
-                }
+                if (!$i)
+                    $info['error'] = MassAction::failure('task', 'delete', $count);
             }
             break;
         default:

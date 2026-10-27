@@ -29,6 +29,8 @@ include_once(INCLUDE_DIR.'class.ticket.replies.php');
 include_once(INCLUDE_DIR.'class.ticket.assignment.php');
 /* Formularios y campos del ticket: ver class.ticket.forms.php */
 include_once(INCLUDE_DIR.'class.ticket.forms.php');
+/* Vencimientos y planes de servicio: ver class.ticket.sla.php */
+include_once(INCLUDE_DIR.'class.ticket.sla.php');
 include_once(INCLUDE_DIR.'class.thread.php');
 include_once(INCLUDE_DIR.'class.staff.php');
 include_once(INCLUDE_DIR.'class.client.php');
@@ -60,6 +62,7 @@ implements RestrictedAccess, Threadable, Searchable {
     use TicketReplies;
     use TicketAssignment;
     use TicketForms;
+    use TicketSla;
 
 
 
@@ -402,9 +405,6 @@ implements RestrictedAccess, Threadable, Searchable {
         return false;
     }
 
-    function isOverdue() {
-        return $this->ht['isoverdue'];
-    }
 
     function isAnswered() {
        return $this->ht['isanswered'];
@@ -567,41 +567,9 @@ implements RestrictedAccess, Threadable, Searchable {
         return $this->lastupdate;
     }
 
-    function getDueDate() {
-        return $this->duedate;
-    }
 
-    function getSLADueDate($recompute=false) {
-        global $cfg;
 
-        if (!$recompute && $this->est_duedate)
-            return $this->est_duedate;
 
-        if (($sla = $this->getSLA()) && $sla->isActive()) {
-            $schedule = $this->getDept()->getSchedule();
-            $tz = new DateTimeZone($cfg->getDbTimezone());
-            $dt = new DateTime($this->getReopenDate() ?:
-                    $this->getCreateDate(), $tz);
-            $dt = $sla->addGracePeriod($dt, $schedule);
-            // Make sure time is in DB timezone
-            $dt->setTimezone($tz);
-            return $dt->format('Y-m-d H:i:s');
-        }
-    }
-
-    function updateEstDueDate($clearOverdue=true) {
-        if ($this->isOverdue() && $clearOverdue)
-            $this->clearOverdue(false);
-
-        $this->est_duedate = $this->getSLADueDate(true) ?: null;
-
-        return $this->save();
-    }
-
-    function getEstDueDate() {
-        // Real due date or  sla due date (If ANY)
-        return $this->getDueDate() ?: $this->getSLADueDate();
-    }
 
 
     function getCloseDate() {
@@ -1226,47 +1194,6 @@ implements RestrictedAccess, Threadable, Searchable {
         return $this->save();
     }
 
-    function setSLAId($slaId) {
-        if ($slaId == $this->getSLAId())
-            return true;
-
-        $sla = null;
-        if ($slaId && !($sla = Sla::lookup($slaId)))
-            return false;
-
-        $this->sla = $sla;
-        return $this->save();
-    }
-    /**
-     * Selects the appropriate service-level-agreement plan for this ticket.
-     * When tickets are transfered between departments, the SLA of the new
-     * department should be applied to the ticket. This would be useful,
-     * for instance, if the ticket is transferred to a different department
-     * which has a shorter grace period, the ticket should be considered
-     * overdue in the shorter window now that it is owned by the new
-     * department.
-     *
-     * $trump - if received, should trump any other possible SLA source.
-     *          This is used in the case of email filters, where the SLA
-     *          specified in the filter should trump any other SLA to be
-     *          considered.
-     */
-    function selectSLAId($trump=null) {
-        global $cfg;
-        # XXX Should the SLA be overridden if it was originally set via an
-        #     email filter? This method doesn't consider such a case
-        if ($trump && is_numeric($trump)) {
-            $slaId = $trump;
-        } elseif ($this->getDept() && $this->getDept()->getSLAId()) {
-            $slaId = $this->getDept()->getSLAId();
-        } elseif ($this->getTopic() && $this->getTopic()->getSLAId()) {
-            $slaId = $this->getTopic()->getSLAId();
-        } else {
-            $slaId = $cfg->getDefaultSLAId();
-        }
-
-        return ($slaId && $this->setSLAId($slaId)) ? $slaId : false;
-    }
 
     //Set team ID...assign/unassign/release (id can be 0)
     function setTeamId($teamId) {
@@ -1440,42 +1367,7 @@ implements RestrictedAccess, Threadable, Searchable {
         return ($this->isAnswered() || $this->setAnsweredState(1));
     }
 
-    function markOverdue($whine=true) {
-        global $cfg;
 
-        // Only open tickets can be marked overdue
-        if (!$this->isOpen())
-            return false;
-
-        if ($this->isOverdue())
-            return true;
-
-        $this->isoverdue = 1;
-        if (!$this->save())
-            return false;
-
-        $this->logEvent('overdue');
-        $this->onOverdue($whine);
-
-        return true;
-    }
-
-    function clearOverdue($save=true) {
-
-        //NOTE: Previously logged overdue event is NOT annuled.
-        if ($this->isOverdue())
-            $this->isoverdue = 0;
-
-        // clear due date if it's in the past
-        if ($this->getDueDate() && Misc::db2gmtime($this->getDueDate()) <= Misc::gmtime())
-            $this->duedate = null;
-
-        // Clear SLA if est. due date is in the past
-        if ($this->getSLADueDate() && Misc::db2gmtime($this->getSLADueDate()) <= Misc::gmtime())
-            $this->est_duedate = null;
-
-        return $save ? $this->save() : true;
-    }
 
     function unlinkChild($parent) {
         $this->setPid(NULL);
@@ -1890,29 +1782,6 @@ implements RestrictedAccess, Threadable, Searchable {
     
     
     
-    static function checkOverdue() {
-        $overdue = static::objects()
-            ->filter(array(
-                'isoverdue' => 0,
-                'status__state' => 'open',
-                Q::any(array(
-                    Q::all(array(
-                        'duedate__isnull' => true,
-                        'est_duedate__isnull' => false,
-                        'est_duedate__lt' => SqlFunction::NOW())
-                        ),
-                    Q::all(array(
-                        'duedate__isnull' => false,
-                        'duedate__lt' => SqlFunction::NOW())
-                        )
-                    ))
-                ))
-            ->limit(100);
-
-        foreach ($overdue as $ticket)
-            $ticket->markOverdue();
-
-    }
 
     static function agentActions($agent, $options=array()) {
         if (!$agent)
@@ -1944,22 +1813,6 @@ implements RestrictedAccess, Threadable, Searchable {
         return static::$sources;
     }
 
-    // TODO: Create internal Form for internal fields
-    static function duedateField($name, $default='', $hint='') {
-        return DateTimeField::init(array(
-            'id' => $name,
-            'name' => $name,
-            'default' => $default ?: false,
-            'label' => __('Due Date'),
-            'hint' => $hint,
-            'configuration' => array(
-                'min' => Misc::gmtime(),
-                'time' => true,
-                'gmt' => false,
-                'future' => true,
-                )
-            ));
-    }
 
     }
 RolePermission::register(/* @trans */ 'Tickets', Ticket::getPermissions(), true);

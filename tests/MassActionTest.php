@@ -271,6 +271,102 @@ class MassActionTest extends UnitTestCase {
             'form#tickets') !== false);
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Textos de los diálogos en lote                                      */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * La lista de «Assign to» se ordena como se llama a los agentes.
+     *
+     * Si el formato es «Apellido, Nombre», ordenar por nombre de pila deja
+     * una lista que no se corresponde con lo que se lee. Estaba escrito dos
+     * veces, en tickets y en tareas.
+     */
+    public function testElOrdenDeLosAgentesSigueElFormatoDeNombre(): void {
+        foreach (array('last', 'lastfirst', 'legal') as $format)
+            $this->assertSame(array('lastname', 'firstname'),
+                MassAction::agentOrder($format), $format);
+
+        foreach (array('first', 'firstlast', '', null) as $format)
+            $this->assertSame(array('firstname', 'lastname'),
+                MassAction::agentOrder($format), (string) $format);
+    }
+
+    /** El diálogo de asignación, y el de reclamo (que confirma). */
+    public function testElDialogoDeAsignacion(): void {
+        $assign = MassAction::assignPrompt('ticket', 'agents', 3);
+
+        $this->assertSame('#tickets/mass/assign/agents', $assign[':action']);
+        $this->assertSame('Assign 3 selected tickets', $assign[':title']);
+        $this->assertFalse(isset($assign['warn']),
+            'asignar no pregunta: el formulario ya es la elección');
+
+        $claim = MassAction::assignPrompt('ticket', 'me', 1);
+        $this->assertSame('#tickets/mass/claim', $claim[':action']);
+        $this->assertSame('Claim 1 selected ticket', $claim[':title']);
+        $this->assertSame('Are you sure you want to CLAIM 1 selected ticket?',
+            $claim['warn']);
+
+        // En tareas cambia la ruta y el sustantivo
+        $task = MassAction::assignPrompt('task', 'teams', 2);
+        $this->assertSame('#tasks/mass/assign/teams', $task[':action']);
+        $this->assertSame('Assign 2 selected tasks', $task[':title']);
+    }
+
+    /** Transferir, borrar y cambiar de estado: los textos de cada diálogo. */
+    public function testLosTextosDeConfirmacion(): void {
+        $transfer = MassAction::confirm('ticket', 'transfer', 3);
+        $this->assertSame('#tickets/mass/transfer', $transfer[':action']);
+        $this->assertSame('Transfer 3 selected tickets', $transfer[':title']);
+
+        $delete = MassAction::confirm('ticket', 'delete', 3);
+        $this->assertSame('#tickets/mass/delete', $delete[':action']);
+        $this->assertSame('Delete 3 selected tickets', $delete[':title']);
+        $this->assertSame('Optional reason for deleting 3 selected tickets',
+            $delete[':placeholder']);
+        $this->assertSame('Are you sure you want to DELETE 3 selected tickets?',
+            $delete['warn']);
+        $this->assertStringContainsString('CANNOT be recovered',
+            $delete[':extra']);
+        $this->assertStringContainsString('tickets', $delete[':extra']);
+
+        // En tareas el aviso dice «tasks», no «tickets» (estaba copiado)
+        $this->assertStringContainsString('Deleted tasks',
+            MassAction::confirm('task', 'delete', 1)[':extra']);
+
+        $reopen = MassAction::confirm('task', 'reopen', 2);
+        $this->assertSame('#tasks/mass/reopen', $reopen[':action']);
+        $this->assertSame('Reopen 2 selected tasks', $reopen[':title']);
+        $this->assertSame('Are you sure you want to REOPEN 2 selected tasks?',
+            $reopen['warn']);
+
+        $close = MassAction::confirm('task', 'close', 2);
+        $this->assertSame('#tasks/mass/close', $close[':action']);
+        $this->assertSame('Are you sure you want to CLOSE 2 selected tasks?',
+            $close['warn']);
+
+        // Lo que no tiene diálogo propio no inventa uno
+        $this->assertNull(MassAction::confirm('ticket', 'merge', 2));
+        $this->assertNull(MassAction::confirm('ticket', 'assign', 2));
+    }
+
+    /** El mensaje de fallo, con el verbo de la acción. */
+    public function testElMensajeDeFallo(): void {
+        $this->assertSame('Unable to transfer 3 selected tickets',
+            MassAction::failure('ticket', 'transfer', 3));
+        $this->assertSame('Unable to assign 1 selected ticket',
+            MassAction::failure('ticket', 'assign', 1));
+        // En tareas, cambiar de estado no dice cuál: lo elige el formulario
+        $this->assertSame('Unable to change status of 2 selected tasks',
+            MassAction::failure('task', 'close', 2));
+        $this->assertSame('Unable to delete 2 selected tasks.',
+            MassAction::failure('task', 'delete', 2));
+
+        // Singular/plural, sin «1 selected tickets»
+        $this->assertSame('Unable to delete 1 selected ticket',
+            MassAction::failure('ticket', 'delete', 1));
+    }
+
     public function testElScriptCopiaElValorDeLaCasilla(): void {
         // Sin esto, el formulario del diálogo no sabría qué tickets van
         $script = MassAction::selectedScript('tickets');
