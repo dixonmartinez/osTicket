@@ -883,7 +883,10 @@ check(strpos($plantillaCola, '$rendered++') !== false
     'la cola no promete filas que la tabla no trae',
     'el pie sigue diciendo «Showing 1 - 23» con la tabla vacia');
 
-$sembrador = read("$root/include/cli/modules/seed.php");
+// El modulo y sus rasgos: `backdate()` vive en `seed.php` y la revision y la
+// reparacion en `seed.repair.php` (frente 6).
+$sembrador = read("$root/include/cli/modules/seed.php")
+    . read("$root/include/cli/modules/seed.repair.php");
 check(strpos($sembrador, 'ThreadEntry::objects()') !== false
     && strpos($sembrador, 'function backdate(') !== false,
     'el sembrador fecha la entrada de apertura con el ticket',

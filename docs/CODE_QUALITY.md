@@ -906,7 +906,30 @@ que no ejecutan código).
 
   Más `class.queue.php` (2.400 → **1.600**), `class.thread.php` (2.351 →
   **1.900**) y `ajax.tickets.php` (2.021 → **1.771**). El mayor del proyecto es
-  ahora `class.ticket.php` con 1.981.
+  ahora `class.ticket.php` con **1.982**.
+
+  **Refuerzo del 2026-10-27.** La regla se rompió después sin que nadie lo
+  notara: `include/cli/modules/seed.php` llegó a **2.157** (la revisión y la
+  reparación del sembrador se añadieron detrás) y `include/cli/modules/queue.php`
+  a **2.065** (el informe del diagnóstico de colas). Los dos se han vuelto a
+  partir por el mismo procedimiento —métodos enteros, sin tocar su código—:
+
+  | Archivo | Antes | Ahora | Qué se fue |
+  |---|---|---|---|
+  | `include/cli/modules/seed.php` | 2.157 | **1.737** | `doctor()`, `repair()`, `repairFaqCategories()` y `repairEntryDates()` a `seed.repair.php` (rasgo `SeedRepair`, 442) |
+  | `include/cli/modules/queue.php` | 2.065 | **1.682** | `verdict()`, `hasClosedStateCriteria()`, `wantedByCriteria()`, `printReport()` y `mentionsPeriod()` a `queue.report.php` (rasgo `QueueReport`, 409) |
+
+  Ninguno de los dos es un archivo de clases: son un módulo del CLI con estado
+  de ejecución (`$this->out()`, `$this->warn()`), así que la pieza correcta es
+  un **rasgo** y no una clase colaboradora, igual que `SeedWrites`. Los `use`
+  de las pruebas que leen el código como texto (`SeedDataTest`, `QueueCheckTest`)
+  pasaron a mirar también los rasgos: si sólo mirasen el archivo de la clase, un
+  traslado las haría fallar y la tentación sería borrarlas. `tools/ui/theme-check.php`
+  hace lo mismo con las dos piezas del sembrador que comprueba.
+
+  Medido después del reparto: **ningún archivo propio pasa de 2.000 líneas**;
+  el mayor es `class.ticket.php` (1.982) y le siguen `class.search.php` (1.956)
+  y `class.dynamic_forms.php` (1.937).
 
   **Cómo se comprobó cada reparto**, sin fiarse del aspecto del archivo:
   1. Los límites de cada clase o método los da el **tokenizador de PHP**
@@ -1041,9 +1064,14 @@ que no ejecutan código).
 4. **Frente 5** (JS inline) — ✅ `onclick` a cero desde hace varias tandas y
    `<script>` con `nonce`: la CSP ya no anuncia `'unsafe-inline'`.
 5. **Frente 3** (SQL a mano) — ✅ por áreas y con pruebas: 30 → 13 llamadas.
-6. **Frente 6** (archivos gigantes) — ✅ hecho: ningún archivo propio pasa de
-   2.000 líneas. Los dos `massProcess()` y `postMessage()` son funciones, no
-   archivos, y siguen en el frente 2.
+6. **Frente 6** (archivos gigantes) — ✅ hecho, y **reforzado el 2026-10-27**:
+   ningún archivo propio pasa de 2.000 líneas (el mayor es `class.ticket.php`
+   con 1.982). Los dos `massProcess()` y `postMessage()` son funciones, no
+   archivos, y siguen en el frente 2. Lo que queda dentro del frente ya no es
+   tamaño de archivo: `Ticket` (1.982 en seis rasgos) y los siete archivos de
+   formularios piden mover **métodos** a clases colaboradoras con estado
+   propio, que es exactamente el frente 2 (`TicketCreate`, `TicketPost`,
+   `MassAction`).
 
 ## 5. Lo que NO conviene hacer
 

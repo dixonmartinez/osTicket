@@ -49,4 +49,5 @@ tools/dev/seed-manifest.json
 # guardian de linea de comandos (php-wasm, pruebas locales). No son codigo.
 tools/ui/.*-noguard.php
 tools/ui/.theme-wasm.php
+tools/quality/.metrics-wasm.php
 tests/.run-wasm.php

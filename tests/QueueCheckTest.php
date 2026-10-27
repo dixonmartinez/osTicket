@@ -99,6 +99,32 @@ if (!class_exists('QueueCheckProbe')) {
 class QueueCheckTest extends UnitTestCase {
 
     /** Escapador de mentira: no hay base de datos en las pruebas. */
+    /**
+     * El texto del módulo **y de sus rasgos**.
+     *
+     * Desde el reparto del frente 6 el informe y el veredicto viven en
+     * `queue.report.php` (`use QueueReport;`). Las pruebas que comprueban
+     * cadenas del informe tienen que mirar también los rasgos; si no, un
+     * traslado las hace fallar y la tentación es borrarlas.
+     */
+    private function fuente(): string {
+        $base = INCLUDE_DIR . 'cli/modules/queue.php';
+        $source = (string) file_get_contents($base);
+
+        preg_match_all('/^\s+use (\w+);/m', $source, $m);
+        foreach (array_unique($m[1]) as $trait) {
+            foreach (glob(dirname($base) . '/*.php') as $file) {
+                if ($file === $base)
+                    continue;
+                $text = (string) file_get_contents($file);
+                if (preg_match('/^trait ' . $trait . '\b/m', $text))
+                    $source .= "\n" . $text;
+            }
+        }
+
+        return $source;
+    }
+
     private function escaper(): callable {
         return function($value) {
             return "'" . addslashes($value) . "'";
@@ -332,7 +358,7 @@ class QueueCheckTest extends UnitTestCase {
 
     /** El informe del agente y sus departamentos usa la misma consulta. */
     function testElInformeDeVisibilidadSeApoyaEnEsaConsulta() {
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/queue.php');
+        $source = $this->fuente();
 
         $this->assertTrue(strpos($source, 'deptCountsQuery()') !== false,
             'El informe no usa la consulta comprobable');
@@ -524,7 +550,7 @@ class QueueCheckTest extends UnitTestCase {
     }
 
     function testElDiagnosticoPublicaElSqlDelUltimoTramo() {
-        $source = file_get_contents(INCLUDE_DIR . 'cli/modules/queue.php');
+        $source = $this->fuente();
 
         $this->assertTrue(strpos($source, "'SQL del último tramo'") !== false,
             'El diagnóstico no imprime el SQL que se puede ejecutar a mano');

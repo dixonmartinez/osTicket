@@ -103,6 +103,52 @@ class CodeMeasureTest extends UnitTestCase {
         $this->assertSame(array(), $this->medidas("<?php\n\$a = 1;\n"));
     }
 
+    /**
+     * El listón del frente 6: ningún archivo propio pasa de 2.000 líneas.
+     *
+     * La regla se cumplió y **se volvió a romper sin que nadie lo notara**:
+     * `seed.php` llegó a 2.157 y `queue.php` a 2.065 cuando se les añadieron
+     * la revisión del sembrador y el informe del diagnóstico. Una regla que
+     * sólo vive en la documentación no se cumple; esta prueba la mide, con el
+     * mismo criterio que `make metrics` (fuera `vendor` y las librerías
+     * empaquetadas).
+     */
+    public function testNingunArchivoPropioPasaDe2000Lineas(): void {
+        $grandes = array();
+        $skip = array('vendor', 'mpdf', 'pear', 'laminas-mail', 'oauth2',
+            'plugins');
+
+        foreach (array('include', 'scp', 'api', 'setup', 'tools') as $area) {
+            $base = ROOT_DIR . '/' . $area;
+            if (!is_dir($base))
+                continue;
+
+            $it = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($base,
+                    FilesystemIterator::SKIP_DOTS));
+
+            foreach ($it as $file) {
+                if (!$file->isFile() || $file->getExtension() !== 'php')
+                    continue;
+
+                $path = $file->getPathname();
+                foreach ($skip as $dir)
+                    if (strpos($path, DIRECTORY_SEPARATOR . $dir
+                            . DIRECTORY_SEPARATOR) !== false)
+                        continue 2;
+
+                $lines = count(file($path));
+                if ($lines > 2000)
+                    $grandes[substr($path, strlen(ROOT_DIR) + 1)] = $lines;
+            }
+        }
+
+        arsort($grandes);
+        $this->assertSame(array(), $grandes,
+            'el frente 6 pide partir los archivos de más de 2.000 líneas: '
+            . print_r($grandes, true));
+    }
+
     public function testApuntaLaLineaDeInicio(): void {
         $src = "<?php\n\n\nfunction tarde() {\n}\n";
         $fns = CodeMeasure::functionsIn($src);

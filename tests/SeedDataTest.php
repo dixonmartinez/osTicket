@@ -954,8 +954,7 @@ class SeedDataTest extends UnitTestCase {
         $source = $this->fuente();
         $start = strpos($source, 'function repairEntryDates(');
         $this->assertTrue($start !== false);
-        $end = strpos($source, 'function scalar(', $start);
-        $body = substr($source, $start, $end - $start);
+        $body = substr($source, $start);
 
         $this->assertStringContainsString("'pid' => (int) \$entry->pid", $body,
             'hace falta el padre de cada entrada para comparar');
@@ -972,8 +971,10 @@ class SeedDataTest extends UnitTestCase {
         // «Deleted 20», tiempos negativos, colas que cuentan y no pintan.
         $source = $this->fuente();
         $start = strpos($source, 'function doctor(');
-        $end = strpos($source, 'function scalar(', $start);
-        $body = substr($source, $start, $end - $start);
+        // El cuerpo llega hasta el final: desde el reparto del frente 6 el
+        // chequeo vive en un rasgo que se lee detrás del módulo, y `scalar()`
+        // —el siguiente marcador— se quedó en el archivo de la clase.
+        $body = substr($source, $start);
 
         foreach (array('created', 'closed', 'thread_event', 'ticket__cdata',
                 'pid', 'category_id') as $needle)
