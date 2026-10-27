@@ -56,7 +56,9 @@
 // v21: los diálogos pasan a data-ost-dialog (data-dialog es de osTicket y
 //     guarda una URL); sin subir la versión se sirve el actions.js viejo.
 // v26: entra css/modern.css (capa moderna: cromo, tablas y formularios).
-const VERSION = 'ost-v26';
+// v27: la barra de colas vuelve a su flujo (el flex escondia las colas) y
+//     el indicador de orden deja de ser un bloque de color.
+const VERSION = 'ost-v27';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

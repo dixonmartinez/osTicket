@@ -622,6 +622,33 @@ la cola.
 vuelve exactamente al aspecto anterior, porque ninguna plantilla depende de
 ella.
 
+**Dos cosas que la capa moderna NO puede tocar**, y por qué:
+
+1. **`#nav`, `#sub_nav` y `#basic_search` no pueden pasar a `flex`.** La barra
+   de colas lleva el plugin `jb.overflowmenu` (`scp/js/jb.overflow.menu.js`),
+   que mide la fila con `innerWidth()` y los `offset()` de cada pestaña para
+   decidir cuáles manda al menú de desbordamiento. Con `flex` y `gap` la
+   medida sale mal y **esconde todas las colas menos dos**: en
+   `/scp/tickets.php` la barra quedaba casi vacía, con «Search» y «New
+   Ticket», y parecía que faltaba el filtro. El aspecto de pastilla se
+   consigue con relleno y radio en los enlaces, sin cambiar el flujo.
+   `tests/QueueNavLayoutTest.php` falla si alguien vuelve a poner `flex` o
+   `gap` ahí. Lo mismo vale para el buscador: el filtro rápido y el selector
+   de orden son `.action-dropdown` posicionados en absoluto.
+2. **La columna ordenada no se pinta como un bloque de color.** `scp.css` da
+   a la cabecera activa un fondo azul claro de punta a punta de la celda
+   (`#cfe6ff`) y el tema oscuro lo repetía en gris (`--dk-surface-4`). Con la
+   cabecera en versalitas, eso se lee como una columna rota. Ahora el
+   indicador es el color de acento con fondo suave en los dos temas, y la
+   flecha (la imagen de fondo de `scp.css`) se queda donde estaba.
+
+**Filas y prioridad.** El tema oscuro repintaba las filas impares (cebras de
+`scp.css` pasadas a `--dk-surface-2`), así que la tabla no era la misma en los
+dos temas; ahora no hay cebras en ninguno y el realce al pasar usa el acento.
+La prioridad trae su color en línea (lo elige el administrador): se respeta,
+pero se dibuja como **etiqueta redondeada**, no como un rectángulo que cubre
+media celda.
+
 **Los tres `!important` que hay**, ninguno de adorno: uno devuelve a `auto` la
 altura de un bloque que lleva `style="height:25px"` en la plantilla, y los
 otros dos son las excepciones ya conocidas de `prefers-reduced-motion` y de la

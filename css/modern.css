@@ -166,12 +166,15 @@ table.list td,
 }
 
 /* Pestanas principales como pastillas; la activa va rellena */
+/* Ojo: ni `#nav` ni `#sub_nav` pueden pasar a flex. La barra de colas lleva
+   el plugin jb.overflowmenu (scp/js/jb.overflow.menu.js), que mide la fila
+   con `innerWidth()` y los `offset()` de cada elemento para decidir que
+   pestanas manda al menu de desbordamiento. Con flex y `gap` la medida sale
+   mal y esconde todas las colas menos dos: se ve en /scp/tickets.php como una
+   barra casi vacia con solo Search y New Ticket. El aspecto de pastilla se
+   consigue con relleno y radio en los enlaces, sin tocar el flujo. */
 #nav,
 ul#nav {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
     height: auto;
     min-height: 0;
     padding: 8px 20px;
@@ -185,7 +188,8 @@ ul#nav {
 }
 
 #nav li {
-    display: inline-flex;
+    display: inline-block;
+    vertical-align: middle;
     min-width: 0;
     height: auto;
     padding: 0;
@@ -218,9 +222,7 @@ ul#nav {
 #nav li > a,
 #nav .active a,
 #nav .inactive a {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    display: inline-block;
     padding: 7px 14px;
     border-radius: var(--mod-radius-pill);
     color: var(--ui-text-muted);
@@ -290,10 +292,6 @@ ul#nav {
 /* Subnavegacion: colas guardadas y filtros, como fichas suaves */
 #sub_nav,
 ul#sub_nav {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
     height: auto;
     padding: 6px 20px;
     margin: 0;
@@ -301,12 +299,15 @@ ul#sub_nav {
     border: 0;
     border-bottom: 1px solid var(--ui-border);
     line-height: 1.4;
+    /* Sin `gap`: el plugin suma los huecos contando offsets */
+    white-space: nowrap;
 }
 
 #sub_nav > li {
     padding: 0;
     margin: 0;
-    display: inline-flex;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 #sub_nav > li > a,
@@ -385,39 +386,24 @@ ul#sub_nav {
 /* ================================================================== */
 /* 5. Busqueda rapida                                                */
 /* ================================================================== */
+/* La barra de busqueda conserva su flujo original (bloques y floats): el
+   filtro rapido y el selector de orden son `.action-dropdown` posicionados
+   de forma absoluta y, al convertir el contenedor en flex, se recolocaban y
+   el cuadro de busqueda crecia de mas. Aqui solo se estiliza el campo. */
 #basic_search {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-#basic_search > div.pull-right {
-    height: auto !important;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-#basic_search form {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1 1 320px;
-    margin: 0;
+    margin-bottom: 6px;
 }
 
 #basic_search .attached.input {
-    display: flex;
-    align-items: stretch;
-    flex: 1 1 auto;
-    max-width: 560px;
+    vertical-align: middle;
 }
 
 #basic_search input.basic-search {
-    flex: 1 1 auto;
     height: var(--mod-field);
     padding: 0 12px;
+    width: 320px;
+    max-width: 100%;
+    vertical-align: middle;
     border: 1px solid var(--ui-border);
     border-right: 0;
     border-radius: var(--mod-radius-sm) 0 0 var(--mod-radius-sm);
@@ -438,6 +424,7 @@ ul#sub_nav {
     height: var(--mod-field);
     width: 44px;
     padding: 0;
+    vertical-align: middle;
     border: 1px solid var(--ui-accent);
     border-radius: 0 var(--mod-radius-sm) var(--mod-radius-sm) 0;
     background: var(--ui-accent);
@@ -490,6 +477,18 @@ table.list thead th a:link {
 table.list thead th a:hover {
     color: var(--ui-accent);
     text-decoration: none;
+}
+
+/* Columna ordenada. scp.css le pone un bloque azul claro (#cfe6ff) de punta a
+   punta de la celda y dark.css lo repite en gris: en las capturas el resultado
+   parece una columna rota, sobre todo con la cabecera en versalitas. Aqui el
+   indicador pasa a ser el color del acento con un fondo suave, y la flecha
+   (una imagen de fondo de scp.css) se queda donde estaba. */
+table.list thead th a.asc,
+table.list thead th a.desc {
+    background-color: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    font-weight: 700;
 }
 
 /* Cuerpo y cebras: se anulan las franjas azules y el amarillo del hover,
@@ -572,6 +571,17 @@ table.list tfoot td i {
 
 table.list tfoot td a {
     margin: 0 4px;
+}
+
+/* La prioridad (y alguna columna mas) trae su color en linea, elegido por el
+   administrador: se respeta, pero en forma de etiqueta redondeada. Antes era
+   un rectangulo que solo cubria media celda y parecia un fallo de pintado. */
+table.list tbody td[style*="background-color"] > div,
+table.list tbody td[style*="background"] > div {
+    display: inline-block;
+    padding: 1px 10px;
+    border-radius: var(--mod-radius-pill);
+    line-height: 1.5;
 }
 
 table.list input[type="checkbox"] {

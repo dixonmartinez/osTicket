@@ -268,22 +268,30 @@ html[data-theme="dark"] table.list thead th a {
     color: var(--dk-text);
 }
 
-/* Flechas de ordenación: el fondo claro del tema no debe quedar blanco */
+/* Flechas de ordenacion: el fondo claro del tema no debe quedar blanco.
+   Y no basta con oscurecerlo: un bloque gris de punta a punta de la celda
+   parece una columna rota. El indicador es el acento, igual que en el tema
+   claro (css/modern.css); la flecha de scp.css se queda donde estaba. */
 html[data-theme="dark"] table.list thead th a.asc,
 html[data-theme="dark"] table.list thead th a.desc {
-    background-color: var(--dk-surface-4);
-    color: var(--dk-text);
+    background-color: var(--dk-accent-soft);
+    color: var(--dk-link);
+    font-weight: 700;
 }
 
+/* Mismo criterio que el tema claro (css/modern.css): sin franjas de cebra y
+   con un solo fondo por fila. Las cebras de scp.css (#f0faff) y esta capa
+   partian la tabla en bloques, y con la cabecera en versalitas daba la
+   impresion de columnas desalineadas. El realce al pasar usa el acento. */
 html[data-theme="dark"] table.list tbody td,
 html[data-theme="dark"] table.list tbody th {
-    background: var(--dk-surface);
+    background: transparent;
     border-color: var(--dk-border);
     color: var(--dk-text);
 }
 
 html[data-theme="dark"] table.list tbody tr:nth-child(2n+1) td {
-    background-color: var(--dk-surface-2);
+    background-color: transparent;
 }
 
 html[data-theme="dark"] table.list tbody tr:hover td,
@@ -291,7 +299,7 @@ html[data-theme="dark"] table.list tbody tr.highlight td,
 html[data-theme="dark"] table.list tbody tr:nth-child(2n+1):hover td,
 html[data-theme="dark"] table tbody tr:hover > td,
 html[data-theme="dark"] table.queue tbody tr:hover > td {
-    background: var(--dk-surface-3);
+    background: var(--dk-accent-soft);
 }
 
 html[data-theme="dark"] table.list tfoot td {
