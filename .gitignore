@@ -44,3 +44,8 @@ ost-iconos.html
 
 # Manifiesto del sembrador de datos de demostración (se genera solo)
 tools/dev/seed-manifest.json
+
+# Copias temporales que generan las herramientas al ejecutarse sin el
+# guardian de linea de comandos (php-wasm, pruebas locales). No son codigo.
+tools/ui/.*-noguard.php
+tests/.run-wasm.php
