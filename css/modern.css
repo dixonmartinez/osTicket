@@ -411,7 +411,10 @@ ul#sub_nav {
     margin-bottom: 6px;
 }
 
+/* scp.css fija el envoltorio en 24 px (.input.attached) y el campo pasa a
+   34: si no se suelta la altura, el campo se sale del envoltorio. */
 #basic_search .attached.input {
+    height: auto;
     vertical-align: middle;
 }
 
