@@ -873,11 +873,45 @@ nonce**.
 antiguas) y `'unsafe-inline'` en `style-src` (cientos de atributos `style=`
 que no ejecutan código).
 
-### Frente 6 — Partir los archivos de más de 2.000 líneas 🔄 En curso
+### Frente 6 — Partir los archivos de más de 2.000 líneas ✅ Hecho
 
 - Qué hacer: `class.forms.php` (6.220 líneas, **64 clases**) y
   `class.ticket.php` en rasgos (`trait`) o clases colaboradoras, sin cambiar
   nombres públicos. Aquí sí conviene ir con calma: es donde más se rompe.
+- **Cumplido el 2026-10-27: ningún archivo propio pasa de 2.000 líneas.** Los
+  seis que lo hacían quedaron así:
+
+  | Archivo | Antes | Ahora | Cómo |
+  |---|---|---|---|
+  | `class.forms.php` | 4.515 | **60** | índice; 37 clases a 7 archivos por familia |
+  | `class.ticket.php` | 4.529 | **1.981** | una clase; 26 métodos a 6 rasgos |
+  | `class.orm.php` | 3.643 | **1.661** | 24 clases a `class.orm.sql.php` y `class.orm.result.php` |
+  | `include/cli/modules/seed.php` | 2.934 | **1.887** | una clase; 20 métodos al rasgo `SeedWrites` |
+  | `class.search.php` | 2.030 | **1.955** | campos anotados y contadores a su archivo |
+  | `class.dynamic_forms.php` | 2.026 | **1.937** | el buscador de la lista a su archivo |
+
+  Más `class.queue.php` (2.400 → **1.600**), `class.thread.php` (2.351 →
+  **1.900**) y `ajax.tickets.php` (2.021 → **1.771**). El mayor del proyecto es
+  ahora `class.ticket.php` con 1.981.
+
+  **Cómo se comprobó cada reparto**, sin fiarse del aspecto del archivo:
+  1. Los límites de cada clase o método los da el **tokenizador de PHP**
+     (docblock y modificadores incluidos). Contar llaves a mano no vale: las
+     cadenas con interpolación y los `'{"dept_id":'` descuadran la cuenta.
+  2. **Multiconjunto de líneas**: ninguna línea del original desaparece; las
+     nuevas son sólo las cabeceras y los `include`/`use`.
+  3. **Texto idéntico** de cada clase o método movido, comparado byte a byte
+     contra el original.
+  4. `make classes` (sin duplicados), `make input-audit` y la suite completa.
+
+  Las tres trampas que aparecieron, todas detectadas por las pruebas y no por
+  lectura: la **interfaz `Threadable`** no se puede mover al archivo que se
+  incluye al final (`ObjectThread` la implementa y se declararía antes de que
+  exista); **`class.orm.result.php` tiene que ir después de `class.util.php`**
+  porque `InstrumentedList` hereda de `BaseList`; y `TicketPerfTest`,
+  `OrmPropertiesTest`, `SeedDataTest` y `SeedPurgeTest` **leen el código como
+  texto**, así que ahora siguen los `use Trait;` en vez de mirar sólo el archivo
+  de la clase.
 - Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
   de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
   cambios y cuerpos de entrada.
@@ -953,28 +987,18 @@ que no ejecutan código).
     `tests/TicketCreateTest.php`.
   - También se borró un `$id = 0;` que no se usaba y un `$dept` que quedó sin
     consumidor al mover la fase de avisos.
-- Siguiente, por relación riesgo/beneficio: `Ticket::postMessage()` y los dos
-  `massProcess()` de `ajax.tickets.php` y `ajax.tasks.php`, que son ya las
-  funciones más largas de la aplicación.
+- Siguiente, por relación riesgo/beneficio: los dos `massProcess()` de
+  `ajax.tickets.php` y `ajax.tasks.php`, que son ya las funciones más largas de
+  la aplicación. Eso es frente 2: sin prueba de integración no se tocan.
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan dos**:
-
-  | Archivo | Líneas | Qué le queda por hacer |
-  |---|---|---|
-  | `class.ticket.php` | 4.529 | una sola clase de 4.429 |
-  | `include/cli/modules/seed.php` | 2.934 | una clase, método por método |
-
-  Los dos son **una sola clase**, así que no vale mover archivos de clases: hay
-  que repartir métodos en rasgos o en clases colaboradoras, como se hizo con
-  `Ticket::create()` y sus nueve fases. El primero es el trozo caro del frente:
-  4.429 líneas en una clase que todo el proyecto usa.
-- Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
-  ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
-  y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el
-  único que exige rasgos o clases colaboradoras, porque es **una sola clase** de
-  4.429 líneas.
+- Lo que queda dentro del frente, ya sin el criterio de las 2.000: `Ticket`
+  sigue siendo una clase grande (1.981 líneas repartidas en seis rasgos) y
+  `class.forms.php` es un índice de 60 líneas con siete archivos por familia. La
+  siguiente vuelta, si se quiere seguir, es mover **métodos** de esos rasgos a
+  clases colaboradoras con estado propio, que es lo que el frente 2 ya viene
+  haciendo (`TicketCreate`, `TicketPost`, `MassAction`).
 
 ---
 
@@ -987,9 +1011,9 @@ que no ejecutan código).
 4. **Frente 5** (JS inline) — ✅ `onclick` a cero desde hace varias tandas y
    `<script>` con `nonce`: la CSP ya no anuncia `'unsafe-inline'`.
 5. **Frente 3** (SQL a mano) — ✅ por áreas y con pruebas: 30 → 13 llamadas.
-6. **Frente 6** (archivos gigantes y funciones de 500 líneas) — `class.queue.php`,
-   `class.thread.php`, `class.forms.php` y `create()`; siguen los dos
-   `massProcess()` y `postMessage()`.
+6. **Frente 6** (archivos gigantes) — ✅ hecho: ningún archivo propio pasa de
+   2.000 líneas. Los dos `massProcess()` y `postMessage()` son funciones, no
+   archivos, y siguen en el frente 2.
 
 ## 5. Lo que NO conviene hacer
 
