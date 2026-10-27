@@ -60,7 +60,7 @@
 //     el indicador de orden deja de ser un bloque de color.
 // v28: los controles de la barra de la cola (Sort, filtro, More) se ven
 //     pulsables y el buscador dice que busca.
-const VERSION = 'ost-v28';
+const VERSION = 'ost-v29';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

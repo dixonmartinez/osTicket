@@ -215,8 +215,11 @@ ul#nav {
     background: transparent;
 }
 
+/* Separacion entre pestanas. Se hace con margen y no con `gap` porque el
+   plugin de desbordamiento mide con `offset()` y `outerWidth(true)`: el
+   margen lo cuenta bien, el hueco de flex no. */
 #nav > li + li {
-    margin-left: 0;
+    margin-left: 4px;
 }
 
 #nav li > a,
@@ -308,6 +311,20 @@ ul#sub_nav {
     margin: 0;
     display: inline-block;
     vertical-align: middle;
+}
+
+/* Las pestanas de cola del panel son `li.item` y al pasar por encima scp.css
+   les mete borde y les cambia el relleno: se movian 1 px al pasar el raton.
+   Aqui el realce es el de la pastilla, sin desplazamiento. */
+#customQ_nav .jb-overflowmenu-menu-primary li.item:hover {
+    padding: 3px 6px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--ui-accent);
+}
+
+#customQ_nav .jb-overflowmenu-menu-primary li.item > a:hover {
+    text-decoration: none;
 }
 
 #sub_nav > li > a,
