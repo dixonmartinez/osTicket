@@ -881,6 +881,20 @@ que no ejecutan código).
 - Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
   de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
   cambios y cuerpos de entrada.
+- **`class.orm.php` bajó de 3.643 a 1.661**, el reparto más grande del frente
+  después de los formularios. Las 34 clases quedaron así: el modelo en el
+  archivo original (`ModelMeta`, `VerySimpleModel`, las anotaciones, `QuerySet`
+  y `Q`), las expresiones y los compiladores SQL —`SqlFunction` y sus hijas,
+  `SqlCompiler`, `MySqlCompiler`, `MySqlPreparedExecutor`, `MySqlExecutor`— en
+  `class.orm.sql.php` (1.483) y los conjuntos de resultados en
+  `class.orm.result.php` (584). **El orden de carga importa y no es el mismo en
+  los dos casos**: las expresiones tienen que estar declaradas antes que el
+  modelo (sus valores por omisión son `SqlFunction::NOW()`), así que ese archivo
+  se incluye al principio; los conjuntos de resultados usan `BaseList`, de
+  `class.util.php`, y se incluyen después de los `require_once`.
+  `tests/OrmPropertiesTest.php` pasó a analizar los tres archivos: si se dejaba
+  uno fuera, sus propiedades dinámicas quedarían sin revisar y la prueba
+  pasaría por el motivo equivocado.
 - **`class.search.php` (1.955) y `class.dynamic_forms.php` (1.937) también
   bajan de 2.000**: se fueron los campos anotados y los contadores del ticket
   (`class.search.fields.php`, 104) y el buscador de la lista de selección
@@ -931,19 +945,18 @@ que no ejecutan código).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan cuatro**, medidos
+- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan tres**, medidos
   el 2026-10-27:
 
   | Archivo | Líneas | Qué le queda por hacer |
   |---|---|---|
   | `class.ticket.php` | 4.529 | una sola clase de 4.429: exige rasgos o clases colaboradoras |
-  | `class.orm.php` | 3.643 | 34 clases: compiladores y ejecutores SQL a un archivo, modelo y conjuntos de resultados a otro |
   | `include/cli/modules/seed.php` | 2.934 | una clase, método por método |
   | `ajax.tickets.php` | 2.021 | una clase, `TicketsAjaxAPI`; depende del frente 2 (su `massProcess()` es la función más larga) |
 
-  Los dos primeros son reparto de clases (el patrón de los formularios); los
-  otros dos son **una sola clase** cada uno, así que exigen mover métodos a
-  rasgos o a clases colaboradoras, no archivos de clases.
+  Los tres son **una sola clase** cada uno, así que ya no vale mover archivos de
+  clases: hay que repartir métodos en rasgos o en clases colaboradoras, como se
+  hizo con `Ticket::create()` y sus nueve fases.
 - Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
   ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
   y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el

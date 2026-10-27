@@ -30,22 +30,35 @@ class OrmPropertiesTest extends UnitTestCase {
      * Archivos que se analizan. Son los que forman el ORM y su base; ahí una
      * propiedad dinámica es siempre un descuido, no una técnica.
      */
-    private static $files = array('class.orm.php', 'class.orm.select.php',
-        'class.util.php');
+    private static $files = array('class.orm.php', 'class.orm.sql.php',
+        'class.orm.result.php', 'class.orm.select.php', 'class.util.php');
 
     /** Operadores que escriben en la propiedad. */
     private static $writes = array('=', '+=', '-=', '*=', '/=', '.=', '%=',
         '&=', '|=', '^=', '<<=', '>>=', '??=', '++', '--');
 
     public function testElArchivoDelOrmSeAnalizaEntero(): void {
+        // El ORM vive en tres archivos desde el reparto del frente 6: el
+        // modelo en class.orm.php, los conjuntos de resultados en
+        // class.orm.result.php y las expresiones con los compiladores SQL en
+        // class.orm.sql.php. Se comprueban los tres porque si el analizador
+        // deja de ver uno, sus propiedades quedarían sin revisar y las demás
+        // pruebas pasarían por el motivo equivocado.
         $classes = $this->classes(INCLUDE_DIR . 'class.orm.php');
+        $results = $this->classes(INCLUDE_DIR . 'class.orm.result.php');
+        $sql = $this->classes(INCLUDE_DIR . 'class.orm.sql.php');
 
-        // Si el analizador deja de ver clases, las demás pruebas pasarían
-        // por el motivo equivocado
-        $this->assertGreaterThan(25, count($classes));
+        $this->assertGreaterThan(5, count($classes));
         $this->assertArrayHasKey('QuerySet', $classes);
         $this->assertArrayHasKey('VerySimpleModel', $classes);
-        $this->assertArrayHasKey('MySqlExecutor', $classes);
+
+        $this->assertGreaterThan(5, count($results));
+        $this->assertArrayHasKey('InstrumentedList', $results);
+        $this->assertArrayHasKey('ModelInstanceManager', $results);
+
+        $this->assertGreaterThan(10, count($sql));
+        $this->assertArrayHasKey('SqlFunction', $sql);
+        $this->assertArrayHasKey('MySqlExecutor', $sql);
     }
 
     public function testNoHayPropiedadesSinDeclarar(): void {
