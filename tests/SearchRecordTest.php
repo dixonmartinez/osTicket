@@ -154,8 +154,17 @@ class SearchRecordTest extends UnitTestCase {
     /* Los tipos son los que entiende el índice                            */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * El backend de MySQL vive en `include/class.search.mysql.php` desde el
+     * reparto del frente 6 del 2026-10-27: se lee allí, que es donde está la
+     * consulta de cada tipo.
+     */
+    private function backend() {
+        return file_get_contents(INCLUDE_DIR . 'class.search.mysql.php');
+    }
+
     function testLosTiposSonLosDelIndice() {
-        $source = file_get_contents(INCLUDE_DIR . 'class.search.php');
+        $source = $this->backend();
 
         // La consulta de cada tipo filtra por su `object_type`.
         $this->assertStringContainsString("A2.`object_type`='H'", $source);
@@ -167,7 +176,7 @@ class SearchRecordTest extends UnitTestCase {
 
     /** `IndexOldStuff()` pasó de 137 líneas a menos de 40. */
     function testElMetodoLargoQuedoPartido() {
-        $source = file_get_contents(INCLUDE_DIR . 'class.search.php');
+        $source = $this->backend();
         $start = strpos($source, 'function IndexOldStuff()');
         $end = strpos($source, 'private function indexThreadEntries', $start);
 

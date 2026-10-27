@@ -1024,7 +1024,8 @@ que no ejecutan código).
   `updateEstDueDate()`, `getEstDueDate()`, `setSLAId()`, `selectSLAId()`,
   `markOverdue()`, `clearOverdue()`, `checkOverdue()` y `duedateField()`), y el
   modelo queda en **1.834**. Los mayores son ahora `class.ticket.php` (1.834),
-  `class.search.php` (1.956) y `class.dynamic_forms.php` (1.937).
+  `class.dynamic_forms.php` (1.937) y `class.thread.php` (1.901); el de la
+  búsqueda bajó a 1.476 al irse el backend de MySQL a su archivo.
   `tests/TicketSlaTest.php` comprueba que el rasgo se carga y se usa, que los
   once métodos **no quedan duplicados** en el modelo (PHP no avisa: la copia
   vieja taparía la del rasgo) y que el archivo sigue por debajo de 1.900.
@@ -1052,6 +1053,21 @@ que no ejecutan código).
   archivos (38 en `ajax.tickets.php` → 28 + 10 en el nuevo), el total sigue en
   1.232 y `input-audit` vuelve a decir «sin subidas». `sql-audit` no cambia: el
   bloque no tiene SQL a mano.
+
+  **Tercer reparto: `include/class.search.php`.** Era el archivo más grande del
+  proyecto (**1.955** líneas). `MysqlSearchBackend` y `MySqlSearchConfig` —el
+  backend FULLTEXT, su índice por lotes y su configuración, 480 líneas— se van
+  enteras a `include/class.search.mysql.php`, **con su registro**: el
+  `Signal::connect('system.install', …)` y el `MysqlSearchBackend::register()`
+  que había justo detrás de la clase. Sin ellos el buscador dejaría de existir
+  sin dar ningún error, que es la trampa clásica de mover una clase que se
+  autoregistra. El original queda en **1.476** y lo incluye **al final**,
+  después de `class.search.fields.php`, porque `MysqlSearchBackend` hereda de
+  `SearchBackend`, que se queda allí. `tests/SearchMysqlSplitTest.php` fija el
+  orden del `include_once`, que las dos clases no queden duplicadas, que el
+  registro se haya movido y que el archivo siga por debajo de 1.500.
+  `SearchRecordTest` leía el código de `class.search.php` para comprobar el
+  `IndexOldStuff()` partido: ahora lee el archivo nuevo, donde está el método.
 
   De paso, una herramienta se miraba a sí misma: `run.mjs` deja en php-wasm una
   copia sin guardia de `cli` junto al original (`tools/quality/.class-map.wasm.php`),
