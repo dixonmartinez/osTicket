@@ -146,17 +146,72 @@ abstract class SeedPurgeModel {
    doble con ese nombre y comprueba que sea suyo. Los tickets del manifiesto se
    borran con el mismo `lookup()->delete()` que los departamentos, que sí está
    cubierto aquí. */
-class FAQ extends SeedPurgeModel {}
-class Category extends SeedPurgeModel {}
-class Team extends SeedPurgeModel {}
-class Staff extends SeedPurgeModel {}
-class Dept extends SeedPurgeModel {}
-class SLA extends SeedPurgeModel {}
-class User extends SeedPurgeModel {}
-class Organization extends SeedPurgeModel {}
-class Canned extends SeedPurgeModel {}
-class Topic extends SeedPurgeModel {}
-class Task extends SeedPurgeModel {}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('FAQ', false)) {
+    class FAQ extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Category', false)) {
+    class Category extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Team', false)) {
+    class Team extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Staff', false)) {
+    class Staff extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Dept', false)) {
+    class Dept extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('SLA', false)) {
+    class SLA extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('User', false)) {
+    class User extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Organization', false)) {
+    class Organization extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Canned', false)) {
+    class Canned extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Topic', false)) {
+    class Topic extends SeedPurgeModel {}
+}
+/* Igual que el doble de `Ticket` en tests/ThreadEmailTest.php: si el
+   modelo de verdad está cargado (pruebas de integración), manda él y
+   esta copia no se declara. */
+if (!class_exists('Task', false)) {
+    class Task extends SeedPurgeModel {}
+}
 
 require_once INCLUDE_DIR . 'cli/modules/seed.php';
 
