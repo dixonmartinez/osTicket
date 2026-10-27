@@ -46,7 +46,31 @@ class Internationalization {
      * process could be repeated if an administrator wanted to change the
      * system language and reload the data.
      */
+    /**
+     * Los datos con los que arranca una instalación nueva.
+     *
+     * Son siete pasos con dependencias entre ellos —las formas y los temas
+     * necesitan departamentos y SLA, las plantillas de correo necesitan su
+     * grupo—, así que el orden importa. Cada paso tiene su método y este sólo
+     * los llama en el orden correcto.
+     */
     function loadDefaultData() {
+        $this->loadModels();
+        $this->loadPriorities();
+        $this->loadConfig();
+        $config = $this->loadCoreConfig();
+        $this->loadPages($config);
+        $this->loadCannedResponses();
+        $this->loadEmailTemplates();
+    }
+
+    /**
+     * Los registros que se crean a partir de un YAML, con su creador.
+     *
+     * El orden de la tabla también importa: departamento, SLA y formularios
+     * tienen que existir antes que los temas de ayuda.
+     */
+    function loadModels() {
         # notrans -- do not translate the contents of this array
         $models = array(
             'sla.yaml' =>           'SLA::__create',
@@ -86,8 +110,13 @@ class Internationalization {
                 }
             }
         }
+    }
 
-        // Priorities
+    /**
+     * Las prioridades: no pasan por el ORM porque se crean con su id fijo
+     * (`priority_id`) y el YAML ya lo trae.
+     */
+    function loadPriorities() {
         $priorities = $this->getTemplate('priority.yaml')->getData();
         foreach ($priorities as $name=>$info) {
             $sql = 'INSERT INTO '.PRIORITY_TABLE
@@ -98,7 +127,10 @@ class Internationalization {
                 .', priority_urgency='.db_input($info['priority_urgency']);
             db_query($sql);
         }
+    }
 
+    /** La configuración por secciones (`config.yaml`). */
+    function loadConfig() {
         // Configuration
         require_once INCLUDE_DIR.'class.config.php';
         if (($tpl = $this->getTemplate('config.yaml'))
@@ -109,7 +141,14 @@ class Internationalization {
                     $_config->set($key, $value);
             }
         }
+    }
 
+    /**
+     * La configuración del sistema, con el tamaño máximo de archivo que
+     * aguanta este servidor: la mitad de `upload_max_filesize`, redondeado a
+     * la potencia de dos de debajo.
+     */
+    function loadCoreConfig() {
         // Load core config
         $_config = new OsticketConfig();
 
@@ -120,7 +159,14 @@ class Internationalization {
         while( $po2 < $val ) $po2 <<= 1;
 
         $_config->set('max_file_size', $po2);
+        return $_config;
+    }
 
+    /**
+     * Las páginas del portal (portada, agradecimiento, fuera de línea y las de
+     * registro y contraseña) y el idioma por omisión.
+     */
+    function loadPages(OsticketConfig $_config) {
         // Pages and content
         foreach (array('landing','thank-you','offline',
                 'registration-staff', 'pwreset-staff', 'banner-staff',
@@ -141,7 +187,10 @@ class Internationalization {
         }
         // Default Language
         $_config->set('system_language', $this->langs[0]);
+    }
 
+    /** Las respuestas predefinidas de ejemplo, con sus adjuntos. */
+    function loadCannedResponses() {
         // Canned response examples
         if (($tpl = $this->getTemplate('templates/premade.yaml'))
                 && ($canned = $tpl->getData())) {
@@ -154,7 +203,14 @@ class Internationalization {
                 }
             }
         }
+    }
 
+    /**
+     * Las plantillas de correo: primero el grupo, después cada plantilla con
+     * su `tpl_id` y sus adjuntos incrustados.
+     */
+    function loadEmailTemplates() {
+        $errors = array();
         // Email templates
         // TODO: Lookup tpl_id
         if ($objects = $this->getTemplate('email_template_group.yaml')->getData()) {

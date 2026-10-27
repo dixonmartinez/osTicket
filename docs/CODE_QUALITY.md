@@ -261,7 +261,7 @@ funciones ha vuelto a crecer. Desde entonces `Ticket::create()` se partió
 además en nueve fases (frente 6), así que la función más larga de la
 aplicación ya no es un flujo de 500 líneas.
 
-El criterio de éxito **no se cumple todavía**: quedan **9 funciones de la
+El criterio de éxito **no se cumple todavía**: quedan **8 funciones de la
 aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 (`class.ticket.php`, `class.forms.php` y `class.orm.php`).
 
@@ -275,6 +275,7 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`) |
 | `Queue::update()` | 157 líneas | **13** (ocho pasos: `setupTitle()` … `setupCriteria()`) |
+| `I18n::loadDefaultData()` | 131 líneas | **9** (siete pasos: `loadModels()` … `loadEmailTemplates()`) |
 | `ThreadEntry::lookupByEmailHeaders()` | 126 líneas | **102** (`ThreadEmailInfo::candidates()`) |
 | `Thread::lookupByEmailHeaders()` | 66 líneas | **28** (la misma pieza) |
 | `ThreadEntry::create()` | 185 líneas | **158** (`ThreadEntryInfo`) |
@@ -292,7 +293,7 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
 | `SelectSql::fields()` | 148 líneas | **57** (cinco tramos: relaciones, `values()`, simple, anotaciones y extras) |
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
-| Funciones de la aplicación por encima de 120 líneas | — | **9** |
+| Funciones de la aplicación por encima de 120 líneas | — | **8** |
 | Funciones de la aplicación por encima de 150 líneas | 10 | **7** |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
@@ -306,12 +307,12 @@ aplicación por encima de 120 líneas** y **tres archivos por encima de 3.000**
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
-2. **Cuatro funciones intermedias (120–175 líneas) que nadie ha tocado**,
-   y que no estaban en el plan: `Report::getTabularData()` (158),
-   `Thread::create()` (158), `Thread::postEmail()` (149) e
-   `I18n::loadDefaultData()` (131). Son del mismo tipo que las que ya se
+2. **Tres funciones intermedias (120–175 líneas) que nadie ha tocado**, y que
+   no estaban en el plan: `Report::getTabularData()` (158), `Thread::create()`
+   (158) y `Thread::postEmail()` (149). Son del mismo tipo que las que ya se
    partieron (armar campos, validar, componer mensajes), así que el método que
-   funcionó con `Queue::update()` y `Dept::update()` sirve para ellas.
+   funcionó con `Queue::update()`, `Dept::update()` e `I18n::loadDefaultData()`
+   sirve para ellas.
 3. **Los tres archivos de más de 3.000 líneas** son trabajo del frente 6
    (reparto por familias de clases), no de éste, pero el criterio de éxito del
    frente 2 los incluye. `class.forms.php` es el que más se resiste: 36 clases
@@ -346,8 +347,8 @@ y los dos estaban en el guardado de datos:
   «Department selection is required» sale igual.
 
 **Comprobación de las cifras de arriba** (2026-10-26, tras esta tanda, con
-`make metrics --top=400`): 9 funciones de la aplicación por encima de 120
-líneas —trece menos que al empezar la tanda, ninguna nueva—, 7 por encima de 150 y
+`make metrics --top=400`): 8 funciones de la aplicación por encima de 120
+líneas —catorce menos que al empezar la tanda, ninguna nueva—, 7 por encima de 150 y
 3 archivos por encima de 3.000 (`class.ticket.php` 4.516, `class.forms.php`
 4.515, `class.orm.php` 3.643). La función más larga de la aplicación sigue
 siendo `massProcess()` con 321 líneas. Fuera del criterio, por ser librerías
