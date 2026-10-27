@@ -289,9 +289,38 @@ class SqlAuditTest extends UnitTestCase {
         $this->assertSame('app', SqlAudit::categoryOf('api/http.php'));
     }
 
+    /**
+     * Las herramientas de operación tienen su categoría: no están en el
+     * camino de una petición y varias tienen que preguntar por el esquema
+     * (information_schema, SHOW STATUS, OPTIMIZE TABLE, las tablas
+     * materializadas de los formularios).
+     */
+    public function testLasHerramientasDeCliNoSonAplicacion(): void {
+        foreach (array('include/cli/modules/queue.php',
+                'include/cli/modules/db.php',
+                'include/cli/modules/perf.php',
+                'include/cli/modules/seed.php') as $file)
+            $this->assertSame('cli', SqlAudit::categoryOf($file),
+                sprintf('%s debería contar como herramienta de CLI', $file));
+
+        // …y no se lleva por delante lo que no es CLI
+        $this->assertSame('app', SqlAudit::categoryOf('include/class.search.php'));
+    }
+
     public function testLasCategoriasSonLasEsperadas(): void {
         $this->assertSame(array('app', 'installer', 'upgrader', 'driver',
-            'tests'), SqlAudit::categories());
+            'cli', 'tests'), SqlAudit::categories());
+    }
+
+    /** La línea base no puede quedarse con archivos que ya no son de la app. */
+    public function testLaLineaBaseSoloTieneAplicacion(): void {
+        $baseline = SqlAudit::load(dirname(__DIR__)
+            . '/tools/quality/sql-baseline.json');
+
+        $this->assertTrue($baseline !== array(), 'falta la línea base');
+        foreach (array_keys($baseline) as $file)
+            $this->assertSame('app', SqlAudit::categoryOf($file),
+                sprintf('%s está en la línea base pero ya no es aplicación', $file));
     }
 
     /* ------------------------------------------------------------------ */

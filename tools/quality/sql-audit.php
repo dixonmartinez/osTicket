@@ -15,6 +15,13 @@
  *     esquemas que ya no son los de hoy (instalación desde cero, migraciones
  *     históricas). El ORM describe el esquema actual, así que usarlo ahí
  *     rompería las actualizaciones. No se tocan.
+ *   - **cli**: `include/cli/` son las herramientas de operación (sembrador,
+ *     diagnóstico de colas, mantenimiento de la base, perfilado, idiomas).
+ *     Corren desde la línea de comandos contra una base que ya existe y varias
+ *     **tienen que** preguntar por el esquema o por tablas que el ORM no
+ *     describe (`information_schema`, `SHOW STATUS`, `OPTIMIZE TABLE`, las
+ *     tablas materializadas de los formularios). Igual que el driver: ahí
+ *     `db_query()` es el trabajo. No están en el camino de una petición.
  *   - **tests**: dobles y mocks.
  *   - **app**: el resto. Esto es lo que el frente 3 mide y lo que puede bajar.
  *
@@ -62,6 +69,9 @@ class SqlAudit {
      * todo, el contador volvería a no significar nada. Al pasar del tope hay
      * que justificarlo en docs/CODE_QUALITY.md y subirlo a mano.
      *
+     * El tope cubre las marcas de la aplicación **y** las del CLI: separarlas
+     * en categorías no puede servir para marcar más cosas sin justificarlas.
+     *
      * 25 → 27: el sembrador (`include/cli/modules/seed.php`) suma dos marcas
      * al llegar sus módulos: el borrado de filas de hilo sin dueño es un
      * `DELETE` con `LEFT JOIN`, que el ORM no sabe expresar, y `scalar()` es
@@ -72,7 +82,7 @@ class SqlAudit {
 
     /** Categorías, de la que no se toca a la que sí. */
     static function categories() {
-        return array('app', 'installer', 'upgrader', 'driver', 'tests');
+        return array('app', 'installer', 'upgrader', 'driver', 'cli', 'tests');
     }
 
     /**
@@ -85,6 +95,10 @@ class SqlAudit {
             return 'driver';
         if (strpos($rel, 'include/upgrader/') === 0)
             return 'upgrader';
+        // Las herramientas de operación: no están en el camino de una
+        // petición y varias tienen que preguntar por el esquema
+        if (strpos($rel, 'include/cli/') === 0)
+            return 'cli';
         if (strpos($rel, 'setup/') === 0)
             return 'installer';
         if (strpos($rel, 'tests/') === 0)
@@ -491,8 +505,11 @@ function sqlaudit_main($root, array $argv) {
     $appAll = SqlAudit::counts($scan['app'], true);
     $app = SqlAudit::counts($scan['app']);
     $appTotal = array_sum($app);
-    $legacyMarks = SqlAudit::legacy(array('app' => $scan['app']));
-    $badMarks = SqlAudit::badMarks(array('app' => $scan['app']));
+    // Las marcas se revisan en las dos categorías: pasar el CLI a la suya no
+    // puede dejar marcas sin motivo ni subir el tope de la aplicación
+    $markedCategories = array('app' => $scan['app'], 'cli' => $scan['cli']);
+    $legacyMarks = SqlAudit::legacy($markedCategories);
+    $badMarks = SqlAudit::badMarks($markedCategories);
     $tooManyMarks = count($legacyMarks) > SqlAudit::LEGACY_MAX;
     $baselinePath = "$root/tools/quality/sql-baseline.json";
     $baseline = SqlAudit::load($baselinePath);
@@ -512,6 +529,11 @@ function sqlaudit_main($root, array $argv) {
     if (isset($options['json'])) {
         echo json_encode(array(
             'totals' => $totals,
+            'cli' => array(
+                'total' => $totals['cli'],
+                'breakdown' => SqlAudit::breakdown($scan['cli']),
+                'files' => SqlAudit::counts($scan['cli'], true),
+            ),
             'app' => array(
                 'total' => $appTotal,
                 'all' => array_sum($appAll),
@@ -538,6 +560,7 @@ function sqlaudit_main($root, array $argv) {
         'installer' => 'instalador',
         'upgrader' => 'actualizador (histórico)',
         'driver' => 'driver de base de datos',
+        'cli' => 'herramientas de CLI',
         'tests' => 'dobles de prueba',
     );
     foreach ($labels as $category => $label)
@@ -548,6 +571,9 @@ function sqlaudit_main($root, array $argv) {
     printf("\nAplicación: %d llamadas, %d de ellas marcadas como no migrables"
         . " -> %d por migrar\n", array_sum($appAll), $breakdown['legacy'],
         $appTotal);
+    printf("Herramientas de CLI: %d llamadas en %d archivos (fuera del"
+        . " objetivo: no están en el camino de una petición)\n",
+        $totals['cli'], count($scan['cli']));
     printf("  %d SELECT, %d DML, %d DDL, %d otras\n", $breakdown['select'],
         $breakdown['dml'], $breakdown['ddl'], $breakdown['other']);
     printf("  %d con el SQL escrito de un tirón, %d construidas concatenando\n",
@@ -593,7 +619,8 @@ function sqlaudit_main($root, array $argv) {
     }
 
     if ($legacyMarks) {
-        echo "\nMarcado como no migrable (\"sql-audit:legacy\" con motivo)\n";
+        echo "\nMarcado como no migrable (\"sql-audit:legacy\" con motivo,"
+            . " aplicación y CLI)\n";
         foreach ($legacyMarks as $mark)
             printf("  %s:%d  %s\n", $mark['file'], $mark['line'],
                 $mark['reason']);

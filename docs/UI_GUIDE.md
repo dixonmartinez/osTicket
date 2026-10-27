@@ -1137,12 +1137,12 @@ borrar»** y los 33 seguían ahí.
   `.type-icon::after`, `body #line-chart-here`, las etiquetas del gráfico, el
   guardia del pie de la cola, la fecha de la entrada de apertura, la cota del
   informe y la opción `--repair` del doctor.
-- `php tools/quality/sql-audit.php` → **en rojo** desde que entraron los módulos
-  de diagnóstico del CLI: 4 archivos nuevos, 14 llamadas fuera de la línea base
-  (de ellas una es el **movimiento** de la llamada del ORM a
-  `class.orm.sql.php`). Queda documentado y visible en `docs/CODE_QUALITY.md`
-  (frente 3), con la decisión pendiente: una categoría propia para
-  `include/cli/`, como la del `driver`.
+- `php tools/quality/sql-audit.php` → **en verde** desde el 2026-10-27. Estuvo
+  en rojo por 4 archivos del CLI y el movimiento de la llamada del ORM a
+  `class.orm.sql.php`; se cerró con la categoría `cli` que estaba propuesta en
+  `docs/CODE_QUALITY.md` (frente 3): la aplicación queda en **36 llamadas, 25
+  marcadas y 11 por migrar**, y las **17 del CLI** se informan aparte porque no
+  están en el camino de una petición.
 - `php tests/run.php` → medido en **php-wasm** (sin `dom` ni `mbstring`):
   **916 correctas, 0 fallos, 5 omitidas**. Treinta y siete de ellas son de esta tanda:
   dos en `tests/SeedDataTest.php`, una en `tests/QuerySqlTest.php`, una en
@@ -1418,7 +1418,7 @@ respuesta, acceso y FAQ).
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
 | 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | ✅ **Cerrado**: no era la consulta ni el ORM —`--hydrate` construye 23 modelos—, sino el paginador (`?p=` más allá del final). Ver §3.13.8 y la fila 34 de §6.1 |
 | 4 | Pasada de la purga en la instalación del usuario | ✅ **Cerrado**: `--purge-orphans` borró los 33 huérfanos, `make seed-faq` creó los 33 de demostración y `make seed-doctor` termina en «Todo cuadra.» con 33 artículos y 6 categorías (§3.13.10) |
-| 7 | `make sql-audit` en rojo: 4 archivos nuevos con SQL a mano (14 llamadas) fuera de la línea base | No son consultas de la aplicación sino de los módulos de diagnóstico (`queue.php` 9, `db.php` 3, `perf.php` 1) más el movimiento de la llamada del ORM a `class.orm.sql.php`. Se deja **visible**: ni línea base nueva ni marcas `legacy` en bloque. La decisión propuesta es una categoría propia para `include/cli/` en `SqlAudit`, como la que ya tiene el `driver` (`docs/CODE_QUALITY.md`, frente 3) |
+| 7 | `make sql-audit` en rojo: 4 archivos nuevos con SQL a mano (14 llamadas) fuera de la línea base | ✅ **Cerrado** el 2026-10-27 con la categoría `cli` en `SqlAudit` (la decisión que estaba propuesta aquí): `include/cli/` es la categoría de las herramientas de operación, como el `driver`. El tope de marcas sigue siendo único para `app`+`cli`, la línea base sólo admite aplicación (con una prueba que lo impide) y el informe saca las 17 llamadas del CLI en su propia línea. La aplicación queda en 36 llamadas / 25 marcadas / 11 por migrar y `make sql-audit` está en verde (`docs/CODE_QUALITY.md`, frente 3) |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 
 ## 7. Si la interfaz se ve mal después de actualizar

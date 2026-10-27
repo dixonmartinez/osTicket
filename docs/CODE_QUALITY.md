@@ -687,22 +687,25 @@ líneas) y separa cuatro cosas que no son lo mismo:
 
 | Categoría | Llamadas | Archivos | Qué es | ¿Se toca? |
 |---|---|---|---|---|
-| **aplicación** | **38** | 15 | El código de osTicket | es la deuda, y baja |
+| **aplicación** | **36** | 14 | El código de osTicket, sin las herramientas de CLI | es la deuda, y baja |
+| herramientas de CLI | 17 | 5 | `include/cli/`: sembrador, diagnóstico, mantenimiento, perfiles | no |
 | instalador | 5 | 2 | `setup/` e `include/class.setup.php`: corre antes de que exista el esquema | no |
 | actualizador (histórico) | 33 | 16 | `include/upgrader/streams/`: migraciones de esquemas viejos | no |
 | driver de base de datos | 6 | 1 | `include/mysqli.php`: ahí `db_query()` *es* el trabajo | no |
 | dobles de prueba | 22 | 1 | `tests/support/`: SQL mal escrito a propósito | no |
 
-Medido el 2026-10-27, con los módulos de línea de comandos ya dentro de la
-cuenta: **53 llamadas de la aplicación, 27 marcadas como no migrables** con su
-motivo (`sql-audit:legacy`) y **26 por migrar** (`13 SELECT`, `3 DML`, `2 DDL`
-y `8 «otras»`; 4 con el SQL escrito de un tirón y 22 construidas
+Medido el 2026-10-27, con las herramientas de línea de comandos en su propia
+categoría (antes contaban como aplicación): **36 llamadas en la aplicación, 25
+marcadas como no migrables** con su motivo (`sql-audit:legacy`) y **11 por
+migrar** (`5 SELECT`, `3 DML`, `2 DDL` y `1 «otras»`; las 11 construidas
 concatenando). El objetivo era bajar de 100 y se cumple con holgura. **Ninguna
 concatenación de datos de la petición** (eso lo vigila `tools/audit` con
 OST-SQLI y también el propio `sql-audit`, que falla si aparece una en el punto
 de llamada). Lo que resta son consultas de campos dinámicos, el índice
-`FULLTEXT` de los informes, la carga de idiomas, la importación por lotes y las
-consultas de los módulos de diagnóstico; ninguna es una lista paginada.
+`FULLTEXT` de los informes y la carga de idiomas; ninguna es una lista
+paginada. Las **17 llamadas del CLI** (sembrador, diagnóstico de colas,
+mantenimiento de la base, perfiles) se informan aparte y no entran en el
+objetivo: no están en el camino de una petición.
 
 **La marca, y por qué no es una salida.** Hay SQL que no puede pasar por el
 ORM y no por pereza:
@@ -754,7 +757,7 @@ método, y tarda 2 ms más en cada carga de sesión del agente):
 | `include/class.timezone.php` | 1 | `SELECT` de expresiones sin tabla: el ORM siempre añade `FROM` |
 | `include/class.staff.php` | 1 | `getDepartments()`: la versión ORM (al lado, comentada) hace un `OR` sobre `path` y tarda 2 ms más, y esto corre en cada carga de sesión |
 | `include/class.analytics.php` | 2 | primera respuesta: es un `MIN()` por ticket, o sea una tabla derivada, y el ORM no une vistas calculadas; SLA: `t.closed <= t.duedate` compara **dos columnas**, y el ORM compara columnas con valores |
-| `include/cli/modules/seed.php` | 2 | el borrado de filas de hilo sin dueño es un `DELETE` con `LEFT JOIN`, fuera del ORM; `scalar()` es el ayudante de sólo lectura de las comprobaciones del doctor, que arma sus consultas con constantes |
+| `include/cli/modules/seed.php` | 2 | el borrado de filas de hilo sin dueño es un `DELETE` con `LEFT JOIN`, fuera del ORM; `scalar()` es el ayudante de sólo lectura de las comprobaciones del doctor, que arma sus consultas con constantes. Desde el 2026-10-27 el sembrador es categoría `cli`, así que estas dos marcas se informan aparte y no cuentan en el objetivo de la aplicación |
 
 **Lo migrado**, por áreas y con la suite en verde después de cada tanda:
 
@@ -871,7 +874,7 @@ condiciones vacías antes de unirlas, tanto en `WHERE` como en `HAVING`. Cinco
 pruebas de `tests/QuerySqlTest.php` fijan el SQL resultante.
 
 **La regla automática.** `make sql-audit` compara con
-`tools/quality/sql-baseline.json` (13 llamadas en 6 archivos) y **falla** si:
+`tools/quality/sql-baseline.json` (11 llamadas en 5 archivos) y **falla** si:
 
 - un archivo nuevo trae SQL a mano,
 - cualquier archivo sube respecto de la línea base,
@@ -881,23 +884,49 @@ pruebas de `tests/QuerySqlTest.php` fijan el SQL resultante.
 Ya está dentro de `make ci`, detrás de `input-audit`. Para consolidar una
 bajada: `php tools/quality/sql-audit.php --update`.
 
-**En rojo hoy (2026-10-27), y por qué.** `make sql-audit` **falla**: hay cuatro
-archivos nuevos con SQL a mano que no están en la línea base (**14 llamadas**).
+**Cerrado el 2026-10-27: la categoría `cli`.** `make sql-audit` estaba en rojo
+por cuatro archivos nuevos con SQL a mano (**14 llamadas**) fuera de la línea
+base. Ninguna era una consulta de la aplicación que un modelo pudiera
+describir, pero tampoco valía marcarlas como `legacy` sin más. La decisión
+—anotada aquí durante semanas— se aplicó tal cual:
 
-| Archivo | Llamadas | Qué es |
-|---|---|---|
-| `include/class.orm.sql.php` | 1 | es el **movimiento** de la llamada que estaba en `class.orm.php` (la línea base sigue al archivo): el ORM ejecutando su propia consulta |
-| `include/cli/modules/queue.php` | 9 | módulo de diagnóstico de colas: ejecuta y mide el SQL de la cola |
-| `include/cli/modules/db.php` | 3 | módulo `manage.php db`: pregunta al esquema (`SHOW TABLES`, `information_schema`, vistas calculadas) |
-| `include/cli/modules/perf.php` | 1 | módulo de perfiles: busca el último ticket tocado para medir la ficha |
+> `include/cli/` son las **herramientas de operación** (sembrador,
+> diagnóstico de colas, mantenimiento de la base, perfilado, idiomas). Corren
+> desde la línea de comandos contra una base que ya existe y varias **tienen
+> que** preguntar por el esquema o por tablas que el ORM no describe
+> (`information_schema`, `SHOW STATUS`, `OPTIMIZE TABLE`, las tablas
+> materializadas de los formularios). Igual que el `driver`: ahí
+> `db_query()` es el trabajo, no la deuda.
 
-Ninguna es una consulta de la aplicación que un modelo pueda describir, pero
-tampoco se marcan como `legacy` a la ligera: la decisión pendiente es **una
-categoría propia** en `sql-audit` para `include/cli/` —como ya existe para el
-`driver`, «ahí `db_query()` *es* el trabajo»—, de modo que el diagnóstico
-reporte sus llamadas aparte y el número de la aplicación vuelva a significar
-lo mismo. Mientras tanto el rojo es **visible y está aquí**, no tapado con una
-línea base nueva ni con trece marcas más.
+`SqlAudit::categories()` pasa a `app, installer, upgrader, driver, cli,
+tests`, y el informe imprime su propia línea:
+
+```
+  herramienta de CLI           17 llamadas en   5 archivos
+Aplicación: 36 llamadas, 25 de ellas marcadas como no migrables -> 11 por migrar
+```
+
+Tres detalles de la implementación, para que la categoría no sea una puerta de
+atrás:
+
+1. **El tope de marcas sigue siendo uno solo.** `LEGACY_MAX` (27) se aplica a
+   las marcas de `app` **y** de `cli` juntas: separar en categorías no puede
+   servir para marcar más cosas sin justificarlas.
+2. **La línea base sólo admite aplicación.** Se actualizó a mano para dejar
+   el **movimiento** de la llamada del ORM en su archivo nuevo
+   (`class.orm.php` → `class.orm.sql.php`) y para sacar
+   `include/cli/modules/import.php`, que ya no es aplicación. Una prueba
+   (`testLaLineaBaseSoloTieneAplicacion`) falla si alguien mete un archivo de
+   otra categoría en el JSON.
+3. **El SQL sin escapar se sigue mirando en todas partes.** `unsafe()` no
+   distingue categorías (salvo los dobles de prueba): un `db_query()` con
+   datos de la petición sin escapar es un fallo también en el CLI.
+
+Resultado: **36 llamadas en la aplicación, 25 marcadas, 11 por migrar** (el
+objetivo del frente era 100) y **`make sql-audit` en verde**. La prueba
+`testLasHerramientasDeCliNoSonAplicacion` fija que `queue.php`, `db.php`,
+`perf.php` y `seed.php` cuentan como CLI y que la categoría no se lleva por
+delante archivos de la aplicación.
 
 ### Frente 4 — Entrada única y tipada 🔄 En curso (la regla ya se cumple)
 
@@ -1246,7 +1275,7 @@ alguien mire el informe— son:
 | Regla | Línea base | Comando |
 |---|---|---|
 | Accesos directos a `$_GET`/`$_POST`/`$_REQUEST` (frente 4) | 1.242 en 141 archivos | `make input-audit` |
-| SQL escrito a mano en la aplicación (frente 3) | 13 en 6 archivos, más 25 excepciones con motivo | `make sql-audit` |
+| SQL escrito a mano en la aplicación (frente 3) | 11 en 5 archivos, más 25 excepciones con motivo (las del CLI se informan aparte) | `make sql-audit` |
 | `<script>` en línea sin nonce (frente 5) | 0 de 98 | `make csp-nonce` |
 
 Un refactor está justificado si **baja** alguna señal sin que suba ninguna
