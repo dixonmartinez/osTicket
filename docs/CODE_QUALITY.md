@@ -348,7 +348,7 @@ los tres se repartieron en el frente 6.
 | `Schedule::buildFields()` | 175 líneas | **5** (`ScheduleEntryFormFields`) |
 | `Validator::validate()` | 129 líneas | **52** (`ValidatorRule`) |
 | Funciones de la aplicación por encima de 120 líneas | — | **5** |
-| Funciones de la aplicación por encima de 150 líneas | 10 | **4** |
+| Funciones de la aplicación por encima de 150 líneas | 10 | **5** (medido el 2026-10-27: `Mailer::send()` 270, `massProcess()` de tickets 227, `Ticket::create()` 219, `massProcess()` de tareas 191 y `Ticket::postMessage()` 178) |
 | Archivos por encima de 3.000 líneas | 3 | **3** |
 
 **Lo que queda, y por qué no es sólo «seguir partiendo»:**
