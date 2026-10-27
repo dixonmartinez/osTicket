@@ -1864,6 +1864,26 @@ class SeedManager extends Module {
             $this->warn('no se encuentran por su pregunta (pueden ser de otra '
                 . 'versión del sembrador): ' . implode(' · ', $notfound));
 
+        // Una pregunta del manifiesto y otra de la base, lado a lado: si no
+        // coinciden letra a letra, se ve aquí y no hay que adivinar.
+        if ($seen && !$found) {
+            try {
+                $sample = array();
+                foreach (FAQ::objects()->values('question')->limit(2) as $row)
+                    $sample[] = (string) $row['question'];
+                $categories = self::faqs();
+                $articles = $categories ? reset($categories) : array();
+                $article = $articles ? reset($articles) : array();
+                $mine = $article ? (string) $article[0] : '';
+                $this->out(sprintf('  · manifiesto: «%s»', $mine));
+                foreach ($sample as $question)
+                    $this->out(sprintf('  · en la base:  «%s»', $question));
+            }
+            catch (Throwable $e) {
+                // El muestrario es una ayuda, no un requisito
+            }
+        }
+
         if ($missing)
             $this->warn(sprintf('%d categoría(s) del manifiesto no existen: '
                 . 'créalas con `make seed --only=faq`', $missing));
