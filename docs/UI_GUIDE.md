@@ -439,9 +439,21 @@ queue navigation». Para saberlo sin adivinar:
 make queue-nav            # o: make queue-nav AS=dixon
 ```
 
-Imprime `ID | Cola | Banderas | Barra` y, cuando una cola no entra, el motivo
-(`FLAG_DISABLED`, falta `FLAG_QUEUE`, `parent_id`). `make queue-nav ARGS=--json`
-si lo quieres para un script.
+Imprime `ID | Cola | Banderas | Barra | Motivo`, con el motivo de cada cola
+que no entra (`FLAG_DISABLED`, falta `FLAG_QUEUE`, `parent_id`) y un contraste
+con la barra real cuando hay agente. `make queue-nav ARGS=--json` si lo
+quieres para un script.
+
+Dos detalles que cuestan una tarde si no se saben:
+
+- **El instalador de osTicket no crea ninguna cola.** Una instalación limpia
+  tiene `ost_queue` vacía y la barra sólo muestra *Search* y *New Ticket*.
+  Las colas se crean en `/scp/queues.php` («Add New Queue») o copiando una;
+  sin marcar *Queue Visibility* no salen en la barra.
+- `queue --nav` **no necesita agente**: deduce la barra de las banderas. Si no
+  hay ninguno, lo dice con los recuentos (`filas`, `activos`, `admins`) en vez
+  de morir, y `resolveStaff()` cae a una consulta directa a `ost_staff` como
+  último recurso.
 
 ### 3.6 Indicador de fuerza de la contraseña
 

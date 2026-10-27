@@ -23,6 +23,37 @@ if (!class_exists('Module')) {
         static function register($action, $class) {
             self::$reg[$action] = $class;
         }
+        /* La consola de verdad la trae class.cli.php; aqui basta con que */
+        /* exista, para que el modulo pueda preguntar sus opciones.        */
+        function getOption($name, $default=false) {
+            return $default;
+        }
+    }
+}
+
+/* Salida de mentira, para poder mirar lo que el comando imprime. */
+if (!class_exists('QueueFakeStream')) {
+    class QueueFakeStream {
+        public $text = '';
+        function write($what) { $this->text .= $what; }
+    }
+}
+
+/* Una cola de mentira: solo lo que lee el diagnostico. */
+if (!class_exists('QueueFakeQueue')) {
+    class QueueFakeQueue {
+        public $flags;
+        public $parent_id;
+        private $id;
+        private $name;
+        function __construct($id, $name, $flags, $parent=0) {
+            $this->id = $id;
+            $this->name = $name;
+            $this->flags = $flags;
+            $this->parent_id = $parent;
+        }
+        function getId() { return $this->id; }
+        function getName() { return $this->name; }
     }
 }
 
@@ -31,7 +62,8 @@ if (!defined('TABLE_PREFIX'))
     define('TABLE_PREFIX', 'ost_');
 
 /* Tablas que nombra la consulta de departamentos. */
-foreach (array('DEPT_TABLE' => 'department', 'TICKET_TABLE' => 'ticket') as $c => $t)
+foreach (array('DEPT_TABLE' => 'department', 'TICKET_TABLE' => 'ticket',
+        'STAFF_TABLE' => 'staff', 'QUEUE_TABLE' => 'queue') as $c => $t)
     if (!defined($c))
         define($c, TABLE_PREFIX . $t);
 
@@ -52,6 +84,17 @@ if (!class_exists('CustomQueue')) {
 }
 
 require_once INCLUDE_DIR . 'cli/modules/queue.php';
+
+/* `stdout` y `stderr` los declara el Module de verdad; el Module minimo de
+ * las pruebas no, y con PHP 8.2 asignarlos al vuelo avisa. En la subclase
+ * quedan declarados. */
+if (!class_exists('QueueCheckProbe')) {
+    class QueueCheckProbe extends QueueCheck {
+        public $stdout;
+        public $stderr;
+    }
+}
+
 
 class QueueCheckTest extends UnitTestCase {
 
@@ -390,6 +433,84 @@ class QueueCheckTest extends UnitTestCase {
             $this->assertMatchesRegularExpression(
                 '/const\s+' . $nombre . '\s*=\s*' . $valor . ';/', $fuente,
                 "$nombre cambió: los bits de arriba ya no valen");
+    }
+
+    /**
+     * `err()` no viene en `Module` (lo define cada módulo que lo usa). El
+     * `queue` llamaba a `$this->err()` desde sus ramas de error sin tenerlo:
+     * el comando moria con «Call to undefined method QueueCheck::err()» en vez
+     * de decir que pasaba. Aqui queda clavado que existe.
+     */
+    function testElModuloTieneElEscribidorDeErrores() {
+        $this->assertTrue(method_exists('QueueCheck', 'err'),
+            'Module no trae err(); si falta, cualquier error revienta con'
+            . ' «Call to undefined method»');
+    }
+
+    /** Y la tabla de la barra se deduce sin agente, solo de las banderas. */
+    function testLaBarraSeDeduceDeLasBanderasSinAgente() {
+        $public = CustomQueue::FLAG_PUBLIC;
+        $queue = CustomQueue::FLAG_QUEUE;
+        $disabled = CustomQueue::FLAG_DISABLED;
+
+        // La cola normal del instalador: publica, cola, primer nivel.
+        list($entra, $motivos) = QueueCheck::navVerdict($public | $queue, 0);
+        $this->assertTrue($entra);
+        $this->assertSame(array(), $motivos);
+
+        // Sin bit de cola: busqueda guardada, no sale.
+        list($entra, $motivos) = QueueCheck::navVerdict($public, 0);
+        $this->assertFalse($entra);
+        $this->assertStringContainsString('FLAG_QUEUE', implode(' ', $motivos));
+
+        // Deshabilitada.
+        list($entra, $motivos) = QueueCheck::navVerdict($public | $queue
+            | $disabled, 0);
+        $this->assertFalse($entra);
+        $this->assertStringContainsString('FLAG_DISABLED', implode(' ', $motivos));
+
+        // Colgando de otra cola: va en el desplegable, no en la barra.
+        list($entra, $motivos) = QueueCheck::navVerdict($public | $queue, 7);
+        $this->assertFalse($entra);
+        $this->assertStringContainsString('7', implode(' ', $motivos));
+
+        // Una cola puede fallar por dos motivos a la vez y se dicen los dos.
+        list(, $motivos) = QueueCheck::navVerdict($disabled, 3);
+        $this->assertSame(3, count($motivos));
+    }
+
+    /**
+     * El informe se imprime de verdad, sin base de datos y sin agente.
+     *
+     * Esto es lo que el usuario ejecuta con `make queue-nav`: si el formato
+     * revienta, o si vuelve a llamar a un metodo que no existe, aqui se ve.
+     */
+    function testElInformeDeLaBarraSeImprimeSinBaseNiAgente() {
+        $module = new QueueCheckProbe();
+        $module->stdout = new QueueFakeStream();
+        $module->stderr = new QueueFakeStream();
+        $module->staff = null;
+        $module->json = false;
+        $module->problems = 0;
+
+        $module->navDiagnosis(array(
+            new QueueFakeQueue(1, 'Open', CustomQueue::FLAG_PUBLIC
+                | CustomQueue::FLAG_QUEUE),
+            new QueueFakeQueue(2, 'Vieja', CustomQueue::FLAG_PUBLIC
+                | CustomQueue::FLAG_DISABLED),
+            new QueueFakeQueue(3, 'Hija', CustomQueue::FLAG_QUEUE, 1),
+        ));
+
+        $out = $module->stdout->text;
+        $this->assertStringContainsString('1 de 3', $out);
+        $this->assertStringContainsString('Open', $out);
+        $this->assertStringContainsString('FLAG_DISABLED', $out);
+        $this->assertStringContainsString('cuelga de la cola 1', $out);
+
+        // Sin agente tiene que decirlo y dar los numeros, no morir.
+        $this->assertStringContainsString('No hay agente',
+            $module->stderr->text);
+        $this->assertTrue($module->problems > 0);
     }
 
     /** Y el comando tiene que ofrecer la acción `--nav`. */

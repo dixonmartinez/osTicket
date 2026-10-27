@@ -158,16 +158,20 @@ class QueueCheck extends Module {
             return 2;
         }
 
-        if (!$this->staff) {
+        // `--nav` se deduce de las banderas y no necesita agente; los demas
+        // modos si (el criterio de una cola se evalua como un agente).
+        if (!$this->staff && !$this->getOption('nav')) {
+            $c = $this->staffCounts();
             $this->err('No hay agentes activos en esta instalación.');
-            $this->err('  Agentes en la tabla `'.STAFF_TABLE.'`: '
-                . $this->connectionCount(STAFF_TABLE));
+            $this->err('  Filas en `'.STAFF_TABLE.'`: '.$c['filas']
+                . '; activos: '.$c['activos'].'; admins: '.$c['admin']);
             $this->err('  Créelos desde el panel (`scp/`) o con'
                 .' `php manage.php agent --help`.');
             return 2;
         }
 
-        $GLOBALS['thisstaff'] = $this->staff;
+        if ($this->staff)
+            $GLOBALS['thisstaff'] = $this->staff;
 
         try {
             $queues = $this->queues();
@@ -178,6 +182,20 @@ class QueueCheck extends Module {
             if (function_exists('db_last_failure_text') && db_last_failure_text())
                 $this->err('  MariaDB: ' . db_last_failure_text());
             return 2;
+        }
+
+        if (!$queues && $this->getOption('nav')) {
+            // Sin colas no hay nada que diagnosticar, pero es justo la
+            // respuesta: la barra solo puede mostrar colas, y no hay.
+            $this->out('No hay ninguna cola creada en esta instalación.');
+            $this->out('  Filas en `' . QUEUE_TABLE . '`: '
+                . $this->connectionCount(QUEUE_TABLE));
+            $this->err('Por eso la barra de tickets.php solo muestra'
+                .' "Search" y "New Ticket": las busquedas guardadas van en'
+                .' "Search" y las colas en la barra.');
+            $this->err('Cree una en `scp/queues.php` (boton "Add New Queue")'
+                .' o marque "Shows up in queue navigation" en la que quiera ver.');
+            return 1;
         }
 
         if (!$queues) {
@@ -320,16 +338,39 @@ class QueueCheck extends Module {
                 $query->filter(array('staff_id' => (int) $who));
             else
                 $query->filter(array('username' => (string) $who));
-            return $query->first();
+            if ($staff = $query->first())
+                return $staff;
+        }
+        else {
+            $admins = Staff::objects()->filter(self::adminStaffFilter())
+                ->order_by('staff_id');
+            if ($admin = $admins->first())
+                return $admin;
+
+            if ($staff = Staff::objects()->filter(self::activeStaffFilter())
+                    ->order_by('staff_id')->first())
+                return $staff;
         }
 
-        $admins = Staff::objects()->filter(self::adminStaffFilter())
-            ->order_by('staff_id');
-        if ($admin = $admins->first())
-            return $admin;
+        // Ultimo recurso: mirar la tabla a pelo. Si el ORM se queda en blanco
+        // por un filtro que no encaja con esta instalacion, el comando diria
+        // «no hay agentes» con la tabla llena, que es peor que no decir nada.
+        try {
+            $res = db_query('SELECT staff_id FROM ' . STAFF_TABLE
+                . ($who && ctype_digit((string) $who)
+                    ? ' WHERE staff_id = ' . (int) $who
+                    : ($who ? '' : ' WHERE isactive = 1'))
+                . ' ORDER BY staff_id LIMIT 1', false);
+            if ($res && ($row = db_fetch_array($res))) {
+                db_free_result($res);
+                return Staff::lookup((int) $row['staff_id']);
+            }
+        }
+        catch (Throwable $e) {
+            // Se informa arriba, con los recuentos.
+        }
 
-        return Staff::objects()->filter(self::activeStaffFilter())
-            ->order_by('staff_id')->first();
+        return null;
     }
 
     /**
@@ -347,12 +388,48 @@ class QueueCheck extends Module {
         return array('isactive' => 1);
     }
 
+    /**
+     * Cuantos agentes hay, para poder decir *por que* no se resolvio ninguno.
+     *
+     * Si `activos` es 0 y `filas` no, el problema es el filtro o la conexion;
+     * si las dos son 0, la tabla esta vacia o se esta leyendo otra base.
+     */
+    /**
+     * El `--as` pedido, en texto.
+     *
+     * `getOption()` lo trae `class.cli.php`; las pruebas cargan un `Module`
+     * minimo sin consola, asi que se pregunta antes de llamarlo. En la CLI de
+     * verdad siempre existe.
+     */
+    function staffOption() {
+        return method_exists($this, 'getOption')
+            ? trim((string) $this->getOption('as')) : '';
+    }
+
+    function staffCounts() {
+        $out = array();
+        $out['filas'] = $this->connectionCount(STAFF_TABLE);
+        foreach (array('activos' => self::activeStaffFilter(),
+                'admin' => self::adminStaffFilter()) as $k => $f) {
+            try {
+                $out[$k] = (int) Staff::objects()->filter($f)->count();
+            }
+            catch (Throwable $e) {
+                $out[$k] = '?';
+            }
+        }
+        return $out;
+    }
+
     /** Agentes activos y administradores (columna `isadmin`). */
     static function adminStaffFilter() {
         return array('isactive' => 1, 'isadmin' => 1);
     }
 
     function staffInfo() {
+        if (!$this->staff)
+            return array('id' => null, 'username' => null, 'name' => null,
+                'admin' => false);
         return array(
             'id' => $this->staff->getId(),
             'username' => $this->staff->getUserName(),
@@ -392,73 +469,159 @@ class QueueCheck extends Module {
     /**
      * Que colas salen en la barra de `/scp/tickets.php`, y por que las demas no.
      *
-     * La barra la arma `CustomQueue::getHierarchicalQueues($staff, 0, true)`
-     * con `$primary = true`, que en el primer nivel **solo deja pasar las que
-     * son cola** (`FLAG_QUEUE`). Una cola guardada sin ese bit existe, se ve
-     * en `queue --list`, y sin embargo no aparece en la barra: el sintoma es
-     * «desaparecieron mis colas» y no hay ningun error en el log.
+     * La barra la arma `CustomQueue::getHierarchicalQueues($staff, 0, true)`:
+     * en el primer nivel solo deja pasar las que **son cola** (`FLAG_QUEUE`),
+     * no estan deshabilitadas y no cuelgan de otra. Una cola sin ese bit
+     * existe, se ve en `queue --list`, y sin embargo no aparece en la barra:
+     * el sintoma es "desaparecieron mis colas" y no hay nada en el log.
      *
-     * Este diagnostico recorre **todas** las filas de la tabla y dice, para
-     * cada una, si entra en la barra y el motivo cuando no entra.
+     * El diagnostico recorre **todas** las filas de la tabla y dice, para cada
+     * una, si entra y el motivo cuando no. Lo deduce de las banderas, no de
+     * `getHierarchicalQueues()`, para que funcione aunque no se pueda resolver
+     * el agente (sin agente esa funcion no se puede ni llamar: pide un
+     * `Staff`). Cuando si hay agente, compara con la barra real y avisa si no
+     * coinciden.
      */
     function navDiagnosis($queues) {
-        $nav = array();
-        foreach (CustomQueue::getHierarchicalQueues($this->staff, 0, true) as $_) {
-            list($queue,) = $_;
-            $nav[] = $queue->getId();
+        $staffId = $this->staff ? (int) $this->staff->getId() : null;
+
+        // Lo que la barra trae de verdad. Solo como contraste: si falla, el
+        // diagnostico por banderas sigue valiendo.
+        $real = null;
+        $realError = null;
+        if ($this->staff) {
+            try {
+                $real = array();
+                foreach (CustomQueue::getHierarchicalQueues($this->staff, 0, true) as $_) {
+                    list($queue,) = $_;
+                    $real[] = (int) $queue->getId();
+                }
+            }
+            catch (Throwable $e) {
+                $realError = $e->getMessage();
+            }
         }
 
         $rows = array();
+        $inNav = 0;
         foreach ($queues as $queue) {
             $id = (int) $queue->getId();
             $flags = (int) $queue->flags;
-            $reasons = array();
-
-            if ($flags & CustomQueue::FLAG_DISABLED)
-                $reasons[] = 'esta deshabilitada (FLAG_DISABLED)';
-            if (!($flags & CustomQueue::FLAG_QUEUE))
-                $reasons[] = 'no tiene el bit de cola (FLAG_QUEUE): la barra'
-                    . ' solo muestra colas en el primer nivel';
-            if ($queue->parent_id)
-                $reasons[] = 'cuelga de la cola '.$queue->parent_id
-                    .' y va en su desplegable';
+            list($entra, $reasons) = self::navVerdict($flags, $queue->parent_id);
 
             $rows[] = array(
                 'id' => $id,
                 'title' => $queue->getName(),
                 'flags' => $this->flagText($flags),
-                'in_nav' => in_array($id, $nav),
-                'reason' => $reasons ? implode('; ', $reasons) : '',
+                'in_nav' => $entra,
+                'real' => $real === null ? null : in_array($id, $real),
+                'reason' => implode('; ', $reasons),
             );
+            if ($entra)
+                $inNav++;
         }
 
         if ($this->json) {
-            $this->emitJson(array('agent' => $this->staffInfo(),
-                'nav' => $nav, 'queues' => $rows));
+            $this->emitJson(array(
+                'agent' => $this->staffInfo(),
+                'nav' => $real,
+                'nav_error' => $realError,
+                'queues' => $rows,
+            ));
             return;
         }
 
-        printf("Colas en la barra de tickets.php para %s: %d de %d\n\n",
-            $this->staff->getName(), count($nav), count($rows));
+        $this->out(sprintf('Colas en la barra de tickets.php%s: %d de %d',
+            $this->staff ? ' para '.$this->staff->getName() : '',
+            $inNav, count($rows)));
+        $this->out('');
 
-        printf("  %-4s %-34s %-30s %s\n", 'ID', 'Cola', 'Banderas', 'Barra');
+        $this->out(sprintf('  %-4s %-30s %-30s %-6s %s',
+            'ID', 'Cola', 'Banderas', 'Barra', 'Motivo'));
         foreach ($rows as $row) {
-            printf("  %-4d %-34s %-30s %s\n",
+            $this->out(sprintf('  %-4d %-30s %-30s %-6s %s',
                 $row['id'],
-                mb_substr($row['title'], 0, 34),
-                mb_substr($row['flags'], 0, 30),
-                $row['in_nav'] ? 'si' : 'no');
-            if ($row['reason'])
-                printf("       %s\n", $row['reason']);
+                self::cut($row['title'], 30),
+                self::cut($row['flags'], 30),
+                $row['in_nav'] ? 'si' : 'no',
+                $row['reason']));
         }
 
-        if (!$nav) {
+        $this->out('');
+        if ($inNav == 0) {
             $this->problems++;
-            $this->err('');
-            $this->err('Ninguna cola llega a la barra: revisa las banderas de');
-            $this->err('arriba. `FLAG_QUEUE` se activa en la ficha de la cola,');
-            $this->err('en «Queue Visibility» -> «Shows up in queue navigation».');
+            $this->err('Ninguna cola lleva el bit de cola: la barra de'
+                .' tickets.php se queda vacia.');
+            $this->err('Se activa en la ficha de la cola, en "Queue Visibility"'
+                .' -> "Shows up in queue navigation".');
+            $this->err('Ojo: "Open", "My Tickets" y "Closed" del instalador ya'
+                .' lo traen; si tampoco salen, el problema es otro.');
         }
+
+        // Contraste con la barra real.
+        if ($real === null) {
+            if ($realError)
+                $this->err('No se pudo contrastar con la barra real: '
+                    . $realError);
+            else
+                $this->err('Sin agente resuelto: la tabla es solo por banderas.'
+                    .' Prueba `--as=<usuario>`.');
+        }
+        else {
+            $diff = array();
+            foreach ($rows as $row) {
+                if ($row['in_nav'] !== $row['real'])
+                    $diff[] = $row['id'];
+            }
+            if ($diff) {
+                $this->problems++;
+                $this->err('La barra real no coincide con las banderas en: '
+                    . implode(', ', $diff));
+                $this->err('Ahi manda tambien la visibilidad del agente'
+                    .' (colas privadas de otro agente) y la jerarquia.');
+            }
+            else {
+                $this->out('La barra real coincide con lo que dicen las'
+                    .' banderas: ' . count($real) . ' cola(s).');
+            }
+        }
+
+        // Si no hay ninguna, el motivo mas probable es el agente: se dan los
+        // numeros para no tener que adivinar.
+        if (!$this->staff) {
+            $this->problems++;
+            $c = $this->staffCounts();
+            $this->err('No hay agente con el que calcular la barra.');
+            $this->err('  Filas en `'.STAFF_TABLE.'`: '.$c['filas']
+                . '; activos: '.$c['activos'].'; admins: '.$c['admin']);
+            if (($as = $this->staffOption()) !== '')
+                $this->err('  Se pidio --as='.$as.' y no hay ningun agente'
+                    .' activo con ese usuario o id.');
+            else
+                $this->err('  Usa `--as=<usuario>`'
+                    .' (o `make queue-nav AS=dixon`).');
+        }
+    }
+
+    /**
+     * Veredicto por banderas: ¿esta fila sale en la barra?
+     *
+     * Es la regla de `CustomQueue::getHierarchicalQueues($staff, 0, true)`
+     * escrita aparte, para poder probarla sin base de datos. Devuelve
+     * `array($entra, $motivos)`.
+     */
+    static function navVerdict($flags, $parentId) {
+        $reasons = array();
+        $flags = (int) $flags;
+        if ($flags & CustomQueue::FLAG_DISABLED)
+            $reasons[] = 'esta deshabilitada (FLAG_DISABLED)';
+        if (!($flags & CustomQueue::FLAG_QUEUE))
+            $reasons[] = 'sin bit de cola (FLAG_QUEUE): es una busqueda'
+                . ' guardada, no una cola';
+        if ($parentId)
+            $reasons[] = 'cuelga de la cola '.$parentId.' y va en su'
+                . ' desplegable';
+        return array(!$reasons, $reasons);
     }
 
     function listQueues($queues) {
@@ -1688,6 +1851,15 @@ class QueueCheck extends Module {
      * descuadradas. Se usa `mb_strlen()` si está, y si no (PHP sin mbstring)
      * se cuentan los caracteres con una expresión regular.
      */
+    /** Corta sin depender de mbstring (la CLI puede venir con la extension
+     *  apagada; `substr` partiria un acento por la mitad). */
+    static function cut($text, $length) {
+        $text = (string) $text;
+        if (function_exists('mb_substr'))
+            return mb_substr($text, 0, $length, 'UTF-8');
+        return preg_replace('/^(.{0,' . (int) $length . '}).*$/us', '$1', $text);
+    }
+
     static function len($text) {
         $text = (string) $text;
         if (function_exists('mb_strlen'))
@@ -1727,6 +1899,12 @@ class QueueCheck extends Module {
 
     function out($text) {
         $this->stdout->write($text . "\n");
+    }
+
+    /* A stderr, no a stdout: asi `make queue-nav | head` no se come el aviso.
+     * (Module no lo trae; perf.php y seed.php lo definen igual.) */
+    function err($text) {
+        $this->stderr->write($text . "\n");
     }
 
     function emitJson($data) {
