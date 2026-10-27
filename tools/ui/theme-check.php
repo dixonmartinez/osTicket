@@ -757,6 +757,87 @@ check(strpos(read("$root/Makefile"), '--out=$(ROOT)/ost-iconos.html') !== false,
     'make icons escribe la hoja dentro del proyecto',
     'make icons escribe en /tmp: dentro del contenedor el archivo no llega al equipo');
 
+/* Editor: superficies y especificidad ------------------------------------- */
+// Redactor 3 pone la clase `.redactor-in` al elemento editable. El tema
+// hablaba de `.redactor-editor`, que no existe, asi que ninguna regla del
+// area de escritura se aplicaba nunca.
+$darkSinComentarios = preg_replace('#/\*.*?\*/#s', '', $dark);
+check(strpos($darkSinComentarios, '.redactor-in') !== false,
+    'el tema oscuro estiliza la superficie editable (.redactor-in)',
+    'el tema apunta a .redactor-editor: esa clase no existe en Redactor 3');
+
+check(strpos($darkSinComentarios, '.redactor-editor') === false,
+    'no queda ninguna regla muerta de .redactor-editor',
+    'quedan reglas para .redactor-editor: no se aplican a nada');
+
+// css/redactor.css pinta la barra con cuatro clases y se carga despues de
+// modern.css: sin igualar esa especificidad, en oscuro la barra sale clara.
+check(strpos($darkSinComentarios,
+        '.redactor-box.redactor-styles-on .redactor-toolbar.redactor-toolbar') !== false,
+    'la barra del editor gana la especificidad de css/redactor.css',
+    'falta la regla de cuatro clases: la barra del editor se queda blanca en oscuro');
+
+// El panel de respuesta y la nota interna traen fondo claro de scp.css.
+check(strpos($darkSinComentarios, '#response_options > form') !== false,
+    'el panel de respuesta esta tematizado en oscuro',
+    '#response_options > form se queda con el #f9f9f9 de scp.css');
+
+check(strpos($darkSinComentarios, '#note') !== false,
+    'la nota interna esta tematizada en oscuro',
+    'form#note no tiene regla: se queda como un panel blanco entre pestañas oscuras');
+
+check(strpos($darkSinComentarios, '.tixTitle h3') !== false,
+    'el asunto del ticket tiene color propio en oscuro',
+    'scp.css pinta .tixTitle h3 en #444 y el tema no lo redefine: no se lee');
+
+check(strpos($dark, '--dk-editor-paper:') !== false,
+    'el papel del editor tiene token propio',
+    'el area del editor se queda en blanco puro: deslumbra dentro del marco oscuro');
+
+// Los botones del editor: la barra solo usa botones que existen.
+$redactorJs = read("$root/js/redactor-osticket.js");
+foreach (array("'undo'", "'redo'", "'indent'", "'outdent'", "'ul'", "'ol'") as $boton)
+    check(strpos($redactorJs, $boton) !== false,
+        "la barra del editor trae el boton $boton",
+        "falta el boton $boton en la barra del editor");
+
+check(strpos($redactorJs, "'fullscreen']") !== false
+    && strpos($redactorJs, "'fontfamily','fullscreen'") !== false,
+    'el plugin fullscreen se carga (sin el, el boton no llega a crearse)',
+    'el boton de pantalla completa esta en buttons pero su plugin no en plugins');
+
+check(strpos($redactorJs, 'redactor-separator') !== false
+    && strpos($sinComentarios, '.redactor-toolbar .redactor-separator') !== false,
+    'los grupos de la barra se separan con un trazo',
+    'los `|` de la lista de botones no dibujan nada: la barra sale sin grupos');
+
+/* Tablas ---------------------------------------------------------------- */
+check(strpos($sinComentarios, 'table.dashboard-stats td:not(:empty)') !== false,
+    'la tabla de estadisticas anula el blanco por celda',
+    'cada celda sigue blanca: la cebra y el hover no se ven');
+
+check(strpos($sinComentarios, 'ul.tabs,') !== false
+    && strpos($sinComentarios, '#response_options > form {') !== false,
+    'las pestañas y el panel de respuesta siguen el lenguaje de la capa moderna',
+    'ul.tabs y #response_options > form conservan el gris y las sombras de scp.css');
+
+/* Estados vacios -------------------------------------------------------- */
+$kb = read("$root/include/staff/faq-categories.inc.php");
+check(strpos($kb, "placeholder=\"<?php echo __('Search the knowledge base'); ?>\"") !== false,
+    'el buscador de la base de conocimiento tiene pista',
+    'el buscador de la base de conocimiento no dice que se puede escribir ahi');
+
+check(substr_count($kb, 'class="empty-state"') === 2,
+    'la base de conocimiento explica las dos salidas vacias',
+    'las salidas vacias de la base de conocimiento siguen siendo una linea suelta');
+
+/* Ficha del ticket ------------------------------------------------------ */
+$vista = read("$root/include/staff/ticket-view.inc.php");
+check(strpos($vista, 'Priority::lookup(') !== false
+    && strpos($vista, "getAnswer()->display()") === false,
+    'la fila de prioridad nunca se queda vacia',
+    'la fila de prioridad sale en blanco cuando el ticket no tiene respuesta guardada');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

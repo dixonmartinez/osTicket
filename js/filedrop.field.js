@@ -30,14 +30,18 @@
   };
 
   FileDropbox.prototype = {
+    // El aviso de "puedes soltar aqui" era un fondo gris en linea
+    // (rgba(0,0,0,.3)): en el tema oscuro se confundia con la superficie y en
+    // el claro tapaba el texto. Ahora se marca con una clase, que el CSS
+    // pinta con los colores del tema (`ost-drop-over`, ver css/modern.css).
     dragLeave: function(e) {
-        this.$element.removeAttr('style');
+        this.$element.removeClass('ost-drop-over');
     },
     drop: function(e) {
-        this.$element.removeAttr('style');
+        this.$element.removeClass('ost-drop-over');
     },
     dragOver: function(box, e) {
-        this.$element.css('background-color', 'rgba(0, 0, 0, 0.3)');
+        this.$element.addClass('ost-drop-over');
     },
     beforeEach: function (file) {
       if (this.options.maxfiles && this.uploads.length >= this.options.maxfiles) {

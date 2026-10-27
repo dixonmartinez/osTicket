@@ -35,6 +35,7 @@ html[data-theme="dark"] {
     --dk-surface-3: #232c36;
     --dk-surface-4: #2b3641;
     --dk-paper: #e8ecf0;          /* “papel” de correos y notas */
+    --dk-editor-paper: #eef1f5;   /* papel del editor: blanco puro deslumbra */
     --dk-border: #333e4a;
     --dk-border-strong: #46525f;
 
@@ -343,6 +344,15 @@ html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) th,
 html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) td {
     border-right-color: var(--dk-border);
     color: var(--dk-text-muted);
+}
+
+/* `.table td:not(:empty)` (scp.css) pinta cada celda de blanco y el tema la
+   repite en `--dk-surface` mas abajo: la tabla de estadisticas volvia a ser
+   una rejilla de bloques, esta vez oscura, y la cebra no se veia. Aqui se
+   anula; la especificidad sube un nivel (`tbody`) porque la regla generica
+   del tema aparece despues en este mismo archivo. */
+html[data-theme="dark"] table.dashboard-stats tbody td:not(:empty) {
+    background-color: transparent;
 }
 
 html[data-theme="dark"] table.dashboard-stats tbody:nth-child(2) tr:hover {
@@ -673,9 +683,18 @@ html[data-theme="dark"] .select2-container-multi .select2-choices .select2-searc
 
 /* Editor Redactor: barra, desplegables y diálogos */
 html[data-theme="dark"] .redactor-box,
+html[data-theme="dark"] .redactor-box.redactor-styles-on,
 html[data-theme="dark"] .redactor-toolbar {
     background: var(--dk-surface-3);
     border-color: var(--dk-border);
+}
+
+/* El marco se cierra con la barra: mismo borde para los dos.
+   Sin `overflow: hidden`: la barra fija del editor (toolbarFixed) y los
+   desplegables tienen que poder salir de la caja. */
+html[data-theme="dark"] .redactor-box {
+    border: 1px solid var(--dk-border-strong);
+    border-radius: 6px;
 }
 
 /* Cada botón de la barra trae su propio fondo casi blanco
@@ -758,6 +777,23 @@ html[data-theme="dark"] .filedrop .files:not(:empty) {
     border-color: var(--dk-border);
 }
 
+/* Al arrastrar un fichero encima. La clase la pone js/filedrop.field.js:
+   antes era un fondo gris en linea que se perdia sobre la superficie. */
+html[data-theme="dark"] .filedrop .dropzone.ost-drop-over {
+    border-color: var(--dk-link);
+    background: var(--dk-accent-soft);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .filedrop .files .file:hover {
+    background: var(--dk-surface-3);
+}
+
+html[data-theme="dark"] .filedrop .files .file .filesize,
+html[data-theme="dark"] .filedrop .files .file .upload-rate {
+    color: var(--dk-text-muted);
+}
+
 /* Superposiciones y estados de hover con fondo claro del tema base */
 html[data-theme="dark"] .dialog #popup-loading {
     background: rgba(18, 22, 27, .8);
@@ -780,13 +816,6 @@ html[data-theme="dark"] .muted-button:hover {
 html[data-theme="dark"] .row-item .delete:hover {
     background: #a3540a;
     color: #fff !important;
-}
-
-html[data-theme="dark"] .redactor-editor,
-html[data-theme="dark"] .redactor-box .redactor-editor {
-    background: var(--dk-surface);
-    border-color: var(--dk-border);
-    color: var(--dk-text);
 }
 
 /* ================================================================== */
@@ -878,33 +907,69 @@ html[data-theme="dark"] iframe.pdf-preview {
     color-scheme: light;
 }
 
-/* El editor enriquecido y los diálogos con iframe también son superficies
-   de papel: no deben quedar con el texto claro sobre blanco. */
 /* El editor enriquecido se queda en “papel”: lo que se pega desde Word u
    Outlook trae color negro en línea y sobre una superficie oscura
-   desaparecería. El selector repite `.redactor-box` para ganar al bloque
-   de arriba, que lo pintaba oscuro. */
-html[data-theme="dark"] .redactor-box .redactor-editor,
-html[data-theme="dark"] .redactor-editor,
+   desaparecería.
+
+   Ojo con la clase: la superficie editable de Redactor 3 NO es
+   `.redactor-editor` —esa clase no existe en el editor—, sino `.redactor-in`
+   (Redactor se la pone al elemento editable al arrancar). Hasta ahora todas
+   las reglas del tema apuntaban a `.redactor-editor`, así que no se
+   aplicaba ninguna y el área de escritura se quedaba como la dejara el
+   navegador, en blanco. */
+html[data-theme="dark"] .redactor-box .redactor-in,
+html[data-theme="dark"] .redactor-in,
 html[data-theme="dark"] .redactor-box iframe {
     /* `!important` porque Redactor escribe el fondo en línea al inicializar;
-       sin él, el mismo editor sale blanco o negro según la pantalla. */
-    background-color: #fff !important;
+       sin él, el mismo editor sale blanco o negro según la pantalla. Sigue
+       siendo papel claro, pero no blanco puro: dentro de un marco oscuro,
+       #fff deslumbra y hace que el editor parezca una ventana ajena. */
+    background-color: var(--dk-editor-paper) !important;
     color: #1a1f24;
     border-color: var(--dk-border);
     color-scheme: light;
 }
 
-/* El texto de ayuda del editor tiene que leerse sobre ese papel blanco */
-html[data-theme="dark"] .redactor-editor.redactor-placeholder::before,
-html[data-theme="dark"] .redactor-editor[data-placeholder]::before,
-html[data-theme="dark"] .redactor-editor[placeholder]::before {
-    color: #6b7580;
+/* El texto de ayuda del editor tiene que leerse sobre ese papel claro */
+html[data-theme="dark"] .redactor-in.redactor-placeholder::before,
+html[data-theme="dark"] .redactor-in[data-placeholder]::before,
+html[data-theme="dark"] .redactor-in[placeholder]::before {
+    color: #5d6771;
 }
 
-html[data-theme="dark"] .redactor-editor,
-html[data-theme="dark"] .redactor-box .redactor-editor {
+html[data-theme="dark"] .redactor-in,
+html[data-theme="dark"] .redactor-box .redactor-in {
     caret-color: #1a1f24;
+}
+
+/* La barra: redactor.css la pinta con una regla de cuatro clases
+   (`.redactor-box.redactor-styles-on .redactor-toolbar.redactor-toolbar`)
+   que gana por especificidad a la del tema. De ahí que en oscuro quedara
+   una franja casi blanca con botones oscuros encima. */
+html[data-theme="dark"] .redactor-box.redactor-styles-on .redactor-toolbar.redactor-toolbar,
+html[data-theme="dark"] .redactor-box .redactor-toolbar.redactor-toolbar {
+    background-color: var(--dk-surface-3);
+    box-shadow: none;
+    border-bottom: 1px solid var(--dk-border);
+    border-radius: 5px 5px 0 0;
+}
+
+/* La vista de código fuente se marca con un borde negro y `!important` en
+   css/redactor.css: sobre la superficie oscura el borde desaparece. */
+html[data-theme="dark"] .redactor-box.redactor-source-view.redactor-styles-on {
+    border-color: var(--dk-border-strong) !important;
+}
+
+/* El botón del código fuente tiene su propia caja */
+html[data-theme="dark"] .redactor-box .redactor-toolbar a.re-button-icon,
+html[data-theme="dark"] .redactor-box .redactor-toolbar a {
+    border: 1px solid transparent;
+    box-shadow: none;
+}
+
+/* Separadores de grupo de la barra (los pone js/redactor-osticket.js) */
+html[data-theme="dark"] .redactor-toolbar .redactor-separator {
+    background: var(--dk-border-strong);
 }
 
 html[data-theme="dark"] .quicknote .body,
@@ -1381,6 +1446,47 @@ html[data-theme="dark"] #reply {
 html[data-theme="dark"] #reply h2 {
     border-bottom-color: var(--dk-border);
     color: var(--dk-text);
+}
+
+/* El panel de respuesta y nota. `#response_options > form` sale de scp.css
+   con fondo #f9f9f9 y borde #aaa: en oscuro quedaba un rectángulo claro
+   entre las pestañas y el editor, con las etiquetas en texto claro encima.
+   El formulario de nota (`form#note`) no tenía ninguna regla propia y
+   heredaba ese mismo blanco. */
+html[data-theme="dark"] #response_options > form,
+html[data-theme="dark"] form#note {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] form#note label,
+html[data-theme="dark"] #response_options form label,
+html[data-theme="dark"] #response_options form strong {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] #response_options form .error,
+html[data-theme="dark"] form#note .error {
+    color: var(--dk-danger);
+}
+
+/* El asunto del ticket. scp.css lo pinta en #444 (gris de papel) y el tema
+   solo redefinía h2, así que en oscuro quedaba casi negro sobre oscuro. */
+html[data-theme="dark"] .tixTitle h3,
+html[data-theme="dark"] .tixTitle h3 a,
+html[data-theme="dark"] h3.title,
+html[data-theme="dark"] .sidebar h3 {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .tixTitle h3 a:hover {
+    color: var(--dk-link-hover);
+}
+
+/* El filete de separacion de las secciones de la ficha (#ddd en scp.css) */
+html[data-theme="dark"] .has_bottom_border {
+    border-bottom-color: var(--dk-border);
 }
 
 html[data-theme="dark"] #ticketTable tr.alt td {

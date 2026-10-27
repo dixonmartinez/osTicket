@@ -502,20 +502,57 @@
                 <iframe title="Vista previa del PDF" class="pdf-preview" src="about:blank"
                         style="width:100%;height:100%;border:0;"></iframe>
             </div>
-            <div class="redactor-box" style="margin-top:10px;width:420px;">
-                <div class="redactor-editor" style="padding:8px;border:1px solid #ccc;">
-                    Texto del editor enriquecido: aqui se escribe la respuesta.
+            <!-- Marcado real de Redactor 3: la caja lleva `redactor-styles-on`,
+                 la barra `redactor-toolbar redactor-toolbar` y la superficie
+                 editable `redactor-in` (NO `redactor-editor`, que no existe).
+                 Se reproduce aqui para que dark-audit mida la barra: si vuelve
+                 a salir clara en oscuro, es un hallazgo. -->
+            <div class="redactor-box redactor-styles-on" style="margin-top:10px;width:100%;max-width:640px;">
+                <div class="redactor-toolbar redactor-toolbar" role="toolbar">
+                    <a href="#" class="re-button re-button-icon" rel="html" aria-label="HTML"><i class="re-icon-html"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="format" aria-label="Formato"><i class="re-icon-format"></i></a>
+                    <span class="redactor-separator" aria-hidden="true"></span>
+                    <a href="#" class="re-button re-button-icon" rel="undo" aria-label="Deshacer"><i class="re-icon-undo"></i></a>
+                    <a href="#" class="re-button re-button-icon redactor-button-active" rel="redo" aria-label="Rehacer"><i class="re-icon-redo"></i></a>
+                    <span class="redactor-separator" aria-hidden="true"></span>
+                    <a href="#" class="re-button re-button-icon" rel="bold" aria-label="Negrita"><i class="re-icon-bold"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="italic" aria-label="Cursiva"><i class="re-icon-italic"></i></a>
+                    <a href="#" class="re-button re-button-icon redactor-button-disabled" rel="underline" aria-label="Subrayado"><i class="re-icon-underline"></i></a>
+                    <span class="redactor-separator" aria-hidden="true"></span>
+                    <a href="#" class="re-button re-button-icon" rel="ul" aria-label="Vinetas"><i class="re-icon-ul"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="ol" aria-label="Numeracion"><i class="re-icon-ol"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="outdent" aria-label="Quitar sangria"><i class="re-icon-outdent"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="indent" aria-label="Sangria"><i class="re-icon-indent"></i></a>
+                    <span class="redactor-separator" aria-hidden="true"></span>
+                    <a href="#" class="re-button re-button-icon" rel="image" aria-label="Imagen"><i class="re-icon-image"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="table" aria-label="Tabla"><i class="re-icon-table"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="link" aria-label="Enlace"><i class="re-icon-link"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="fullscreen" aria-label="Pantalla completa"><i class="re-icon-expand"></i></a>
                 </div>
+                <div class="redactor-in redactor-placeholder" contenteditable="true"
+                     placeholder="Escribe aqui la respuesta al cliente"
+                     style="min-height:90px;padding:10px 16px;"></div>
             </div>
+            <p class="faded" style="max-width:640px;">
+                La superficie editable es papel claro a proposito: lo que se pega desde
+                Word u Outlook trae color negro en linea y sobre fondo oscuro
+                desapareceria. La barra y el marco si siguen el tema.
+            </p>
         </div>
 
         <div class="demo-sec">
             <h2>Estadisticas y paginacion</h2>
-            <table class="dashboard-stats">
+            <table class="dashboard-stats table">
                 <tbody>
-                    <tr><th colspan="2">Resumen</th></tr>
-                    <tr><td>Tickets abiertos</td><td>12</td></tr>
-                    <tr><td>Tickets cerrados</td><td>340</td></tr>
+                    <tr>
+                        <th width="30%" class="flush-left">Departamento</th>
+                        <th>Abiertos</th><th>Asignados</th><th>Vencidos</th><th>Cerrados</th>
+                    </tr>
+                </tbody>
+                <tbody>
+                    <tr><th class="flush-left">Support</th><td>12</td><td>7</td><td>1</td><td>340</td></tr>
+                    <tr><th class="flush-left">Billing</th><td>4</td><td>2</td><td>0</td><td>128</td></tr>
+                    <tr><th class="flush-left">Sales</th><td>3</td><td>1</td><td>0</td><td>96</td></tr>
                 </tbody>
             </table>
             <div class="pagination" style="margin-top:12px;">

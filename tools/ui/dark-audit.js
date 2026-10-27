@@ -47,7 +47,7 @@ function audit() {
     };
 
     const SKIP_TAGS = ['HTML', 'BODY', 'IMG', 'IFRAME', 'VIDEO', 'CANVAS', 'SVG', 'PATH', 'OBJECT'];
-    const ALLOW = '[data-allow-light], .thread-body, .preview-body, .redactor-editor, .ost-paper';
+    const ALLOW = '[data-allow-light], .thread-body, .preview-body, .redactor-in, .ost-paper';
 
     const pathOf = (el) => {
         let p = el.tagName.toLowerCase();

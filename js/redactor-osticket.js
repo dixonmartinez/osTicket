@@ -238,6 +238,7 @@
   // Monkey patch the toolbar server to support adding buttons in an automatic
   // position based on the `buttons` setting
   var stockToolbar = $R[$R.env['service']]['toolbar'];
+  var stockAddButton = stockToolbar.prototype.addButton;
   R$.add('service', 'toolbar', $R.extend(stockToolbar.prototype, {
       addButtonAuto: function(name, btnObj) {
           var pos = this.opts.buttons.indexOf(name);
@@ -247,6 +248,25 @@
           if (pos === 0)
               return this.addButtonFirst(name, btnObj);
           return this.addButtonAfter(this.opts.buttons[pos - 1], name, btnObj);
+      },
+
+      // Redactor no dibuja nada para el simbolo `|` de la lista de botones:
+      // lo salta y sigue. Aqui se usa para separar grupos de la barra: antes
+      // del boton que venga detras de un `|` se inserta un trazo fino. La
+      // separacion es solo visual y va en try/catch: si el DOM del editor
+      // cambia en una version futura, la barra se queda sin trazos, pero no
+      // deja de funcionar.
+      addButton: function(name, btnObj, pos, $ref, append) {
+          var $button = stockAddButton.apply(this, arguments);
+          try {
+              var buttons = this.opts.buttons,
+                  i = buttons ? buttons.indexOf(name) : -1;
+              if ($button && i > 0 && buttons[i - 1] === '|' && this.is())
+                  $button.before($R.dom(
+                      '<span class="redactor-separator" aria-hidden="true"></span>'));
+          }
+          catch (e) {}
+          return $button;
       },
   }));
 
@@ -368,20 +388,39 @@ $(function() {
         });
         var options = $.extend({
                 'air': el.hasClass('no-bar'),
+                // La barra va por grupos, separados con `|`. Todos los
+                // botones existen en este Redactor (js/redactor.min.js,
+                // `y.buttons`) o llegan con un plugin que si se carga; un
+                // nombre que no exista se ignora sin romper nada.
+                //   modo:    html (codigo), format (parrafo/cita/titulos)
+                //   historia: undo, redo
+                //   texto:   negrita, cursiva, subrayado, tachado, sub, sup,
+                //            color y tipografia
+                //   listas:  vineta, numerada, sangria a izquierda/derecha
+                //   insertar: imagen, video, fichero, tabla, enlace, linea
+                //   pantalla completa (plugin fullscreen)
                 'buttons': el.hasClass('no-bar')
                   ? ['format', '|', 'bold', 'italic', 'underline', 'deleted', 'lists', 'link', 'image']
-                  : ['html', 'format', 'fontcolor', 'fontfamily', 'bold',
-                    'italic', 'underline', 'deleted', 'lists', 'image', 'video',
-                    'file', 'table', 'link', 'line', 'fullscreen'],
+                  : ['html', 'format', '|', 'undo', 'redo', '|',
+                    'bold', 'italic', 'underline', 'deleted', 'sub', 'sup',
+                    'fontcolor', 'fontfamily', '|',
+                    'ul', 'ol', 'outdent', 'indent', '|',
+                    'image', 'video', 'file', 'table', 'link', 'line', '|',
+                    'fullscreen'],
                 'buttonSource': !el.hasClass('no-bar'),
                 'autoresize': !el.hasClass('no-bar') && !el.closest('.dialog').length,
                 'maxHeight': el.closest('.dialog').length ? selectedSize : false,
                 'minHeight': selectedSize,
                 'maxWidth': el.hasClass('fullscreen') ? '950px' : false,
                 'focus': false,
+                // El boton de pantalla completa lo pone el plugin
+                // `fullscreen` (js/redactor-plugins.js): si el plugin no esta
+                // en esta lista, el boton no llega a crearse y desaparece de
+                // la barra sin avisar.
                 'plugins': el.hasClass('no-bar')
                   ? ['imagemanager','definedlinks']
-                  : ['imagemanager','table','video','definedlinks','autolock', 'fontcolor', 'fontfamily'],
+                  : ['imagemanager','table','video','definedlinks','autolock',
+                    'fontcolor','fontfamily','fullscreen'],
                 'imageUpload': el.hasClass('draft'),
                 'imageCaption': false,
                 'imageManagerJson': 'ajax.php/draft/images/browse',

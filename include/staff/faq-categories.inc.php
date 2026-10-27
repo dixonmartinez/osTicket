@@ -10,6 +10,7 @@ if(!defined('OSTSTAFFINC') || !$thisstaff) die('Access Denied');
     <div id="basic_search">
         <div class="attached input">
             <input id="query" type="text" size="20" name="q" autofocus
+                placeholder="<?php echo __('Search the knowledge base'); ?>"
                 value="<?php echo Format::htmlchars($_REQUEST['q']); ?>">
             <button class="attached button" id="searchSubmit" type="submit">
                 <i class="icon icon-search"></i>
@@ -135,7 +136,16 @@ if($_REQUEST['q'] || $_REQUEST['cid'] || $_REQUEST['topicId']) { //Search.
         echo '  </ol>
              </div>';
     } else {
-        echo '<strong class="faded">'.__('The search did not match any FAQs.').'</strong>';
+        // Nada que mostrar. Igual que en las colas de tickets, se explica en
+        // un aviso con forma propia: una linea gris suelta parecia un fallo
+        // de la pagina (ver css/modern.css, `.empty-state`).
+        echo '<div class="empty-state">';
+        echo '<i class="icon-search"></i>';
+        echo '<p>'.__('The search did not match any FAQs.').'</p>';
+        echo '<p class="faded">'
+            .__('Try a shorter word, another category or the help topic filter.')
+            .'</p>';
+        echo '</div>';
     }
 } else { //Category Listing.
     $categories = Category::objects()
@@ -173,7 +183,13 @@ if($_REQUEST['q'] || $_REQUEST['cid'] || $_REQUEST['topicId']) { //Search.
         }
         echo '</ul>';
     } else {
-        echo __('NO FAQs found');
+        echo '<div class="empty-state">';
+        echo '<i class="icon-folder-open-alt"></i>';
+        echo '<p>'. __('NO FAQs found').'</p>';
+        echo '<p class="faded">'
+            .__('Create a FAQ in a category to see it here.')
+            .'</p>';
+        echo '</div>';
     }
 }
 ?>

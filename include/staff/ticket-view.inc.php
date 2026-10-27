@@ -330,16 +330,37 @@ if($ticket->isOverdue())
                 <tr>
                     <th><?php echo __('Priority');?>:</th>
                       <?php
+                      // La fila salia vacia —«Priority:» y nada detras— cuando
+                      // el ticket no tenia respuesta guardada para el campo
+                      // de prioridad: `getPriority()` devuelve null y el
+                      // `<td>` se quedaba en blanco. Se cae a la prioridad por
+                      // defecto del sistema, que es la que el ticket usa de
+                      // verdad (`Ticket::getPriorityId()`), y si tampoco hay,
+                      // se dice explicitamente en vez de dejar el hueco.
+                      $prioHtml = '';
+                      if (($prio = $ticket->getPriority()) instanceof Priority)
+                          // `Priority` no tiene `display()`: describe con
+                          // `getDesc()`, que es lo que devuelve la ficha del
+                          // campo de prioridad (`PriorityField::display()`).
+                          $prioHtml = Format::htmlchars($prio->getDesc());
+                      elseif ($prio)
+                          $prioHtml = Format::htmlchars((string) $prio);
+                      elseif (($pid = $ticket->getPriorityId())
+                              && ($dp = Priority::lookup($pid)))
+                          $prioHtml = Format::htmlchars($dp->getDesc());
+                      if (!$prioHtml)
+                          $prioHtml = '<span class="faded">' . __('None') . '</span>';
+
                       if ($role->hasPerm(Ticket::PERM_EDIT)
                         && ($pf = $ticket->getPriorityField())) { ?>
                            <td>
                              <a class="inline-edit" data-placement="bottom" data-toggle="tooltip" title="<?php echo __('Update'); ?>"
                                  href="#tickets/<?php echo $ticket->getId();?>/field/<?php echo $pf->getId();?>/edit">
-                                 <span id="field_<?php echo $pf->getId(); ?>"><?php echo $pf->getAnswer()->display(); ?></span>
+                                 <span id="field_<?php echo $pf->getId(); ?>"><?php echo $prioHtml; ?></span>
                              </a>
                            </td>
                       <?php } else { ?>
-                           <td><?php echo $ticket->getPriority(); ?></td>
+                           <td><?php echo $prioHtml; ?></td>
                       <?php } ?>
                 </tr>
                 <tr>

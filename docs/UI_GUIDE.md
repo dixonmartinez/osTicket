@@ -516,8 +516,8 @@ corrige es lo que el tema dejaba a medias:
 | Líneas (`hr`) | Borde claro del tema | `#b9c3cd` |
 | Controles dentro del HTML | Dibujados en oscuro | `color-scheme: light` en el papel |
 | Visor de PDF (`object`/`iframe`) | Hueco oscuro | Fondo blanco y borde del tema |
-| Editor enriquecido | Superficie oscura | Papel blanco: lo pegado desde Word/Outlook trae negro en línea y desaparecía |
-| Barra del editor (Redactor) | Botones blancos con iconos claros: parecía vacía | Botones `--dk-surface-4` con iconos del tema y `--dk-accent` al pasar; menús de formato y diálogos del editor incluidos |
+| Editor enriquecido | Superficie oscura | Papel claro `--dk-editor-paper` (`#eef1f5`): lo pegado desde Word/Outlook trae negro en línea y sobre oscuro desaparecía. **Hasta v33 esta fila no era cierta**: el tema apuntaba a `.redactor-editor`, una clase que Redactor 3 no usa (§3.12) |
+| Barra del editor (Redactor) | Franja casi blanca con botones oscuros | Fondo `--dk-surface-3`, botones planos del tema y `--dk-accent` al pasar; menús de formato y diálogos del editor incluidos. **Hasta v33 esta fila tampoco era cierta**: una regla de cuatro clases de `redactor.css` ganaba al tema (§3.12) |
 | Zona de adjuntos (`.dropzone`) | Borde y enlace azul oscuro sobre fondo oscuro | Borde del tema, texto atenuado y enlace `--dk-link` |
 
 En claro, `thread.css` dejaba la cita en `#777` (4,48:1) y el código en
@@ -796,6 +796,146 @@ mueve** de la celda a la etiqueta. El contraste en oscuro lo sigue resolviendo
 `css/dark.css` (§3.10), que devuelve texto oscuro a las celdas con color en
 línea.
 
+### 3.12 Editor enriquecido, tablas de estadísticas y estados vacíos
+
+Otra tanda de capturas con la nota «hay cosas que se ven mal» y la petición
+de **tablas mejores** y **un editor más rico**. Lo que sigue es lo que se
+arregló, con la causa de cada defecto, porque casi ninguno era «falta de
+estilo»: eran nombres y especificidades.
+
+#### 3.12.1 Por qué el tema oscuro no llegaba al editor
+
+Dos errores, los dos silenciosos:
+
+1. **La clase no existe.** Redactor 3 pone la clase **`.redactor-in`** (más
+   `.redactor-in-<uuid>`) al elemento editable, y `.redactor-styles-on` a la
+   caja. El tema hablaba de `.redactor-editor`, así que *todas* las reglas
+   del área de escritura —fondo, color, cursor, texto de ayuda— no se
+   aplicaban a nada. `css/mobile.css` tenía el mismo nombre mal, de modo que
+   el `max-width: 100%` del editor tampoco entraba en móvil.
+   Se puede comprobar en `js/redactor.min.js` (`enable: … addClass("redactor-in
+   redactor-in-"+this.uuid)`) y en `css/mobile.css`.
+2. **La barra la pintaba `redactor.css` con cuatro clases.**
+   `.redactor-box.redactor-styles-on .redactor-toolbar.redactor-toolbar`
+   (especificidad 0,4,0) pone `rgba(255,255,255,.97)` y **se carga después de
+   `modern.css`**. La regla del tema
+   (`html[data-theme="dark"] .redactor-toolbar`, 0,2,1) perdía siempre: la
+   barra salía casi blanca, con los botones ya oscuros encima. La corrección
+   es una regla de la misma especificidad:
+
+   ```css
+   html[data-theme="dark"] .redactor-box.redactor-styles-on .redactor-toolbar.redactor-toolbar {
+       background-color: var(--dk-surface-3);
+   }
+   ```
+
+El área de escritura **sigue siendo papel claro** (lo pegado desde Word u
+Outlook trae `color:#000` en línea), pero ya no blanco puro: `#eef1f5`
+(`--dk-editor-paper`), con `color-scheme: light` y cursor oscuro. Y el papel
+está dentro de un marco del tema (borde `--dk-border-strong` y radio), así
+que el editor se lee como parte de la página y no como una ventana ajena.
+
+#### 3.12.2 La barra del editor: más botones, por grupos
+
+`js/redactor-osticket.js` (`redact()`) declara la barra en grupos separados
+por `|`:
+
+| Grupo | Botones |
+| --- | --- |
+| Modo | `html` (código fuente), `format` (párrafo, cita, títulos) |
+| Historia | `undo`, `redo` |
+| Texto | `bold`, `italic`, `underline`, `deleted`, `sub`, `sup`, `fontcolor`, `fontfamily` |
+| Listas | `ul`, `ol`, `outdent`, `indent` |
+| Insertar | `image`, `video`, `file`, `table`, `link`, `line` |
+| Pantalla | `fullscreen` |
+
+Tres detalles que importan:
+
+- **`fullscreen` estaba en `buttons` y su plugin no estaba en `plugins`.** El
+  botón lo crea el plugin (`addButtonAuto('fullscreen', …)`); si el plugin no
+  se carga, el botón no llega a existir y *desaparece sin error*. Ahora
+  `'fullscreen'` está en la lista de plugins.
+- **`|` no dibuja nada por sí solo**: Redactor lo salta. El parche de la barra
+  (mismo fichero, `R$.add('service','toolbar', …)`) intercepta `addButton` y,
+  si el botón anterior en la lista era `|`, inserta
+  `<span class="redactor-separator" aria-hidden="true"></span>` antes. Va en
+  `try/catch`: si una versión futura cambia el DOM, la barra pierde los trazos
+  pero **no deja de funcionar**. El trazo lo pinta `css/modern.css`
+  (`.redactor-toolbar .redactor-separator`).
+- **Todos los botones existen** en este Redactor. `tests/EditorToolbarTest.php`
+  lee `y.buttons` de `js/redactor.min.js` y los `addButtonAuto/Before/After` de
+  `js/redactor-plugins.js`, y falla si la barra pide un nombre que no está.
+  Un nombre inventado se ignora en silencio, así que la prueba es la única
+  red.
+
+En claro los botones dejan de ser tarjetas blancas con sombra (aire de fila
+de pegatinas): pasan a ser planos, con `--ui-accent-soft` al pasar y
+`--ui-accent` cuando están activos.
+
+#### 3.12.3 Adjuntos: arrastrar y soltar
+
+El formulario de respuesta ya aceptaba arrastrar ficheros (`js/filedrop.field.js`),
+pero el aviso de «puedes soltar aquí» era un `background-color` **en línea**
+(`rgba(0,0,0,.3)`): sobre el papel oscuro se confundía con la superficie y en
+claro tapaba el texto. Ahora se pone una clase:
+
+```js
+dragOver:  this.$element.addClass('ost-drop-over');
+dragLeave: this.$element.removeClass('ost-drop-over');
+```
+
+`css/modern.css` la pinta con `--ui-accent` y `--ui-accent-soft`, `css/dark.css`
+con `--dk-link` y `--dk-accent-soft`. La zona de adjuntos deja de ser una caja
+gris: borde de puntos del tema, icono a tamaño, texto de apoyo y el enlace
+«choose them» en color de acento.
+
+#### 3.12.4 Tablas
+
+**Tabla de estadísticas del panel** (`include/staff/dashboard.inc.php`,
+`table.dashboard-stats.table`). Sumaba tres rejillas a la vez: los bordes
+verticales de `table.dashboard-stats`, el punteado de `.table tr` y el blanco
+por celda de `.table td:not(:empty)` — que además no dejaba ver la cebra ni el
+hover. Ahora:
+
+- una sola línea por fila (`border-bottom` de `--ui-border`), sin bordes
+  verticales y sin fondo por celda;
+- cabecera en versalitas sobre `--ui-surface-alt`;
+- cebra con `--ui-surface-alt` y hover con `--ui-accent-soft`;
+- cifras con `font-variant-numeric: tabular-nums`, que es lo que hace que una
+  columna de recuentos se pueda leer de un vistazo.
+
+Las tablas de las colas (`table.list`) no cambian: ya venían de §3.10.
+
+#### 3.12.5 La ficha del ticket y la base de conocimiento
+
+| Defecto en la captura | Causa | Arreglo |
+| --- | --- | --- |
+| El asunto se leía casi negro sobre oscuro | `scp.css` pinta `.tixTitle h3` en `#444` y el tema sólo redefinía `h2` | Regla para `.tixTitle h3` (y su enlace) con `--dk-text` |
+| «Post Internal Note» era un panel blanco entre pestañas oscuras | `form#note` **no tenía ninguna regla** en `dark.css`; sí la tenían `#reply` y `.infoTable` | `form#note` y `#response_options > form` con `--dk-surface-2`; etiquetas y errores incluidos |
+| El bloque de respuesta flotaba sobre un gris que no casaba con nada | `#response_options > form` traía `#f9f9f9` y borde `#aaa` de `scp.css` | Superficie y borde del tema, radio inferior y `padding` en claro |
+| Las pestañas eran fichas con dos sombras y fondo azul grisáceo | `ul.tabs` de `scp.css` | Mismo lenguaje que la barra de colas: tira sobre `--ui-surface-alt`, activa blanca con filete superior de acento. **No se toca el flujo ni la altura**: las pestañas siguen siendo `li` en línea con su `bottom` de 1 px |
+| «Priority:» y nada detrás | El `<td>` imprimía `getPriority()`, que es `null` cuando el ticket no tiene respuesta guardada para el campo | Se calcula una vez: prioridad de la respuesta → prioridad por defecto del sistema (`getPriorityId()` + `Priority::lookup()`) → `None` en texto atenuado. `tests/EditorToolbarTest.php` fija las tres ramas |
+| «NO FAQs found» y «The search did not match any FAQs» eran una línea gris suelta | La plantilla imprimía el texto sin estructura | El estado vacío de las colas (`.empty-state`): icono, frase y pista. El buscador de la base de conocimiento estrena `placeholder` |
+
+Nota sobre `Priority`: **`Priority` no tiene `display()`**. El camino correcto
+es `getDesc()`. Llamar a `$prio->display()` en la ficha habría sido un error
+fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
+`Format::htmlchars()`.
+
+#### 3.12.6 Cómo se comprueba
+
+- `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158). Las
+  nuevas: `.redactor-in` en el tema y ninguna regla de `.redactor-editor`, la
+  regla de cuatro clases de la barra, `#response_options > form`, `#note`,
+  `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
+  plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
+  las dos salidas vacías de la base de conocimiento y la fila de prioridad.
+- `php tests/run.php` → **869** pruebas, 0 fallos. `tests/EditorToolbarTest.php`
+  (10 pruebas) valida los botones contra el propio Redactor.
+- `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
+  inesperada: su lista de excepciones pasa de `.redactor-editor` a
+  `.redactor-in` (el papel claro del editor es deliberado, §3.7).
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -959,7 +1099,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 158 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 178 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -967,12 +1107,17 @@ queda en §6.2.
 | 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
 | 17 | **CSP con nonce**: los 98 `<script>` en línea de las plantillas llevan `nonce`, `script-src` deja de anunciar `'unsafe-inline'` y el instalador tampoco lo necesita (§6.2-1b, OST-102) | ✅ Hecho | `include/class.http.php`, `tools/quality/csp-nonce.php`, `tests/CspNonceTest.php` |
 | 17b | **Datos de demostración** para poder mirar la interfaz con contenido real: 59 tickets repartidos entre **todos los estados** de la lista interna (abierto, en progreso, contestado, resuelto y cerrado) con hilos de hasta 14 mensajes que alternan cliente, agente y nota interna, 16 tareas abiertas/completadas/vencidas, 12 clientes en 3 organizaciones, 5 agentes, 5 departamentos, 2 equipos, 2 SLA, 11 temas, 5 respuestas y 6 categorías de conocimiento con 33 artículos, creados con la API del panel y borrables con `--fresh` | ✅ Hecho | `include/cli/modules/seed.php`, `make seed`, `docs/SEED.md` |
-| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v33), `make theme` |
+| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v34), `make theme` |
 | 17c | **Buzón de pruebas documentado**: Mailpit paso a paso (host `mailpit`, puerto 1025, sin TLS ni usuario, qué mirar, entrante con `api/pipe.php`, cron a mano) y `make test-mail` para un envío sin pasar por la aplicación. Es lo que permite comprobar los correos reales en claro y en oscuro | ✅ Hecho | `docs/MAIL.md`, `tools/dev/mail-test.php` |
 
 | 19 | **Escala del texto**: el cuerpo pasa a 15 px y los campos de formulario fijan su tamaño (`input`, `select`, `textarea` no heredan: salían a los 13.3 px de Arial del navegador). Tres tokens (`--mod-text`, `--mod-text-sm`, `--mod-text-xs`), ningún texto por debajo de 12 px y ninguna medida suelta en el modo compacto (§3.11) | ✅ Hecho | `css/modern.css`, `tests/TextScaleTest.php`, `make theme` |
 | 20 | **Etiqueta de prioridad**: el color en línea que `PriorityField::display()` escribe en el `<td>` **y** en el `<div>` ya no pinta la celda entera; queda en una etiqueta redondeada del tamaño de su texto. El contraste en oscuro se mantiene (§3.11) | ✅ Hecho | `css/modern.css`, `css/dark.css`, `docs/theme-preview.html` |
 | 21 | **Barra de colas recuperada**: la causa era el mapa de campos del ORM (`SelectSql::addAnnotations()` se quedaba el `fieldMap` y `buildModel()` repartía la fila corrida, dejando `parent_id` contaminado). `queue --nav` lo verifica y `--trace` lo explica paso a paso (§3.5.3) | ✅ Hecho | `include/class.orm.select.php`, `tests/QuerySqlTest.php`, `include/cli/modules/queue.php`, `make queue-nav` |
+| 22 | **Editor enriquecido**: barra por grupos con historia (deshacer/rehacer), sangría, subíndice/superíndice, viñetas y numeración sueltas y pantalla completa —cuyo plugin faltaba y por eso el botón no existía—, separadores de grupo y botones planos. `tests/EditorToolbarTest.php` valida cada botón contra el propio Redactor (§3.12.2) | ✅ Hecho | `js/redactor-osticket.js`, `css/modern.css`, `tests/EditorToolbarTest.php` |
+| 23 | **El tema oscuro llega por fin al editor**: la superficie editable es `.redactor-in` (no `.redactor-editor`, que no existe en Redactor 3) y la barra necesitaba una regla de cuatro clases para ganar a `redactor.css`. Papel `--dk-editor-paper` en vez de blanco puro (§3.12.1) | ✅ Hecho | `css/dark.css`, `css/mobile.css`, `tools/ui/dark-audit.js` |
+| 24 | **Tabla de estadísticas del panel** sin rejilla doble: una línea por fila, cebra, cabecera en versalitas y cifras tabulares (§3.12.4) | ✅ Hecho | `css/modern.css`, `css/dark.css` |
+| 25 | **Ficha del ticket y base de conocimiento**: asunto legible en oscuro, nota interna y panel de respuesta tematizados, pestañas del tema, «Priority:» nunca vacío, buscador con pista y estado vacío en las dos salidas de la KB (§3.12.5) | ✅ Hecho | `css/dark.css`, `css/modern.css`, `include/staff/ticket-view.inc.php`, `include/staff/faq-categories.inc.php` |
+| 26 | **Arrastrar ficheros**: el aviso de «puedes soltar aquí» deja de ser un `background-color` en línea y pasa a ser una clase (`ost-drop-over`) que cada tema pinta; la zona de adjuntos se lee como tal (§3.12.3) | ✅ Hecho | `js/filedrop.field.js`, `css/modern.css`, `css/dark.css` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

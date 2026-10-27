@@ -193,8 +193,11 @@
     }
 
     /* --- Editor de respuesta -------------------------------------------- */
+    /* La superficie editable de Redactor es `.redactor-in` (no
+       `.redactor-editor`, que no existe): sin el nombre correcto el editor
+       se salía del ancho de la pantalla. */
     .redactor-box,
-    .redactor-editor {
+    .redactor-in {
         max-width: 100%;
     }
 

@@ -609,10 +609,14 @@ table.list tfoot td i {
     color: var(--ui-text-muted);
 }
 
-.empty-state > i.icon-inbox,
+/* Cualquier icono del estado vacio (buzon de las colas, lupa de la base de
+   conocimiento, carpeta de las categorias) se dibuja al mismo tamano. */
+.empty-state > i,
 .empty-state > svg {
     width: 32px;
     height: 32px;
+    font-size: 30px;
+    line-height: 32px;
     opacity: .55;
     margin-bottom: 2px;
 }
@@ -661,6 +665,75 @@ table.list input[type="checkbox"] {
     vertical-align: middle;
     accent-color: var(--ui-accent);
     cursor: pointer;
+}
+
+/* --- Tabla de estadisticas del panel -------------------------------- */
+/* El panel (`/scp/dashboard.php`) mezcla dos hojas: `table.dashboard-stats`
+   (scp.css 1094) y la clase generica `.table`, que pinta **cada celda** de
+   blanco y le pone un punteado a cada fila. Encima, la tabla de
+   estadisticas anade un borde vertical por columna. El resultado en la
+   captura era una cuadricula doble —linea punteada + borde + celda blanca
+   sobre celda blanca— con las filas sin aire.
+
+   Aqui queda una sola linea por fila, cebra suave y las cifras alineadas a
+   la derecha con numeros de ancho fijo, que es lo que hace legible una
+   tabla de recuentos. */
+table.dashboard-stats {
+    border-collapse: collapse;
+    border-bottom: 1px solid var(--ui-border);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+table.dashboard-stats tbody:first-child th {
+    background: var(--ui-surface-alt);
+    border-bottom: 1px solid var(--ui-border);
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-xs);
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 9px 10px;
+}
+
+table.dashboard-stats tbody:first-child th:first-child {
+    text-align: left;
+}
+
+/* Se anula la rejilla: ni fondo por celda ni borde vertical */
+table.dashboard-stats td:not(:empty),
+table.dashboard-stats tbody:nth-child(2) td,
+table.dashboard-stats tbody:nth-child(2) th {
+    background-color: transparent;
+    border-right: 0;
+}
+
+table.dashboard-stats tbody:nth-child(2) tr:not(:last-child) {
+    border-bottom: 1px solid var(--ui-border);
+}
+
+table.dashboard-stats tbody:nth-child(2) th {
+    color: var(--ui-text);
+    font-weight: 600;
+    padding: 9px 10px;
+    text-align: left;
+}
+
+table.dashboard-stats tbody:nth-child(2) td {
+    color: var(--ui-text);
+    padding: 9px 10px;
+}
+
+table.dashboard-stats tbody:nth-child(2) tr:nth-child(odd) {
+    background-color: var(--ui-surface-alt);
+}
+
+table.dashboard-stats tbody:nth-child(2) tr:hover {
+    background-color: var(--ui-accent-soft);
+}
+
+table.dashboard-stats tbody:nth-child(2) tr:hover th {
+    color: var(--ui-text);
 }
 
 /* ================================================================== */
@@ -919,6 +992,198 @@ span.state {
 #loginBox button[type="submit"] {
     height: 40px;
     font-size: var(--mod-text);
+}
+
+/* ================================================================== */
+/* 10bis. Pestanas, panel de respuesta y editor                       */
+/* ================================================================== */
+/* scp.css pinta las pestanas (`ul.tabs`) como fichas con sombras
+   encontradas —una hacia dentro, otra hacia fuera— y un fondo azul grisaceo
+   (#eef3f8). Con la barra de colas en pastillas (seccion 3), aqui quedaban
+   dos lenguajes distintos en la misma pantalla.
+
+   No se toca ni el flujo ni la altura de la tira: solo color, borde y
+   sombra. Las pestanas siguen siendo `li` en linea con su `bottom` de 1 px
+   para que la activa se funda con el panel de abajo. */
+ul.tabs,
+ul.clean.tabs {
+    background: var(--ui-surface-alt);
+    border-bottom: 1px solid var(--ui-border);
+    box-shadow: none;
+}
+
+ul.tabs li {
+    background: transparent;
+    border-color: transparent;
+    border-bottom: none;
+    box-shadow: none;
+    color: var(--ui-text-muted);
+}
+
+ul.tabs li:not(.active) {
+    box-shadow: none;
+}
+
+ul.tabs li.active,
+ul.tabs.clean li.active {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-bottom: none;
+    border-top: 2px solid var(--ui-accent);
+    box-shadow: none;
+    color: var(--ui-text);
+}
+
+/* scp.css fija el color de los enlaces de la pestana en negro al 60 %; con
+   `inherit` la activa se lee y el resto usa el gris de apoyo. */
+ul.tabs li a,
+ul.tabs.clean li a {
+    color: inherit;
+}
+
+ul.tabs li.active a {
+    color: var(--ui-text);
+    font-weight: 600;
+}
+
+/* --- Panel de respuesta y nota interna ------------------------------- */
+/* `#response_options > form` traia fondo #f9f9f9 y borde #aaa: al lado de
+   la pestana activa (blanca) se veia un borde gris de mas y un fondo que no
+   casaba con ninguna superficie. */
+#response_options > form {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-top: none;
+    border-radius: 0 0 var(--mod-radius-sm) var(--mod-radius-sm);
+    padding: 12px 16px 10px;
+}
+
+/* --- Editor enriquecido ---------------------------------------------- */
+/* Redactor dibuja cada boton de la barra como una tarjeta blanca con
+   sombra; encima del marco, eso da el aire de fila de pegatinas. Aqui se
+   quedan planos y el estado se marca con el fondo del acento.
+
+   Los selectores repiten `.redactor-box` y `.redactor-toolbar` a proposito:
+   css/redactor.css se carga despues de esta hoja y tiene reglas con varias
+   clases encadenadas, asi que hay que igualar su especificidad para ganar
+   sin usar `!important`. */
+.redactor-box {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+}
+
+.redactor-box.redactor-styles-on {
+    background: var(--ui-surface);
+}
+
+/* Solo la barra de la caja: la barra flotante (`.redactor-air`) se monta en
+   el `body` y ya viene oscura de css/redactor.css. */
+.redactor-box .redactor-toolbar a {
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
+    border-radius: var(--mod-radius-sm);
+    color: var(--ui-text);
+    margin-right: 2px;
+}
+
+.redactor-box .redactor-toolbar a:hover {
+    background: var(--ui-accent-soft);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+}
+
+.redactor-box .redactor-toolbar a.redactor-button-active {
+    background: var(--ui-accent);
+    color: var(--mod-on-accent);
+}
+
+.redactor-box .redactor-toolbar a.redactor-button-disabled {
+    background: transparent;
+    box-shadow: none;
+    color: var(--ui-text-muted);
+    opacity: .55;
+}
+
+/* Separador de grupo: un trazo fino entre bloques de botones.
+   Lo inserta js/redactor-osticket.js al ver un `|` en la lista de botones. */
+.redactor-toolbar .redactor-separator {
+    display: inline-block;
+    width: 1px;
+    height: 20px;
+    margin: 0 6px;
+    vertical-align: middle;
+    background: var(--ui-border);
+}
+
+/* La superficie editable hereda la tipografia de la pagina; sin esto el
+   texto del editor se quedaba con la fuente y el tamano del navegador. */
+.redactor-in {
+    font-family: var(--mod-font);
+    font-size: var(--mod-text);
+    line-height: 1.55;
+}
+
+/* --- Zona de adjuntos ------------------------------------------------ */
+/* css/filedrop.css dibuja el recuadro con negro al 5 % y un borde de puntos
+   que casi no se ve. Es la unica forma de adjuntar en el formulario de
+   respuesta, asi que tiene que leerse como una zona donde se puede soltar
+   algo, no como una caja vacia. */
+.filedrop .dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    border: 2px dashed var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    background: var(--ui-surface-alt);
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-sm);
+    text-align: center;
+    transition: border-color .15s var(--mod-ease), background .15s var(--mod-ease);
+}
+
+.filedrop .dropzone > i {
+    font-size: 18px;
+    opacity: .8;
+}
+
+.filedrop .dropzone a {
+    color: var(--ui-accent);
+    font-weight: 600;
+}
+
+/* Mientras se arrastra un fichero encima. La clase la pone
+   js/filedrop.field.js; antes el aviso era un fondo gris en linea. */
+.filedrop .dropzone.ost-drop-over {
+    border-color: var(--ui-accent);
+    border-style: solid;
+    background: var(--ui-accent-soft);
+    color: var(--ui-text);
+}
+
+.filedrop .files:not(:empty) {
+    border: 1px solid var(--ui-border);
+    border-bottom: none;
+    border-radius: var(--mod-radius-sm) var(--mod-radius-sm) 0 0;
+    padding: 4px;
+}
+
+.filedrop .files:not(:empty) + .dropzone {
+    border-radius: 0 0 var(--mod-radius-sm) var(--mod-radius-sm);
+}
+
+.filedrop .files .file {
+    border-radius: var(--mod-radius-sm);
+    height: auto;
+    min-height: 26px;
+    padding: 4px 10px 4px 20px;
+}
+
+.filedrop .files .file .filesize {
+    color: var(--ui-text-muted);
 }
 
 /* ================================================================== */
