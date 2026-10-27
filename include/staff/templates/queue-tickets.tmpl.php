@@ -273,7 +273,9 @@ foreach ($columns as $C) {
   </thead>
   <tbody>
 <?php
+$rendered = 0;
 foreach ($tickets as $T) {
+    $rendered++;
     echo '<tr>';
     if ($canManageTickets) { ?>
         <td><input type="checkbox" class="ckb" name="tids[]"
@@ -290,6 +292,18 @@ foreach ($tickets as $T) {
         }
     }
     echo '</tr>';
+}
+
+// El total y la tabla pueden discrepar. El total sale de un COUNT sobre la
+// misma consulta, pero la pagina que se pinta puede volver vacia: paso con
+// la cola «Closed · This Year», que mostraba «Showing 1 - 23 of about 23»
+// sobre una tabla sin una sola fila. Se mira lo que de verdad se ha pintado.
+// Si no hay filas, el pie no promete ninguna y se explica el motivo en vez
+// de dejar la tabla en blanco.
+if (!$rendered && $count) {
+    $count = 0;
+    $pageNav->setTotal(0, true);
+    $ferror = __('This queue has tickets, but the list could not be loaded.');
 }
 ?>
   </tbody>

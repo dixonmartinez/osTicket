@@ -776,6 +776,30 @@ class SeedDataTest extends UnitTestCase {
     /* Fechas del hilo                                                     */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * La entrada con el mensaje de apertura tambien se fecha en el pasado.
+     *
+     * `Ticket::create()` la inserta con `NOW()`. Si se queda ahi mientras las
+     * respuestas se fechan dias atras, cada respuesta queda *antes* de su
+     * mensaje padre y el Statistics nativo calcula tiempos de respuesta
+     * negativos (la tabla por departamento los publicaba tal cual).
+     */
+    public function testLaAperturaSeFechaConElTicket(): void {
+        $source = $this->fuente();
+
+        $start = strpos($source, 'function backdate(');
+        $this->assertTrue($start !== false, 'no se encuentra backdate()');
+        $end = strpos($source, 'function ', $start + 10);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString('ThreadEntry::objects()', $body,
+            'la entrada de apertura se queda en NOW() y los tiempos de '
+            . 'respuesta salen negativos');
+        $this->assertStringContainsString("'created' => \$when", $body);
+        $this->assertStringContainsString('getThread()', $body,
+            'hay que fechar las entradas del hilo del ticket');
+    }
+
     public function testElPrimerMensajeVaJustoDespuesDeAbrirElTicket(): void {
         $seed = new SeedManager();
         // Ticket abierto hace 10 días: la conversación empieza al día

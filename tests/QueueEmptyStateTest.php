@@ -59,6 +59,29 @@ class QueueEmptyStateTest extends UnitTestCase {
             "__('Try clearing the search or picking another queue.')", $source);
     }
 
+    /**
+     * El pie no puede prometer filas que la tabla no trae.
+     *
+     * En la cola «Closed · This Year» se leia «Showing 1 - 23 of about 23»
+     * sobre una tabla vacia: el total salia de un COUNT sobre la misma
+     * consulta, pero la pagina que se pintaba volvia sin una sola fila. La
+     * plantilla cuenta ahora lo que de verdad ha pintado.
+     */
+    public function testElPieNoPrometeFilasQueLaTablaNoTrae(): void {
+        $source = $this->template();
+
+        $this->assertStringContainsString('$rendered++', $source,
+            'hay que contar las filas que se pintan');
+
+        $this->assertMatchesRegularExpression(
+            '/if\s*\(\s*!\$rendered\s*&&\s*\$count\s*\)/',
+            $source,
+            'sin filas no se puede seguir mostrando el total de la cola');
+
+        $this->assertStringContainsString('$pageNav->setTotal(0, true);', $source,
+            'el paginador tiene que olvidar el total cuando la tabla queda vacia');
+    }
+
     /** El estilo existe y no fija colores: el tema oscuro lo hereda. */
     public function testElEstiloDelEstadoVacioUsaTokens(): void {
         $css = $this->css();

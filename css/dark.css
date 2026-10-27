@@ -295,12 +295,20 @@ html[data-theme="dark"] table.list tbody tr:nth-child(2n+1) td {
     background-color: transparent;
 }
 
+/* Igual que en el tema claro (css/modern.css): el realce va en la fila, no
+   en cada celda, para que una celda vacia no quede de otro tono. */
+html[data-theme="dark"] table.list tbody tr:hover,
+html[data-theme="dark"] table.list tbody tr.highlight,
+html[data-theme="dark"] table.queue tbody tr:hover {
+    background-color: var(--dk-accent-soft);
+}
+
 html[data-theme="dark"] table.list tbody tr:hover td,
 html[data-theme="dark"] table.list tbody tr.highlight td,
 html[data-theme="dark"] table.list tbody tr:nth-child(2n+1):hover td,
 html[data-theme="dark"] table tbody tr:hover > td,
 html[data-theme="dark"] table.queue tbody tr:hover > td {
-    background: var(--dk-accent-soft);
+    background-color: transparent;
 }
 
 html[data-theme="dark"] table.list tfoot td {
@@ -681,6 +689,90 @@ html[data-theme="dark"] .select2-container-multi .select2-choices .select2-searc
     color: var(--dk-text);
 }
 
+/* select2 v4. Hasta ahora el tema solo cubria las clases de select2 v3
+   (`.select2-choice`, `.select2-choices`), que ya no se usan. Los widgets
+   actuales —la caja de respuestas prefabricadas del formulario de
+   respuesta, los colaboradores, los filtros— se quedaban **blancos** sobre
+   la pagina oscura, con el texto en el gris de papel.
+
+   La hoja del plugin pinta la caja con `background-color:#fff` y
+   `.select2-container--default .select2-selection--single`; aqui se repite
+   `.select2-container` para ganar por especificidad, que el plugin se carga
+   antes que este archivo pero despues de modern.css. */
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--single,
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--multiple {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--single .select2-selection__rendered,
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: var(--dk-text-muted) transparent transparent transparent;
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: transparent transparent var(--dk-text-muted) transparent;
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: var(--dk-surface-4);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: var(--dk-danger);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-dropdown {
+    background-color: var(--dk-surface-2);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-results__option {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-results__option[aria-selected="true"] {
+    background-color: var(--dk-surface-3);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-results__group {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default .select2-search--dropdown .select2-search__field {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .select2-container.select2-container--default.select2-container--disabled .select2-selection--single,
+html[data-theme="dark"] .select2-container.select2-container--default.select2-container--disabled .select2-selection--multiple {
+    background-color: var(--dk-surface-2);
+    color: var(--dk-text-faint);
+}
+
 /* Editor Redactor: barra, desplegables y diálogos */
 html[data-theme="dark"] .redactor-box,
 html[data-theme="dark"] .redactor-box.redactor-styles-on,
@@ -981,6 +1073,30 @@ html[data-theme="dark"] .message.bar .body {
 
 html[data-theme="dark"] .avatar {
     border-color: var(--dk-border);
+}
+
+/* El avatar se genera sobre un lienzo blanco (include/class.avatar.php), asi
+   que en oscuro era una ficha blanca suelta junto a la tarjeta. */
+html[data-theme="dark"] .thread-entry > .avatar {
+    background: var(--dk-surface-3);
+    border: 1px solid var(--dk-border-strong);
+}
+
+/* Iconos de la linea de tiempo («Created by», «Flagged as overdue»): una
+   caja gris con un borde blanco de 16 px que tapa la linea vertical. En
+   oscuro se veia como un cuadrado blanco con un garabato dentro. */
+html[data-theme="dark"] .type-icon {
+    background-color: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .type-icon::after {
+    border-color: var(--dk-surface);
+}
+
+html[data-theme="dark"] .thread-event .description {
+    color: var(--dk-text-muted);
 }
 
 /* Respuestas del agente: mismo criterio de papel */
@@ -1702,6 +1818,21 @@ html[data-theme="dark"] #line-chart-here {
     border-color: var(--dk-border);
 }
 
+/* Las etiquetas de los ejes las dibuja Raphael en negro: sobre la superficie
+   oscura no se veian. `fill` por CSS gana al atributo de presentacion del
+   SVG, y el prefijo `html[data-theme]` gana a `scp/css/dashboard.css`, que
+   se carga al final del cuerpo de la pagina. */
+html[data-theme="dark"] #line-chart-here text,
+html[data-theme="dark"] #line-chart-here tspan {
+    fill: var(--dk-text-muted);
+}
+
+/* Las lineas de la rejilla, cuando Raphael las dibuja con trazo negro */
+html[data-theme="dark"] #line-chart-here path[stroke="#000"],
+html[data-theme="dark"] #line-chart-here path[stroke="#000000"] {
+    stroke: var(--dk-border);
+}
+
 html[data-theme="dark"] #line-chart-legend {
     color: var(--dk-text-muted);
 }
@@ -1859,6 +1990,32 @@ html[data-theme="dark"] .jb-overflowmenu .jb-overflowmenu-container > a.jb-overf
 /* Ficha del ticket */
 html[data-theme="dark"] .ticket_info {
     background: var(--dk-surface-2);
+}
+
+/* Las tablas de dentro traen sus propias celdas: sin esto la mitad derecha
+   salia de otro tono que la izquierda y el bloque parecia roto. */
+html[data-theme="dark"] .ticket_info table,
+html[data-theme="dark"] .ticket_info > tbody > tr > td > table {
+    background: transparent;
+}
+
+html[data-theme="dark"] .ticket_info th {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .ticket_info td,
+html[data-theme="dark"] .ticket_info td a {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .ticket_info > tbody > tr > td > table > tbody > tr + tr > th,
+html[data-theme="dark"] .ticket_info > tbody > tr > td > table > tbody > tr + tr > td {
+    border-top-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .ticket_info .custom-data th {
+    background: transparent;
+    color: var(--dk-text-muted);
 }
 
 html[data-theme="dark"] .ticket_info.custom-data thead th {

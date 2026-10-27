@@ -838,6 +838,62 @@ check(strpos($vista, 'Priority::lookup(') !== false
     'la fila de prioridad nunca se queda vacia',
     'la fila de prioridad sale en blanco cuando el ticket no tiene respuesta guardada');
 
+/* Segunda pasada: lo que dejaban ver las capturas ---------------------- */
+// osTicket usa select2 v4 (css/select2.min.css). El tema oscuro solo cubria
+// la API v3 (`.select2-choice`, `.select2-choices`), asi que la caja y el
+// desplegable seguian con el blanco del plugin.
+check(strpos($darkSinComentarios, '.select2-container--default') !== false
+    && strpos($darkSinComentarios, 'select2-selection--single') !== false,
+    'select2 v4 (caja y desplegable) tiene equivalente oscuro',
+    'el select2 v4 se queda blanco: es la caja de «Select a canned response»');
+
+// El buscador de la base de conocimiento usa el mismo marcado que el de las
+// colas pero sin la clase; la regla tiene que ir por el tipo de input.
+check(strpos($sinComentarios, '#basic_search input[type="text"]') !== false,
+    'el buscador por tipo alcanza tambien al de la base de conocimiento',
+    'solo se estiliza `.basic-search`: el buscador de la KB se queda nativo');
+
+// La ficha del ticket son dos tablas dentro de otra: sin reglas propias, cada
+// mitad sale de un tono y el bloque parece roto.
+check(strpos($sinComentarios, '.ticket_info th') !== false
+    && strpos($darkSinComentarios, '.ticket_info th') !== false,
+    'la ficha del ticket se lee como un solo panel en los dos temas',
+    'las etiquetas de la ficha conservan el gris y el fondo de scp.css');
+
+// Los iconos de la linea de tiempo (lapiz, reloj) son una caja con un borde
+// blanco de 16 px: en oscuro, un cuadrado blanco.
+check(strpos($darkSinComentarios, '.type-icon::after') !== false,
+    'los iconos de la linea de tiempo siguen el tema oscuro',
+    '.type-icon::after conserva el borde blanco: es un cuadrado claro en oscuro');
+
+// El grafico del panel: scp/css/dashboard.css se carga al final del cuerpo,
+// o sea despues de modern.css; por eso los selectores llevan `body` delante.
+check(strpos($sinComentarios, 'body #line-chart-here') !== false,
+    'el grafico del panel gana a la hoja que se carga despues',
+    'sin `body` delante, scp/css/dashboard.css gana y vuelve el degradado de IE');
+
+check(strpos($darkSinComentarios, '#line-chart-here text') !== false,
+    'las etiquetas de los ejes se ven en oscuro',
+    'las etiquetas de los ejes se dibujan en negro sobre la superficie oscura');
+
+/* Verdades que la pantalla no puede contradecir ------------------------- */
+$plantillaCola = read("$root/include/staff/templates/queue-tickets.tmpl.php");
+check(strpos($plantillaCola, '$rendered++') !== false
+    && strpos($plantillaCola, '$pageNav->setTotal(0, true);') !== false,
+    'la cola no promete filas que la tabla no trae',
+    'el pie sigue diciendo «Showing 1 - 23» con la tabla vacia');
+
+$sembrador = read("$root/include/cli/modules/seed.php");
+check(strpos($sembrador, 'ThreadEntry::objects()') !== false
+    && strpos($sembrador, 'function backdate(') !== false,
+    'el sembrador fecha la entrada de apertura con el ticket',
+    'la apertura se queda en NOW(): los tiempos de respuesta salen negativos');
+
+$informe = read("$root/include/class.report.php");
+check(strpos($informe, "new SqlFunction('GREATEST'") !== false,
+    'el informe acota el tiempo de respuesta a cero',
+    'una base sembrada antes del arreglo sigue publicando tiempos negativos');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {

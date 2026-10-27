@@ -72,8 +72,20 @@ $quickHours = function ($value) {
             <label>
                 <?php echo __('period');?>:
                 <select name="period">
-                    <?php foreach ($report::$end_choices as $val=>$desc)
-                            echo "<option value='$val'>" . __($desc) . "</option>"; ?>
+                    <?php
+                        // La opcion vigente se marca aqui, en el servidor. Antes
+                        // lo hacia un script que borraba el atributo `selected`
+                        // de la opcion marcada y lo ponia en otra: al quitar el
+                        // atributo el navegador se queda sin seleccion y el
+                        // desplegable aparece vacio (es lo que se veia junto a
+                        // «period:»). Asi funciona tambien sin JavaScript.
+                        foreach ($report::$end_choices as $val=>$desc) {
+                            printf('<option value="%s"%s>%s</option>',
+                                Format::htmlchars($val),
+                                $val === $report->end ? ' selected="selected"' : '',
+                                Format::htmlchars(__($desc)));
+                        }
+                    ?>
                 </select>
             </label>
             <button class="green button action-button muted" type="submit">
@@ -212,16 +224,4 @@ foreach ($groups as $g=>$desc) {
 </form>
 <script nonce="<?php echo Http::nonce(); ?>">
     $.drawPlots(<?php echo JsonDataEncoder::encode($report->getPlotData()); ?>);
-    // Set Selected Period For Dashboard Stats and Export
-    <?php if ($report && $report->end) { ?>
-        $("div#basic_search select option").each(function(){
-            // Remove default selection
-            if ($(this)[0].selected)
-                $(this).removeAttr('selected');
-            // Set the selected period by the option's value (periods equal
-            // option's values)
-            if ($(this).val() == "<?php echo $report->end; ?>")
-                $(this).attr("selected","selected");
-        });
-    <?php } ?>
 </script>

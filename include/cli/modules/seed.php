@@ -994,7 +994,21 @@ class SeedManager extends Module {
         }
     }
 
-    /** Mueve la fecha de creación de todo el ticket (hilo incluido). */
+    /**
+     * Mueve la fecha de creación de todo el ticket: ticket, hilo **y la
+     * entrada con el mensaje de apertura**.
+     *
+     * La entrada de apertura se quedaba en `NOW()`. Como las respuestas sí se
+     * fechan en el pasado (`backdateEntry()`), quedaban *antes* de su mensaje
+     * padre: el *Statistics* nativo mide el tiempo de respuesta como
+     * `timestampdiff(parent.created, entry.created)` y salía **negativo** en
+     * la tabla por departamento. Ahora la apertura y la conversación están en
+     * el mismo eje de tiempo.
+     *
+     * Se llama justo después de `Ticket::create()`, cuando el hilo tiene una
+     * sola entrada, así que mover todas las entradas del hilo es mover la de
+     * apertura.
+     */
     function backdate($ticket, $when) {
         Ticket::objects()
             ->filter(array('ticket_id' => $ticket->getId()))
@@ -1002,6 +1016,10 @@ class SeedManager extends Module {
         Thread::objects()
             ->filter(array('object_id' => $ticket->getId(), 'object_type' => 'T'))
             ->update(array('created' => $when));
+        if (($thread = $ticket->getThread()))
+            ThreadEntry::objects()
+                ->filter(array('thread_id' => $thread->getId()))
+                ->update(array('created' => $when));
     }
 
     /**

@@ -67,7 +67,7 @@
 //     editable; `.redactor-editor` no existe) y gana la especificidad de la
 //     barra del editor. La barra del editor estrena botones y separadores de
 //     grupo, y la zona de adjuntos se marca con la clase `ost-drop-over`.
-const VERSION = 'ost-v34';
+const VERSION = 'ost-v35';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

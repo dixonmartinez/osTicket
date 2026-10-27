@@ -924,17 +924,156 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
 
 #### 3.12.6 Cómo se comprueba
 
-- `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158). Las
+- `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158), hoy
+  **187** tras la segunda pasada (§3.13.10). Las
   nuevas: `.redactor-in` en el tema y ninguna regla de `.redactor-editor`, la
   regla de cuatro clases de la barra, `#response_options > form`, `#note`,
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos. `tests/EditorToolbarTest.php`
-  (10 pruebas) valida los botones contra el propio Redactor.
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 873, §3.13.10).
+  `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
+  propio Redactor.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
   inesperada: su lista de excepciones pasa de `.redactor-editor` a
   `.redactor-in` (el papel claro del editor es deliberado, §3.7).
+
+### 3.13 Segunda pasada: capturas nuevas
+
+La segunda tanda de capturas del panel no traía defectos de estructura, sino
+de **piezas concretas que ninguna hoja cubría**: el plugin de los
+desplegables, la ficha del ticket, el gráfico del panel, los iconos de la
+línea de tiempo y dos pantallas que decían cosas que no eran verdad.
+
+#### 3.13.1 Select2: la caja blanca de «Select a canned response»
+
+osTicket incrusta **select2 v4** (`css/select2.min.css`, inicializado en
+`scp/js/scp.js:208` sobre `select#cannedResp`). El tema oscuro sólo tenía
+equivalente para la **API v3** (`.select2-choice`, `.select2-choices`), que
+el plugin ya no genera. Resultado: la caja de la respuesta predefinida y el
+desplegable de filtros de la cola seguían con el `background-color: #fff` y el
+borde `#aaa` del plugin, dos rectángulos blancos en mitad de una pantalla
+oscura.
+
+Se añadió el bloque de v4 completo (caja, flecha, `__choice`, `__dropdown`,
+`__results__option`, `--highlighted`, `--disabled`, `search__field`) y, en el
+tema claro, la caja hereda los tokens `--ui-*`. Sin `!important` salvo el
+`width` al 100 % en móvil, donde el plugin fija 350 px en línea.
+
+#### 3.13.2 El buscador de la base de conocimiento
+
+El de las colas lleva `class="basic-search"`; el de la KB
+(`scp/css/scp.css:2151`, `#kbSearch`) no. La regla del tema iba por la clase,
+así que el buscador de la KB se quedaba con el `input` nativo. Ahora la regla
+va por `#basic_search input[type="text"]` y alcanza a los dos; el `placeholder`
+que se añadió en §3.12.5 ya se ve en el mismo estilo que el resto.
+
+#### 3.13.3 La ficha del ticket, como un solo panel
+
+`table.ticket_info` son **dos tablas dentro de otra** (mitad izquierda: estado,
+prioridad, departamento, fecha; mitad derecha: usuario, correo, organización,
+origen). `scp.css` le pone `#F4FAFF` al conjunto, pero cada tabla de dentro
+trae sus propias celdas, así que las dos mitades salían de distinto tono, con
+las etiquetas pegadas al borde y una línea de separación sólo en una de ellas.
+
+Ahora la ficha se lee como un panel: fondo transparente en las tablas
+interiores, etiquetas en `--ui-text-muted` con su peso, `padding` vertical
+constante y **una línea fina entre filas** (`tr + tr`, para no dejar un filete
+suelto al final). En oscuro lo mismo con `--dk-*`.
+
+#### 3.13.4 El gráfico del panel
+
+`scp/css/dashboard.css` se carga **dentro del cuerpo** de la página
+(`include/staff/dashboard.inc.php:12`), o sea **después** de `modern.css` y de
+`dark.css`. Por eso los selectores nuevos llevan `body` delante: es lo que
+permite ganar por especificidad sin `!important`.
+
+- El fondo era un degradado de seis capas con `filter: progid:` para IE. Ahora
+  es una superficie plana con borde del tema.
+- Las etiquetas de los ejes venían en **8 pt de Monaco**. Pasan a
+  `var(--mod-text-xs)` (12 px: el mínimo de la escala, que
+  `TextScaleTest::testNoHayTamanosSueltosPequeños` comprueba).
+- En oscuro, `fill` con `--dk-text-muted`: Raphael dibuja el texto en negro y
+  sobre la superficie oscura no se veía. `fill` por CSS gana al atributo de
+  presentación del SVG.
+
+#### 3.13.5 Iconos de la línea de tiempo y avatar
+
+- `.thread-event .type-icon::after` (el lápiz de «Created by», el reloj de
+  «Flagged as overdue») es una caja gris con un **borde blanco de 16 px** que
+  tapa la línea vertical del hilo. En claro pasa desapercibido; en oscuro era
+  un cuadrado blanco. Ahora el borde y la caja son del tema.
+- El aviso de vencimiento traía **dos iconos**: el GIF de
+  `.Icon.overdueTicket` y el que dibuja `ui.css` con una máscara en el
+  `::before`. Se queda el de la máscara, que sí cambia de color con el tema.
+- El avatar lo genera el servidor sobre un lienzo **blanco**
+  (`include/class.avatar.php`) y en oscuro se veía como una ficha blanca
+  suelta; ahora va en círculo, con anillo del tema.
+
+#### 3.13.6 El realce va en la fila, no en cada celda
+
+`table.list tbody td { background: #fff }` (`scp.css:1165`) y el realce de
+`scp.css` se pintaban **por celda**. Una celda vacía —«Assigned To» de un
+ticket sin asignar— se quedaba con otro fondo y en la fila seleccionada
+aparecía un rectángulo de distinto tono en medio. El realce pasa a la fila
+(`tr:hover`, `tr.highlight`) y las celdas van transparentes, en los dos temas.
+
+#### 3.13.7 «period:» y nada detrás
+
+`include/staff/dashboard.inc.php` marcaba el periodo elegido con un script que
+**borraba** el atributo `selected` de la opción marcada y lo ponía en otra. Al
+quitar el atributo, el navegador se queda **sin selección**: el desplegable
+aparece vacío hasta que el usuario elige algo. Ahora la opción se marca en el
+servidor (con `$report->end`, escapada con `Format::htmlchars()`) y el script
+se eliminó: funciona también sin JavaScript.
+
+#### 3.13.8 La cola no promete filas que no trae
+
+«Showing 1 - 23 of about 23» sobre una tabla **sin una sola fila**
+(`tickets.php?queue=14`, «Closed · This Year»). El total y la tabla salen de la
+misma consulta, pero pueden discrepar; cuando discrepan, la página miente.
+
+- La plantilla cuenta ahora las filas que **de verdad** ha pintado
+  (`$rendered`). Si no hay ninguna, el pie no promete ninguna, el paginador
+  olvida el total (`setTotal(0, true)`) y se explica el motivo en el estado
+  vacío que ya existía.
+- La causa de fondo es de datos: las columnas de la cola hacen `JOIN` contra
+  la vista materializada `ost_ticket__cdata`, mientras el recuento no la usa.
+  Si a un ticket le falta su fila en esa vista, **se cuenta pero no se lista**.
+  El sembrador la reconstruye al terminar (`SeedManager::refreshTicketView()`,
+  `DynamicForm::rebuildDynamicDataViews()`), `make seed-doctor` lo detecta
+  —«tickets sin datos de formulario»— y se arregla con
+  `make db-rebuild-views` o volviendo a sembrar.
+
+#### 3.13.9 Tiempos de respuesta negativos
+
+La tabla por departamento publicaba cifras como «-3.5 h». El *Statistics*
+nativo mide el tiempo de respuesta como
+`timestampdiff(HOUR, parent.created, entry.created)`; si la respuesta tiene
+fecha **anterior** a su mensaje padre, la resta sale por debajo de cero.
+
+- **Origen**: `Ticket::create()` inserta la entrada con el mensaje de apertura
+  con `NOW()`, y el sembrador sólo fechaba hacia atrás el ticket, el hilo y los
+  eventos. Las respuestas —sí fechadas en el pasado— quedaban antes de su
+  padre. `SeedManager::backdate()` fecha ahora también las entradas del hilo,
+  que en ese momento es sólo la de apertura.
+- **Cinturón**: el agregado del informe va envuelto en `GREATEST(..., 0)`. Una
+  base sembrada antes del arreglo conserva esas filas; se acota en la consulta
+  —no al imprimir— para que el promedio tampoco se contamine.
+  `tests/ReportTimeTest.php` lo fija.
+
+#### 3.13.10 Cómo se comprueba
+
+- `php tools/ui/theme-check.php` → **187** comprobaciones (antes 178). Las
+  nuevas: select2 v4, el buscador por tipo, la ficha en los dos temas,
+  `.type-icon::after`, `body #line-chart-here`, las etiquetas del gráfico, el
+  guardia del pie de la cola, la fecha de la entrada de apertura y la cota del
+  informe.
+- `php tests/run.php` → **873** pruebas, 0 fallos, 1 omitida.
+  `tests/ReportTimeTest.php` (2) y una prueba nueva en `tests/SeedDataTest.php`
+  y otra en `tests/QueueEmptyStateTest.php`.
+- `sw.js` sube a **`ost-v35`** para que el service worker suelte las hojas
+  viejas.
 
 ## 4. Reglas para no romper nada
 
@@ -1099,7 +1238,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 178 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 187 verificaciones (178 antes de §3.13) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1107,7 +1246,7 @@ queda en §6.2.
 | 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
 | 17 | **CSP con nonce**: los 98 `<script>` en línea de las plantillas llevan `nonce`, `script-src` deja de anunciar `'unsafe-inline'` y el instalador tampoco lo necesita (§6.2-1b, OST-102) | ✅ Hecho | `include/class.http.php`, `tools/quality/csp-nonce.php`, `tests/CspNonceTest.php` |
 | 17b | **Datos de demostración** para poder mirar la interfaz con contenido real: 59 tickets repartidos entre **todos los estados** de la lista interna (abierto, en progreso, contestado, resuelto y cerrado) con hilos de hasta 14 mensajes que alternan cliente, agente y nota interna, 16 tareas abiertas/completadas/vencidas, 12 clientes en 3 organizaciones, 5 agentes, 5 departamentos, 2 equipos, 2 SLA, 11 temas, 5 respuestas y 6 categorías de conocimiento con 33 artículos, creados con la API del panel y borrables con `--fresh` | ✅ Hecho | `include/cli/modules/seed.php`, `make seed`, `docs/SEED.md` |
-| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v34), `make theme` |
+| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v35), `make theme` |
 | 17c | **Buzón de pruebas documentado**: Mailpit paso a paso (host `mailpit`, puerto 1025, sin TLS ni usuario, qué mirar, entrante con `api/pipe.php`, cron a mano) y `make test-mail` para un envío sin pasar por la aplicación. Es lo que permite comprobar los correos reales en claro y en oscuro | ✅ Hecho | `docs/MAIL.md`, `tools/dev/mail-test.php` |
 
 | 19 | **Escala del texto**: el cuerpo pasa a 15 px y los campos de formulario fijan su tamaño (`input`, `select`, `textarea` no heredan: salían a los 13.3 px de Arial del navegador). Tres tokens (`--mod-text`, `--mod-text-sm`, `--mod-text-xs`), ningún texto por debajo de 12 px y ninguna medida suelta en el modo compacto (§3.11) | ✅ Hecho | `css/modern.css`, `tests/TextScaleTest.php`, `make theme` |
@@ -1118,6 +1257,11 @@ queda en §6.2.
 | 24 | **Tabla de estadísticas del panel** sin rejilla doble: una línea por fila, cebra, cabecera en versalitas y cifras tabulares (§3.12.4) | ✅ Hecho | `css/modern.css`, `css/dark.css` |
 | 25 | **Ficha del ticket y base de conocimiento**: asunto legible en oscuro, nota interna y panel de respuesta tematizados, pestañas del tema, «Priority:» nunca vacío, buscador con pista y estado vacío en las dos salidas de la KB (§3.12.5) | ✅ Hecho | `css/dark.css`, `css/modern.css`, `include/staff/ticket-view.inc.php`, `include/staff/faq-categories.inc.php` |
 | 26 | **Arrastrar ficheros**: el aviso de «puedes soltar aquí» deja de ser un `background-color` en línea y pasa a ser una clase (`ost-drop-over`) que cada tema pinta; la zona de adjuntos se lee como tal (§3.12.3) | ✅ Hecho | `js/filedrop.field.js`, `css/modern.css`, `css/dark.css` |
+| 27 | **Select2 v4 tematizado**: el tema sólo cubría la API v3 del plugin, así que la caja de la respuesta predefinida y el desplegable de filtros seguían blancos. Bloque completo de v4 en oscuro y caja con tokens en claro; el buscador del tema pasa a `#basic_search input[type="text"]` y alcanza también al de la base de conocimiento (§3.13.1, §3.13.2) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
+| 28 | **Ficha del ticket como un solo panel**: dos tablas dentro de otra con tonos distintos, etiquetas pegadas al borde y separación sólo en una mitad. Ahora fondo transparente, etiquetas atenuadas y una línea por fila, en los dos temas (§3.13.3) | ✅ Hecho | `css/modern.css`, `css/dark.css` |
+| 29 | **Gráfico del panel**: fuera el degradado de seis capas con `filter: progid:`; etiquetas de los ejes a 12 px de la escala (venían en 8 pt de Monaco) y visibles en oscuro. Los selectores llevan `body` porque `scp/css/dashboard.css` se carga después. De paso, «period:» deja de salir vacío: la opción se marca en el servidor y no con un script que borraba `selected` (§3.13.4, §3.13.7) | ✅ Hecho | `css/modern.css`, `css/dark.css`, `include/staff/dashboard.inc.php` |
+| 30 | **Iconos de la línea de tiempo y avatar**: el borde blanco de 16 px de `.type-icon::after` pasa al tema, se retira el segundo icono del aviso de vencimiento y el avatar —que el servidor dibuja sobre lienzo blanco— va en círculo con anillo del tema. El realce de las tablas pasa de la celda a la fila, así una celda vacía no queda de otro tono (§3.13.5, §3.13.6) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
+| 31 | **Verdades de la pantalla**: la cola ya no dice «Showing 1 - 23» con la tabla vacía (`$rendered` + `setTotal(0)`), y el tiempo de respuesta no puede ser negativo (la apertura se fecha con el ticket en `SeedManager::backdate()` y el informe acota con `GREATEST`). El origen de las filas invisibles —la vista `ost_ticket__cdata`— lo detecta `make seed-doctor` (§3.13.8, §3.13.9) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/seed.php`, `include/class.report.php`, `tests/QueueEmptyStateTest.php`, `tests/ReportTimeTest.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -1132,6 +1276,7 @@ respuesta, acceso y FAQ).
 |---|---|---|
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
+| 3 | Reparar en la base las filas que faltan en `ost_ticket__cdata` de la instalación del usuario | El código ya no miente (§3.13.8) y `make seed-doctor` lo detecta, pero la reparación es una orden manual: `make db-rebuild-views` o volver a sembrar. No se hace sola porque reconstruir la vista en cada carga de página es caro |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 
 ## 7. Si la interfaz se ve mal después de actualizar

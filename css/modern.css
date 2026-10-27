@@ -457,7 +457,12 @@ ul#sub_nav {
     vertical-align: middle;
 }
 
-#basic_search input.basic-search {
+/* El buscador de la base de conocimiento (`#kbSearch`) no lleva la clase
+   `.basic-search` que sí trae el de las colas, así que se quedaba con el
+   estilo del navegador: un rectángulo casi negro dentro de una tarjeta
+   clara. La regla va por `input[type=text]` para que todos los buscadores
+   de la barra se vean igual, tenga o no la clase. */
+#basic_search input[type="text"] {
     height: var(--mod-field);
     padding: 0 12px;
     width: 320px;
@@ -472,7 +477,7 @@ ul#sub_nav {
     transition: border-color .15s var(--mod-ease), box-shadow .15s var(--mod-ease);
 }
 
-#basic_search input.basic-search:focus {
+#basic_search input[type="text"]:focus {
     border-color: var(--ui-accent);
     box-shadow: var(--mod-ring);
     outline: none;
@@ -565,9 +570,20 @@ table.list tbody tr:nth-child(2n+1):hover td {
     background: transparent;
 }
 
-table.list tbody tr:hover td,
-table.list tbody tr.highlight td {
+/* El realce se pinta en la FILA, no en cada celda. Antes iba en `td` y una
+   celda vacia (por ejemplo «Assigned To» de un ticket sin asignar) se
+   quedaba con otro fondo: en la captura del usuario era un rectangulo de
+   distinto tono en medio de la fila resaltada. */
+table.list tbody tr:hover,
+table.list tbody tr.highlight {
     background: var(--ui-accent-soft);
+}
+
+table.list tbody tr:hover td,
+table.list tbody tr.highlight td,
+table.list tbody tr:nth-child(2n+1):hover td,
+table.list tbody tr:nth-child(2n+1).highlight td {
+    background: transparent;
 }
 
 table.list tbody tr:last-child td {
@@ -1184,6 +1200,225 @@ ul.tabs li.active a {
 
 .filedrop .files .file .filesize {
     color: var(--ui-text-muted);
+}
+
+/* --- Selectores select2 ---------------------------------------------- */
+/* osTicket convierte varios `<select>` en select2 (`#cannedResp`, los
+   colaboradores, los filtros). La hoja del plugin pinta la caja en blanco
+   puro con borde #aaa y 28 px de alto, y se carga DESPUES de esta: por eso
+   los selectores repiten `.select2-container` para ganar por especificidad
+   sin `!important`. Sin esto, en el formulario de respuesta el
+   desplegable de respuestas prefabricadas era el unico control claro. */
+.select2-container.select2-container--default .select2-selection--single,
+.select2-container.select2-container--default .select2-selection--multiple {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    min-height: var(--mod-field);
+    font-family: var(--mod-font);
+    font-size: var(--mod-text);
+}
+
+.select2-container.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container.select2-container--default.select2-container--open .select2-selection--single,
+.select2-container.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--ui-accent);
+    box-shadow: var(--mod-ring);
+    outline: none;
+}
+
+.select2-container.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--ui-text);
+    line-height: calc(var(--mod-field) - 2px);
+    padding-left: 10px;
+    padding-right: 26px;
+}
+
+.select2-container.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: var(--ui-text-muted);
+}
+
+.select2-container.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(var(--mod-field) - 4px);
+    right: 6px;
+}
+
+.select2-container.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: var(--ui-text-muted) transparent transparent transparent;
+}
+
+.select2-container.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: transparent transparent var(--ui-text-muted) transparent;
+}
+
+.select2-container.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background: var(--ui-accent-soft);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    color: var(--ui-text);
+}
+
+/* El desplegable se monta en el `body`, fuera del campo */
+.select2-container.select2-container--default .select2-dropdown {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    box-shadow: var(--ui-shadow);
+}
+
+.select2-container.select2-container--default .select2-results__option {
+    font-size: var(--mod-text-sm);
+    color: var(--ui-text);
+}
+
+.select2-container.select2-container--default .select2-results__option[aria-selected="true"] {
+    background: var(--ui-accent-soft);
+    color: var(--ui-text);
+}
+
+.select2-container.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background: var(--ui-accent);
+    color: var(--mod-on-accent);
+}
+
+.select2-container.select2-container--default .select2-results__group {
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-xs);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* La caja de respuestas prefabricadas no necesita 350 px fijos en un movil */
+@media (max-width: 782px) {
+    .select2-container.select2-container--default {
+        width: 100% !important;
+    }
+}
+
+/* --- Ficha del ticket: un solo panel de propiedades ------------------- */
+/* `table.ticket_info` son dos tablas dentro de una: la mitad izquierda
+   (estado, prioridad, departamento, fecha) y la derecha (usuario, correo,
+   organizacion, origen). scp.css le pone `#F4FAFF` al conjunto, pero las
+   tablas de dentro traen sus propias celdas y el resultado son dos bloques
+   de distinto ancho y distinto tono, con las etiquetas pegadas al borde.
+
+   Aqui el bloque se lee como una ficha: un panel con su borde, etiquetas en
+   gris de apoyo y una linea fina entre filas. */
+.ticket_info,
+.ticket_info table {
+    background: transparent;
+}
+
+.ticket_info > tbody > tr > td {
+    vertical-align: top;
+    padding: 0;
+}
+
+.ticket_info > tbody > tr > td:first-child {
+    padding-right: 18px;
+}
+
+.ticket_info th {
+    color: var(--ui-text-muted);
+    font-weight: 600;
+    font-size: var(--mod-text-sm);
+    text-align: left;
+    vertical-align: top;
+    padding: 7px 10px 7px 0;
+    white-space: nowrap;
+}
+
+.ticket_info td {
+    color: var(--ui-text);
+    padding: 7px 0;
+    vertical-align: top;
+}
+
+/* Linea entre filas, dentro de cada mitad. Se usa `+ tr` para no dibujar
+   una linea suelta al final. */
+.ticket_info > tbody > tr > td > table > tbody > tr + tr > th,
+.ticket_info > tbody > tr > td > table > tbody > tr + tr > td {
+    border-top: 1px solid var(--ui-border);
+}
+
+/* Las tablas de datos personalizados van dentro de la ficha: se integran */
+.ticket_info .custom-data th {
+    color: var(--ui-text-muted);
+    background: transparent;
+}
+
+/* --- Entradas del hilo ------------------------------------------------ */
+/* El avatar lo genera el servidor sobre un lienzo **blanco** (ver
+   include/class.avatar.php, «Start with a white matte»), asi que en el tema
+   oscuro se veia como una ficha blanca suelta al lado de la tarjeta. En
+   circulo y con un anillo del tema se lee como lo que es: una foto de
+   perfil. */
+.thread-entry > .avatar,
+.thread-entry > .avatar img,
+img.avatar {
+    border-radius: 50%;
+}
+
+.thread-entry > .avatar {
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface-alt);
+    overflow: hidden;
+}
+
+/* Los iconos de la linea de tiempo (`type-icon`: el lapiz de «creado por»,
+   el reloj de «marcado como vencido») son una caja gris con un borde blanco
+   de 16 px que tapa la linea vertical. En claro pasa desapercibido; en
+   oscuro es un cuadrado blanco. Se tematizan en css/dark.css. */
+.thread-event .description {
+    color: var(--ui-text-muted);
+}
+
+/* El aviso de vencimiento trae su propio icono en `.Icon.overdueTicket`
+   (un GIF) y ademas ui.css dibuja otro con mascara en el `::before` del
+   aviso: salian dos. Se queda el de la mascara, que si cambia de color con
+   el tema. */
+#msg_warning .Icon.overdueTicket,
+#warning_bar .Icon.overdueTicket,
+.warning-banner .Icon.overdueTicket {
+    background-image: none;
+    padding-left: 0;
+}
+
+/* --- Area de escritura del editor ------------------------------------ */
+/* Redactor pinta el texto de ayuda con `color: rgba(0,0,0,.4)` sobre la
+   superficie; en el papel claro del editor oscuro se lee, pero en el tema
+   claro queda demasiado tenue. */
+.redactor-in[placeholder]::before,
+.redactor-in.redactor-placeholder::before {
+    color: var(--ui-text-muted);
+    font-style: italic;
+}
+
+.redactor-in:focus {
+    outline: none;
+}
+
+/* --- Grafico del panel ------------------------------------------------ */
+/* `scp/css/dashboard.css` se carga dentro del cuerpo de la pagina, o sea
+   DESPUES de esta hoja: por eso los selectores llevan `body` delante, que es
+   lo que hace falta para ganarle por especificidad sin `!important`.
+
+   El fondo era un degradado de seis capas con `filter: progid:` de IE y las
+   etiquetas de los ejes, de 8 pt en Monaco. Aqui queda una superficie plana
+   y las etiquetas con la tipografia de la casa. */
+body #line-chart-here {
+    background: var(--ui-surface-alt);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+}
+
+body #line-chart-here text,
+body #line-chart-here tspan {
+    fill: var(--ui-text-muted);
+    font-family: var(--mod-font);
+    /* La escala mínima de la casa son 12 px (lo comprueba TextScaleTest):
+       las etiquetas venían en 8 pt de Monaco. */
+    font-size: var(--mod-text-xs);
 }
 
 /* ================================================================== */

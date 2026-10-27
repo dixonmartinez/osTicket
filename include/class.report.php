@@ -177,8 +177,19 @@ class OverviewReport {
                 'ServiceTime' => SqlAggregate::AVG(SqlFunction::timestampdiff(
                   new SqlCode('HOUR'), new SqlField('thread__events__timestamp'), new SqlField('timestamp'))
                 ),
-                'ResponseTime' => SqlAggregate::AVG(SqlFunction::timestampdiff(
-                    new SqlCode('HOUR'),new SqlField('thread__entries__parent__created'), new SqlField('thread__entries__created')
+                // Un tiempo de respuesta no puede ser negativo: si la
+                // entrada con la respuesta tiene fecha anterior a su mensaje
+                // padre, la resta sale por debajo de cero y la tabla por
+                // departamento publicaba cifras como «-3.5 h». Se acota a
+                // cero en la propia consulta —asi el promedio tampoco se
+                // contamina— y no al imprimir. El sembrador ya fecha la
+                // apertura en la misma linea de tiempo (seed.php
+                // `backdate()`), pero esto cubre los datos que ya estan en
+                // una base creada antes del arreglo.
+                'ResponseTime' => SqlAggregate::AVG(new SqlFunction('GREATEST',
+                    SqlFunction::timestampdiff(
+                        new SqlCode('HOUR'),new SqlField('thread__entries__parent__created'), new SqlField('thread__entries__created')),
+                    new SqlCode('0')
                 )),
             ));
 
