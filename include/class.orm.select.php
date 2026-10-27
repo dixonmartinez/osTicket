@@ -53,8 +53,14 @@ class SelectSql {
 
         // Add in annotations
         if ($queryset->annotations) {
-            list($fields, $need_group_by) = self::addAnnotations($fields,
-                $queryset, $compiler, $model, $fieldMap, $need_group_by);
+            // Ojo con el mapa: `addAnnotations()` mete cada anotación **en
+            // medio** de la lista (detrás de los campos del modelo raíz) y a
+            // la vez la apunta en el mapa del tramo raíz. Si se pierde esa
+            // segunda parte, las columnas de los modelos relacionados se
+            // reparten corridas una posición y la hidratación sale mal.
+            list($fields, $need_group_by, $fieldMap) = self::addAnnotations(
+                $fields, $queryset, $compiler, $model, $fieldMap,
+                $need_group_by);
 
             // If no group by has been set yet, use the root model pk
             if (!$group_by && !$queryset->aggregated && !$queryset->distinct
@@ -228,6 +234,14 @@ class SelectSql {
      *
      * @return array  [campos, ¿hace falta group by?]
      */
+    /**
+     * Añade las anotaciones al SELECT y al mapa de campos.
+     *
+     * Devuelve `array($fields, $need_group_by, $fieldMap)`: el mapa tiene que
+     * volver a quien llama, porque las anotaciones se insertan entre los
+     * campos de la raíz y los de las relaciones, y el reparto de la fila
+     * (`ModelInstanceManager::buildModel()`) se hace con ese mapa.
+     */
     private static function addAnnotations(array $fields, QuerySet $queryset,
             SqlCompiler $compiler, $model, array $fieldMap, $need_group_by) {
         foreach ($queryset->annotations as $alias=>$A) {
@@ -246,7 +260,9 @@ class SelectSql {
             }
         }
 
-        return array($fields, $need_group_by);
+        // El mapa se devuelve además: se recibe por valor, así que lo que se
+        // apunta aquí no lo vería quien llama.
+        return array($fields, $need_group_by, $fieldMap);
     }
 
     /**

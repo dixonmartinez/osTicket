@@ -463,6 +463,42 @@ class QuerySqlTest extends UnitTestCase {
             $q['sql']);
     }
 
+    /**
+     * Con `select_related()` y `annotate()` a la vez, la anotacion tiene que
+     * entrar en el mapa de campos.
+     *
+     * `SelectSql::fields()` inserta la anotacion detras de los campos del
+     * modelo raiz y la apunta en el mapa; `ModelInstanceManager::buildModel()`
+     * reparte la fila con ese mapa. Si la anotacion no llega al mapa, los
+     * campos del modelo relacionado se leen corridos una columna: el `id` del
+     * padre se toma de la anotacion y `VerySimpleModel::set()` escribe ese
+     * valor en la clave ajena. Con `CustomQueue` eso dejaba `parent_id` con
+     * basura en todas las colas de primer nivel, `getHierarchicalQueues()` las
+     * descartaba y la barra de colas de `/scp/tickets.php` salia vacia.
+     */
+    public function testLaAnotacionEntraEnElMapaDeCamposConSelectRelated(): void {
+        $qs = new \QuerySet('QuerySqlNotice');
+        $qs->select_related(array('author'));
+        $qs->annotate(array('_n' => new \SqlField('title')));
+        $this->prepare();
+        $query = $qs->getQuery();
+        $map = $query->getMap();
+
+        // La raiz: sus tres campos y la anotacion
+        $this->assertSame(4, count($map[0][0]));
+        $this->assertTrue(in_array('_n', $map[0][0]),
+            'la anotacion tiene que estar en el tramo del modelo raiz del mapa');
+
+        // Tantos campos en el mapa como columnas pide el SELECT
+        $campos = 0;
+        foreach ($map as $tramo)
+            $campos += count($tramo[0]);
+        $corte = strpos($query->sql, ' FROM ');
+        $columnas = substr_count(substr($query->sql, 7, $corte - 7), ',') + 1;
+        $this->assertSame($columnas, $campos,
+            'si el mapa no cubre todas las columnas, la fila se reparte corrida');
+    }
+
     /** Y una anotación con esa consulta dentro es una subconsulta escalar. */
     public function testLaSubconsultaAgregadaTieneUnaSolaColumna(): void {
         $sub = (new \QuerySet('QuerySqlProbe'))->order_by(false)

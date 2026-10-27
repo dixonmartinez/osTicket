@@ -64,6 +64,8 @@ class QueueCheck extends Module {
             'help' => 'Compara los seis periodos de fecha con los tickets reales'),
         'nav' => array('', '--nav', 'action' => 'store_true',
             'help' => 'Que colas salen en la barra de tickets.php y por que las demas no'),
+        'trace' => array('', '--trace', 'action' => 'store_true',
+            'help' => 'Con --nav: enseña paso a paso donde se pierden las colas'),
         'json' => array('', '--json', 'action' => 'store_true',
             'help' => 'Salida JSON, para engancharla a otra herramienta'),
     );
@@ -498,7 +500,8 @@ class QueueCheck extends Module {
                 }
             }
             catch (Throwable $e) {
-                $realError = $e->getMessage();
+                $realError = get_class($e) . ': ' . $e->getMessage()
+                    . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')';
             }
         }
 
@@ -559,13 +562,17 @@ class QueueCheck extends Module {
         }
 
         // Contraste con la barra real.
-        if ($real === null) {
-            if ($realError)
-                $this->err('No se pudo contrastar con la barra real: '
-                    . $realError);
-            else
-                $this->err('Sin agente resuelto: la tabla es solo por banderas.'
-                    .' Prueba `--as=<usuario>`.');
+        if ($realError) {
+            // La funcion de la barra fallo: el motivo es lo mas importante de
+            // todo el informe, asi que va siempre, aunque la lista quedara a
+            // medias.
+            $this->problems++;
+            $this->err('getHierarchicalQueues() fallo: ' . $realError);
+            $this->err('La tabla de arriba es solo por banderas.');
+        }
+        elseif ($real === null) {
+            $this->err('Sin agente resuelto: la tabla es solo por banderas.'
+                .' Prueba `--as=<usuario>`.');
         }
         else {
             $diff = array();
@@ -579,6 +586,7 @@ class QueueCheck extends Module {
                     . implode(', ', $diff));
                 $this->err('Ahi manda tambien la visibilidad del agente'
                     .' (colas privadas de otro agente) y la jerarquia.');
+                $this->navTrace();
             }
             else {
                 $this->out('La barra real coincide con lo que dicen las'
@@ -600,6 +608,146 @@ class QueueCheck extends Module {
             else
                 $this->err('  Usa `--as=<usuario>`'
                     .' (o `make queue-nav AS=dixon`).');
+        }
+    }
+
+    /**
+     * Donde se pierden las colas, paso a paso.
+     *
+     * Se imprime sola cuando la barra real no coincide con las banderas, y
+     * con `--trace` cuando se quiera ver igualmente. Cada tramo va en su
+     * `try`: si uno falla, se dice y se sigue con el siguiente, que es lo
+     * que hace falta cuando el problema es justo que algo revienta.
+     */
+    function navTrace() {
+        if (!function_exists('db_query'))
+            return;
+
+        $staffId = $this->staff ? (int) $this->staff->getId() : 0;
+
+        $this->out('');
+        $this->out('Traza (barra de la cola ' . QUEUE_TABLE . '):');
+        $this->out('  agente: id=' . $staffId . ' '
+            . ($this->staff ? $this->staff->getUserName() : '(ninguno)'));
+
+        // a) La tabla tal cual, sin ORM ni modelos.
+        $this->out('  a) ' . QUEUE_TABLE . ' leida a pelo:');
+        try {
+            $res = db_query('SELECT id, parent_id, flags, staff_id, title FROM '
+                . QUEUE_TABLE . ' ORDER BY parent_id, sort, id', false);
+            if (!$res) {
+                $this->out('     la consulta fallo: ' . db_error());
+            }
+            else {
+                $n = 0;
+                while ($row = db_fetch_array($res)) {
+                    $n++;
+                    $this->out(sprintf('     id=%-3s parent=%-3s flags=%-3s'
+                        . ' staff=%-3s %s', $row['id'], $row['parent_id'],
+                        $row['flags'], $row['staff_id'], $row['title']));
+                }
+                db_free_result($res);
+                $this->out('     ' . $n . ' fila(s)');
+            }
+        }
+        catch (Throwable $e) {
+            $this->out('     fallo: ' . $e->getMessage());
+        }
+
+        // b) La consulta de la barra, tramo a tramo.
+        $this->out('  b) la consulta de la barra, por tramos:');
+        $this->traceStep('todas las colas', function() {
+            return CustomQueue::objects()->count();
+        });
+        $this->traceStep('con el filtro (publica | cola | propia)', function() use ($staffId) {
+            return CustomQueue::objects()->filter(Q::any(array(
+                'flags__hasbit' => CustomQueue::FLAG_PUBLIC,
+                'flags__hasbit' => CustomQueue::FLAG_QUEUE,
+                'staff_id' => $staffId,
+            )))->count();
+        });
+        $this->traceStep('sin las deshabilitadas', function() use ($staffId) {
+            return CustomQueue::objects()
+                ->filter(Q::any(array(
+                    'flags__hasbit' => CustomQueue::FLAG_PUBLIC,
+                    'flags__hasbit' => CustomQueue::FLAG_QUEUE,
+                    'staff_id' => $staffId,
+                )))
+                ->exclude(array('flags__hasbit' => CustomQueue::FLAG_DISABLED))
+                ->count();
+        });
+        $this->traceStep('con annotate y order_by, leidas (asArray)', function() use ($staffId) {
+            $all = CustomQueue::objects()
+                ->annotate(array('_sort' => SqlCase::N()
+                    ->when(array('sort' => 0), 999)
+                    ->otherwise(new SqlField('sort'))))
+                ->filter(Q::any(array(
+                    'flags__hasbit' => CustomQueue::FLAG_PUBLIC,
+                    'flags__hasbit' => CustomQueue::FLAG_QUEUE,
+                    'staff_id' => $staffId,
+                )))
+                ->exclude(array('flags__hasbit' => CustomQueue::FLAG_DISABLED))
+                ->order_by('parent_id', '_sort', 'title')
+                ->asArray();
+
+            // La misma cuenta que hace getHierarchicalQueues, paso a paso,
+            // para ver en cual se cae.
+            $raiz = $cola = 0;
+            $ids = array();
+            foreach ($all as $q) {
+                if ((int) $q->parent_id === 0)
+                    $raiz++;
+                if ((int) $q->parent_id === 0 && $q->isAQueue()) {
+                    $cola++;
+                    $ids[] = $q->getId();
+                }
+            }
+
+            $detalle = sprintf(' -> en la raiz: %d; de esas son cola: %d%s',
+                $raiz, $cola, $ids ? ' ['.implode(', ', $ids).']' : '');
+            if ($all) {
+                $q = $all[0];
+                $detalle .= sprintf('; 1a fila %s id=%s parent_id=%s (%s)'
+                    . ' flags=%s (%s)', get_class($q),
+                    var_export($q->getId(), true),
+                    var_export($q->parent_id, true), gettype($q->parent_id),
+                    var_export($q->flags, true), gettype($q->flags));
+            }
+            return count($all) . $detalle;
+        });
+
+        // c) La funcion que usa la barra.
+        $this->out('  c) CustomQueue::getHierarchicalQueues():');
+        if (!$this->staff) {
+            $this->out('     no se puede llamar sin agente');
+        }
+        else {
+            try {
+                $ids = array();
+                foreach (CustomQueue::getHierarchicalQueues($this->staff, 0, true) as $_) {
+                    list($q,) = $_;
+                    $ids[] = $q->getId();
+                }
+                $this->out('     ' . ($ids ? 'devuelve: ' . implode(', ', $ids)
+                    : 'devuelve una lista vacia'));
+            }
+            catch (Throwable $e) {
+                $this->out('     fallo ' . get_class($e) . ': ' . $e->getMessage());
+                $this->out('     en ' . $e->getFile() . ':' . $e->getLine());
+            }
+        }
+    }
+
+    /** Un tramo de la traza: la etiqueta y lo que devuelva o el fallo. */
+    function traceStep($label, callable $fn) {
+        try {
+            $this->out(sprintf('     %-44s %s', $label, $fn()));
+        }
+        catch (Throwable $e) {
+            $this->out(sprintf('     %-44s FALLO %s: %s', $label,
+                get_class($e), $e->getMessage()));
+            $this->out('     ' . str_repeat(' ', 44) . basename($e->getFile())
+                . ':' . $e->getLine());
         }
     }
 

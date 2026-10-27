@@ -410,7 +410,20 @@ monta `jb.overflowmenu` (`scp/js/jb.overflow.menu.js`): mide la fila y, lo que
 no cabe, lo pasa a un menú secundario detrás de un asa. Es un componente
 **medido**, así que cambiarle el ancho o el flujo desde la hoja lo rompe.
 
-Dos cosas que valían antes y ya no:
+**La causa de que la barra saliera vacía no era el CSS.** Fue una regresión
+del frente 2, en el ORM: `SelectSql::fields()` (`include/class.orm.select.php`)
+pasa el mapa de campos a `addAnnotations()`, que apunta ahí la anotación y
+**no lo devolvía**. El mapa se quedaba sin la anotación y
+`ModelInstanceManager::buildModel()` repartía la fila corrida una columna: el
+`id` del modelo relacionado se leía de la anotación y
+`VerySimpleModel::set()` escribía ese valor en la clave ajena. Con
+`CustomQueue` (que declara `select_related => parent`) eso dejaba `parent_id`
+con el `sort` de la cola en **todas** las del primer nivel;
+`getHierarchicalQueues()` descarta lo que cuelga de otra cola y la barra se
+quedaba sin un solo elemento, sin un error en ningún log. Lo fija
+`tests/QuerySqlTest::testLaAnotacionEntraEnElMapaDeCamposConSelectRelated()`.
+
+Dos cosas más que valían antes y ya no:
 
 - `scp.css` fija `.jb-overflowmenu` en **960 px** con la fila en
   `position: absolute`. En una pantalla de 1280 px el contenedor no era el
@@ -429,7 +442,7 @@ Reglas para quien toque esta zona: **nada de `display: flex` ni `gap`** en
 `margin` (`#nav > li + li { margin-left: 4px }`) y `#basic_search .attached.input`
 necesita `height: auto` porque `scp.css` lo clava en 24 px.
 
-**Si faltan colas pero la barra se ve bien**, el problema no es CSS: la barra
+**Si faltan colas pero la barra se ve bien**, el problema tampoco es CSS: la barra
 sólo lista las colas de primer nivel con el bit `FLAG_QUEUE` y sin
 `FLAG_DISABLED` (`CustomQueue::getHierarchicalQueues()`, `$primary = true`).
 Ese bit se activa en la ficha de la cola, *Queue Visibility* → «Shows up in
@@ -443,6 +456,13 @@ Imprime `ID | Cola | Banderas | Barra | Motivo`, con el motivo de cada cola
 que no entra (`FLAG_DISABLED`, falta `FLAG_QUEUE`, `parent_id`) y un contraste
 con la barra real cuando hay agente. `make queue-nav ARGS=--json` si lo
 quieres para un script.
+
+Cuando la barra real no coincide con las banderas, el comando añade una
+**traza** con la tabla leída a pelo, la consulta de la barra tramo a tramo
+(cuántas filas hay, cuántas quedan en la raíz y cuántas de esas son cola) y lo
+que devuelve `getHierarchicalQueues()` o el error que lanza. Si un tramo
+falla, lo dice y sigue con el siguiente. `make queue-nav ARGS=--trace` la
+imprime siempre.
 
 Dos detalles que cuestan una tarde si no se saben:
 
