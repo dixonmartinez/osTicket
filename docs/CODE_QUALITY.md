@@ -1029,6 +1029,36 @@ que no ejecutan código).
   once métodos **no quedan duplicados** en el modelo (PHP no avisa: la copia
   vieja taparía la del rasgo) y que el archivo sigue por debajo de 1.900.
 
+  **Segundo reparto, el mismo día: `include/ajax.tickets.php`.** Era el archivo
+  más grande del panel (**1.677** líneas, y la mitad de su tamaño de antes de
+  esta tanda). Los cinco métodos que comparten el formulario de estado —
+  `changeTicketStatus()`, `setTicketStatus()`, `changeSelectedTicketsStatus()`,
+  `setSelectedTicketsStatus()` y `markAs()`, 347 líneas— se van enteros a
+  `include/ajax.tickets.status.php` como rasgo `TicketsAjaxStatus`, igual que
+  ya se hacía con `ajax.tickets.user.php`: son métodos de la misma clase, usan
+  `$thisstaff` y los ayudantes de `AjaxController`, así que un rasgo los
+  devuelve a `TicketsAjaxAPI` sin cambiar ninguna ruta del panel. El archivo
+  queda en **1.333** y sale del top de los más grandes. Los dos ayudantes
+  privados (`_changeTicketStatus()`, `_changeSelectedTicketsStatus()`) se
+  quedan en la clase: el rasgo los llama con `self::`, que apunta a la clase
+  que lo usa. `tests/TicketsAjaxSplitTest.php` fija las cuatro cosas que un
+  movimiento así rompe en silencio: que el `include_once` vaya **antes** de la
+  clase y haya su `use`, que los cinco métodos estén una sola vez y no queden
+  copias en el archivo viejo, que los ayudantes privados sigan donde el rasgo
+  los busca, y que el archivo siga por debajo de 1.400 líneas.
+
+  El movimiento no añade deuda: `tools/quality/input-baseline.json` reparte los
+  **10 accesos directos a `$_POST`/`$_REQUEST`** del bloque entre los dos
+  archivos (38 en `ajax.tickets.php` → 28 + 10 en el nuevo), el total sigue en
+  1.232 y `input-audit` vuelve a decir «sin subidas». `sql-audit` no cambia: el
+  bloque no tiene SQL a mano.
+
+  De paso, una herramienta se miraba a sí misma: `run.mjs` deja en php-wasm una
+  copia sin guardia de `cli` junto al original (`tools/quality/.class-map.wasm.php`),
+  y `class-map.php` la contaba como un segundo `ClassMap` —un falso «error
+  fatal». Ahora ignora los archivos que empiezan por punto (las copias
+  temporales de las herramientas) y el informe vuelve a salir limpio.
+
   **Cómo se comprobó cada reparto**, sin fiarse del aspecto del archivo:
   1. Los límites de cada clase o método los da el **tokenizador de PHP**
      (docblock y modificadores incluidos). Contar llaves a mano no vale: las

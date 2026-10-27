@@ -185,6 +185,12 @@ class ClassMap {
             foreach ($it as $file) {
                 if (!$file->isFile() || $file->getExtension() !== 'php')
                     continue;
+                // Copias temporales de las herramientas (`.*-wasm.php`): al
+                // ejecutarse desde php-wasm, `run.mjs` deja una copia sin el
+                // guardia de `cli` junto al original y la herramienta se veía
+                // a sí misma declarando `ClassMap` dos veces
+                if (strpos($file->getFilename(), '.') === 0)
+                    continue;
                 $rel = substr($file->getPathname(), strlen($root) + 1);
                 $skip = false;
                 foreach ($skipDirs as $dir) {
