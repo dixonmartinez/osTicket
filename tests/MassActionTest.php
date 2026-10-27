@@ -454,6 +454,58 @@ class MassActionTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Permisos de la combinación, departamento por departamento           */
+    /* ------------------------------------------------------------------ */
+
+    /** Un agente de mentira que sólo reparte roles por departamento. */
+    private function agenteConRoles(array $permisos) {
+        return new class($permisos) {
+            private $permisos;
+            public function __construct(array $permisos) {
+                $this->permisos = $permisos;
+            }
+            public function getRole($dept) {
+                $permisos = $this->permisos;
+                return new class($permisos, $dept) {
+                    private $permisos;
+                    private $dept;
+                    public function __construct(array $permisos, $dept) {
+                        $this->permisos = $permisos;
+                        $this->dept = $dept;
+                    }
+                    public function hasPerm($perm) {
+                        // El departamento sin entrada no da el permiso
+                        return !empty($this->permisos[$this->dept]);
+                    }
+                };
+            }
+        };
+    }
+
+    public function testElPermisoSePreguntaDepartamentoPorDepartamento(): void {
+        $rows = array(array('ticket_id' => 1, 'dept_id' => 1),
+                      array('ticket_id' => 2, 'dept_id' => 2),
+                      array('ticket_id' => 3, 'dept_id' => 1));
+
+        $has = MassAction::mergePermissions($rows,
+            $this->agenteConRoles(array(1 => true)), 'merge');
+
+        $this->assertSame(array(true, false, true), $has);
+    }
+
+    public function testSinDepartamentosConPermisoTodoEsFalso(): void {
+        $rows = array(array('ticket_id' => 1, 'dept_id' => 5));
+
+        $this->assertSame(array(false), MassAction::mergePermissions($rows,
+            $this->agenteConRoles(array()), 'merge'));
+    }
+
+    public function testSinFilasNoHayPermisos(): void {
+        $this->assertSame(array(), MassAction::mergePermissions(array(),
+            $this->agenteConRoles(array()), 'merge'));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Desplegables del diálogo de asignación                              */
     /* ------------------------------------------------------------------ */
 

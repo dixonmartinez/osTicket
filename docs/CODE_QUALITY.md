@@ -310,21 +310,46 @@ aplicación ya no es un flujo de 500 líneas.
   `tests/TicketSlaTest.php`, entre ellas que **no queden definiciones
   duplicadas** —PHP no avisa y una copia vieja en el modelo taparía la del
   rasgo— y que el archivo siga con margen bajo el tope.
+- **`Mailer::send()`: de 270 a 147 líneas** (medido con `make metrics`). El
+  corte va por donde el propio código ya lo pedía: `MailerMessage` se queda
+  con lo que no envía nada y `Mailer` con lo que sí. Entran dos piezas puras
+  con nueve pruebas nuevas (`tests/MailerMessageTest.php`): `replyTag()` —los
+  tres casos del separador de la respuesta citada: la opción ausente, la
+  opción en `false` y la opción con texto— y `rewriteContentIds()` —el
+  `preg_replace_callback` de los `cid:`, que ahora recibe el dominio y una
+  función que dice qué sufijo lleva cada imagen o `null` para dejarla como
+  está—. Lo que se queda en `Mailer` son cuatro pasos privados con su
+  docblock: `addRecipients()` (el `switch` de clases de destinatario),
+  `attachFiles()` (los adjuntos colgados del `Mailer`), `deliverViaSmtp()`
+  (la vuelta por las cuentas SMTP, con el `Sender` de sustitución y la vuelta
+  al `From` original) y `deliverViaSendmail()` (el `mail()` de PHP con
+  `from_address`). No se tocó ni el envío ni el orden de los transportes: es
+  la misma secuencia, ahora con nombres.
+- `MassAction::mergePermissions()` sale del diálogo de combinar/enlazar: el
+  permiso se resuelve **por departamento** y basta uno sin permiso para que el
+  diálogo avise. Tres pruebas, con un agente de mentira que reparte roles. De
+  paso, el ticket sobre el que se abre el diálogo pasa a ser **el primero** de
+  la lista: se usaba la variable del bucle (`$ticket[0]`), que acababa siendo
+  el último leído, así que el comentario y el código no coincidían.
 
 El criterio de éxito **no se cumple todavía**: quedan **5 funciones de la
-aplicación por encima de 120 líneas** (`Mailer::send()` 270,
-`massProcess()` de tickets 227, `Ticket::create()` 219, `massProcess()` de
-tareas 191 y `Ticket::postMessage()` 178), pero ya ninguna pasa de 230 por la
-vía de los diálogos en lote. Los archivos por encima de 3.000 ya no existen:
-los tres se repartieron en el frente 6.
+aplicación por encima de 120 líneas** (`massProcess()` de tickets 230,
+`Ticket::create()` 219, `massProcess()` de tareas 191,
+`Ticket::postMessage()` 178 y `Mailer::send()` 147, que ya sólo pasa por tres
+líneas), pero **ninguna pasa de 230** y el envío de correo dejó de ser la más
+larga. Los archivos por encima de 3.000 ya no existen: los tres se repartieron
+en el frente 6. Lo que queda pendiente son las dos `massProcess()` —el caso
+`assign`, gemelo letra por letra en tickets y tareas—, `Ticket::create()` y
+`Ticket::postMessage()`: los cuatro tocan la base, así que antes hay que
+ampliar el banco de `make docker-integration` (hoy 19 casos y sólo ORM).
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Función más larga de la aplicación | 536 líneas | **302** (`install()` del instalador; la de la aplicación es `Mailer::send()` con **270**) |
-| `massProcess()` de tickets | 377 líneas | **227** (`MassAction`: textos de los diálogos, análisis de la combinación y diálogo de asignación) |
+| Función más larga de la aplicación | 536 líneas | **302** (`install()` del instalador; la de la aplicación es `massProcess()` de tickets con **230**) |
+| `massProcess()` de tickets | 377 líneas | **230** (`MassAction`: textos de los diálogos, análisis de la combinación, permisos por departamento y diálogo de asignación) |
 | `massProcess()` de tareas | 330 líneas | **191** (`MassAction`) |
 | `run()` de `include/cli/modules/file.php` | 408 líneas | **12** (nueve `actionXxx()` + `matchingFiles()` / `oneFile()`) |
-| `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |
+| `Mailer::send()` | 297 líneas | **147** (`MailerMessage` + cuatro pasos privados: destinatarios, adjuntos, SMTP y Sendmail) |
 | `Ticket::create()` | 536 líneas | **219** (nueve fases en `TicketCreate`) |
 | `Ticket::postMessage()` | 190 líneas | **178** (`TicketPost`) |
 | `Thread::postEmail()` | 181 líneas | **149** (`ThreadEmailInfo`), y después **33** (cuatro pasos: `applyCollaboratorSender()`, `applyReplyType()`, `stampUnknownSender()` y `postReply()`) |

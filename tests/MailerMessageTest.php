@@ -203,4 +203,97 @@ class MailerMessageTest extends UnitTestCase {
         $this->assertSame('@localhost',
             \osTicket\Mail\MailerMessage::contentIdDomain(null));
     }
+
+    /* ------------------------------------------------------------------ */
+    /* Separador de la respuesta citada                                    */
+    /* ------------------------------------------------------------------ */
+
+    public function testSinLaOpcionMandaLaConfiguracion(): void {
+        // Si se recorta la cita, el separador configurado delante del cuerpo
+        $this->assertSame('--- fin ---<br/><br/>',
+            \osTicket\Mail\MailerMessage::replyTag(array(), true, '--- fin ---'));
+    }
+
+    public function testSinLaOpcionYSinRecorteNoHaySeparador(): void {
+        $this->assertSame('',
+            \osTicket\Mail\MailerMessage::replyTag(array(), false, '--- fin ---'));
+    }
+
+    public function testLaOpcionEnFalseQuitaElSeparador(): void {
+        // Quien llama pidió explícitamente que no lo haya
+        $this->assertSame('',
+            \osTicket\Mail\MailerMessage::replyTag(
+                array('reply-tag' => false), true, '--- fin ---'));
+    }
+
+    public function testLaOpcionConTextoSeRespetaTalCual(): void {
+        // No se le añade el <br/><br/>: el texto ya trae lo que necesite
+        $this->assertSame('Mi separador',
+            \osTicket\Mail\MailerMessage::replyTag(
+                array('reply-tag' => 'Mi separador'), true, '--- fin ---'));
+        $this->assertSame('',
+            \osTicket\Mail\MailerMessage::replyTag(
+                array('reply-tag' => ''), true, '--- fin ---'));
+    }
+
+    public function testElSeparadorPorDefectoNoSeInventa(): void {
+        $this->assertSame('<br/><br/>',
+            \osTicket\Mail\MailerMessage::replyTag(array(), true));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Reescritura de los cid:                                             */
+    /* ------------------------------------------------------------------ */
+
+    public function testUnCidConSuIdentificadorGanaElDominio(): void {
+        $id = str_repeat('a', 32);
+
+        $this->assertSame('src="cid:' . $id . '@example.com"',
+            \osTicket\Mail\MailerMessage::rewriteContentIds(
+                'src="cid:' . $id . '"', '@example.com',
+                function ($matchId) use ($id) {
+                    return $matchId === $id ? '@example.com' : null;
+                }));
+    }
+
+    public function testSiLaImagenYaNoEstaElCidSeQuedaComoEsta(): void {
+        // El cuerpo conserva la referencia rota en vez de perder texto
+        $body = 'src="cid:' . str_repeat('b', 32) . '"';
+
+        $this->assertSame($body,
+            \osTicket\Mail\MailerMessage::rewriteContentIds(
+                $body, '@example.com', function ($id) { return null; }));
+    }
+
+    public function testUnCidCortoOCursivaNoSeToca(): void {
+        // El patrón pide exactamente 32 caracteres
+        $corto = 'cid:' . str_repeat('c', 31);
+        $largo = 'cid:' . str_repeat('d', 33);
+        $id = str_repeat('e', 32);
+        $body = $corto . ' ' . $largo . ' cid:' . $id . '-otro';
+
+        $this->assertSame($body,
+            \osTicket\Mail\MailerMessage::rewriteContentIds(
+                $body, '@example.com', function ($id) { return null; }));
+    }
+
+    public function testSeReescribenTodosLosCid(): void {
+        $uno = str_repeat('1', 32);
+        $dos = str_repeat('2', 32);
+        $body = 'cid:' . $uno . ' y cid:' . $dos;
+
+        $this->assertSame('cid:' . $uno . '@example.com y cid:' . $dos . '@example.com',
+            \osTicket\Mail\MailerMessage::rewriteContentIds(
+                $body, '@example.com',
+                function ($id) { return '@example.com'; }));
+    }
+
+    public function testElCuerpoVacioNoRompeLaReescritura(): void {
+        $this->assertSame('',
+            \osTicket\Mail\MailerMessage::rewriteContentIds(
+                '', '@example.com', function ($id) { return '@example.com'; }));
+        $this->assertSame('',
+            \osTicket\Mail\MailerMessage::rewriteContentIds(
+                null, '@example.com', function ($id) { return '@example.com'; }));
+    }
 }

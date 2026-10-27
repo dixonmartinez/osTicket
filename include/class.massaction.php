@@ -270,6 +270,23 @@ class MassAction {
     }
 
     /**
+     * Si el agente puede combinar cada uno de los tickets leídos.
+     *
+     * El permiso se resuelve por departamento (`getRole()`), no de forma
+     * global: un agente puede tener el permiso en un departamento y no en
+     * otro, y basta uno sin permiso para que el diálogo avise.
+     *
+     * @return array  un booleano por fila, en el mismo orden
+     */
+    static function mergePermissions(array $rows, $staff, $permission) {
+        $has = array();
+        foreach ($rows as $row)
+            $has[] = $staff->getRole($row['dept_id'])->hasPerm($permission);
+
+        return $has;
+    }
+
+    /**
      * Orden de la lista de agentes asignables, según el formato de nombre.
      *
      * `System Settings → Agents → Name Format` decide si el nombre empieza

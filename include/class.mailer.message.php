@@ -5,7 +5,8 @@
  * Piezas de `Mailer::send()` que no envían nada ni tocan la base de datos
  * (frente 2 de docs/CODE_QUALITY.md): el asunto de una línea, las cabeceras
  * que dependen del tipo de aviso, el envoltorio que lleva el identificador
- * del mensaje, el cuerpo de texto y el dominio de las imágenes incrustadas.
+ * del mensaje, el cuerpo de texto, el dominio de las imágenes incrustadas, el
+ * separador de la respuesta citada y la reescritura de los `cid:`.
  *
  * Lo que NO está aquí, a propósito: las cuentas SMTP, el envío por Sendmail y
  * los destinatarios. Los destinatarios se traducen a `to`/`cc`/`bcc` según su
@@ -87,6 +88,41 @@ class MailerMessage {
         $text = rtrim(\Format::html2text($body, 90, false));
 
         return $text . ($messageId ? "\nRef-Mid: $messageId\n" : '');
+    }
+
+    /**
+     * Separador que se pone delante de la respuesta citada.
+     *
+     * Tres casos, en este orden (es el orden del código original):
+     *
+     *   - la opción no viene: el separador configurado, si se recorta la cita,
+     *     y nada si no;
+     *   - la opción viene en `false`: nada (el llamador lo pidió así);
+     *   - la opción viene con texto: tal cual.
+     */
+    static function replyTag(array $options, $stripQuoted, $separator = '') {
+        if (!array_key_exists('reply-tag', $options))
+            return $stripQuoted ? $separator . '<br/><br/>' : '';
+
+        return $options['reply-tag'] === false ? '' : (string) $options['reply-tag'];
+    }
+
+    /**
+     * Los `cid:` de las imágenes incrustadas llevan su identificador corto
+     * (32 caracteres) y, en el correo que sale, el dominio detrás.
+     *
+     * `$link` recibe el identificador y devuelve el sufijo a añadir —el
+     * dominio— o `null` para dejar ese `cid:` como está (por ejemplo, si el
+     * archivo ya no existe: el cuerpo conserva la referencia rota en vez de
+     * perder texto).
+     */
+    static function rewriteContentIds($body, $domain, callable $link) {
+        return preg_replace_callback('/cid:([\w.-]{32})/',
+            function ($match) use ($domain, $link) {
+                $suffix = $link($match[1]);
+
+                return $suffix === null ? $match[0] : $match[0] . $suffix;
+            }, (string) $body);
     }
 
     /**

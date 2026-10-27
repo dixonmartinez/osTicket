@@ -780,9 +780,10 @@ class TicketsAjaxAPI extends AjaxController {
                     'merge_type' => Ticket::getMergeTypeByFlag($flags),
                     'is_parent' => Ticket::isParentStatic($flags),
                 );
-                $hasPermission[] = $thisstaff->getRole($dept_id)
-                    ->hasPerm($permission);
             }
+            // Permisos por departamento: pieza pura de MassAction
+            $hasPermission = MassAction::mergePermissions($rows, $thisstaff,
+                $permission);
 
             $mergeProblems = MassAction::analyzeMerge($rows, $title,
                 $eventName, $count);
@@ -811,9 +812,11 @@ class TicketsAjaxAPI extends AjaxController {
                                   'entries' => SqlAggregate::COUNT('thread__entries__id'),))
                  ->order_by($expr ?: 'sort');
             // El ticket sobre el que se abre el diálogo: el padre si lo hay
-            // y, si no, el primero de la lista. (`$parent[0]` sobre `false`
-            // dejaba un aviso de PHP cuando no había padre.)
-            $ticket = Ticket::lookup($parent ? $parent['ticket_id'] : $ticket[0]);
+            // y, si no, el primero de la lista. Antes se usaba `$ticket[0]`,
+            // que era la variable del bucle y acababa siendo el **último**
+            // leído; ahora es la primera fila de la consulta.
+            $ticket = Ticket::lookup($parent
+                ? $parent['ticket_id'] : $rows[0]['ticket_id']);
 
             // Generic permission check.
             if (in_array(false, $hasPermission) && !$ticket->getThread()->isReferred()) {

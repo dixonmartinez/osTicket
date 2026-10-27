@@ -397,15 +397,10 @@ class Mailer {
 
             // Embedded message id token
             $mid_token = $messageId;
-            // Set Reply-Tag
-            if (!isset($options['reply-tag'])) {
-                if ($cfg && $cfg->stripQuotedReply())
-                    $options['reply-tag'] = $cfg->getReplySeparator() . '<br/><br/>';
-                else
-                    $options['reply-tag'] = '';
-            } elseif ($options['reply-tag'] === false) {
-                $options['reply-tag'] = '';
-            }
+            // Set Reply-Tag (los tres casos están en MailerMessage::replyTag)
+            $strip = $cfg && $cfg->stripQuotedReply();
+            $options['reply-tag'] = MailerMessage::replyTag($options, $strip,
+                $strip ? $cfg->getReplySeparator() : '');
         }
 
         // Return-Path
@@ -428,6 +423,83 @@ class Mailer {
         $message->addHeaders($headers);
 
         // Add recipients
+        $this->addRecipients($message, $recipients);
+
+        // Add in extra attachments, if any from template variables
+        if ($body instanceof \TextWithExtras
+            && ($attachments = $body->getAttachments())) {
+            foreach ($attachments as $a) {
+                $message->addAttachment($a->getFile());
+            }
+        }
+
+        // If the message is not explicitly declared to be a text message,
+        // then assume that it needs html processing to create a valid text
+        // body
+        $isHtml = true;
+        if (!(isset($options['text']) && $options['text'])) {
+            // Embed the data-mid in such a way that it should be included
+            // in a response
+            $body = MailerMessage::wrapMid($body, $mid_token,
+                $options['reply-tag']);
+
+            $txtbody = MailerMessage::textBody($body, $messageId);
+            $message->setTextBody($txtbody);
+        }
+        else {
+            $message->setTextBody($body);
+            $isHtml = false;
+        }
+
+        if ($isHtml && $cfg && $cfg->isRichTextEnabled()) {
+            // Dominio compatible con pear Mail_Mime
+            $domain = MailerMessage::contentIdDomain($this->getFromAddress());
+            // Format content-ids with the domain, and add the inline images
+            // to the email attachment list
+            $self = $this;
+            $body = MailerMessage::rewriteContentIds($body, $domain,
+                function($id) use ($domain, $message, $self) {
+                    if (!($file=$self->getFile($id)))
+                        return null;
+
+                    try {
+                        $message->addInlineImage($id.$domain, $file);
+                        // Don't re-attach the image below
+                        unset($self->attachments[$file->getUId()]);
+                        return $domain;
+                    }  catch(\Exception $ex) {
+                         $self->logWarning(sprintf("%1\$s:%2\$s\n\n%3\$s\n",
+                                     _S("Unable to retrieve email inline image"),
+                                     $id.$domain,
+                                     $ex->getMessage()));
+                         return null;
+                    }
+                });
+            // Add an HTML body
+            $message->setHtmlBody($body);
+        }
+        //XXX: Attachments
+        $this->attachFiles($message);
+
+        // SMTP primero; si no hay o falla, Sendmail
+        if (($id = $this->deliverViaSmtp($message)))
+            return $id;
+
+        if (($id = $this->deliverViaSendmail($message, $options)))
+            return $id;
+        return false;
+    }
+
+    /**
+     * Añade los destinatarios al mensaje, cada uno por su puerta.
+     *
+     * El tipo lo decide la clase del destinatario: `EmailRecipient` dice si va
+     * en `to`, `cc` o `bcc`; el propietario del ticket y el agente son `to`;
+     * el colaborador va en copia; una dirección suelta es `to`. Un
+     * destinatario que revienta al añadirse se registra y no corta el envío al
+     * resto.
+     */
+    private function addRecipients($message, $recipients) {
         if (!is_array($recipients) && (!$recipients instanceof \MailingList))
             $recipients =  array($recipients);
         foreach ($recipients as $recipient) {
@@ -478,82 +550,47 @@ class Mailer {
                     ));
             }
         }
+    }
 
-        // Add in extra attachments, if any from template variables
-        if ($body instanceof \TextWithExtras
-            && ($attachments = $body->getAttachments())) {
-            foreach ($attachments as $a) {
-                $message->addAttachment($a->getFile());
+    /**
+     * Los archivos que el `Mailer` lleva colgados (adjuntos de la respuesta,
+     * de la nota o del aviso). Un archivo que no se puede adjuntar se anota y
+     * el correo sigue con los demás.
+     */
+    private function attachFiles($message) {
+        if (!($attachments = $this->getAttachments()))
+            return;
+
+        foreach ($attachments as $file) {
+            if ($file instanceof \Attachment) {
+                $filename = $file->getFilename();
+                $file = $file->getFile();
+            } else {
+                $filename = $file->getName();
+            }
+
+            try {
+                $message->addAttachment($file, $filename);
+            } catch(\Exception $ex) {
+                $this->logWarning(sprintf("%1\$s:%2\$s\n\n%3\$s\n",
+                                 _S("Unable to retrieve email attachment"),
+                                 $filename,
+                                 $ex->getMessage()));
             }
         }
+    }
 
-        // If the message is not explicitly declared to be a text message,
-        // then assume that it needs html processing to create a valid text
-        // body
-        $isHtml = true;
-        if (!(isset($options['text']) && $options['text'])) {
-            // Embed the data-mid in such a way that it should be included
-            // in a response
-            $body = MailerMessage::wrapMid($body, $mid_token,
-                $options['reply-tag']);
-
-            $txtbody = MailerMessage::textBody($body, $messageId);
-            $message->setTextBody($txtbody);
-        }
-        else {
-            $message->setTextBody($body);
-            $isHtml = false;
-        }
-
-        if ($isHtml && $cfg && $cfg->isRichTextEnabled()) {
-            // Dominio compatible con pear Mail_Mime
-            $domain = MailerMessage::contentIdDomain($this->getFromAddress());
-            // Format content-ids with the domain, and add the inline images
-            // to the email attachment list
-            $self = $this;
-            $body = preg_replace_callback('/cid:([\w.-]{32})/',
-                function($match) use ($domain, $message, $self) {
-                    if (!($file=$self->getFile($match[1])))
-                        return $match[0];
-
-                    try {
-                        $message->addInlineImage($match[1].$domain, $file);
-                        // Don't re-attach the image below
-                        unset($self->attachments[$file->getUId()]);
-                        return $match[0].$domain;
-                    }  catch(\Exception $ex) {
-                         $self->logWarning(sprintf("%1\$s:%2\$s\n\n%3\$s\n",
-                                     _S("Unable to retrieve email inline image"),
-                                     $match[1].$domain,
-                                     $ex->getMessage()));
-                    }
-                }, $body);
-            // Add an HTML body
-            $message->setHtmlBody($body);
-        }
-        //XXX: Attachments
-        if(($attachments=$this->getAttachments())) {
-            foreach($attachments as $file) {
-                if ($file instanceof \Attachment) {
-                    $filename = $file->getFilename();
-                    $file = $file->getFile();
-                } else {
-                    $filename = $file->getName();
-                }
-
-                try {
-                    $message->addAttachment($file, $filename);
-                } catch(\Exception $ex) {
-                    $this->logWarning(sprintf("%1\$s:%2\$s\n\n%3\$s\n",
-                                     _S("Unable to retrieve email attachment"),
-                                     $filename,
-                                     $ex->getMessage()));
-                }
-            }
-        }
-
-        // Try possible SMTP Accounts - connections are cached per request
-        // at the account level.
+    /**
+     * Intenta la entrega por cada cuenta SMTP configurada, en orden. Las
+     * conexiones se cachean por petición dentro de la cuenta.
+     *
+     * Si la cuenta no permite suplantar, el `Sender` pasa a ser el de la
+     * cuenta (y se intenta conservar el nombre). Al fallar una cuenta, el
+     * `From` vuelve al original antes de probar la siguiente.
+     *
+     * @return string|false  identificador del mensaje, o false
+     */
+    private function deliverViaSmtp($message) {
         foreach ($this->getSmtpAccounts() ?: [] as $smtpAccount) {
             try {
                 //  Check if SPOOFING is allowed.
@@ -587,7 +624,16 @@ class Mailer {
             $message->setOriginator($this->getFromEmail(), $this->getFromName());
         }
 
-        // No SMTP or it FAILED....use Sendmail transport (PHP mail())
+        return false;
+    }
+
+    /**
+     * Sin SMTP (o con todas las cuentas fallando) se entrega por Sendmail, el
+     * `mail()` de PHP. Antes se deja el remitente como estaba.
+     *
+     * @return string|false  identificador del mensaje, o false
+     */
+    private function deliverViaSendmail($message, array $options = array()) {
         // Set Sender / Originator
         if (isset($options['from_address'])) {
             // This is often set via Mailer::sendmail()
@@ -611,6 +657,7 @@ class Mailer {
                         $ex->getMessage()
                 ));
         }
+
         return false;
     }
 
