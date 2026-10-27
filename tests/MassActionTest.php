@@ -272,6 +272,92 @@ class MassActionTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Combinar y enlazar: qué se puede y qué no                           */
+    /* ------------------------------------------------------------------ */
+
+    /** Una fila como la que arma `massProcess()` antes de analizar. */
+    private function fila($id, $mergeType = 'visual', $isParent = false, $pid = null) {
+        return array('ticket_id' => $id, 'merge_type' => $mergeType,
+            'is_parent' => $isParent, 'ticket_pid' => $pid);
+    }
+
+    /** Sin padres ni hijos: el primero de la lista abre el diálogo. */
+    public function testCombinarSinPadresNoAvisa(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(1), $this->fila(2)), 'merge', 'merged', 2);
+
+        $this->assertNull($analysis['parent']);
+        $this->assertNull($analysis['parent_merge_type']);
+        $this->assertNull($analysis['error']);
+    }
+
+    /** Con un padre, es él quien encabeza: se mueve al principio. */
+    public function testElPrimerPadreEsElQueEncabeza(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(7), $this->fila(9, 'combine', true)), 'merge', 'merged', 2);
+
+        $this->assertSame(9, $analysis['parent']['ticket_id']);
+        $this->assertSame('combine', $analysis['parent_merge_type']);
+        $this->assertNull($analysis['error']);
+    }
+
+    /** Dos padres: no se puede, y se dice cuál es el problema. */
+    public function testDosPadresSeRechazan(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(9, 'combine', true), $this->fila(10, 'combine', true)),
+            'merge', 'merged', 2);
+
+        $this->assertSame('More than one Parent Ticket selected. '
+            . 'The selected Tickets cannot be merged.',
+            $analysis['error']);
+    }
+
+    /** Enlazar algo que ya es una combinación: no se puede. */
+    public function testEnlazarUnaCombinacionSeRechaza(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(5, 'combine')), 'link', 'linked', 1);
+
+        $this->assertSame('One or more Tickets selected is part of a merge. '
+            . 'Merged Tickets cannot be linked.', $analysis['error']);
+        // El mismo ticket como combinación normal no da problema
+        $this->assertNull(MassAction::analyzeMerge(
+            array($this->fila(5, 'combine')), 'merge', 'merged', 1)['error']);
+    }
+
+    /** Un hijo combinado no se puede volver a combinar. */
+    public function testUnHijoCombinadoSeRechaza(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(5, 'combine', false, 9)), 'merge', 'merged', 1);
+
+        $this->assertSame('One or more Tickets selected is a merged child. '
+            . 'the selected Ticket cannot be merged.', $analysis['error']);
+        // …pero enlazarlo sí (enlazar no cambia el tipo de combinación)
+        $this->assertNull(MassAction::analyzeMerge(
+            array($this->fila(5, 'visual', false, 9)), 'link', 'linked', 1)['error']);
+    }
+
+    /** Las combinaciones «visuales» no bloquean nada. */
+    public function testUnaCombinacionVisualNoBloquea(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(5, 'visual', true, null)), 'link', 'linked', 1);
+
+        $this->assertNull($analysis['error']);
+        $this->assertNull($analysis['parent'],
+            'una combinación visual no encabeza la lista');
+    }
+
+    /** Si se dan varias condiciones, gana la última (como en el original). */
+    public function testElUltimoAvisoGana(): void {
+        $analysis = MassAction::analyzeMerge(
+            array($this->fila(9, 'combine', true), $this->fila(10, 'combine', true),
+                $this->fila(11, 'combine', false, 9)),
+            'merge', 'merged', 3);
+
+        $this->assertStringContainsString('merged child', $analysis['error'],
+            'el aviso del hijo combinado se comprueba después de los padres');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Textos de los diálogos en lote                                      */
     /* ------------------------------------------------------------------ */
 

@@ -263,12 +263,20 @@ aplicación ya no es un flujo de 500 líneas.
 
 **Tanda del 2026-10-27** (frentes 2 y 6 a la vez):
 
+- `MassAction::analyzeMerge()` se queda con las **tres comprobaciones del
+  diálogo de combinar/enlazar**, que vivían dentro del `foreach` que recorre
+  los tickets, mezcladas con la consulta y con los permisos. Entra una lista de
+  filas ya leídas y sale el padre que encabeza la lista y el aviso; no toca la
+  base, así que tiene prueba propia (siete casos: sin padres, un padre, dos
+  padres, enlazar una combinación, hijo combinado, combinación visual y el
+  orden en que gana el último aviso). De paso desaparece un aviso de PHP:
+  `$parent[0]` se evaluaba sobre `false` cuando no había padre.
 - `MassAction` gana los **textos de los diálogos en lote**, que estaban escritos
   dos veces —una por cada `massProcess()`— letra por letra:
   `assignPrompt()`, `confirm()`, `failure()`, `selection_noun()` y
   `agentOrder()`. El orden de la lista de agentes según el formato de nombre
   era un `switch` duplicado; ahora es una función con prueba. `massProcess()`
-  de tickets baja de **321 a 282** y el de tareas de **287 a 237**.
+  de tickets baja de **321 a 276** y el de tareas de **287 a 237**.
   Cinco pruebas nuevas en `tests/MassActionTest.php` fijan los textos tal como
   estaban (son de caracterización: si alguien cambia un mensaje, salta).
 - `run()` de `include/cli/modules/file.php`: **408 → 12 líneas**. Las nueve
@@ -290,7 +298,7 @@ aplicación ya no es un flujo de 500 líneas.
   rasgo— y que el archivo siga con margen bajo el tope.
 
 El criterio de éxito **no se cumple todavía**: quedan **5 funciones de la
-aplicación por encima de 120 líneas** (`massProcess()` de tickets 282,
+aplicación por encima de 120 líneas** (`massProcess()` de tickets 276,
 `Mailer::send()` 270, `massProcess()` de tareas 237, `Ticket::create()` 219 y
 `Ticket::postMessage()` 178). Los archivos por encima de 3.000 ya no existen:
 los tres se repartieron en el frente 6.
@@ -298,7 +306,7 @@ los tres se repartieron en el frente 6.
 | Objetivo | Antes | Ahora |
 |---|---|---|
 | Función más larga de la aplicación | 536 líneas | **302** (`install()` del instalador; la de la aplicación es `massProcess()` con **282**) |
-| `massProcess()` de tickets | 377 líneas | **282** (`MassAction`, textos de los diálogos) |
+| `massProcess()` de tickets | 377 líneas | **276** (`MassAction`: textos de los diálogos y análisis de la combinación) |
 | `massProcess()` de tareas | 330 líneas | **237** (`MassAction`) |
 | `run()` de `include/cli/modules/file.php` | 408 líneas | **12** (nueve `actionXxx()` + `matchingFiles()` / `oneFile()`) |
 | `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |

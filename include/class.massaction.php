@@ -206,6 +206,70 @@ class MassAction {
     }
 
     /**
+     * Qué se puede combinar o enlazar, y con qué aviso.
+     *
+     * Las tres comprobaciones del diálogo de combinación vivían dentro del
+     * `foreach` que recorre los tickets, mezcladas con la consulta y con los
+     * permisos. Aquí no se toca la base: entran las filas ya leídas —con su
+     * tipo de combinación y si son padre— y sale el padre elegido y el aviso.
+     *
+     * Como en el original, **el último aviso gana**: las tres condiciones
+     * pueden darse a la vez y se queda la que se comprueba después (hijo
+     * combinado > dos padres > parte de una combinación).
+     *
+     * @param array  $rows        filas con `ticket_id`, `merge_type`, `is_parent` y `ticket_pid`
+     * @param string $title       'merge' o 'link'
+     * @param string $eventName   'merged' o 'linked', para el mensaje
+     * @return array  ['parent' => fila|null, 'parent_merge_type' => string|null,
+     *                 'error' => string|null]
+     */
+    static function analyzeMerge(array $rows, $title, $eventName, $count) {
+        $parent = null;
+        $parentMergeType = null;
+        $error = null;
+
+        foreach ($rows as $row) {
+            $mergeType = $row['merge_type'];
+            $isParent = !empty($row['is_parent']);
+
+            // El primero que ya es padre (y no es una combinación visual) es
+            // el que encabeza la lista
+            if (!$parent && $isParent && $mergeType != 'visual') {
+                $parent = $row;
+                $parentMergeType = $mergeType;
+            }
+
+            if ($mergeType != 'visual' && $title == 'link')
+                $error = sprintf(
+                    __('One or more Tickets selected is part of a merge. '
+                        . 'Merged Tickets cannot be %s.'), __($eventName));
+
+            if ($parent && $isParent && $mergeType != 'visual'
+                    && $parent['ticket_id'] != $row['ticket_id'])
+                $error = sprintf(
+                    __('More than one Parent Ticket selected. %1$s cannot be %2$s.'),
+                    _N('The selected Ticket', 'The selected Tickets', $count),
+                    __($eventName));
+
+            if (!empty($row['ticket_pid']) && $mergeType != 'visual'
+                    && $title == 'merge')
+                $error = sprintf(
+                    __('One or more Tickets selected is a merged child. '
+                        . '%1$s cannot be %2$s.'),
+                    // Como estaba: esta cadena iba en minúscula y es una
+                    // clave de traducción distinta de la de arriba
+                    _N('the selected Ticket', 'the selected Tickets', $count),
+                    __($eventName));
+        }
+
+        return array(
+            'parent' => $parent,
+            'parent_merge_type' => $parentMergeType,
+            'error' => $error,
+        );
+    }
+
+    /**
      * Orden de la lista de agentes asignables, según el formato de nombre.
      *
      * `System Settings → Agents → Name Format` decide si el nombre empieza

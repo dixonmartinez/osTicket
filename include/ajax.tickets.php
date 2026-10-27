@@ -760,49 +760,40 @@ class TicketsAjaxAPI extends AjaxController {
             $hasPermission = array();
             $parent = false;
 
+            // Permisos por departamento y, después, qué se puede combinar:
+            // el padre elegido y los tres avisos salen de
+            // MassAction::analyzeMerge(), que no toca la base
+            $rows = array();
             $tickets = Ticket::objects()
                 ->filter(array('ticket_id__in'=>$ticketIds))
                 ->values_flat('ticket_id', 'flags', 'dept_id', 'ticket_pid');
             foreach ($tickets as $ticket) {
                 list($ticket_id, $flags, $dept_id, $ticket_pid) = $ticket;
-                $mergeType = Ticket::getMergeTypeByFlag($flags);
-                $isParent = Ticket::isParentStatic($flags);
-                $role = $thisstaff->getRole($dept_id);
-                $hasPermission[] = $role->hasPerm($permission);
-
-                if (!$ticket)
-                    continue;
-                elseif (!$parent && $isParent && $mergeType != 'visual') {
-                    $parent = $ticket;
-                    $parentMergeType = $mergeType;
-                }
-
-                if ($mergeType != 'visual' && $title == 'link')
-                    $info['error'] = sprintf(
-                            __('One or more Tickets selected is part of a merge. Merged Tickets cannot be %s.'),
-                            __($eventName)
-                            );
-
-                if ($parent && ($isParent && $mergeType != 'visual') && $parent[0] != $ticket_id)
-                    $info['error'] = sprintf(
-                            __('More than one Parent Ticket selected. %1$s cannot be %2$s.'),
-                            _N('The selected Ticket', 'The selected Tickets', $count),
-                            __($eventName)
-                            );
-
-                if ($ticket_pid && $mergeType != 'visual' && $title == 'merge')
-                    $info['error'] = sprintf(
-                            __('One or more Tickets selected is a merged child. %1$s cannot be %2$s.'),
-                            _N('The selected Ticket', 'The selected Tickets', $count),
-                            __($eventName)
-                            );
+                $rows[] = array(
+                    'ticket_id' => $ticket_id,
+                    'flags' => $flags,
+                    'dept_id' => $dept_id,
+                    'ticket_pid' => $ticket_pid,
+                    'merge_type' => Ticket::getMergeTypeByFlag($flags),
+                    'is_parent' => Ticket::isParentStatic($flags),
+                );
+                $hasPermission[] = $thisstaff->getRole($dept_id)
+                    ->hasPerm($permission);
             }
+
+            $mergeProblems = MassAction::analyzeMerge($rows, $title,
+                $eventName, $count);
+            $parent = $mergeProblems['parent'];
+            $parentMergeType = $mergeProblems['parent_merge_type'];
+            if ($mergeProblems['error'])
+                $info['error'] = $mergeProblems['error'];
+
             //move parent ticket to top of list
             if (count($ticketIds) > 1) {
                 $ticketIdsSorted = $ticketIds;
                 if ($parent && $parentMergeType != 'visual') {
                     $ticketIdsSorted = MassAction::moveToFront($ticketIds,
-                        $parent[0]);
+                        $parent['ticket_id']);
                     array_unshift($ticketIdsSorted, new SqlField('ticket_id'));
                 }
 
@@ -816,7 +807,10 @@ class TicketsAjaxAPI extends AjaxController {
                                   'collaborators' => SqlAggregate::COUNT('thread__collaborators__id'),
                                   'entries' => SqlAggregate::COUNT('thread__entries__id'),))
                  ->order_by($expr ?: 'sort');
-            $ticket = Ticket::lookup($parent[0] ?: $ticket[0]);
+            // El ticket sobre el que se abre el diálogo: el padre si lo hay
+            // y, si no, el primero de la lista. (`$parent[0]` sobre `false`
+            // dejaba un aviso de PHP cuando no había padre.)
+            $ticket = Ticket::lookup($parent ? $parent['ticket_id'] : $ticket[0]);
 
             // Generic permission check.
             if (in_array(false, $hasPermission) && !$ticket->getThread()->isReferred()) {
