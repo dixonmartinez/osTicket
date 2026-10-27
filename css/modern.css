@@ -197,9 +197,15 @@ ul#nav {
     position: relative;
 }
 
+/* scp.css da a estas pestanas 95 px de ancho minimo y 26 px de alto; con
+   el relleno nuevo la altura recortaria el texto. Mismo selector (id+clase)
+   para poder anularlo. */
 #nav .active,
 #nav .inactive,
 #sub_nav > li {
+    min-width: 0;
+    height: auto;
+    padding: 0;
     border: 0;
     box-shadow: none;
     background: transparent;
@@ -220,6 +226,14 @@ ul#nav {
     color: var(--ui-text-muted);
     font-weight: 500;
     transition: background .15s var(--mod-ease), color .15s var(--mod-ease);
+}
+
+/* Hueco para el icono. ui.css dibuja los iconos de estas pestanas como
+   mascara en `::before` (a 10 px del borde en #nav, a 3 px en #sub_nav): el
+   relleno de la izquierda tiene que dejarles sitio o el icono se monta
+   encima del texto. */
+#nav li a:is(.home, .kb, .new, .status, .tickets) {
+    padding-left: 32px;
 }
 
 #nav li > a:hover {
@@ -297,7 +311,8 @@ ul#sub_nav {
 
 #sub_nav > li > a,
 #sub_nav > li + li > a {
-    padding: 5px 12px;
+    /* 24 px a la izquierda: el icono (mascara en ::before) va a 3 px */
+    padding: 5px 12px 5px 24px;
     border-radius: var(--mod-radius-pill);
     font-size: 13px;
     color: var(--ui-text-muted);
