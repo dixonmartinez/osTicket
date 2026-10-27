@@ -931,7 +931,7 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 899, §3.13.11).
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 906, §3.13.11).
   `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
   propio Redactor.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
@@ -1143,11 +1143,12 @@ borrar»** y los 33 seguían ahí.
   (frente 3), con la decisión pendiente: una categoría propia para
   `include/cli/`, como la del `driver`.
 - `php tests/run.php` → medido en **php-wasm** (sin `dom` ni `mbstring`):
-  **899 correctas, 0 fallos, 5 omitidas**. Veinte de ellas son de esta tanda:
+  **906 correctas, 0 fallos, 5 omitidas**. Veintisiete de ellas son de esta tanda:
   dos en `tests/SeedDataTest.php`, una en `tests/QuerySqlTest.php`, una en
   `tests/QueueEmptyStateTest.php` (el `?p=2`), una en `tests/QueueCheckTest.php`
-  (el recuento de páginas), doce en `tests/MassActionTest.php` (los textos de
-  los diálogos en lote y el análisis de combinar/enlazar), cuatro en `tests/FileManagerTest.php` (el gestor de
+  (el recuento de páginas), dieciocho en `tests/MassActionTest.php` (los textos de
+  los diálogos en lote, el análisis de combinar/enlazar y los desplegables de
+  asignación), cuatro en `tests/FileManagerTest.php` (el gestor de
   archivos del CLI) y cuatro en `tests/TicketSlaTest.php` (el rasgo con los
   vencimientos del ticket).
   En el contenedor de referencia, con `dom`, esa cuenta sube en las que se
@@ -1343,7 +1344,7 @@ queda en §6.2.
 | 30 | **Iconos de la línea de tiempo y avatar**: el borde blanco de 16 px de `.type-icon::after` pasa al tema, se retira el segundo icono del aviso de vencimiento y el avatar —que el servidor dibuja sobre lienzo blanco— va en círculo con anillo del tema. El realce de las tablas pasa de la celda a la fila, así una celda vacía no queda de otro tono (§3.13.5, §3.13.6) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
 | 31 | **Verdades de la pantalla**: la cola ya no dice «Showing 1 - 23» con la tabla vacía (`$rendered` + `setTotal(0)`), y el tiempo de respuesta no puede ser negativo (la apertura se fecha con el ticket en `SeedManager::backdate()` y el informe acota con `GREATEST`). El origen de las filas invisibles —la vista `ost_ticket__cdata`— lo detecta `make seed-doctor` (§3.13.8, §3.13.9) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/seed.php`, `include/class.report.php`, `tests/QueueEmptyStateTest.php`, `tests/ReportTimeTest.php` |
 | 32 | **`make seed-repair`**: el doctor prometía `--doctor --repair` en sus pistas y la opción **no existía**. Ahora repara sin borrar ni volver a sembrar: artículos sin categoría (por pregunta del manifiesto), entradas fechadas antes que su padre (y `thread.lastmessage`), restos de hilo y vistas de datos. Repasa la revisión al terminar (`docs/SEED.md`) | ✅ Hecho | `include/cli/modules/seed.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
-| 35 | **Frentes 2 y 6, tanda del 2026-10-27**: los textos de los diálogos en lote salen de `MassAction` (`assignPrompt()`, `confirm()`, `failure()`, `agentOrder()`) y `massProcess()` baja de 321 a **276** (tickets) y de 287 a **237** (tareas); `run()` del gestor de archivos del CLI pasa de 408 a **12** líneas, con una acción por método y un aviso de verdad para la acción inventada; y los vencimientos/SLA del ticket se van al rasgo `TicketSla`, con `class.ticket.php` de 1.982 a **1.834** (`docs/CODE_QUALITY.md`, frentes 2 y 6) | ✅ Hecho | `include/class.massaction.php`, `include/ajax.tickets.php`, `include/ajax.tasks.php`, `include/cli/modules/file.php`, `include/class.ticket.sla.php`, `tests/MassActionTest.php`, `tests/FileManagerTest.php`, `tests/TicketSlaTest.php` |
+| 35 | **Frentes 2 y 6, tanda del 2026-10-27**: los textos de los diálogos en lote salen de `MassAction` (`assignPrompt()`, `confirm()`, `failure()`, `agentOrder()`) y el **diálogo de asignación** deja de estar duplicado (`memberOptions()`, `teamAssignees()`, `finish()` y las consultas de agentes de cada tipo), así que `massProcess()` baja de 321 a **227** (tickets) y de 287 a **191** (tareas); el análisis de combinar/enlazar sale a `analyzeMerge()` con siete pruebas; `run()` del gestor de archivos del CLI pasa de 408 a **12** líneas, con una acción por método y un aviso de verdad para la acción inventada; y los vencimientos/SLA del ticket se van al rasgo `TicketSla`, con `class.ticket.php` de 1.982 a **1.834** (`docs/CODE_QUALITY.md`, frentes 2 y 6) | ✅ Hecho | `include/class.massaction.php`, `include/ajax.tickets.php`, `include/ajax.tasks.php`, `include/cli/modules/file.php`, `include/class.ticket.sla.php`, `tests/MassActionTest.php`, `tests/FileManagerTest.php`, `tests/TicketSlaTest.php` |
 | 34 | **El paginador no deja la tabla vacía**: `?p=` más allá del final pedía filas desde la 26 de una cola de 23, y la tabla salía vacía con el total en 23. Ahora la ventana se calcula después del total y la página se recorta a la última que existe; `make queue-check` dice cuántas páginas hay. Con eso queda cerrado el caso de la cola «Closed · This Year»: la base, la consulta y el ORM daban 23, la hidratación construye 23 modelos (§3.13.8) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/queue.php`, `include/cli/modules/queue.report.php`, `tests/QueueEmptyStateTest.php`, `tests/QueueCheckTest.php` |
 | 33 | **La purga de la base de conocimiento ve lo que cuenta el doctor**: `--purge-orphans` leía con el ORM, cuyo `select_related('category')` es un JOIN interno, así que enumeraba **cero** artículos con 33 huérfanos en la tabla; ahora lee sin la relación, dice cuántos ha leído y comprueba el resultado de `FAQ::delete()`. Los textos ya no recomiendan `make seed --only=faq` (make lo rechaza): `make seed-faq` es un objetivo nuevo (§3.13.10) | ✅ Hecho | `include/cli/modules/seed.repair.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
 

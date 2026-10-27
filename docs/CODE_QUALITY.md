@@ -271,6 +271,20 @@ aplicación ya no es un flujo de 500 líneas.
   padres, enlazar una combinación, hijo combinado, combinación visual y el
   orden en que gana el último aviso). De paso desaparece un aviso de PHP:
   `$parent[0]` se evaluaba sobre `false` cuando no había padre.
+- El **diálogo de asignación** deja de estar escrito dos veces. Lo que era
+  idéntico en tickets y en tareas sale a `MassAction`: la consulta de agentes
+  asignables de cada tipo (`ticketAgentMembers()`, `taskAgentMembers()` —la
+  única diferencia real entre las dos, porque tickets parte de los
+  departamentos del agente y tareas de los agentes activos—), el armado del
+  desplegable (`memberOptions()`, `teamAssignees()`) y el **cierre común** de
+  las dos `massProcess()`: mensaje de resultado, aviso de «no se pudo
+  procesar» y campos del formulario devueltos escapados (`finish()`).
+  `massProcess()` de tickets baja de **276 a 227** y el de tareas de
+  **237 a 191**. Seis pruebas nuevas para los desplegables y para el cierre
+  (prefijos `s`/`t`, aviso cuando no hay a quién asignar, singular y plural,
+  el error propio manda sobre el genérico, y sin POST no se toca nada). La
+  consulta de agentes se queda en `MassAction` porque cada tipo tiene la suya,
+  pero `memberOptions()` y `teamAssignees()` no tocan la base.
 - `MassAction` gana los **textos de los diálogos en lote**, que estaban escritos
   dos veces —una por cada `massProcess()`— letra por letra:
   `assignPrompt()`, `confirm()`, `failure()`, `selection_noun()` y
@@ -298,16 +312,17 @@ aplicación ya no es un flujo de 500 líneas.
   rasgo— y que el archivo siga con margen bajo el tope.
 
 El criterio de éxito **no se cumple todavía**: quedan **5 funciones de la
-aplicación por encima de 120 líneas** (`massProcess()` de tickets 276,
-`Mailer::send()` 270, `massProcess()` de tareas 237, `Ticket::create()` 219 y
-`Ticket::postMessage()` 178). Los archivos por encima de 3.000 ya no existen:
+aplicación por encima de 120 líneas** (`Mailer::send()` 270,
+`massProcess()` de tickets 227, `Ticket::create()` 219, `massProcess()` de
+tareas 191 y `Ticket::postMessage()` 178), pero ya ninguna pasa de 230 por la
+vía de los diálogos en lote. Los archivos por encima de 3.000 ya no existen:
 los tres se repartieron en el frente 6.
 
 | Objetivo | Antes | Ahora |
 |---|---|---|
-| Función más larga de la aplicación | 536 líneas | **302** (`install()` del instalador; la de la aplicación es `massProcess()` con **282**) |
-| `massProcess()` de tickets | 377 líneas | **276** (`MassAction`: textos de los diálogos y análisis de la combinación) |
-| `massProcess()` de tareas | 330 líneas | **237** (`MassAction`) |
+| Función más larga de la aplicación | 536 líneas | **302** (`install()` del instalador; la de la aplicación es `Mailer::send()` con **270**) |
+| `massProcess()` de tickets | 377 líneas | **227** (`MassAction`: textos de los diálogos, análisis de la combinación y diálogo de asignación) |
+| `massProcess()` de tareas | 330 líneas | **191** (`MassAction`) |
 | `run()` de `include/cli/modules/file.php` | 408 líneas | **12** (nueve `actionXxx()` + `matchingFiles()` / `oneFile()`) |
 | `Mailer::send()` | 297 líneas | **270** (`MailerMessage`) |
 | `Ticket::create()` | 536 líneas | **219** (nueve fases en `TicketCreate`) |

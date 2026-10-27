@@ -329,58 +329,23 @@ class TasksAjaxAPI extends AjaxController {
                 return $t->assign($f, $e);
             };
 
-            $assignees = null;
+            $assignees = $prompt = null;
             switch ($w) {
             case 'agents':
-                $depts = array();
                 $tids = MassAction::ids($_POST, $_POST, $_REQUEST);
-                if ($tids) {
-                    $tasks = Task::objects()
+                $depts = $tids
+                    ? Task::objects()
                         ->distinct('dept_id')
-                        ->filter(array('id__in' => $tids));
-                    $depts = $tasks->values_flat('dept_id');
-                }
-
-                $members = Staff::objects()
-                    ->distinct('staff_id')
-                    ->filter(array(
-                                'onvacation' => 0,
-                                'isactive' => 1,
-                                )
-                            );
-
-                if ($depts) {
-                    $members->filter(Q::any( array(
-                                    'dept_id__in' => $depts,
-                                    Q::all(array(
-                                        'dept_access__dept__id__in' => $depts,
-                                        Q::not(array('dept_access__dept__flags__hasbit'
-                                            => Dept::FLAG_ASSIGN_MEMBERS_ONLY,
-                                            'dept_access__dept__flags__hasbit'
-                                                => Dept::FLAG_ASSIGN_PRIMARY_ONLY))
-                                        ))
-                                    )));
-                }
-
-                call_user_func_array(array($members, 'order_by'),
-                    MassAction::agentOrder($cfg->getAgentNameFormat()));
-
-                $prompt  = __('Select an Agent');
-                $assignees = array();
-                foreach ($members as $member)
-                     $assignees['s'.$member->getId()] = $member->getName();
-
-                if (!$assignees)
-                    $info['warn'] =  __('No agents available for assignment');
+                        ->filter(array('id__in' => $tids))
+                        ->values_flat('dept_id')
+                    : array();
+                // Agentes a los que se les puede asignar lo seleccionado
+                $agent = MassAction::memberOptions(
+                    MassAction::taskAgentMembers($depts,
+                        $cfg->getAgentNameFormat()));
                 break;
             case 'teams':
-                $assignees = array();
-                $prompt = __('Select a Team');
-                foreach (Team::getActiveTeams() as $id => $name)
-                    $assignees['t'.$id] = $name;
-
-                if (!$assignees)
-                    $info['warn'] =  __('No teams available for assignment');
+                $agent = MassAction::teamAssignees(Team::getActiveTeams());
                 break;
             case 'me':
                 $info = array_merge($info,
@@ -394,6 +359,13 @@ class TasksAjaxAPI extends AjaxController {
                     return $t->claim($f, $e);
                 };
                 break;
+            }
+
+            if (isset($agent)) {
+                $assignees = $agent['assignees'];
+                $prompt = $agent['prompt'];
+                if ($agent['warn'])
+                    $info['warn'] = $agent['warn'];
             }
 
             if ($assignees != null)
@@ -508,27 +480,9 @@ class TasksAjaxAPI extends AjaxController {
         }
 
 
-        if ($_POST && $i) {
-
-            // Assume success
-            if ($i==$count) {
-                $_SESSION['::sysmsgs']['msg'] = MassAction::successMessage(
-                    $actions[$action]['verbed'], $count, 'task');
-            } else {
-                $_SESSION['::sysmsgs']['warn'] = MassAction::partialMessage(
-                    $i, $count, $actions[$action]['verbed'], 'task');
-            }
-            Http::response(201, 'processed');
-        } elseif($_POST && !isset($info['error'])) {
-            $info['error'] = $errors['err'] ?: sprintf(
-                    __('Unable to %1$s %2$s'),
-                    __('process'),
-                    _N('selected task', 'selected tasks', $count));
-        }
-
-        if ($_POST)
-            $info = array_merge($info, Format::htmlchars($_POST));
-
+        // Mensaje de resultado, aviso y campos devueltos: ver MassAction
+        $info = MassAction::finish('task', $action, $count, $i, $info, $errors,
+            $actions[$action]['verbed']);
 
         include STAFFINC_DIR . "templates/$inc";
         //  Copy checked tasks to the form.

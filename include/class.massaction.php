@@ -385,6 +385,153 @@ class MassAction {
     }
 
     /**
+     * Agentes que pueden recibir los tickets seleccionados.
+     *
+     * Misma consulta que tenía el diálogo de asignación de tickets, aquí para
+     * que no viva en medio de la acción: los agentes del departamento, salvo
+     * que todos sus departamentos estén marcados como «sólo miembros» o «sólo
+     * el principal».
+     *
+     * @param mixed  $depts  departamentos de los tickets (`values_flat`)
+     * @return mixed         lista de agentes, sin recorrer
+     */
+    static function ticketAgentMembers($depts, $staff, $format) {
+        //agents in depts $staff can access
+        $members = $staff->getDeptAgents(array('available' => true));
+
+        if ($depts) {
+            $all_agent_depts = Dept::objects()->filter(
+                Q::all( array('id__in' => $depts,
+                Q::not(array('flags__hasbit'
+                    => Dept::FLAG_ASSIGN_MEMBERS_ONLY)),
+                Q::not(array('flags__hasbit'
+                    => Dept::FLAG_ASSIGN_PRIMARY_ONLY))
+                )))->values_flat('id');
+            if (!count($all_agent_depts)) {
+                $members->filter(Q::any( array(
+                            'dept_id__in' => $depts,
+                            Q::all(array(
+                                'dept_access__dept__id__in' => $depts,
+                                Q::not(array('dept_access__dept__flags__hasbit'
+                                    => Dept::FLAG_ASSIGN_MEMBERS_ONLY,
+                                    'dept_access__dept__flags__hasbit'
+                                        => Dept::FLAG_ASSIGN_PRIMARY_ONLY))
+                                ))
+                            )));
+            }
+        }
+
+        call_user_func_array(array($members, 'order_by'), self::agentOrder($format));
+
+        return $members;
+    }
+
+    /**
+     * Agentes que pueden recibir las tareas seleccionadas.
+     *
+     * Como en la consulta de tareas de siempre: agentes activos y que no
+     * estén de vacaciones, y si se sabe de qué departamentos son las tareas,
+     * con acceso a alguno de ellos (respetando «sólo miembros» y «sólo el
+     * principal»).
+     */
+    static function taskAgentMembers($depts, $format) {
+        $members = Staff::objects()
+            ->distinct('staff_id')
+            ->filter(array(
+                        'onvacation' => 0,
+                        'isactive' => 1,
+                        ));
+
+        if ($depts) {
+            $members->filter(Q::any( array(
+                            'dept_id__in' => $depts,
+                            Q::all(array(
+                                'dept_access__dept__id__in' => $depts,
+                                Q::not(array('dept_access__dept__flags__hasbit'
+                                    => Dept::FLAG_ASSIGN_MEMBERS_ONLY,
+                                    'dept_access__dept__flags__hasbit'
+                                        => Dept::FLAG_ASSIGN_PRIMARY_ONLY))
+                                ))
+                            )));
+        }
+
+        call_user_func_array(array($members, 'order_by'), self::agentOrder($format));
+
+        return $members;
+    }
+
+    /**
+     * Opciones del desplegable de agentes: `s7 => «Nombre»`.
+     *
+     * El prefijo `s` es el que usa el formulario para saber que es un agente
+     * (los equipos van con `t`).
+     *
+     * @return array  ['assignees' => array, 'prompt' => texto, 'warn' => texto|null]
+     */
+    static function memberOptions($members) {
+        $assignees = array();
+        foreach ($members as $member)
+            $assignees['s'.$member->getId()] = $member->getName();
+
+        return array(
+            'assignees' => $assignees,
+            'prompt' => __('Select an Agent'),
+            'warn' => $assignees ? null : __('No agents available for assignment'),
+        );
+    }
+
+    /**
+     * Opciones del desplegable de equipos: `t3 => «Nombre»`.
+     *
+     * @param array $teams  id => nombre, como devuelve `Team::getActiveTeams()`
+     */
+    static function teamAssignees(array $teams) {
+        $assignees = array();
+        foreach ($teams as $id => $name)
+            $assignees['t'.$id] = $name;
+
+        return array(
+            'assignees' => $assignees,
+            'prompt' => __('Select a Team'),
+            'warn' => $assignees ? null : __('No teams available for assignment'),
+        );
+    }
+
+    /**
+     * Cierre común de las dos `massProcess()`: mensaje de resultado, aviso de
+     * «no se pudo procesar» y los campos del formulario devueltos.
+     *
+     * Si se ha hecho con alguno, responde 201 aquí mismo (no vuelve). Si no,
+     * devuelve el `$info` con el aviso puesto para que la plantilla lo enseñe.
+     *
+     * @return array  `$info` con los campos del formulario ya escapados
+     */
+    static function finish($kind, $action, $count, $done, array $info,
+            array $errors, $verbed) {
+        if ($_POST && $done) {
+            if ($done == $count)
+                $_SESSION['::sysmsgs']['msg'] = self::successMessage($verbed,
+                    $count, $kind);
+            else
+                $_SESSION['::sysmsgs']['warn'] = self::partialMessage($done,
+                    $count, $verbed, $kind);
+
+            Http::response(201, 'processed');
+        }
+        elseif ($_POST && !isset($info['error'])) {
+            list($one, $many) = self::noun($kind);
+            $info['error'] = ($errors['err'] ?? null) ?: sprintf(
+                __('Unable to %1$s %2$s'), __('process'),
+                _N($one, $many, $count));
+        }
+
+        if ($_POST)
+            $info = array_merge($info, Format::htmlchars($_POST));
+
+        return $info;
+    }
+
+    /**
      * El script que copia las casillas marcadas al formulario del diálogo.
      *
      * Estaba escrito dos veces, letra por letra, en los dos `massProcess()`.

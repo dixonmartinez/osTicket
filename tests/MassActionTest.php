@@ -453,6 +453,103 @@ class MassActionTest extends UnitTestCase {
             MassAction::failure('ticket', 'delete', 1));
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Desplegables del diálogo de asignación                              */
+    /* ------------------------------------------------------------------ */
+
+    /** Un agente de mentira, lo mínimo que mira `memberOptions()`. */
+    private function agente($id, $nombre) {
+        $agente = $this;
+        return new class($id, $nombre) {
+            private $id;
+            private $nombre;
+            public function __construct($id, $nombre) {
+                $this->id = $id;
+                $this->nombre = $nombre;
+            }
+            public function getId() { return $this->id; }
+            public function getName() { return $this->nombre; }
+        };
+    }
+
+    public function testLosAgentesVanConPrefijoS(): void {
+        // El sufijo `s` es lo que el formulario lee como agente
+        $opciones = MassAction::memberOptions(array(
+            $this->agente(7, 'Ana'), $this->agente(9, 'Beto')));
+
+        $this->assertSame(array('s7' => 'Ana', 's9' => 'Beto'),
+            $opciones['assignees']);
+        $this->assertSame('Select an Agent', $opciones['prompt']);
+        $this->assertNull($opciones['warn'], 'con agentes no hay aviso');
+    }
+
+    public function testSinAgentesSeAvisa(): void {
+        $opciones = MassAction::memberOptions(array());
+
+        $this->assertSame(array(), $opciones['assignees']);
+        $this->assertSame('No agents available for assignment',
+            $opciones['warn']);
+    }
+
+    public function testLosEquiposVanConPrefijoT(): void {
+        $opciones = MassAction::teamAssignees(array(3 => 'Soporte',
+            5 => 'Ventas'));
+
+        $this->assertSame(array('t3' => 'Soporte', 't5' => 'Ventas'),
+            $opciones['assignees']);
+        $this->assertSame('Select a Team', $opciones['prompt']);
+        $this->assertNull($opciones['warn']);
+        $this->assertSame('No teams available for assignment',
+            MassAction::teamAssignees(array())['warn']);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Cierre común de las dos massProcess()                               */
+    /* ------------------------------------------------------------------ */
+
+    public function testSinNadaHechoSeAvisaYSeDevuelvenLosCampos(): void {
+        $_POST = array('tids' => array(1, 2), 'comments' => 'motivo');
+
+        $info = MassAction::finish('ticket', 'delete', 2, 0, array(),
+            array(), 'deleted');
+
+        $this->assertSame('Unable to process selected tickets',
+            $info['error']);
+        // Los campos vuelven escapados para que el formulario no se vacíe
+        $this->assertSame('motivo', $info['comments']);
+        $_POST = array();
+    }
+
+    public function testElAvisoSinNadaHechoVaEnSingular(): void {
+        $_POST = array('tids' => array(1));
+
+        $info = MassAction::finish('task', 'delete', 1, 0, array(),
+            array(), 'deleted');
+
+        $this->assertSame('Unable to process selected task', $info['error']);
+        $_POST = array();
+    }
+
+    public function testElErrorPropioMandaSobreElGenerico(): void {
+        $_POST = array('tids' => array(1));
+
+        $info = MassAction::finish('ticket', 'delete', 1, 0, array(),
+            array('err' => 'Permission denied'), 'deleted');
+
+        $this->assertSame('Permission denied', $info['error']);
+        $_POST = array();
+    }
+
+    public function testSinPostNoSeTocaNada(): void {
+        $_POST = array();
+
+        $info = MassAction::finish('ticket', 'delete', 2, 0,
+            array(':title' => 'Delete 2 selected tickets'), array(), 'deleted');
+
+        $this->assertTrue(!isset($info['error']), 'sin POST no hay aviso');
+        $this->assertSame('Delete 2 selected tickets', $info[':title']);
+    }
+
     public function testElScriptCopiaElValorDeLaCasilla(): void {
         // Sin esto, el formulario del diálogo no sabría qué tickets van
         $script = MassAction::selectedScript('tickets');
