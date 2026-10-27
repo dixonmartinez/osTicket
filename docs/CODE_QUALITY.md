@@ -912,6 +912,22 @@ que no ejecutan código).
   `OrmPropertiesTest`, `SeedDataTest` y `SeedPurgeTest` **leen el código como
   texto**, así que ahora siguen los `use Trait;` en vez de mirar sólo el archivo
   de la clase.
+
+  **Un cuarto fallo, este sí llegó al navegador.** `class.dynamic_forms.php`
+  termina en `?>`; el `include_once()` del archivo nuevo se añadió detrás, así
+  que dejó de ser código y pasó a ser **texto de salida**: todas las páginas del
+  portal —el login incluido— aparecían con la línea del `include_once` impresa
+  encima del `<!DOCTYPE>`, y `/scp/` se quedaba en blanco porque la salida previa
+  impedía mandar las cabeceras. La suite no lo podía ver: ninguna prueba
+  renderiza una página, y el multiconjunto de líneas daba por bueno el traslado
+  porque la línea seguía estando. Lo cazó una captura del usuario.
+
+  Ahora hay guardián: `tests/LibraryOutputTest.php` recorre las 195 librerías de
+  `include/` y falla si alguna escribe **texto fuera de PHP a nivel superior**
+  (lo que hay dentro de un método es una plantilla que se devuelve, no salida).
+  Se comprobó que la prueba falla de verdad volviendo a meter el `include_once()`
+  detrás del `?>`: señala el archivo y la línea. Después del arreglo, cargar
+  `class.dynamic_forms.php` escribe **0 bytes**.
 - Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
   de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
   cambios y cuerpos de entrada.

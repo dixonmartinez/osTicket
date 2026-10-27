@@ -1930,8 +1930,7 @@ class SelectionField extends FormField {
     }
 }
 
-
-?>
-
 /* Buscador de la lista de seleccion: ver class.dynamic_forms.widget.php */
 include_once(INCLUDE_DIR . 'class.dynamic_forms.widget.php');
+
+?>
