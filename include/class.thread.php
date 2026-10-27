@@ -461,6 +461,16 @@ implements Searchable {
      *      - subject - (string) email subject line (decoded)
      *      - body - (string) email message body (decoded)
      */
+    /**
+     * Guarda en el hilo la entrada que trae un correo.
+     *
+     * El reparto: `applyCollaboratorSender()` ajusta quién escribe cuando el
+     * remitente resulta ser un colaborador en copia, `applyReplyType()` decide
+     * si es un mensaje del cliente o una nota del agente, y `postReply()` lo
+     * guarda. Las tres decisiones estaban antes en las mismas 149 líneas.
+     *
+     * Devuelve la entrada guardada o `false` si el correo no se procesa.
+     */
     function postEmail($mailinfo, $entry=null) {
         // +==================+===================+=============+
         // | Orig Thread-Type | Reply Thread-Type | Requires    |
@@ -482,6 +492,37 @@ implements Searchable {
 
         $body = $mailinfo['message'];
 
+        $this->applyCollaboratorSender($mailinfo, $vars, $object);
+
+        // Tipo de entrada: por la clase de remitente que dedujo el analizador
+        // de correo y, si no la hay, por el remitente. Ver
+        // ThreadEmailInfo::entryTypeForUserClass()
+        if (($vars = $this->applyReplyType($mailinfo, $vars, $object)) === false)
+            return false;
+
+        // Ensure we record the name of the person posting
+        $vars['poster'] = ThreadEmailInfo::poster($vars['poster'],
+            $mailinfo['name'] ?? null, $mailinfo['email'] ?? null);
+
+        $body = $this->stampUnknownSender($vars, $body, $mailinfo);
+
+        if ($mailinfo['system_emails']
+                && ($t = $this->getObject())
+                && $t instanceof Ticket)
+            $t->systemReferral($mailinfo['system_emails']);
+
+        return $this->postReply($vars, $body, $object, $errors);
+    }
+
+    /**
+     * Si el remitente es un colaborador en copia, la respuesta es un mensaje
+     * del cliente y no una nota.
+     *
+     * Los datos del correo llegan incompletos cuando el cliente de correo no
+     * arrastra las cabeceras de referencia: aquí se completan mirando si la
+     * dirección pertenece al dueño del ticket o a un colaborador.
+     */
+    function applyCollaboratorSender(&$mailinfo, &$vars, $object) {
         // extra handling for determining Cc collabs
         if ($mailinfo['email']) {
           $staffSenderId = Staff::getIdByEmail($mailinfo['email']);
@@ -503,7 +544,15 @@ implements Searchable {
             }
           }
         }
+    }
 
+    /**
+     * El tipo de entrada —mensaje del cliente o nota del agente— y de quién es.
+     *
+     * Devuelve las variables ya resueltas o `false` si el correo viene de una
+     * cuenta del propio sistema y no hay que procesarlo.
+     */
+    function applyReplyType($mailinfo, $vars, $object) {
         // Attempt to determine the user posting the entry and the
         // corresponding entry type by the information determined by the
         // mail parser (via the In-Reply-To header)
@@ -521,63 +570,76 @@ implements Searchable {
             }
             else
                 $vars['userId'] = $mailinfo['userId'] ?? null;
-        }
-        else {
-            // The user type was not identified by the mail parsing system. It
-            // is likely that the In-Reply-To and References headers were not
-            // properly brokered by the user's mail client. Use the old logic to
-            // determine the post type.
-            // Disambiguate if the user happens also to be a staff member of
-            // the system. The current ticket owner should _always_ post
-            // messages instead of notes or responses
-            if ($object instanceof Ticket
-                && strcasecmp($mailinfo['email'], $object->getEmail()) == 0
-            ) {
-                $vars['thread-type'] = 'M';
-                $vars['userId'] = $object->getUserId();
-            }
-            // Consider collaborator role (disambiguate staff members as
-            // collaborators). Normally, the block above should match based
-            // on the Referenced message-id header
-            elseif ($C = $this->collaborators->filter(array(
-                'user__emails__address' => $mailinfo['email']
-            ))->first()) {
-                $vars['thread-type'] = 'M';
-                // XXX: There's no way that mailinfo[userId] would be set
-                $vars['userId'] = ($mailinfo['userId'] ?? null) ?: $C->getUserId();
-                $vars['flags'] = ThreadEntry::FLAG_COLLABORATOR;
-            }
-            // Don't process the email -- it came FROM this system
-            elseif (Email::getIdByEmail($mailinfo['email'])) {
-                return false;
-            }
+
+            return $vars;
         }
 
-        // Ensure we record the name of the person posting
-        $vars['poster'] = ThreadEmailInfo::poster($vars['poster'],
-            $mailinfo['name'] ?? null, $mailinfo['email'] ?? null);
-
-        // TODO: Consider security constraints
-        if (!$vars['thread-type']) {
-            //XXX: Are we potentially leaking the email address to
-            // collaborators?
-            // Try not to destroy the format of the body
-            $header = ThreadEmailInfo::receivedFrom($mailinfo['name'],
-                $mailinfo['email']);
-            if ($body instanceof HtmlThreadEntryBody)
-                $header = nl2br(Format::htmlchars($header));
-            // Add the banner to the top of the message
-            if ($body instanceof ThreadEntryBody)
-                $body->prepend($header);
-            $vars['userId'] = 0; //Unknown user! //XXX: Assume ticket owner?
+        // The user type was not identified by the mail parsing system. It
+        // is likely that the In-Reply-To and References headers were not
+        // properly brokered by the user's mail client. Use the old logic to
+        // determine the post type.
+        // Disambiguate if the user happens also to be a staff member of
+        // the system. The current ticket owner should _always_ post
+        // messages instead of notes or responses
+        if ($object instanceof Ticket
+            && strcasecmp($mailinfo['email'], $object->getEmail()) == 0
+        ) {
             $vars['thread-type'] = 'M';
+            $vars['userId'] = $object->getUserId();
+
+            return $vars;
         }
 
-        if ($mailinfo['system_emails']
-                && ($t = $this->getObject())
-                && $t instanceof Ticket)
-            $t->systemReferral($mailinfo['system_emails']);
+        // Consider collaborator role (disambiguate staff members as
+        // collaborators). Normally, the block above should match based
+        // on the Referenced message-id header
+        if ($C = $this->collaborators->filter(array(
+            'user__emails__address' => $mailinfo['email']
+        ))->first()) {
+            // XXX: There's no way that mailinfo[userId] would be set
+            return array_merge($vars, ThreadEmailInfo::collaboratorType(
+                $C->getUserId(), $mailinfo['userId'] ?? null));
+        }
 
+        // Don't process the email -- it came FROM this system
+        if (Email::getIdByEmail($mailinfo['email']))
+            return false;
+
+        return $vars;
+    }
+
+    /**
+     * Si no se sabe quién escribe, el cuerpo lleva delante el aviso de
+     * «Received From» y la entrada queda como mensaje de un usuario anónimo.
+     */
+    function stampUnknownSender(&$vars, $body, $mailinfo) {
+        // TODO: Consider security constraints
+        if ($vars['thread-type'])
+            return $body;
+
+        //XXX: Are we potentially leaking the email address to
+        // collaborators?
+        // Try not to destroy the format of the body
+        $header = ThreadEmailInfo::receivedFrom($mailinfo['name'],
+            $mailinfo['email']);
+        if ($body instanceof HtmlThreadEntryBody)
+            $header = nl2br(Format::htmlchars($header));
+        // Add the banner to the top of the message
+        if ($body instanceof ThreadEntryBody)
+            $body->prepend($header);
+        $vars['userId'] = 0; //Unknown user! //XXX: Assume ticket owner?
+        $vars['thread-type'] = 'M';
+
+        return $body;
+    }
+
+    /**
+     * Guarda la entrada en el objeto (ticket o tarea) o en este hilo.
+     *
+     * Casi todo lo que llega por correo es un ticket con `Threadable`; los
+     * objetos que no lo son guardan su entrada con `addMessage()`/`addNote()`.
+     */
+    function postReply($vars, $body, $object, &$errors) {
         switch ($vars['thread-type']) {
         case 'M':
             $vars['message'] = $body;
@@ -610,6 +672,7 @@ implements Searchable {
         // not append the incoming email.
         return false;
     }
+
 
     function deleteAttachments() {
         $deleted = Attachment::objects()->filter(array(

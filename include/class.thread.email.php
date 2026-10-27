@@ -110,6 +110,26 @@ class ThreadEmailInfo {
         return sprintf(_S('Received From: %1$s <%2$s>') . "\n\n", $name, $email);
     }
 
+    /**
+     * Lo que hay que poner en las variables cuando escribe un colaborador.
+     *
+     * Un colaborador en copia escribe un **mensaje** (no una nota) y la
+     * entrada queda marcada como de colaborador. El `userId` del correo, si
+     * vino, manda sobre el del colaborador: es el que dedujo el analizador a
+     * partir de las cabeceras.
+     *
+     * @param int    $collaboratorId  usuario dueño de la dirección
+     * @param mixed  $mailinfoUserId  `userId` que trae el correo (o `null`)
+     * @return array
+     */
+    static function collaboratorType($collaboratorId, $mailinfoUserId = null) {
+        return array(
+            'thread-type' => 'M',
+            'userId' => $mailinfoUserId ?: $collaboratorId,
+            'flags' => self::FLAG_COLLABORATOR,
+        );
+    }
+
     /* ------------------------------------------------------------------ */
     /* A qué entrada contesta un correo                                    */
     /* ------------------------------------------------------------------ */

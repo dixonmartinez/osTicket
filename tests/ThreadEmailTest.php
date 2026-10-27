@@ -140,6 +140,36 @@ class ThreadEmailTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Quién escribe: el colaborador en copia                              */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Un colaborador escribe un mensaje, no una nota, y la entrada se marca
+     * como suya. La marca vale `0x0020`, igual que `ThreadEntry`.
+     */
+    public function testUnColaboradorEnCopiaEscribeUnMensajeMarcado(): void {
+        $this->assertSame(array(
+            'thread-type' => 'M',
+            'userId' => 12,
+            'flags' => 0x0020,
+        ), ThreadEmailInfo::collaboratorType(12));
+    }
+
+    /** Si el correo ya traía un usuario, ése manda. */
+    public function testElUsuarioDelCorreoMandaSobreElColaborador(): void {
+        $this->assertSame(7,
+            ThreadEmailInfo::collaboratorType(12, 7)['userId']);
+    }
+
+    /** Y un `userId` vacío no debe borrar el del colaborador. */
+    public function testUnUsuarioVacioNoSustituyeAlDelColaborador(): void {
+        $this->assertSame(12,
+            ThreadEmailInfo::collaboratorType(12, 0)['userId']);
+        $this->assertSame(12,
+            ThreadEmailInfo::collaboratorType(12, null)['userId']);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* A qué entrada contesta: los message-id candidatos                   */
     /* ------------------------------------------------------------------ */
 
