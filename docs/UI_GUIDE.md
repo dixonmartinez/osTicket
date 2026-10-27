@@ -562,6 +562,64 @@ el atributo **no se ejecuta**:
   añade el atributo, y `addExtraHeader()` ya lo hace solo.
 - Los `<script src="…">` no lo necesitan.
 
+### 3.10 Capa moderna (`css/modern.css`)
+
+`ui.css` arregló accesibilidad y consistencia, pero el cromo seguía siendo el
+de 2010: cabecera de 76 px con sombra interior, pestañas con degradado, tablas
+con rejilla de 1 px y franjas azules, botones de 11 px y todo metido en una
+columna de 960 px. `css/modern.css` es una capa **aparte** que moderniza esa
+forma sin tocar el tema ni el marcado.
+
+**Qué cambia**
+
+| Zona | Antes | Ahora |
+| --- | --- | --- |
+| Lienzo | Columna fija de 960 px | Hasta 1280 px con márgenes elásticos |
+| Tipografía | `Lato` 11–12 px | Pila del sistema a 14 px con interlineado 1.5 |
+| Cabecera | 76 px, sombra interior, `#info` en caja gris | Barra plana; las acciones de la sesión son enlaces con realce al pasar |
+| Navegación | Pestañas con degradado y sombra proyectada | Pastillas; la activa va rellena del color de acento |
+| Subnavegación | Pestañas con borde | Fichas suaves, la activa con anillo |
+| Contenido | Marco con borde inferior de 3 px | Tarjeta con radio de 10 px y sombra suave |
+| Tablas | Rejilla de 1 px, cebras azules, celdas de 1 px de relleno | Sin rejilla: filete inferior por fila, cabecera en versalitas **pegajosa** al desplazar, realce de acento al pasar |
+| Búsqueda | Campo y botón sueltos | Campo unido al botón, con anillo de foco |
+| Botones | 11 px con degradado | 13 px, radio de 8 px; la acción principal rellena, el resto neutra |
+| Avisos | Bandas de color | Tarjeta con filete de color a la izquierda |
+| Acceso | Caja con borde | Tarjeta centrada, campos y botón de 40 px |
+
+**Las tres reglas que la hacen segura**
+
+1. **Ningún color literal.** Todo sale de los tokens `--ui-*` de `ui.css`; el
+   tema oscuro redefine esos mismos tokens en `dark.css`. Por eso el modo
+   oscuro funciona en la capa nueva **sin una línea de más**. `make theme`
+   falla si alguien escribe un `#hex`, `rgb()` o `hsl()` (se permite
+   `rgba(0, 0, 0, …)`, que son las sombras y valen en los dos temas).
+2. **La misma especificidad que `scp.css`, sin prefijos `html body`.** Así
+   gana a `scp.css` por orden de carga y **pierde** contra `dark.css` y
+   `density.css`, que van después y mandan en color y en espaciado compacto.
+   Si se usaran prefijos, la capa moderna ganaría al tema oscuro y los
+   botones quedarían blancos sobre azul claro.
+3. **Nada de medidas atadas al marcado.** Ni anchos ni alturas fijas que
+   recorten contenido: solo espaciado, radios, bordes y tipografía.
+
+**Dónde se carga.** En las tres cabeceras (`include/staff/header.inc.php`,
+`include/client/header.inc.php`, `include/staff/login.header.php`), siempre
+**después de `ui.css` y antes de `dark.css`**. El orden lo comprueba
+`make theme`.
+
+**Cómo quitarla.** Borrar `css/modern.css` y sus tres `<link>`: la aplicación
+vuelve exactamente al aspecto anterior, porque ninguna plantilla depende de
+ella.
+
+**Los tres `!important` que hay**, ninguno de adorno: uno devuelve a `auto` la
+altura de un bloque que lleva `style="height:25px"` en la plantilla, y los
+otros dos son las excepciones ya conocidas de `prefers-reduced-motion` y de la
+impresión (que oculta cabecera, navegación y buscador). Ninguno toca datos.
+
+**Texto sobre el acento.** El token `--mod-on-accent` se deriva de
+`--ui-surface`: en claro da blanco sobre azul y en oscuro casi negro sobre
+azul claro. Es la forma de escribir un solo botón que funcione en los dos
+temas sin duplicar reglas.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -586,8 +644,20 @@ el atributo **no se ejecuta**:
 
 ## 5. Verificación rápida
 
-Checklist manual (5 minutos):
+Automático, sin navegador:
 
+```bash
+make theme          # 144 comprobaciones: tema, densidad, capa moderna y orden de carga
+make unit           # incluye la suite de codificación y la de salida de librerías
+```
+
+Manual (5 minutos), con la vista previa abierta
+(`docs/theme-preview.html` y `docs/theme-preview-client.html`):
+
+- [ ] La pestaña activa de la barra superior se distingue sin leerla (va rellena).
+- [ ] Al desplazar una cola larga, la cabecera de la tabla queda pegada arriba.
+- [ ] Con el tema oscuro puesto, la capa moderna **no** deja nada blanco
+      (`make dark-audit`).
 - [ ] Tab desde el inicio de la página muestra "Saltar al contenido".
 - [ ] Todos los campos de acceso tienen etiqueta (visible u oculta) y se
       rellenan con el gestor de contraseñas.
@@ -713,7 +783,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 131 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 144 verificaciones y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -721,6 +791,7 @@ queda en §6.2.
 | 16 | **Iconos de ayuda que ya no desaparecen**: al pasar a SVG se conservan `href`/`data-*`, y `tips.js` deja de borrar el icono cuando no encuentra la ayuda (§3.5) | ✅ Hecho | `js/icons.js`, `scp/js/tips.js` |
 | 17 | **CSP con nonce**: los 98 `<script>` en línea de las plantillas llevan `nonce`, `script-src` deja de anunciar `'unsafe-inline'` y el instalador tampoco lo necesita (§6.2-1b, OST-102) | ✅ Hecho | `include/class.http.php`, `tools/quality/csp-nonce.php`, `tests/CspNonceTest.php` |
 | 17b | **Datos de demostración** para poder mirar la interfaz con contenido real: 59 tickets repartidos entre **todos los estados** de la lista interna (abierto, en progreso, contestado, resuelto y cerrado) con hilos de hasta 14 mensajes que alternan cliente, agente y nota interna, 16 tareas abiertas/completadas/vencidas, 12 clientes en 3 organizaciones, 5 agentes, 5 departamentos, 2 equipos, 2 SLA, 11 temas, 5 respuestas y 6 categorías de conocimiento con 33 artículos, creados con la API del panel y borrables con `--fresh` | ✅ Hecho | `include/cli/modules/seed.php`, `make seed`, `docs/SEED.md` |
+| 18 | **Capa moderna** (`css/modern.css`): lienzo de hasta 1280 px, tipografía del sistema a 14 px, cabecera plana, navegación en pastillas con la pestaña activa rellena, contenido en tarjeta, tablas sin rejilla con cabecera pegajosa, búsqueda de una pieza, botones de 13 px con acción principal diferenciada, avisos con filete de color y pantallas de acceso como tarjeta. Sin un solo color literal: hereda el modo oscuro de los tokens de `ui.css` (§3.10) | ✅ Hecho | `css/modern.css`, tres cabeceras, `sw.js` (v26), `make theme` |
 | 17c | **Buzón de pruebas documentado**: Mailpit paso a paso (host `mailpit`, puerto 1025, sin TLS ni usuario, qué mirar, entrante con `api/pipe.php`, cron a mano) y `make test-mail` para un envío sin pasar por la aplicación. Es lo que permite comprobar los correos reales en claro y en oscuro | ✅ Hecho | `docs/MAIL.md`, `tools/dev/mail-test.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa

@@ -76,6 +76,7 @@ foreach ([
     'docs/UI_GUIDE.md' => 'documentación',
     'docs/theme-preview.html' => 'vista previa del panel',
     'docs/theme-preview-client.html' => 'vista previa del portal',
+    'css/modern.css' => 'capa moderna (cromo, tablas y formularios)',
 ] as $file => $what) {
     check(is_file("$root/$file"), "$file ($what)", "falta $file ($what)");
 }
@@ -115,6 +116,37 @@ check(strpos($density, 'prefers-reduced-motion') !== false
     || strpos($density, '@media print') !== false,
     'la densidad no afecta a la impresión',
     'css/density.css no ajusta la impresión del modo compacto');
+
+/* 2b. Capa moderna ------------------------------------------------------- */
+$modern = read("$root/css/modern.css");
+
+check(substr_count($modern, '{') === substr_count($modern, '}'),
+    'llaves balanceadas en css/modern.css',
+    'llaves desbalanceadas en css/modern.css (' . substr_count($modern, '{')
+        . ' abren, ' . substr_count($modern, '}') . ' cierran)');
+
+// Ningun color literal: si esta hoja fijara colores propios, el tema oscuro
+// (que solo redefine los tokens --ui-*) se romperia en silencio. Se permite
+// rgba(0, 0, 0, ...) para las sombras, que funcionan en los dos temas.
+$sinComentarios = preg_replace('#/\*.*?\*/#s', '', $modern);
+$colores = array();
+if (preg_match_all('/:\s*#[0-9a-fA-F]{3,8}\b/', $sinComentarios, $m))
+    $colores = array_merge($colores, $m[0]);
+if (preg_match_all('/(?<![a-z-])(?:rgb|hsl)a?\([^)]*\)/i', $sinComentarios, $m)) {
+    foreach ($m[0] as $color)
+        if (stripos($color, 'rgba(0, 0, 0') !== 0
+                && stripos($color, 'rgba(0,0,0') !== 0)
+            $colores[] = $color;
+}
+check(!$colores,
+    'css/modern.css no fija colores: todo sale de los tokens --ui-*',
+    'css/modern.css fija colores literales (el tema oscuro no los heredaria): '
+        . implode(', ', array_slice(array_unique($colores), 0, 5)));
+
+check(strpos($modern, 'var(--mod-ring)') !== false
+    && strpos($modern, 'var(--ui-surface)') !== false,
+    'css/modern.css consume los tokens de color de css/ui.css',
+    'css/modern.css no usa los tokens --ui-* / --mod-ring');
 
 /* 3 y 4. Cabeceras ------------------------------------------------------- */
 $headers = [
@@ -164,6 +196,18 @@ foreach ($headers as $file => $what) {
         "$what: css/density.css debe ser la última hoja del <head>; ahora la "
             . 'última es: ' . ($last ?: '(ninguna hoja)')
             . ' [hojas encontradas: ' . count($loads) . ']');
+
+    check(strpos($html, 'css/modern.css') !== false,
+        "$what: carga css/modern.css",
+        "$what: no carga css/modern.css (la interfaz se queda como estaba)");
+
+    check(before($head, 'css/ui.css', 'css/modern.css'),
+        "$what: css/modern.css se carga después de css/ui.css",
+        "$what: css/modern.css debe ir después de css/ui.css (de él salen los tokens)");
+
+    check(before($head, 'css/modern.css', 'css/dark.css'),
+        "$what: css/dark.css se carga después de css/modern.css",
+        "$what: css/modern.css debe ir antes de css/dark.css, que es quien manda en color");
 
     check(before($head, 'css/dark.css', 'css/density.css'),
         "$what: css/density.css se carga después de css/dark.css",
@@ -563,7 +607,13 @@ foreach (array('ostAddFilterAction' => 'añadir una acción a un filtro',
         "falta window.$fn en js/actions.js");
 }
 
-check(strpos(read("$root/include/class.thread.php"), 'function getAttributes()') !== false
+// La familia del hilo: al repartir class.thread.php (frente 6) la interfaz
+// Threadable y sus rasgos pasaron a class.thread.objects.php. Se mira la
+// familia entera para que el reparto no vuelva a dejar esta comprobación
+// mirando un archivo que ya no contiene el método.
+$threadFamily = read("$root/include/class.thread.php")
+    . read("$root/include/class.thread.objects.php");
+check(strpos($threadFamily, 'function getAttributes()') !== false
     && strpos(read("$root/include/staff/templates/thread-entry.tmpl.php"),
         'getAttributes()') !== false,
     'las acciones de la entrada del hilo se abren con atributos',

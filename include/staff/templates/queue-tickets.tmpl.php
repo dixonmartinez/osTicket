@@ -300,9 +300,21 @@ foreach ($tickets as $T) {
         <a id="selectNone" href="#ckb"><?php echo __('None');?></a>&nbsp;&nbsp;
         <a id="selectToggle" href="#ckb"><?php echo __('Toggle');?></a>&nbsp;&nbsp;
         <?php }else{
-            echo '<i>';
-            echo $ferror?Format::htmlchars($ferror):__('Query returned 0 results.');
-            echo '</i>';
+            // Nada que mostrar. Se explica en vez de dejar solo una linea en
+            // el pie: una tabla vacia sin motivo parece una pagina rota (paso
+            // de verdad al ver la cola sin filas por un error de SQL).
+            echo '<div class="empty-state">';
+            echo '<i class="icon-inbox"></i>';
+            echo '<p>';
+            echo $ferror
+                ? Format::htmlchars($ferror)
+                : __('Query returned 0 results.');
+            echo '</p>';
+            if (!$ferror)
+                echo '<p class="faded">'
+                    . __('Try clearing the search or picking another queue.')
+                    . '</p>';
+            echo '</div>';
         } ?>
       </td>
     </tr>

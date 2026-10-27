@@ -66,6 +66,8 @@ if (osTicket::is_ie())
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/select2.min.css">
     <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
+    <!-- Capa moderna: mismo cromo en el portal (ver docs/UI_GUIDE.md, cap. 4) -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/modern.css" media="screen">
     <!-- Tema oscuro: la última hoja propia para poder corregir a las anteriores
          (ver docs/UI_GUIDE.md). Los estilos de plugins se cargan después. -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/dark.css" media="screen">

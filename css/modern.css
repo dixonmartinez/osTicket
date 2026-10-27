@@ -1,0 +1,877 @@
+/**
+ * css/modern.css - capa moderna de la interfaz (cromo, tablas, formularios)
+ *
+ * Se carga DESPUES de css/ui.css y ANTES de css/dark.css y css/density.css.
+ * Es aditiva, igual que ui.css: si se borra este archivo y su <link>, la
+ * aplicacion vuelve exactamente al aspecto anterior.
+ *
+ * Tres reglas que hacen que esto no pueda romper el tema ni el modo oscuro:
+ *
+ *   1. Ningun color literal. Todo sale de los tokens --ui-* que define
+ *      css/ui.css; el tema oscuro redefine esos mismos tokens en
+ *      css/dark.css y gana por orden de carga. `make theme` lo comprueba.
+ *   2. La especificidad es la misma que la de scp.css (ids y clases sueltas,
+ *      sin prefijos html/body). Asi esta hoja gana a scp.css por orden de
+ *      carga y pierde contra dark.css y density.css, que van despues y
+ *      mandan en color y en espaciado compacto.
+ *   3. Nada de medidas atadas al marcado: ni anchos fijos ni alturas fijas
+ *      que recorten contenido. Solo espaciado, radios, bordes y tipografia.
+ *
+ * Ver docs/UI_GUIDE.md, seccion 4 ("Capa moderna").
+ */
+
+/* ================================================================== */
+/* 1. Tokens de forma (nunca color, salvo los derivados de --ui-*)     */
+/* ================================================================== */
+:root {
+    --mod-radius: 10px;
+    --mod-radius-sm: 8px;
+    --mod-radius-pill: 999px;
+    --mod-gap: 16px;
+    --mod-field: 34px;
+    --mod-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --mod-ease: cubic-bezier(.2, .7, .3, 1);
+    /* Texto sobre el color de acento. Se deriva de la superficie para que en
+       tema oscuro (acento claro, superficie oscura) siga teniendo contraste:
+       blanco sobre azul en claro, casi negro sobre azul claro en oscuro. */
+    --mod-on-accent: var(--ui-surface);
+    --mod-ring: 0 0 0 3px var(--ui-accent-soft);
+}
+
+/* ================================================================== */
+/* 2. Tipografia y lienzo                                            */
+/* ================================================================== */
+body {
+    font-family: var(--mod-font);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ui-text);
+    background: var(--ui-surface-alt);
+    -webkit-font-smoothing: antialiased;
+}
+
+#container {
+    width: auto;
+    max-width: 1280px;
+    padding: 0 16px;
+    margin: 0 auto 24px;
+}
+
+h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+
+a {
+    color: var(--ui-accent);
+    text-decoration: none;
+    transition: color .15s var(--mod-ease);
+}
+
+a:hover {
+    color: var(--ui-accent-dark);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Cifras alineadas: los recuentos de las colas dejan de bailar */
+table.list td,
+.faded,
+.queue-count {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ================================================================== */
+/* 3. Cabecera y navegacion                                          */
+/* ================================================================== */
+#header {
+    height: auto;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mod-gap);
+    padding: 10px 20px;
+    background: var(--ui-surface);
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    box-shadow: none;
+}
+
+/* El marcado pone primero el bloque de sesion y despues el logotipo (para
+   que flotara a la derecha). En flex el orden del DOM manda, asi que el
+   logotipo se adelanta con `order` en vez de tocar la plantilla. */
+#logo {
+    order: -1;
+    height: auto;
+    max-width: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+#header > .pull-right,
+#header > .pull-left {
+    float: none;
+}
+
+#header > .pull-right {
+    margin-left: auto;
+}
+
+#logo img {
+    max-height: 42px;
+    max-width: 240px;
+    border-radius: 4px;
+}
+
+#header .valign-helper {
+    display: none;
+}
+
+/* "Welcome, ... | Admin Panel | Profile | Log Out": acciones discretas en
+   lugar de una caja con borde y fondo gris. */
+#header p,
+#header #info {
+    margin: 0;
+    padding: 0;
+    width: auto;
+    max-width: none;
+    background: transparent;
+    border: 0;
+    text-align: right;
+    color: var(--ui-text-muted);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+}
+
+#header #info a,
+#header p a {
+    padding: 4px 8px;
+    border-radius: var(--mod-radius-pill);
+    transition: background .15s var(--mod-ease);
+}
+
+#header #info a:hover,
+#header p a:hover {
+    background: var(--ui-accent-soft);
+    text-decoration: none;
+}
+
+/* Pestanas principales como pastillas; la activa va rellena */
+#nav,
+ul#nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    height: auto;
+    min-height: 0;
+    padding: 8px 20px;
+    margin: 0;
+    background: var(--ui-surface);
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    box-shadow: none;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+#nav li {
+    display: inline-flex;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--mod-radius-pill);
+    background: transparent;
+    box-shadow: none;
+    position: relative;
+}
+
+#nav .active,
+#nav .inactive,
+#sub_nav > li {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+#nav > li + li {
+    margin-left: 0;
+}
+
+#nav li > a,
+#nav .active a,
+#nav .inactive a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--mod-radius-pill);
+    color: var(--ui-text-muted);
+    font-weight: 500;
+    transition: background .15s var(--mod-ease), color .15s var(--mod-ease);
+}
+
+#nav li > a:hover {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    text-decoration: none;
+}
+
+#nav li.active,
+#nav li.active:hover,
+#nav li.inactive:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+#nav li.active > a,
+#nav li > a.active,
+#nav li.active > a:hover,
+#nav li > a.active:hover,
+#nav .active a:hover {
+    background: var(--ui-accent);
+    color: var(--mod-on-accent);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+}
+
+#nav li.active > a small,
+#nav li.active > a .queue-count {
+    color: inherit;
+    opacity: .8;
+}
+
+/* Desplegables de la navegacion */
+#nav ul {
+    border-radius: var(--mod-radius-sm);
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow);
+    padding: 6px;
+    overflow: hidden;
+}
+
+#nav ul li a {
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--ui-text);
+}
+
+#nav ul li a:hover {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+}
+
+/* Subnavegacion: colas guardadas y filtros, como fichas suaves */
+#sub_nav,
+ul#sub_nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    height: auto;
+    padding: 6px 20px;
+    margin: 0;
+    background: var(--ui-surface-alt);
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    line-height: 1.4;
+}
+
+#sub_nav > li {
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+}
+
+#sub_nav > li > a,
+#sub_nav > li + li > a {
+    padding: 5px 12px;
+    border-radius: var(--mod-radius-pill);
+    font-size: 13px;
+    color: var(--ui-text-muted);
+    transition: background .15s var(--mod-ease), color .15s var(--mod-ease);
+}
+
+#sub_nav > li > a:hover {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    text-decoration: none;
+}
+
+#sub_nav a.active,
+#sub_nav li.active > a,
+#sub_nav li.child.active > a,
+#sub_nav > li.active > a {
+    background: var(--ui-surface);
+    color: var(--ui-accent);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--ui-border);
+}
+
+/* ================================================================== */
+/* 4. Contenido: una tarjeta en lugar de un marco con borde grueso    */
+/* ================================================================== */
+#content {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius);
+    box-shadow: var(--ui-shadow);
+    padding: 20px;
+    margin-top: var(--mod-gap);
+}
+
+/* Barra de la cola: "Open" + refrescar + acciones en bloque */
+.sticky.bar,
+.sticky.bar.opaque {
+    background: var(--ui-surface-alt);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    box-shadow: none;
+    padding: 8px 12px;
+}
+
+.sticky.bar .content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sticky.bar h2 {
+    font-size: 15px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sticky.bar h2 a {
+    color: var(--ui-text);
+}
+
+.sticky.bar h2 a:hover {
+    color: var(--ui-accent);
+    text-decoration: none;
+}
+
+/* ================================================================== */
+/* 5. Busqueda rapida                                                */
+/* ================================================================== */
+#basic_search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#basic_search > div.pull-right {
+    height: auto !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#basic_search form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 320px;
+    margin: 0;
+}
+
+#basic_search .attached.input {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 auto;
+    max-width: 560px;
+}
+
+#basic_search input.basic-search {
+    flex: 1 1 auto;
+    height: var(--mod-field);
+    padding: 0 12px;
+    border: 1px solid var(--ui-border);
+    border-right: 0;
+    border-radius: var(--mod-radius-sm) 0 0 var(--mod-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    box-shadow: none;
+    transition: border-color .15s var(--mod-ease), box-shadow .15s var(--mod-ease);
+}
+
+#basic_search input.basic-search:focus {
+    border-color: var(--ui-accent);
+    box-shadow: var(--mod-ring);
+    outline: none;
+}
+
+#basic_search .attached.button,
+#basic_search button.attached.button {
+    height: var(--mod-field);
+    width: 44px;
+    padding: 0;
+    border: 1px solid var(--ui-accent);
+    border-radius: 0 var(--mod-radius-sm) var(--mod-radius-sm) 0;
+    background: var(--ui-accent);
+    color: var(--mod-on-accent);
+    cursor: pointer;
+}
+
+#basic_search .attached.button:hover {
+    background: var(--ui-accent-dark);
+    border-color: var(--ui-accent-dark);
+}
+
+/* ================================================================== */
+/* 6. Tablas: sin rejilla, con jerarquia y cabecera pegajosa          */
+/* ================================================================== */
+table.list {
+    background: transparent;
+    border: 0;
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0;
+}
+
+table.list thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--ui-surface-alt);
+    color: var(--ui-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    text-align: left;
+    vertical-align: middle;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    white-space: nowrap;
+}
+
+table.list thead th a,
+table.list thead th a:link {
+    color: inherit;
+    display: block;
+    margin: -10px -12px;
+    padding: 10px 26px 10px 12px;
+}
+
+table.list thead th a:hover {
+    color: var(--ui-accent);
+    text-decoration: none;
+}
+
+/* Cuerpo y cebras: se anulan las franjas azules y el amarillo del hover,
+   que son los que dan el aire de hoja de calculo. */
+table.list tbody td {
+    background: transparent;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    vertical-align: middle;
+}
+
+table.list tbody tr:nth-child(2n+1) td,
+table.list tbody tr:nth-child(2n+1):hover td {
+    background: transparent;
+}
+
+table.list tbody tr:hover td,
+table.list tbody tr.highlight td {
+    background: var(--ui-accent-soft);
+}
+
+table.list tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+/* La primera columna pesa mas: numero de ticket, nombre de usuario... */
+table.list tbody td:first-child {
+    font-weight: 600;
+}
+
+table.list tbody td:first-child a {
+    font-variant-numeric: tabular-nums;
+}
+
+table.list tfoot td {
+    background: transparent;
+    padding: 18px 12px;
+    border: 0;
+    color: var(--ui-text-muted);
+    text-align: center;
+}
+
+/* "Query returned 0 results.": se lee como aviso, no como pie de tabla */
+table.list tfoot td i {
+    font-style: normal;
+    font-size: 13px;
+}
+
+/* Cola sin resultados: un aviso con forma propia en vez de una linea suelta
+   en el pie de la tabla. El marcado lo pone templates/queue-tickets.tmpl.php */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px 32px;
+    text-align: center;
+    color: var(--ui-text-muted);
+}
+
+.empty-state > i.icon-inbox,
+.empty-state > svg {
+    width: 32px;
+    height: 32px;
+    opacity: .55;
+    margin-bottom: 2px;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 13px;
+    max-width: 46ch;
+}
+
+.empty-state p:first-of-type {
+    color: var(--ui-text);
+    font-weight: 600;
+}
+
+table.list tfoot td a {
+    margin: 0 4px;
+}
+
+table.list input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    accent-color: var(--ui-accent);
+    cursor: pointer;
+}
+
+/* ================================================================== */
+/* 7. Formularios                                                    */
+/* ================================================================== */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    padding: 7px 10px;
+    transition: border-color .15s var(--mod-ease), box-shadow .15s var(--mod-ease);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="search"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--ui-accent);
+    box-shadow: var(--mod-ring);
+    outline: none;
+}
+
+label {
+    font-weight: 600;
+}
+
+.hint,
+.field-hint,
+small.hint,
+.description {
+    color: var(--ui-text-muted);
+}
+
+/* ================================================================== */
+/* 8. Botones                                                        */
+/* ================================================================== */
+.button,
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+button.button,
+a.button {
+    border-radius: var(--mod-radius-sm);
+    padding: 7px 14px;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.4;
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    transition: background .15s var(--mod-ease), border-color .15s var(--mod-ease),
+        box-shadow .15s var(--mod-ease), transform .08s var(--mod-ease);
+}
+
+.button:hover,
+input[type="button"]:hover,
+input[type="reset"]:hover,
+a.button:hover {
+    background: var(--ui-surface-alt);
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
+    text-decoration: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+
+.button:active,
+input[type="submit"]:active,
+button:active {
+    transform: translateY(1px);
+}
+
+/* La accion principal se distingue de las secundarias */
+button[type="submit"],
+input[type="submit"],
+.primary.button,
+.button.primary {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    color: var(--mod-on-accent);
+}
+
+button[type="submit"]:hover,
+input[type="submit"]:hover,
+.primary.button:hover,
+.button.primary:hover {
+    background: var(--ui-accent-dark);
+    border-color: var(--ui-accent-dark);
+    color: var(--mod-on-accent);
+}
+
+.button:disabled,
+input[type="submit"]:disabled,
+button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Botones de icono de las barras (banderas, asignar, mas acciones) */
+.sticky.bar .button,
+.sticky.bar a.button,
+.sticky.bar .action-button {
+    padding: 6px 9px;
+}
+
+.ost-icon-button {
+    border-radius: var(--mod-radius-sm);
+    transition: background .15s var(--mod-ease), border-color .15s var(--mod-ease);
+}
+
+.ost-icon-button:hover {
+    background: var(--ui-accent-soft);
+    border-color: var(--ui-accent);
+}
+
+/* Etiquetas de estado y contadores */
+.label,
+span.state {
+    border-radius: var(--mod-radius-pill);
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* ================================================================== */
+/* 9. Avisos y dialogos                                              */
+/* ================================================================== */
+#error_bar,
+#warning_bar,
+#notice_bar,
+#msg_error,
+#msg_warning,
+#msg_notice,
+.error-banner,
+.warning-banner,
+.notice-banner {
+    border-radius: var(--mod-radius-sm);
+    border: 1px solid var(--ui-border);
+    border-left-width: 4px;
+    padding: 12px 14px;
+    margin: 0 0 var(--mod-gap);
+    box-shadow: var(--ui-shadow);
+    height: auto;
+    line-height: 1.45;
+}
+
+#error_bar,
+#msg_error,
+.error-banner { border-left-color: var(--ui-danger); }
+
+#warning_bar,
+#msg_warning,
+.warning-banner { border-left-color: var(--ui-warning); }
+
+#notice_bar,
+#msg_notice,
+.notice-banner { border-left-color: var(--ui-accent); }
+
+.ui-dialog {
+    border-radius: var(--mod-radius);
+    border: 1px solid var(--ui-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .18);
+    padding: 0;
+}
+
+.ui-dialog .ui-dialog-titlebar {
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    border-radius: 0;
+    padding: 12px 16px;
+}
+
+.ui-dialog .ui-dialog-content {
+    padding: 16px;
+}
+
+/* ================================================================== */
+/* 10. Pantallas de acceso                                          */
+/* ================================================================== */
+#login-box,
+.login-box,
+#loginBox {
+    border-radius: var(--mod-radius);
+    border: 1px solid var(--ui-border);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .12);
+    background: var(--ui-surface);
+}
+
+#login-box input[type="text"],
+#login-box input[type="password"],
+.login-box input[type="text"],
+.login-box input[type="password"],
+#loginBox input[type="text"],
+#loginBox input[type="password"] {
+    height: 40px;
+    font-size: 14px;
+}
+
+#login-box button[type="submit"],
+#login-box input[type="submit"],
+.login-box button[type="submit"],
+.login-box input[type="submit"],
+#loginBox button[type="submit"] {
+    height: 40px;
+    font-size: 14px;
+}
+
+/* ================================================================== */
+/* 11. Red de seguridad                                              */
+/* ================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    a, .button, input, select, textarea, .ost-icon-button {
+        transition: none !important;
+    }
+}
+
+@media (prefers-contrast: more) {
+    #header,
+    #nav,
+    #content,
+    table.list thead th,
+    table.list tbody td {
+        border-color: currentColor;
+    }
+}
+
+@media print {
+    #header,
+    #nav,
+    #sub_nav,
+    #basic_search,
+    .sticky.bar {
+        display: none !important;
+    }
+
+    #container {
+        max-width: none;
+        padding: 0;
+    }
+
+    #content {
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Una cabecera pegajosa saldria repetida en cada pagina impresa */
+    table.list thead th {
+        position: static;
+    }
+
+    table.list tbody tr {
+        break-inside: avoid;
+    }
+}
+
+@media (max-width: 782px) {
+    #container {
+        padding: 0 10px;
+    }
+
+    #header {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 10px 12px;
+    }
+
+    #header p,
+    #header #info {
+        justify-content: center;
+        text-align: center;
+    }
+
+    #nav,
+    #sub_nav {
+        padding: 8px 12px;
+    }
+
+    #content {
+        padding: 14px;
+        border-radius: var(--mod-radius-sm);
+    }
+
+    #basic_search .attached.input {
+        max-width: none;
+    }
+
+    /* En un movil la cabecera pegajosa de la tabla ocupa demasiado */
+    table.list thead th {
+        position: static;
+    }
+}

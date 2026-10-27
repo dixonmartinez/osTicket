@@ -55,7 +55,8 @@
 //     PJAX) y js/actions.js en el pie del panel.
 // v21: los diálogos pasan a data-ost-dialog (data-dialog es de osTicket y
 //     guarda una URL); sin subir la versión se sirve el actions.js viejo.
-const VERSION = 'ost-v25';
+// v26: entra css/modern.css (capa moderna: cromo, tablas y formularios).
+const VERSION = 'ost-v26';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.
@@ -65,6 +66,7 @@ const PRECACHE = [
   'images/pwa/apple-touch-icon.png',
   'css/mobile.css',
   'css/ui.css',
+  'css/modern.css',
   'css/dark.css',
   'css/density.css',
   'css/thread.css',

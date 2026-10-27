@@ -14,6 +14,8 @@ header('Content-Security-Policy: '.Http::csp($cfg));
     <link rel="stylesheet" href="css/login.css" type="text/css" />
     <link type="text/css" rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/font-awesome.min.css">
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/ui.css" media="screen">
+    <!-- Capa moderna (ver docs/UI_GUIDE.md, cap. 4) -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/modern.css" media="screen">
     <!-- Tema oscuro (ver docs/UI_GUIDE.md) -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/dark.css" media="screen">
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/density.css" media="screen">

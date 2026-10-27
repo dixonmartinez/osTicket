@@ -11,7 +11,7 @@
 
   Reproduce el marcado real de las plantillas del panel (nav, cola de tickets,
   formularios, entradas de ticket, diálogos) y carga los CSS de verdad
-  (scp.css, ui.css, mobile.css, dark.css), así que sirve para revisar colores
+  (scp.css, ui.css, modern.css, mobile.css, dark.css), así que sirve para revisar colores
   y contraste sin instalar nada.
 
   El botón de la cabecera alterna claro/oscuro igual que en la aplicación
@@ -24,6 +24,7 @@
 -->
 <link rel="stylesheet" href="../scp/css/scp.css" media="all">
 <link rel="stylesheet" href="../css/ui.css" media="screen">
+<link rel="stylesheet" href="../css/modern.css" media="screen">
 <link rel="stylesheet" href="../css/mobile.css" media="screen">
 <link rel="stylesheet" href="../css/font-awesome.min.css">
 <link rel="stylesheet" href="../css/thread.css" media="screen">
@@ -219,6 +220,35 @@
                 Page: <b>[1]</b> &nbsp;<a href="#"><b>2</b></a> &nbsp;<a href="#"><strong>&raquo;</strong></a>
                 <a class="refresh" href="#">Refresh</a>
             </div>
+        </div>
+
+        <div class="demo-sec">
+            <h2>Cola sin resultados (estado vacío, ver tests/QueueEmptyStateTest.php)</h2>
+            <table class="list" width="100%">
+                <thead>
+                    <tr>
+                        <th width="18"><input type="checkbox" disabled></th>
+                        <th><a href="#">Ticket</a></th>
+                        <th><a href="#">Last Updated</a></th>
+                        <th><a href="#">Subject</a></th>
+                        <th>From</th>
+                        <th>Priority</th>
+                        <th>Assigned To</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="icon-inbox"></i>
+                                <p>Query returned 0 results.</p>
+                                <p class="faded">Try clearing the search or picking another queue.</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
 
         <div class="demo-sec">

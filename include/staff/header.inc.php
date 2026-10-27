@@ -54,6 +54,9 @@ if (osTicket::is_ie())
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>scp/css/scp.css" media="all">
     <!-- Capa de mejoras de accesibilidad / usabilidad (ver docs/UI_GUIDE.md) -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/ui.css" media="screen">
+    <!-- Capa moderna: cromo, tablas y formularios. Va despues de ui.css y
+         antes de dark.css, que manda en color (ver docs/UI_GUIDE.md, cap. 4). -->
+    <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/modern.css" media="screen">
     <!-- Adaptación a móvil y tablet (reglas aditivas, ver docs/MOBILE.md) -->
     <link rel="stylesheet" href="<?php echo ROOT_PATH ?>css/mobile.css" media="screen">
     <link rel="stylesheet" href="<?php echo ROOT_PATH; ?>css/redactor.css" media="screen">
