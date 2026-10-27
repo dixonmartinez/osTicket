@@ -391,6 +391,23 @@ class QueueCheckTest extends UnitTestCase {
             'el informe tiene que decir de dónde salen esas cifras');
     }
 
+    /**
+     * El diagnostico dice cuantas paginas hay: `?p=2` solo existe si hay dos.
+     *
+     * Con 23 filas y 25 por pagina la cola tiene una sola pagina, y pedir la
+     * segunda dejaba la tabla vacia con el total en 23 (el OFFSET se ponia tal
+     * cual). La plantilla ya recorta a la ultima pagina; esto lo mide.
+     */
+    function testElDiagnosticoDiceCuantasPaginasHay(): void {
+        $source = $this->fuente();
+
+        $this->assertStringContainsString("'pages' => null", $source);
+        $this->assertStringContainsString('ceil($result[\'count\'] / PAGE_LIMIT)',
+            $source, 'las paginas salen del total y de PAGE_LIMIT');
+        $this->assertStringContainsString('Páginas con este total', $source,
+            'la cifra tiene que verse en el informe, no solo calcularse');
+    }
+
     function testLenCountsAccentedCharactersOnce() {
         $this->assertEquals(6, QueueCheck::len('Año 26'));
     }

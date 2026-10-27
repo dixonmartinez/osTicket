@@ -1060,6 +1060,22 @@ está vacía o rota.
   números de ticket. Si la base devuelve 23 y aquí salen 0, el problema está en
   la hidratación; si salen 23, la página tiene que pintarlos y lo que falla es
   otra cosa (caché del navegador, `pjax`).
+- **Medido** (`make queue-check QUEUE=14 QUEUE_ARGS="--hydrate --as=d.martinez"`):
+  la base devuelve 23, el total 23, `getCount()` 23, `getTotal()` 23 y la
+  hidratación construye **23 modelos con `ticket_id`** (0 vacíos; los primeros
+  números son 318481, 491656, 881767…). O sea: **el dato, la consulta y el ORM
+  están bien**. La plantilla pinta lo que recibe.
+- **La causa de la tabla vacía era el paginador.** `paginateSimple()` pone el
+  OFFSET tal cual, así que un `?p=` más allá del final —historial del
+  navegador, un enlace guardado, o un filtro que acaba de reducir la cola— pide
+  filas a partir de la 26 de una cola de 23 y la tabla sale vacía aunque el
+  total sea 23. La plantilla calcula ahora la ventana **después** de conocer el
+  total y recorta la página pedida a la última que existe (`is_int($count)`
+  distingue el total desconocido, que se deja como estaba). El «esta cola tiene
+  tickets, pero la lista no se ha podido cargar» que se añadió como red ya no
+  puede dispararse por esto.
+  `make queue-check` añade a «Números» **cuántas páginas hay** con ese total,
+  para que se vea de un vistazo si `?p=2` existe.
 
 #### 3.13.9 Tiempos de respuesta negativos
 
@@ -1127,8 +1143,10 @@ borrar»** y los 33 seguían ahí.
   (frente 3), con la decisión pendiente: una categoría propia para
   `include/cli/`, como la del `driver`.
 - `php tests/run.php` → medido en **php-wasm** (sin `dom` ni `mbstring`):
-  **878 correctas, 0 fallos, 5 omitidas**, tres de ellas nuevas en esta tanda
-  (dos en `tests/SeedDataTest.php` y una en `tests/QuerySqlTest.php`).
+  **880 correctas, 0 fallos, 5 omitidas**, cinco de ellas nuevas en esta tanda
+  (dos en `tests/SeedDataTest.php`, una en `tests/QuerySqlTest.php`, una en
+  `tests/QueueEmptyStateTest.php` para el `?p=2` y una en
+  `tests/QueueCheckTest.php` para el recuento de páginas).
   En el contenedor de referencia, con `dom`, esa cuenta sube en las que se
   omiten aquí.
 - `sw.js` sube a **`ost-v35`** para que el service worker suelte las hojas
@@ -1322,6 +1340,7 @@ queda en §6.2.
 | 30 | **Iconos de la línea de tiempo y avatar**: el borde blanco de 16 px de `.type-icon::after` pasa al tema, se retira el segundo icono del aviso de vencimiento y el avatar —que el servidor dibuja sobre lienzo blanco— va en círculo con anillo del tema. El realce de las tablas pasa de la celda a la fila, así una celda vacía no queda de otro tono (§3.13.5, §3.13.6) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
 | 31 | **Verdades de la pantalla**: la cola ya no dice «Showing 1 - 23» con la tabla vacía (`$rendered` + `setTotal(0)`), y el tiempo de respuesta no puede ser negativo (la apertura se fecha con el ticket en `SeedManager::backdate()` y el informe acota con `GREATEST`). El origen de las filas invisibles —la vista `ost_ticket__cdata`— lo detecta `make seed-doctor` (§3.13.8, §3.13.9) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/seed.php`, `include/class.report.php`, `tests/QueueEmptyStateTest.php`, `tests/ReportTimeTest.php` |
 | 32 | **`make seed-repair`**: el doctor prometía `--doctor --repair` en sus pistas y la opción **no existía**. Ahora repara sin borrar ni volver a sembrar: artículos sin categoría (por pregunta del manifiesto), entradas fechadas antes que su padre (y `thread.lastmessage`), restos de hilo y vistas de datos. Repasa la revisión al terminar (`docs/SEED.md`) | ✅ Hecho | `include/cli/modules/seed.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
+| 34 | **El paginador no deja la tabla vacía**: `?p=` más allá del final pedía filas desde la 26 de una cola de 23, y la tabla salía vacía con el total en 23. Ahora la ventana se calcula después del total y la página se recorta a la última que existe; `make queue-check` dice cuántas páginas hay. Con eso queda cerrado el caso de la cola «Closed · This Year»: la base, la consulta y el ORM daban 23, la hidratación construye 23 modelos (§3.13.8) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/queue.php`, `include/cli/modules/queue.report.php`, `tests/QueueEmptyStateTest.php`, `tests/QueueCheckTest.php` |
 | 33 | **La purga de la base de conocimiento ve lo que cuenta el doctor**: `--purge-orphans` leía con el ORM, cuyo `select_related('category')` es un JOIN interno, así que enumeraba **cero** artículos con 33 huérfanos en la tabla; ahora lee sin la relación, dice cuántos ha leído y comprueba el resultado de `FAQ::delete()`. Los textos ya no recomiendan `make seed --only=faq` (make lo rechaza): `make seed-faq` es un objetivo nuevo (§3.13.10) | ✅ Hecho | `include/cli/modules/seed.repair.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
@@ -1337,8 +1356,8 @@ respuesta, acceso y FAQ).
 |---|---|---|
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
-| 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | `make queue-check QUEUE=14 QUEUE_ARGS=--sql` ya descartó el dato, la consulta, las columnas, la vista `ticket__cdata` y la visibilidad: los cuatro números son 23 y el veredicto es «cuadran». Falta la hidratación (`--hydrate`) y confirmar en el navegador si la página sigue vacía después de una recarga dura |
-| 4 | Segunda pasada de la purga en la instalación del usuario | La primera pasada no borró nada porque la purga no veía los huérfanos (§3.13.10); ya está corregido. Queda confirmar con la salida real: `make seed-repair SEED_ARGS=--purge-orphans` tiene que enumerar y borrar los 33, `make seed-faq` volver a crearlos y `make seed-doctor` terminar en «Todo cuadra.» (`docs/SEED.md`) |
+| 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | ✅ **Cerrado**: no era la consulta ni el ORM —`--hydrate` construye 23 modelos—, sino el paginador (`?p=` más allá del final). Ver §3.13.8 y la fila 34 de §6.1 |
+| 4 | Pasada de la purga en la instalación del usuario | ✅ **Cerrado**: `--purge-orphans` borró los 33 huérfanos, `make seed-faq` creó los 33 de demostración y `make seed-doctor` termina en «Todo cuadra.» con 33 artículos y 6 categorías (§3.13.10) |
 | 7 | `make sql-audit` en rojo: 4 archivos nuevos con SQL a mano (14 llamadas) fuera de la línea base | No son consultas de la aplicación sino de los módulos de diagnóstico (`queue.php` 9, `db.php` 3, `perf.php` 1) más el movimiento de la llamada del ORM a `class.orm.sql.php`. Se deja **visible**: ni línea base nueva ni marcas `legacy` en bloque. La decisión propuesta es una categoría propia para `include/cli/` en `SqlAudit`, como la que ya tiene el `driver` (`docs/CODE_QUALITY.md`, frente 3) |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 

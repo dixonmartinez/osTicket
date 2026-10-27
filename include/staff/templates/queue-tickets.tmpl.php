@@ -83,8 +83,9 @@ if (!$sorted) {
 
 // Apply pagination
 
-$page = (isset($_GET['p']) && is_numeric($_GET['p']))?$_GET['p']:1;
-$pageNav = new Pagenate(PHP_INT_MAX, $page, PAGE_LIMIT);
+$page = (isset($_GET['p']) && is_numeric($_GET['p'])) ? (int) $_GET['p'] : 1;
+if ($page < 1)
+    $page = 1;
 // Copia sin ventana: de ella sale el total que se muestra bajo la tabla. Se
 // toma antes de paginar porque `paginateSimple()` mete LIMIT/OFFSET en la
 // consulta que se ejecuta (y esa ya no sirve para contar). Lleva el mismo
@@ -92,26 +93,7 @@ $pageNav = new Pagenate(PHP_INT_MAX, $page, PAGE_LIMIT);
 // referencias (visibilidad) duplicarían filas y el total saldría inflado.
 $ticketsTotal = clone $tickets;
 $ticketsTotal->distinct('ticket_id');
-$tickets = $pageNav->paginateSimple($tickets);
 
-if (isset($tickets->extra['tables'])) {
-    // Creative twist here. Create a new query copying the query criteria, sort, limit,
-    // and offset. Then join this new query to the $tickets query and clear the
-    // criteria, sort, limit, and offset from the outer query.
-    $criteria = clone $tickets;
-    $criteria->limit(500);
-    $criteria->annotations = $criteria->related = $criteria->aggregated =
-        $criteria->annotations = $criteria->ordering = [];
-    $tickets->constraints = $tickets->extra = [];
-    $criteria->extra(array('select' => array('relevance' => 'Z1.relevance')));
-    $tickets = $tickets->filter(['ticket_id__in' =>
-            $criteria->values_flat('ticket_id')]);
-    $tickets->order_by(new SqlCode('relevance'), QuerySet::DESC);
-    # Index hint should be used on the $criteria query only
-    $tickets->clearOption(QuerySet::OPT_INDEX_HINT);
-}
-
-$tickets->distinct('ticket_id');
 $Q = $queue->getBasicQuery();
 $empty = false;
 
@@ -145,6 +127,40 @@ elseif (!isset($count) || $count === null) {
         $count = $queue->getCount($thisstaff);
     }
 }
+
+// La página pedida puede quedar más allá del final: un enlace guardado, el
+// historial del navegador (`?p=2`), o un filtro que acaba de reducir la cola.
+// `paginateSimple()` pone ese OFFSET tal cual, así que la tabla salía vacía
+// aunque la cola tuviera 23 tickets —y el pie decía «esta cola tiene tickets,
+// pero la lista no se ha podido cargar», que es falso—. Se pinta la última
+// página que existe. Si el total es desconocido (`-`) no se toca nada.
+if (is_int($count) && $count > 0) {
+    $lastPage = (int) ceil($count / PAGE_LIMIT);
+    if ($page > $lastPage)
+        $page = $lastPage;
+}
+
+$pageNav = new Pagenate(PHP_INT_MAX, $page, PAGE_LIMIT);
+$tickets = $pageNav->paginateSimple($tickets);
+
+if (isset($tickets->extra['tables'])) {
+    // Creative twist here. Create a new query copying the query criteria, sort, limit,
+    // and offset. Then join this new query to the $tickets query and clear the
+    // criteria, sort, limit, and offset from the outer query.
+    $criteria = clone $tickets;
+    $criteria->limit(500);
+    $criteria->annotations = $criteria->related = $criteria->aggregated =
+        $criteria->annotations = $criteria->ordering = [];
+    $tickets->constraints = $tickets->extra = [];
+    $criteria->extra(array('select' => array('relevance' => 'Z1.relevance')));
+    $tickets = $tickets->filter(['ticket_id__in' =>
+            $criteria->values_flat('ticket_id')]);
+    $tickets->order_by(new SqlCode('relevance'), QuerySet::DESC);
+    # Index hint should be used on the $criteria query only
+    $tickets->clearOption(QuerySet::OPT_INDEX_HINT);
+}
+
+$tickets->distinct('ticket_id');
 $pageNav->setTotal($count, true);
 $pageNav->setURL('tickets.php', $args);
 ?>

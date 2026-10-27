@@ -33,8 +33,9 @@ trait SeedRepair {
      */
     function doctor($repair = false, $purgeOrphans = false) {
         if ($repair) {
-            $this->out('Reparación de los datos sembrados '
-                . '(no se crea nada nuevo)');
+            $this->out('Reparación de los datos sembrados (no se crea nada '
+                . 'nuevo, salvo los artículos que se pidan borrar con '
+                . '`--purge-orphans`)');
             $this->out('');
             $this->repair($purgeOrphans);
             $this->out('');

@@ -275,6 +275,13 @@ trait QueueReport {
                 $this->number($query['queue_total'])),
         );
 
+        // Cuántas páginas existen con ese total: lo que hace que `?p=2` sea
+        // (o no) un enlace válido. Un `?p=` más allá del final dejaba la tabla
+        // vacía con 23 filas en la base.
+        if ($query['pages'] !== null)
+            $numbers[] = array(sprintf('Páginas con este total (%d por página)',
+                defined('PAGE_LIMIT') ? PAGE_LIMIT : 0), $this->number($query['pages']));
+
         // Con `--hydrate`: lo que hace la página con esas filas. Si la base
         // devuelve 23 y aquí salen 0, el problema no es el SQL.
         if ($query['hydrated'] !== null) {

@@ -50,6 +50,36 @@ class QueueEmptyStateTest extends UnitTestCase {
             'la pista no puede sustituir al error: va condicionada a !$ferror');
     }
 
+    /**
+     * `?p=2` en una cola de una sola pagina no puede dejar la tabla vacia.
+     *
+     * `paginateSimple()` pone el OFFSET tal cual, asi que con 23 tickets y dos
+     * paginas de 25 el enlace `?p=2` (historial del navegador, o un filtro que
+     * acaba de reducir la cola) devolvia cero filas y el pie decia «esta cola
+     * tiene tickets, pero la lista no se ha podido cargar», que es falso.
+     */
+    public function testUnaPaginaMasAllaDelFinalPintaLaUltima(): void {
+        $source = $this->template();
+
+        // La ventana se calcula DESPUES de conocer el total...
+        $countAt = strpos($source, '$count = (int) $ticketsTotal->count();');
+        $pageAt = strpos($source, '$tickets = $pageNav->paginateSimple($tickets);');
+        $this->assertTrue($countAt !== false && $pageAt !== false);
+        $this->assertTrue($countAt < $pageAt,
+            'el total tiene que contarse antes de poner la ventana: si no, no '
+            . 'hay con que recortar la pagina pedida');
+
+        // ...y se recorta a la ultima que existe.
+        $this->assertStringContainsString('$lastPage = (int) ceil($count / PAGE_LIMIT);',
+            $source);
+        $this->assertStringContainsString('if ($page > $lastPage)', $source);
+        $this->assertStringContainsString('$page = $lastPage;', $source);
+
+        // Con el total desconocido (`-`) no se toca: `is_int` lo distingue.
+        $this->assertStringContainsString('is_int($count)', $source,
+            'con el total desconocido no hay ultima pagina que calcular');
+    }
+
     /** Los dos textos pasan por la traducción. */
     public function testLosTextosSeTraducen(): void {
         $source = $this->template();

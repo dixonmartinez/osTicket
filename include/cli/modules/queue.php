@@ -1018,6 +1018,7 @@ class QueueCheck extends Module {
             'hydrated_numbers' => array(),
             'limit' => $this->limit,
             'count' => null,
+            'pages' => null,
             'queue_count' => null,
             'queue_total' => null,
             'error' => null,
@@ -1095,6 +1096,13 @@ class QueueCheck extends Module {
             if (!$result['error'])
                 $result['error'] = 'al contar: '.$e->getMessage();
         }
+
+        // Cuántas páginas ofrece el paginador con ese total. Es lo que decide
+        // si `?p=2` existe: hasta la corrección de la plantilla, una página
+        // más allá del final dejaba la tabla vacía aunque la base devolviera
+        // 23 filas (el OFFSET se ponía tal cual).
+        if (is_int($result['count']) && defined('PAGE_LIMIT') && PAGE_LIMIT > 0)
+            $result['pages'] = (int) ceil($result['count'] / PAGE_LIMIT);
 
         // Lo que dice la cola: `getCount()` con la caché de cinco minutos y
         // `getTotal()` sin caché. Si el primero no coincide con el segundo, el
