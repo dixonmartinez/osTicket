@@ -86,6 +86,7 @@ require_once INCLUDE_DIR . 'class.mailer.message.php';
 require_once INCLUDE_DIR . 'class.http.php';
 require_once INCLUDE_DIR . 'class.thread.email.php';
 require_once INCLUDE_DIR . 'class.thread.entry.php';
+require_once INCLUDE_DIR . 'class.queue.sort.php';
 
 /* Clase base: PHPUnit si se ha instalado con Composer; si no, la de lib/. */
 if (class_exists('PHPUnit\Framework\TestCase'))

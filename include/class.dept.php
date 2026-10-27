@@ -781,41 +781,7 @@ implements TemplateVariable, Searchable {
     function update($vars, &$errors) {
         global $cfg;
 
-        $id = $this->id;
-        if ($id && $id != $vars['id'])
-            $errors['err']=__('Missing or invalid Dept ID.')
-                .' '.__('Internal error occurred');
-
-        if (!$vars['name']) {
-            $errors['name']=__('Name required');
-        } elseif (($did = static::getIdByName($vars['name'], $vars['pid']))
-                && $did != $id) {
-            $errors['name']=__('Department already exists');
-        }
-
-        if (!$vars['ispublic'] && $cfg && ($vars['id']==$cfg->getDefaultDeptId()))
-            $errors['ispublic']=__('System default department cannot be private');
-
-        if ($vars['pid'] && !($p = static::lookup($vars['pid'])))
-            $errors['pid'] = __('Department selection is required');
-
-        $dept = Dept::lookup($vars['pid']);
-        if ($dept) {
-          if (!$dept->isActive())
-            $errors['dept_id'] = sprintf(__('%s selected must be active'), __('Parent Department'));
-          elseif (strpos($dept->getFullPath(), '/'.$this->getId().'/') !== false)
-            $errors['pid'] = sprintf(__('%s cannot contain the current %s'), __('Parent Department'), __('Department'));
-        }
-
-        // Referencias opcionales: si vienen, tienen que existir. La errata de
-        // «Unkown System Email» se conserva: es el texto que ya ve el agente.
-        $errors += ModelRules::unknownReferences($vars, array(
-            'sla_id' => array(__('Invalid SLA'), array('SLA', 'lookup')),
-            'manager_id' => array(__('Unknown Staff'), array('Staff', 'lookup')),
-            'email_id' => array(__('Unknown System Email'), array('Email', 'lookup')),
-            'tpl_id' => array(__('Unknown Template Set'), array('EmailTemplateGroup', 'lookup')),
-            'autoresp_email_id' => array(__('Unkown System Email'), array('Email', 'lookup')),
-        ));
+        $this->validate($vars, $errors);
 
         // Accesos: mismo formato que `Staff::update()` — [agente, rol,
         // avisos]— y sin avisos de PHP si falta alguno.
@@ -914,6 +880,57 @@ implements TemplateVariable, Searchable {
                .' '.__('Internal error occurred');
 
         return false;
+    }
+
+    /**
+     * Lo que tiene que cumplir el formulario del departamento.
+     *
+     * Devuelve los errores en el mismo array que recibe y no escribe nada: la
+     * llamada la hace `update()` y sólo sigue adelante si no hay errores.
+     *
+     * Se consulta el departamento padre **una sola vez**. Antes eran dos
+     * consultas seguidas del mismo registro —`static::lookup($vars['pid'])` y
+     * después `Dept::lookup($vars['pid'])`—, y la respuesta de la primera se
+     * guardaba en `$p` para no usarla nunca.
+     */
+    function validate($vars, &$errors) {
+        global $cfg;
+
+        $id = $this->id;
+        if ($id && $id != $vars['id'])
+            $errors['err']=__('Missing or invalid Dept ID.')
+                .' '.__('Internal error occurred');
+
+        if (!$vars['name']) {
+            $errors['name']=__('Name required');
+        } elseif (($did = static::getIdByName($vars['name'], $vars['pid']))
+                && $did != $id) {
+            $errors['name']=__('Department already exists');
+        }
+
+        if (!$vars['ispublic'] && $cfg && ($vars['id']==$cfg->getDefaultDeptId()))
+            $errors['ispublic']=__('System default department cannot be private');
+
+        $dept = $vars['pid'] ? static::lookup($vars['pid']) : null;
+        if ($vars['pid'] && !$dept)
+            $errors['pid'] = __('Department selection is required');
+
+        if ($dept) {
+          if (!$dept->isActive())
+            $errors['dept_id'] = sprintf(__('%s selected must be active'), __('Parent Department'));
+          elseif (strpos($dept->getFullPath(), '/'.$this->getId().'/') !== false)
+            $errors['pid'] = sprintf(__('%s cannot contain the current %s'), __('Parent Department'), __('Department'));
+        }
+
+        // Referencias opcionales: si vienen, tienen que existir. La errata de
+        // «Unkown System Email» se conserva: es el texto que ya ve el agente.
+        $errors += ModelRules::unknownReferences($vars, array(
+            'sla_id' => array(__('Invalid SLA'), array('SLA', 'lookup')),
+            'manager_id' => array(__('Unknown Staff'), array('Staff', 'lookup')),
+            'email_id' => array(__('Unknown System Email'), array('Email', 'lookup')),
+            'tpl_id' => array(__('Unknown Template Set'), array('EmailTemplateGroup', 'lookup')),
+            'autoresp_email_id' => array(__('Unkown System Email'), array('Email', 'lookup')),
+        ));
     }
 
     function updateAccess($access, &$errors) {

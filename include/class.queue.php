@@ -19,6 +19,8 @@
 include_once(INCLUDE_DIR . 'class.queue.column.php');
 /* Filtros de columna: ver class.queue.filter.php */
 include_once(INCLUDE_DIR . 'class.queue.filter.php');
+/* Reparto de las ordenaciones del POST: ver class.queue.sort.php */
+include_once(INCLUDE_DIR . 'class.queue.sort.php');
 
 class CustomQueue extends VerySimpleModel {
     static $meta = array(
@@ -1223,8 +1225,32 @@ class CustomQueue extends VerySimpleModel {
         return true;
     }
 
+    /**
+     * Guarda la cola con lo que llega del formulario.
+     *
+     * Cada paso tiene su método y van en el mismo orden que antes: los errores
+     * de un paso se suman al array y se devuelven todos juntos al final, para
+     * que el agente no arregle el formulario de uno en uno.
+     */
     function update($vars, &$errors=array()) {
 
+        $this->setupTitle($vars, $errors);
+        $this->setupFilter($vars, $errors);
+        $this->setupInheritance($vars);
+        $this->setupColumns($vars, $errors);
+        $this->setupExports($vars);
+        $this->setupSorts($vars);
+        $this->setupDefaultSort($vars, $errors);
+        $this->setupCriteria($vars, $errors);
+
+        return 0 === count($errors);
+    }
+
+    /**
+     * Título y cola padre. `path` no se calcula aquí: depende del padre que se
+     * acaba de asignar y lo hace `setupInheritance()`.
+     */
+    function setupTitle($vars, &$errors) {
         // Set basic search information
         if (!$vars['queue-name'])
             $errors['queue-name'] = __('A title is required');
@@ -1248,7 +1274,13 @@ class CustomQueue extends VerySimpleModel {
                 if ($P->parent_id == $this->id)
                     $errors['parent_id'] = __('Cannot be a descendent of itself');
         }
+    }
 
+    /**
+     * El filtro rápido: `::` significa «el de la cola padre»; cualquier otro
+     * valor tiene que estar entre los campos buscables de la raíz.
+     */
+    function setupFilter($vars, &$errors) {
         // Configure quick filter options
         $this->filter = $vars['filter'];
         if ($vars['sort_id']) {
@@ -1262,7 +1294,14 @@ class CustomQueue extends VerySimpleModel {
                 $errors['filter'] = __('Select an item from the list');
             }
         }
+    }
 
+    /**
+     * `path` y las banderas de herencia. Una cola hija hereda criterios
+     * siempre; columnas, exportación y ordenación sólo si se piden, y se dejan
+     * de heredar cuando el POST trae lo propio.
+     */
+    function setupInheritance($vars) {
         // Set basic queue information
         $this->path = $this->buildPath();
         $this->setFlag(self::FLAG_INHERIT_CRITERIA, $this->parent_id);
@@ -1281,19 +1320,23 @@ class CustomQueue extends VerySimpleModel {
             // No columns -- imply column inheritance
             $this->setFlag(self::FLAG_INHERIT_COLUMNS);
         }
+    }
 
-
+    /** Las columnas: sólo se tocan en una cola ya guardada. */
+    function setupColumns($vars, &$errors) {
         if ($this->getId()
                 && isset($vars['columns'])
                 && !$this->hasFlag(self::FLAG_INHERIT_COLUMNS)) {
-
 
             if ($this->columns->updateColumns($vars['columns'], $errors, array(
                                 'queue_id' => $this->getId(),
                                 'staff_id' => $this->staff_id)))
                 $this->columns->reset();
         }
+    }
 
+    /** Los campos de exportación y la herencia implícita si no queda ninguno. */
+    function setupExports($vars) {
         // Update export fields for the queue
         if (isset($vars['exports']) &&
                  !$this->hasFlag(self::FLAG_INHERIT_EXPORT)) {
@@ -1302,29 +1345,37 @@ class CustomQueue extends VerySimpleModel {
 
         if (!count($this->exports) && $this->parent)
             $this->hasFlag(self::FLAG_INHERIT_EXPORT);
+    }
 
+    /**
+     * Las ordenaciones. El reparto entre «se queda», «se va» y «se añade» lo
+     * decide `QueueSortPlan`, que no toca la base de datos; aquí sólo se
+     * aplica.
+     */
+    function setupSorts($vars) {
         // Update advanced sorting options for the queue
         if (isset($vars['sorts']) && !$this->hasFlag(self::FLAG_INHERIT_SORTING)) {
-            $new = $order = $vars['sorts'];
+            $current = array();
+            foreach ($this->sorts as $sort)
+                $current[] = $sort->sort_id;
+
+            $plan = QueueSortPlan::reconcile($current, $vars['sorts']);
+
             foreach ($this->sorts as $sort) {
-                $key = $sort->sort_id;
-                $idx = array_search($key, $vars['sorts']);
-                if (false === $idx) {
+                if (in_array($sort->sort_id, $plan['remove']))
                     $this->sorts->remove($sort);
-                }
-                else {
-                    $sort->set('sort', $idx);
-                    unset($new[$idx]);
-                }
+                elseif (array_key_exists($sort->sort_id, $plan['keep']))
+                    $sort->set('sort', $plan['keep'][$sort->sort_id]);
             }
             // Add new columns
-            foreach ($new as $id) {
+            foreach ($plan['add'] as $addition) {
+                list($id, $position) = $addition;
                 if (!$sort = QueueSort::lookup($id))
                     continue;
                 $glue = new QueueSortGlue(array(
                     'sort_id' => $id,
                     'queue' => $this,
-                    'sort' => array_search($id, $order),
+                    'sort' => $position,
                 ));
                 $this->sorts->add($sort, $glue);
             }
@@ -1335,7 +1386,10 @@ class CustomQueue extends VerySimpleModel {
             // No sorting -- imply sorting inheritance
             $this->setFlag(self::FLAG_INHERIT_SORTING);
         }
+    }
 
+    /** La ordenación por omisión y su herencia. */
+    function setupDefaultSort($vars, &$errors) {
         // Configure default sorting
         $this->setFlag(self::FLAG_INHERIT_DEF_SORT,
             $this->parent && $vars['sort_id'] === '::');
@@ -1354,13 +1408,20 @@ class CustomQueue extends VerySimpleModel {
             }
         } else
              $this->sort_id = 0;
+    }
 
+    /** Los criterios: se guardan como JSON y se vacían los objetos en memoria. */
+    function setupCriteria($vars, &$errors) {
         list($this->_conditions, $conditions)
             = QueueColumn::getConditionsFromPost($vars, $this->id, $this->getRoot());
 
         // TODO: Move this to SavedSearch::update() and adjust
         //       AjaxSearch::_saveSearch()
-        $form = $form ?: $this->getForm($vars);
+        /* Antes era `$form ?: $this->getForm($vars)`, con `$form` sin definir:
+           un aviso de PHP en cada guardado que nunca llegaba a verse porque el
+           POST de la cola no lo muestra. El valor era `null`, así que el
+           resultado es el mismo y el aviso desaparece. */
+        $form = $this->getForm($vars);
         if (!$vars) {
             $errors['criteria'] = __('No criteria specified');
         }
@@ -1377,9 +1438,8 @@ class CustomQueue extends VerySimpleModel {
             // Clear currently set criteria.and conditions.
              $this->criteria = $this->_conditions = null;
         }
-
-        return 0 === count($errors);
     }
+
 
     function psave() {
         return parent::save();
