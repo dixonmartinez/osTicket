@@ -88,10 +88,10 @@ html[data-theme="light"] .label {
     background-color: #63696f;
 }
 
-/* Cabecera plegada de .form_table (blanco sobre #929292) */
-html[data-theme="light"] .form_table th h4 {
-    background: #5a636b;
-}
+/* Cabecera de .form_table: scp.css la pinta en blanco sobre #929292. Ya no
+   hace falta oscurecer la banda para que el blanco se lea —el texto pasó a
+   ser el del panel sobre una superficie suave—, así que esa regla se retira.
+   El ritmo de la tabla vive en css/modern.css, seccion 12. */
 
 /* Elemento activo del desplegable de acciones (#08C sobre #cce7f5) */
 /* La hoja dropdown.css se carga después de esta: hace falta más peso

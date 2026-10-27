@@ -63,11 +63,14 @@
 // v31: las hojas y los scripts se piden con ?v=<mtime> (Http::asset). Si el
 //     navegador recibe HTML nuevo con CSS de la cache de 7 dias de nginx,
 //     los cambios de interfaz "no se ven".
+// v36: las pantallas de Ajustes y administracion (table.form_table) pasan al
+//     lenguaje del resto del panel: tarjeta, cabecera sin doble banda y fila
+//     resaltada. Sin subir la version se sirve el modern.css de la cache.
 // v34: el tema oscuro se engancha a `.redactor-in` (la clase real del area
 //     editable; `.redactor-editor` no existe) y gana la especificidad de la
 //     barra del editor. La barra del editor estrena botones y separadores de
 //     grupo, y la zona de adjuntos se marca con la clase `ost-drop-over`.
-const VERSION = 'ost-v35';
+const VERSION = 'ost-v36';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

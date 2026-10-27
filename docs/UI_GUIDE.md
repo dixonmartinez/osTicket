@@ -925,7 +925,7 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
 #### 3.12.6 Cómo se comprueba
 
 - `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158), hoy
-  **188** tras la segunda pasada (§3.13.11). Las
+  **195** tras las pasadas de §3.13.11 y §3.14. Las
   nuevas: `.redactor-in` en el tema y ninguna regla de `.redactor-editor`, la
   regla de cuatro clases de la barra, `#response_options > form`, `#note`,
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
@@ -1131,7 +1131,8 @@ borrar»** y los 33 seguían ahí.
 #### 3.13.11 Cómo se comprueba
 
 - `php tools/ui/theme-check.php` → **188** comprobaciones (antes 178), sin
-  cambios en esta tanda. Las
+  cambios en esa tanda; **195** desde la tanda de las pantallas de
+  administración (§3.14). Las
   nuevas: select2 v4, el buscador por tipo, la ficha en los dos temas,
   `.type-icon::after`, `body #line-chart-here`, las etiquetas del gráfico, el
   guardia del pie de la cola, la fecha de la entrada de apertura, la cota del
@@ -1155,8 +1156,57 @@ borrar»** y los 33 seguían ahí.
   (el backend de búsqueda en el suyo).
   En el contenedor de referencia, con `dom`, esa cuenta sube en las que se
   omiten aquí.
-- `sw.js` sube a **`ost-v35`** para que el service worker suelte las hojas
-  viejas.
+- `sw.js` sube a **`ost-v36`** para que el service worker suelte las hojas
+  viejas (v35 fue la tanda de los frentes 2 y 6; v36, las pantallas de
+  administración de §3.14).
+
+#### 3.14 Las pantallas de administración (`table.form_table`)
+
+El panel de agentes tenía dos lenguajes: la cola, la ficha del ticket y los
+diálogos siguen la capa moderna, pero **Ajustes** (`scp/settings.php`) y las
+pantallas de administración (`scp/admin.php`) se quedaron con el aspecto
+original de `scp/css/scp.css`, que es donde más se nota:
+
+| Lo que había | Lo que hay |
+|---|---|
+| Tabla sin tarjeta: sólo dos bordes `#ddd` a los lados, sin arriba ni abajo | Tarjeta con borde, esquinas redondeadas y sombra de 1 px, igual que las tablas de la cola |
+| Celdas con 4 px de aire: la etiqueta y el campo se tocaban | 10-14 px, alineados arriba para que una etiqueta de dos líneas no descuadre el campo |
+| Cabecera gris `#929292` con el texto en blanco, y un `h4` que pintaba **una segunda banda** encima (`#5a636b` en claro por la corrección de contraste de `ui.css`) | Una sola banda suave (`--ui-surface-alt`) con el texto del panel y el `h4` transparente |
+| `em` de ayuda en `#666` fijo y errores en `#f00` | Tokens (`--ui-text-muted`, `--ui-danger`) y un paso menos de tamaño para los errores |
+| Ningún resalte de fila | La fila bajo el puntero se aclara, salvo las celdas `.nohover` (la del botón de guardar) |
+| La ayuda contextual (`?`) siempre a plena opacidad | Al 55 % y a pleno al pasar por la fila |
+
+Tres decisiones que no son de adorno:
+
+1. **`border-collapse: separate`**. Con `collapse` el navegador ignora el
+   `border-radius` de la tabla: sin `separate` las esquinas se quedan rectas y
+   el redondeo no se dibuja.
+2. **`:nth-last-child(2)` para la etiqueta**. Las filas de un solo campo
+   (`colspan="2"`: la ayuda de la cabecera, el pie con los botones) no son
+   etiquetas. Sin ese filtro el texto de ayuda salía en negrita y a 12 px de
+   aire arriba, como si fuera el nombre del ajuste.
+3. **`overflow: hidden` es seguro aquí**. Los globos de ayuda
+   (`scp/js/tips.js`), el calendario (`jquery-ui`) y los desplegables de
+   select2 se montan en `<body>`, no dentro de la tabla; el `overflow` sólo
+   recorta las esquinas de la banda de cabecera.
+
+`div.section-break` (el separador de sección de los formularios largos, que
+también usan los formularios dinámicos en su `SectionBreakWidget`) pasa a ser
+una ficha suave, y `ui.css` deja de oscurecer la banda de la cabecera porque
+ya no hay blanco sobre gris que corregir. En oscuro, `dark.css` mantiene la
+banda en `--dk-surface-3` y el `h4` transparente.
+
+La maqueta `docs/theme-preview.html` trae ahora la pantalla de ajustes
+completa —pestañas, `.tab_content`, dos `form_table` y un `section-break` en
+medio— para revisarla sin Docker, en los dos temas.
+
+**Cómo se comprueba.** `php tools/ui/theme-check.php` → **195**
+comprobaciones (antes 188). Las siete nuevas: la tarjeta con
+`border-collapse: separate`, el filtro `:nth-last-child(2)`, la cabecera sin
+segunda banda en claro y en oscuro, `ui.css` sin la banda `#5a636b`, el
+resalte de fila y la pantalla de ajustes en la vista previa. Se verificó que
+la comprobación del filtro falla de verdad cambiando `:nth-last-child(2)` por
+`:first-child`.
 
 ## 4. Reglas para no romper nada
 
@@ -1346,6 +1396,7 @@ queda en §6.2.
 | 30 | **Iconos de la línea de tiempo y avatar**: el borde blanco de 16 px de `.type-icon::after` pasa al tema, se retira el segundo icono del aviso de vencimiento y el avatar —que el servidor dibuja sobre lienzo blanco— va en círculo con anillo del tema. El realce de las tablas pasa de la celda a la fila, así una celda vacía no queda de otro tono (§3.13.5, §3.13.6) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
 | 31 | **Verdades de la pantalla**: la cola ya no dice «Showing 1 - 23» con la tabla vacía (`$rendered` + `setTotal(0)`), y el tiempo de respuesta no puede ser negativo (la apertura se fecha con el ticket en `SeedManager::backdate()` y el informe acota con `GREATEST`). El origen de las filas invisibles —la vista `ost_ticket__cdata`— lo detecta `make seed-doctor` (§3.13.8, §3.13.9) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/seed.php`, `include/class.report.php`, `tests/QueueEmptyStateTest.php`, `tests/ReportTimeTest.php` |
 | 32 | **`make seed-repair`**: el doctor prometía `--doctor --repair` en sus pistas y la opción **no existía**. Ahora repara sin borrar ni volver a sembrar: artículos sin categoría (por pregunta del manifiesto), entradas fechadas antes que su padre (y `thread.lastmessage`), restos de hilo y vistas de datos. Repasa la revisión al terminar (`docs/SEED.md`) | ✅ Hecho | `include/cli/modules/seed.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
+| 38 | **Pantallas de administración con el lenguaje del panel**: `table.form_table` / `.settings_table` (Ajustes, administración y los diálogos de configuración) pasan de dos bordes sueltos, celdas de 4 px y cabecera gris con texto blanco a tarjeta con esquinas redondeadas, filas con aire, una sola banda de cabecera y la etiqueta sólo en las filas de dos columnas (`:nth-last-child(2)`); resalte de fila, errores con token y ayuda contextual atenuada. `ui.css` deja de corregir el contraste de la banda porque ya no existe, y la vista previa trae la pantalla de ajustes completa (§3.14) | ✅ Hecho | `css/modern.css`, `css/dark.css`, `css/ui.css`, `docs/theme-preview.html`, `tools/ui/theme-check.php` |
 | 37 | **Frente 6, tercera parte**: el backend de búsqueda de MySQL (`MysqlSearchBackend` y su configuración, 480 líneas) sale a `include/class.search.mysql.php` con su registro (`Signal::connect()`, `register()`) para que el buscador no desaparezca en silencio; `include/class.search.php` pasa de 1.955 a **1.476** líneas y lo incluye al final, después de la clase de la que hereda. `tests/SearchMysqlSplitTest.php` fija el orden y que no queden copias; `SearchRecordTest` pasa a leer el archivo nuevo (`docs/CODE_QUALITY.md`, frente 6) | ✅ Hecho | `include/class.search.mysql.php`, `include/class.search.php`, `tests/SearchMysqlSplitTest.php`, `tests/SearchRecordTest.php` |
 | 36 | **Frente 6, segunda mitad**: el formulario de estado del ticket (abrir, cerrar, borrar, marcar como duplicado o respondido) sale a `include/ajax.tickets.status.php` como rasgo `TicketsAjaxStatus`, con los cinco métodos enteros y las rutas del panel intactas: `include/ajax.tickets.php` pasa de 1.677 a **1.333** líneas y deja de ser el archivo más grande del panel. Los ayudantes privados se quedan en la clase porque el rasgo los llama con `self::`; `tests/TicketsAjaxSplitTest.php` lo comprueba todo por código fuente, incluido que no queden copias de los métodos movidos (`docs/CODE_QUALITY.md`, frente 6) | ✅ Hecho | `include/ajax.tickets.status.php`, `include/ajax.tickets.php`, `tests/TicketsAjaxSplitTest.php`, `tools/quality/class-map.php` |
 | 35 | **Frentes 2 y 6, tanda del 2026-10-27**: los textos de los diálogos en lote salen de `MassAction` (`assignPrompt()`, `confirm()`, `failure()`, `agentOrder()`) y el **diálogo de asignación** deja de estar duplicado (`memberOptions()`, `teamAssignees()`, `finish()` y las consultas de agentes de cada tipo), así que `massProcess()` baja de 321 a **227** (tickets) y de 287 a **191** (tareas); el análisis de combinar/enlazar sale a `analyzeMerge()` con siete pruebas; `run()` del gestor de archivos del CLI pasa de 408 a **12** líneas, con una acción por método y un aviso de verdad para la acción inventada; y los vencimientos/SLA del ticket se van al rasgo `TicketSla`, con `class.ticket.php` de 1.982 a **1.834** (`docs/CODE_QUALITY.md`, frentes 2 y 6) | ✅ Hecho | `include/class.massaction.php`, `include/ajax.tickets.php`, `include/ajax.tasks.php`, `include/cli/modules/file.php`, `include/class.ticket.sla.php`, `tests/MassActionTest.php`, `tests/FileManagerTest.php`, `tests/TicketSlaTest.php` |

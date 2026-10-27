@@ -1422,6 +1422,149 @@ body #line-chart-here tspan {
 }
 
 /* ================================================================== */
+/* 12. Administración: ajustes y formularios de configuración         */
+/* ================================================================== */
+/* Las pantallas de `scp/settings.php` y `scp/admin.php` —y los diálogos de
+   configuración que abren— son las que siguen usando `table.form_table`: una
+   tabla de dos columnas, etiqueta y campo, que scp.css deja con bordes #ddd
+   sueltos, celdas con 4 px de aire y una banda de cabecera gris (#929292) con
+   el texto en blanco. Es la pantalla que más se visita después de la cola y
+   la que menos se parecía al resto del panel.
+
+   Se toca sólo el ritmo: espaciado, radios, bordes, alineación y jerarquía.
+   Ni anchos ni alturas: los formularios siguen pidiendo `width="940"` y sus
+   columnas siguen midiendo lo que manda el marcado. */
+
+table.form_table,
+table.settings_table {
+    max-width: 100%;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius);
+    /* `separate` es lo que permite redondear: con `collapse` el navegador
+       dibuja las esquinas rectas y el radio se ignora */
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+table.form_table td,
+table.settings_table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--ui-border);
+    vertical-align: top;
+}
+
+/* La última fila no necesita raya: el borde de la tabla ya cierra el bloque */
+table.form_table tbody tr:last-child > td,
+table.settings_table tbody tr:last-child > td {
+    border-bottom: none;
+}
+
+/* La etiqueta de una fila de dos columnas. `:nth-last-child(2)` deja fuera las
+   filas de un solo campo (`colspan="2"`), que no son etiquetas: sin ese filtro
+   el texto de ayuda de la cabecera se pondría en negrita. */
+table.form_table tr > td:first-child:nth-last-child(2) {
+    padding-top: 12px;
+    padding-right: 18px;
+    font-weight: 500;
+    color: var(--ui-text);
+}
+
+/* Texto de ayuda dentro de la etiqueta (scp.css lo deja en #666) */
+table.form_table td em,
+table.form_table td .faded {
+    color: var(--ui-text-muted);
+}
+
+/* Cabecera. scp.css pone `th h4` en blanco sobre #929292 —una banda gris que
+   no existe en ninguna otra pantalla— y ui.css la oscurecía todavía más para
+   que el blanco se leyera. Aquí la banda pasa a ser una superficie suave con
+   el texto del panel, y el `h4` deja de ser una segunda banda dentro de ella. */
+table.form_table th,
+div.section-break {
+    background: var(--ui-surface-alt);
+    border: none;
+    border-bottom: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    padding: 10px 14px;
+    text-align: left;
+}
+
+table.form_table th h4 {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--ui-text);
+    font-size: var(--mod-text);
+    font-weight: 600;
+}
+
+table.form_table th h4 i,
+table.form_table th h4 a {
+    color: inherit;
+}
+
+table.form_table th em,
+table.form_table th em:not(:first-child) {
+    margin-top: 3px;
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-sm);
+}
+
+/* Separador de sección de los formularios largos («Settings» →
+   «Autoresponder»): el mismo `div.section-break` que usan los formularios
+   dinámicos para su `SectionBreakWidget`. */
+div.section-break {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    margin: 18px 0 10px;
+}
+
+div.section-break h3 {
+    font-size: var(--mod-text);
+    font-weight: 600;
+    margin: 0;
+}
+
+div.section-break em {
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-sm);
+}
+
+/* Fila bajo el puntero: con dos columnas y filas largas se pierde el renglón
+   al mirar el campo de al lado */
+table.form_table tbody tr:hover > td:not(.nohover) {
+    background: var(--ui-surface-alt);
+}
+
+/* Error de un campo: scp.css usa #f00 suelto y deja el mensaje con el mismo
+   tamaño que el texto de ayuda */
+table.form_table td .error,
+table.form_table td font.error {
+    color: var(--ui-danger);
+    font-size: var(--mod-text-sm);
+}
+
+/* La ayuda contextual (`?`) de cada ajuste: se atenúa, no desaparece. Al
+   pasar por la fila vuelve a su sitio — scp/js/tips.js la necesita visible
+   para poder abrir el globo. */
+table.form_table i.help-tip {
+    opacity: .55;
+    transition: opacity .15s var(--mod-ease);
+}
+
+table.form_table i.help-tip:hover,
+table.form_table tr:hover i.help-tip {
+    opacity: 1;
+}
+
+/* Cada pestaña de ajustes arranca pegada a la tira de pestañas */
+div.tab_content > table.form_table:first-child,
+div.tab_content > table.settings_table:first-child {
+    margin-top: 2px;
+}
+
+/* ================================================================== */
 /* 11. Red de seguridad                                              */
 /* ================================================================== */
 @media (prefers-reduced-motion: reduce) {

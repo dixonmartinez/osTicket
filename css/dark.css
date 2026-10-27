@@ -2204,9 +2204,12 @@ html[data-theme="dark"] ul.tabs li.active {
     color: var(--dk-text);
 }
 
-/* Título dentro de la cabecera de un formulario (fondo gris fijo) */
+/* Título dentro de la cabecera de un formulario. scp.css lo pinta sobre
+   #929292; en oscuro la banda ya la pone `th` (--dk-surface-3) y el `h4` no
+   necesita una segunda capa encima: se queda transparente y hereda el texto
+   del tema (css/modern.css, seccion 12). */
 html[data-theme="dark"] .form_table th h4 {
-    background: var(--dk-surface-3);
+    background: transparent;
     color: var(--dk-text);
 }
 

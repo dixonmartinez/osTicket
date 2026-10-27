@@ -821,6 +821,44 @@ check(strpos($sinComentarios, 'ul.tabs,') !== false
     'las pestañas y el panel de respuesta siguen el lenguaje de la capa moderna',
     'ul.tabs y #response_options > form conservan el gris y las sombras de scp.css');
 
+/* Ajustes del panel (table.form_table) ----------------------------------- */
+// Las pantallas de `scp/settings.php` y `scp/admin.php` son las que siguen
+// usando `table.form_table`. scp.css las deja con bordes #ddd sueltos, celdas
+// de 4 px y una cabecera gris con el texto en blanco; la capa moderna las
+// lleva al mismo lenguaje que el resto del panel (css/modern.css, seccion 12).
+check(strpos($sinComentarios, 'table.form_table,') !== false
+    && strpos($sinComentarios, 'border-collapse: separate;') !== false
+    && strpos($sinComentarios, 'border-radius: var(--mod-radius);') !== false,
+    'la tabla de ajustes es una tarjeta con esquinas redondeadas',
+    'table.form_table conserva los bordes sueltos de scp.css: sin `border-collapse: separate` el radio no se dibuja');
+
+check(strpos($sinComentarios, 'td:first-child:nth-last-child(2)') !== false,
+    'la etiqueta se distingue de las filas de un solo campo (colspan)',
+    'la regla de la etiqueta alcanza también a las filas `colspan=2`: la ayuda de la cabecera saldría en negrita');
+
+check(strpos($sinComentarios, 'table.form_table th h4 {') !== false
+    && strpos($sinComentarios, 'background: transparent;') !== false,
+    'la cabecera de la tabla deja de ser una banda gris con texto blanco',
+    'el h4 de la cabecera sigue pintando su propia banda encima de la del th');
+
+check(preg_match('/html\[data-theme="dark"\] \.form_table th h4 \{[^}]*background:\s*transparent/s',
+        $darkSinComentarios) === 1,
+    'en oscuro la cabecera tampoco lleva doble banda',
+    'css/dark.css sigue pintando el h4 sobre el th: dos bandas encima de la misma fila');
+
+check(strpos($uicss, 'background: #5a636b') === false,
+    'ui.css ya no oscurece la banda de la cabecera',
+    'css/ui.css sigue forzando la banda #5a636b sobre la cabecera nueva');
+
+check(strpos($sinComentarios, 'tbody tr:hover > td:not(.nohover)') !== false,
+    'las filas de ajustes se resaltan al pasar el puntero',
+    'la tabla de ajustes no resalta la fila: con dos columnas se pierde el renglón');
+
+check(strpos($preview, 'class="form_table settings_table"') !== false
+    && strpos($preview, 'class="section-break"') !== false,
+    'la vista previa trae la pantalla de ajustes completa',
+    'docs/theme-preview.html no muestra la pantalla de ajustes: no se puede revisar sin Docker');
+
 /* Estados vacios -------------------------------------------------------- */
 $kb = read("$root/include/staff/faq-categories.inc.php");
 check(strpos($kb, "placeholder=\"<?php echo __('Search the knowledge base'); ?>\"") !== false,

@@ -1209,8 +1209,10 @@ que no ejecutan código).
    `<script>` con `nonce`: la CSP ya no anuncia `'unsafe-inline'`.
 5. **Frente 3** (SQL a mano) — ✅ por áreas y con pruebas: 30 → 13 llamadas.
 6. **Frente 6** (archivos gigantes) — ✅ hecho, y **reforzado el 2026-10-27**:
-   ningún archivo propio pasa de 2.000 líneas (el mayor es `class.ticket.php`
-   con 1.982). Los dos `massProcess()` y `postMessage()` son funciones, no
+   ningún archivo propio pasa de 2.000 líneas (los mayores son
+   `class.dynamic_forms.php` con 1.937 y `class.thread.php` con 1.901; el
+   backend de búsqueda salió a `class.search.mysql.php` y el formulario de
+   estado del ticket a `ajax.tickets.status.php`). Los dos `massProcess()` y `postMessage()` son funciones, no
    archivos, y siguen en el frente 2. Lo que queda dentro del frente ya no es
    tamaño de archivo: `Ticket` (1.982 en seis rasgos) y los siete archivos de
    formularios piden mover **métodos** a clases colaboradoras con estado

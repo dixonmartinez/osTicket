@@ -275,47 +275,71 @@
         </div>
 
         <div class="demo-sec">
-            <h2>Formulario de configuracion (form_table)</h2>
-            <table class="form_table" width="100%">
-                <tbody>
-                    <tr><th colspan="2"><h4>Preferencias del sistema</h4>
-                        <em>Los cambios se aplican al guardar.</em></th></tr>
-                    <tr>
-                        <td width="200" class="required">Nombre del helpdesk</td>
-                        <td><input type="text" name="t" value="Helpdesk ANCA" size="40">
-                            <em class="error">Obligatorio</em></td>
-                    </tr>
-                    <tr>
-                        <td>Departamento por defecto</td>
-                        <td>
-                            <select><option>Soporte</option><option>Ventas</option></select>
-                            <select disabled><option>Deshabilitado</option></select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Descripcion</td>
-                        <td><textarea rows="3" cols="50">Texto de ejemplo con <a href="#">un enlace</a> y mas contenido.</textarea></td>
-                    </tr>
-                    <tr>
-                        <td>Opciones</td>
-                        <td>
-                            <label><input type="checkbox" checked> Avisar por correo</label>
-                            <label><input type="checkbox"> Adjuntar el ticket</label>
-                            <label><input type="radio" name="r" checked> Activo</label>
-                            <label><input type="radio" name="r"> Inactivo</label>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Campo de solo lectura</td>
-                        <td><input type="text" value="No editable" readonly></td>
-                    </tr>
-                    <tr><td colspan="2" class="nohover">
-                        <input type="submit" class="button" value="Guardar cambios">
-                        <button type="button" class="btn_sm">Cancelar</button>
-                        <a href="#">o volver al panel</a>
-                    </td></tr>
-                </tbody>
-            </table>
+            <h2>Ajustes del panel (settings.php: pestanas + form_table)</h2>
+            <ul class="clean tabs">
+                <li class="active"><a href="#demo-settings"><i class="icon-asterisk"></i> Settings</a></li>
+                <li><a href="#demo-autoresp"><i class="icon-mail-reply-all"></i> Autoresponder</a></li>
+                <li><a href="#demo-alerts"><i class="icon-bell-alt"></i> Alerts and Notices</a></li>
+            </ul>
+            <div class="tab_content" id="demo-settings">
+                <table class="form_table settings_table" width="100%">
+                    <thead>
+                        <tr><th colspan="2"><em>Ajustes y opciones del ticket para todo el sistema.</em></th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td width="220" class="required">Formato del numero de ticket:</td>
+                            <td><input type="text" name="ticket_number_format" value="%06d" size="12">
+                                <span class="faded">p. ej. <span>000123</span></span>
+                                <i class="help-tip icon-question-sign" title="Seis cifras con ceros a la izquierda"></i>
+                                <div class="error">El formato no es valido</div></td>
+                        </tr>
+                        <tr>
+                            <td width="220">Secuencia por omision:</td>
+                            <td><select name="ticket_sequence_id"><option>&mdash; Random &mdash;</option></select>
+                                <button class="action-button pull-right" type="button"><i class="icon-gear"></i> Manage</button>
+                                <i class="help-tip icon-question-sign" title="Gestiona las secuencias"></i></td>
+                        </tr>
+                        <tr>
+                            <td width="220">Contadores en la barra:</td>
+                            <td><input type="checkbox" checked> <label>Habilitar</label>
+                                <i class="help-tip icon-question-sign" title="Cuenta los tickets de cada cola"></i></td>
+                        </tr>
+                        <tr>
+                            <td width="220">Estado por omision:</td>
+                            <td><select><option>Abierto</option><option>En progreso</option></select></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="section-break"><h3>Notificaciones internas</h3>
+                    <em>Quien recibe aviso cuando entra un ticket.</em></div>
+
+                <table class="form_table settings_table" width="100%">
+                    <tbody>
+                        <tr><th colspan="2"><h4>Alertas al personal</h4>
+                            <em>Se envian al departamento del ticket.</em></th></tr>
+                        <tr>
+                            <td width="220">Nuevo ticket:</td>
+                            <td><input type="checkbox" checked> <label>Enviar aviso</label></td>
+                        </tr>
+                        <tr>
+                            <td width="220">Respuesta del cliente:</td>
+                            <td><input type="checkbox" checked> <label>Enviar aviso</label></td>
+                        </tr>
+                        <tr>
+                            <td width="220" class="required">Departamento:</td>
+                            <td><select><option>Support</option></select>
+                                <i class="help-tip icon-question-sign" title="Solo los agentes del departamento"></i></td>
+                        </tr>
+                        <tr><td colspan="2" class="nohover">
+                            <input type="submit" class="button" value="Guardar cambios">
+                            <button type="button" class="btn_sm">Cancelar</button>
+                            <a href="#">o volver al panel</a>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="demo-sec">
