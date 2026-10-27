@@ -927,11 +927,20 @@ que no ejecutan código).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. Faltan **tres**:
-  `class.ticket.php` (4.529), `class.orm.php` (3.643) e
-  `include/cli/modules/seed.php` (2.934). Los tres están medidos y con el
-  reparto pensado; ninguno necesita pruebas nuevas para moverse, sólo el mismo
-  método de comprobación que los anteriores.
+- Éxito: ningún archivo por encima de 2.000 líneas. **Faltan seis**, medidos
+  el 2026-10-27:
+
+  | Archivo | Líneas | Qué le queda por hacer |
+  |---|---|---|
+  | `class.ticket.php` | 4.529 | una sola clase de 4.429: exige rasgos o clases colaboradoras |
+  | `class.orm.php` | 3.643 | 34 clases: compiladores y ejecutores SQL a un archivo, modelo y conjuntos de resultados a otro |
+  | `include/cli/modules/seed.php` | 2.934 | una clase, método por método |
+  | `class.search.php` | 2.030 | los campos anotados y contadores del final (85 líneas) |
+  | `class.dynamic_forms.php` | 2.026 | `TypeaheadSelectionWidget` (93 líneas) |
+  | `ajax.tickets.php` | 2.021 | una clase, `TicketsAjaxAPI`; depende del frente 2 (su `massProcess()` es la función más larga) |
+
+  Los tres últimos están a menos de 30 líneas del criterio y se resuelven
+  moviendo una familia; los otros tres necesitan el reparto por dentro.
 - Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
   ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
   y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el
