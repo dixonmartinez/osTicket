@@ -880,7 +880,16 @@ que no ejecutan código).
   nombres públicos. Aquí sí conviene ir con calma: es donde más se rompe.
 - Lo hecho: `class.queue.php` bajó de 3.232 a **2.341** y `class.thread.php`
   de 3.405 a **2.318**, separando sus columnas y filtros y su historial de
-  cambios y cuerpos de entrada. El patrón es siempre el mismo:
+  cambios y cuerpos de entrada.
+- **`class.queue.php` (1.600) y `class.thread.php` (1.900) ya están por debajo
+  de 2.000.** Del primero se fueron diez clases a `class.queue.objects.php`
+  (815): columnas y condiciones, exportación y ordenaciones, con `CustomQueue`
+  sola en el original. Del segundo, seis a `class.thread.objects.php` (478):
+  aviso cruzado, hilos de objeto, `ThreadEntries`, `TicketThread`, las acciones
+  de entrada y la actividad. La interfaz `Threadable` **se queda donde estaba**
+  a propósito: `ObjectThread` la implementa y vive en el archivo nuevo, que se
+  incluye al final; si la interfaz se hubiera movido con él, `ObjectThread` se
+  declararía antes de que existiera. El patrón es siempre el mismo:
   mover clases enteras a un archivo con nombre propio, incluir ese archivo
   desde el original y comprobar con `make classes` que no falta ni sobra
   ninguna.
@@ -918,11 +927,11 @@ que no ejecutan código).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. Faltan cinco:
-  `class.ticket.php` (4.529), `class.orm.php`
-  (3.643), `include/cli/modules/seed.php` (2.934), `class.queue.php` (2.400) y
-  `class.thread.php` (2.351). Los tres últimos están a tiro: son archivos de
-  once clases cada uno donde ya se movieron las familias grandes.
+- Éxito: ningún archivo por encima de 2.000 líneas. Faltan **tres**:
+  `class.ticket.php` (4.529), `class.orm.php` (3.643) e
+  `include/cli/modules/seed.php` (2.934). Los tres están medidos y con el
+  reparto pensado; ninguno necesita pruebas nuevas para moverse, sólo el mismo
+  método de comprobación que los anteriores.
 - Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
   ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
   y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el
