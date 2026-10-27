@@ -165,6 +165,8 @@ $pageNav->setURL('tickets.php', $args);
     <div class="attached input">
       <input type="text" class="basic-search" data-url="ajax.php/tickets/lookup" name="query"
         autofocus size="30" value="<?php echo Format::htmlchars($_REQUEST['query'] ?? null, true); ?>"
+        placeholder="<?php echo __('Search tickets...'); ?>"
+        aria-label="<?php echo __('Search tickets'); ?>"
         autocomplete="off" autocorrect="off" autocapitalize="off">
       <button type="submit" class="attached button"><i class="icon-search"></i>
       </button>

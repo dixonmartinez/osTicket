@@ -58,7 +58,9 @@
 // v26: entra css/modern.css (capa moderna: cromo, tablas y formularios).
 // v27: la barra de colas vuelve a su flujo (el flex escondia las colas) y
 //     el indicador de orden deja de ser un bloque de color.
-const VERSION = 'ost-v27';
+// v28: los controles de la barra de la cola (Sort, filtro, More) se ven
+//     pulsables y el buscador dice que busca.
+const VERSION = 'ost-v28';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

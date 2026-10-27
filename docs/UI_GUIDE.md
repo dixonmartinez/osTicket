@@ -642,6 +642,19 @@ ella.
    indicador es el color de acento con fondo suave en los dos temas, y la
    flecha (la imagen de fondo de `scp.css`) se queda donde estaba.
 
+**Controles que parecían texto.** «Sort», el filtro rápido y el «More» de la
+barra son `span.action-button` con un anillo interior al 8 % de opacidad: en
+pantalla no se distinguían de una etiqueta. Ahora llevan borde visible, alto
+elástico y realce al pasar. La regla **excluye** `green`, `red`, `blue`,
+`primary` y `danger`: `.action-button` también se usa en los «Add New …» de
+color, y una regla genérica les habría quitado el color
+(`tests/ThemeControlsTest.php` lo comprueba, y falla si se quita la exclusión).
+
+**El buscador dice qué busca.** El campo de colas y el de tareas llevan
+`placeholder` traducido («Search tickets…», «Search tasks…») y `aria-label`,
+para que no quede un cuadro vacío sin explicación — y para quien usa lector de
+pantalla, donde el placeholder no se anuncia igual.
+
 **Filas y prioridad.** El tema oscuro repintaba las filas impares (cebras de
 `scp.css` pasadas a `--dk-surface-2`), así que la tabla no era la misma en los
 dos temas; ahora no hay cebras en ninguno y el realce al pasar usa el acento.

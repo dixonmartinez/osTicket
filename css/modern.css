@@ -712,6 +712,36 @@ button:disabled {
     padding: 6px 9px;
 }
 
+/* Controles de la barra de la cola: Sort, el filtro rapido y las acciones en
+   bloque. Son `span.action-button` con un anillo casi invisible (box-shadow
+   al 8%), asi que en pantalla parecian texto suelto y no se sabia que se
+   podian pulsar. Aqui llevan borde visible, alto comodo y realce al pasar. */
+/* Ojo con los colores: `.action-button` tambien va en los botones verdes y
+   rojos de "Add New ..." (`green button action-button`). Si se pintara el
+   color aqui, se perderian; por eso la regla excluye los que llevan color
+   propio y solo alcanza a los neutros (Sort, filtro, "More"). */
+.action-button:not(.green):not(.red):not(.blue):not(.primary):not(.danger) {
+    height: auto;
+    line-height: 1.5;
+    padding: 4px 10px;
+    border-radius: var(--mod-radius-sm);
+    box-shadow: inset 0 0 0 1px var(--ui-border);
+    color: var(--ui-text-muted);
+    transition: background .15s var(--mod-ease), color .15s var(--mod-ease),
+        box-shadow .15s var(--mod-ease);
+}
+
+.action-button:not(.green):not(.red):not(.blue):not(.primary):not(.danger):hover {
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    box-shadow: inset 0 0 0 1px var(--ui-accent);
+}
+
+.action-button i.icon-caret-down,
+.action-button svg.icon-caret-down {
+    opacity: .7;
+}
+
 .ost-icon-button {
     border-radius: var(--mod-radius-sm);
     transition: background .15s var(--mod-ease), border-color .15s var(--mod-ease);

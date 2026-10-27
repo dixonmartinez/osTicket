@@ -285,6 +285,8 @@ if ($thisstaff->hasPerm(Task::PERM_DELETE, false)) {
         <div class="attached input">
             <input type="text" class="basic-search" data-url="ajax.php/tasks/lookup" name="query"
                    autofocus size="30" value="<?php echo Format::htmlchars($_REQUEST['query'], true); ?>"
+                   placeholder="<?php echo __('Search tasks...'); ?>"
+                   aria-label="<?php echo __('Search tasks'); ?>"
                    autocomplete="off" autocorrect="off" autocapitalize="off">
             <button type="submit" class="attached button"><i class="icon-search"></i>
             </button>
