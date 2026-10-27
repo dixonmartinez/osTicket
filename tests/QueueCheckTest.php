@@ -35,6 +35,22 @@ foreach (array('DEPT_TABLE' => 'department', 'TICKET_TABLE' => 'ticket') as $c =
     if (!defined($c))
         define($c, TABLE_PREFIX . $t);
 
+/* Las banderas de cola. `class.queue.php` no se carga aquí (necesita la
+ * base de datos), pero `flagText()` las nombra. Los valores se copian de
+ * include/class.queue.php y la prueba comprueba que siguen siendo esos. */
+if (!class_exists('CustomQueue')) {
+    class CustomQueue {
+        const FLAG_PUBLIC = 0x0001;
+        const FLAG_QUEUE = 0x0002;
+        const FLAG_DISABLED = 0x0004;
+        const FLAG_INHERIT_CRITERIA = 0x0008;
+        const FLAG_INHERIT_COLUMNS = 0x0010;
+        const FLAG_INHERIT_SORTING = 0x0020;
+        const FLAG_INHERIT_DEF_SORT = 0x0040;
+        const FLAG_INHERIT_EXPORT = 0x0080;
+    }
+}
+
 require_once INCLUDE_DIR . 'cli/modules/queue.php';
 
 class QueueCheckTest extends UnitTestCase {
@@ -347,6 +363,45 @@ class QueueCheckTest extends UnitTestCase {
      * La consulta del último tramo se imprime para poder pegarla en MariaDB;
      * si el módulo no la puede compilar, el desglose sigue sirviendo.
      */
+    /**
+     * La barra de `/scp/tickets.php` solo muestra las colas del primer nivel
+     * que llevan el bit `FLAG_QUEUE`. Una cola sin ese bit existe y no sale:
+     * el sintoma es "desaparecieron mis colas" y no hay nada en el log.
+     *
+     * `queue --nav` tiene que decir, para cada una, si entra en la barra y el
+     * motivo cuando no entra. Aqui se comprueba la tabla de motivos, que es
+     * la parte que se puede probar sin base de datos.
+     */
+    function testElDiagnosticoDeLaBarraExplicaPorQueFaltaUnaCola() {
+        $public = CustomQueue::FLAG_PUBLIC;
+        $queue = CustomQueue::FLAG_QUEUE;
+        $disabled = CustomQueue::FLAG_DISABLED;
+
+        $this->assertSame('pública, cola', QueueCheck::flagText($public | $queue));
+        // Sin bit de cola: es una busqueda guardada, no una cola
+        $this->assertSame('pública', QueueCheck::flagText($public));
+        // Deshabilitada
+        $this->assertSame('pública, cola, deshabilitada',
+            QueueCheck::flagText($public | $queue | $disabled));
+
+        $fuente = file_get_contents(INCLUDE_DIR . 'class.queue.php');
+        foreach (array('FLAG_PUBLIC' => '0x0001', 'FLAG_QUEUE' => '0x0002',
+                'FLAG_DISABLED' => '0x0004') as $nombre => $valor)
+            $this->assertMatchesRegularExpression(
+                '/const\s+' . $nombre . '\s*=\s*' . $valor . ';/', $fuente,
+                "$nombre cambió: los bits de arriba ya no valen");
+    }
+
+    /** Y el comando tiene que ofrecer la acción `--nav`. */
+    function testElComandoOfreceLaAccionNav() {
+        $module = (new ReflectionClass('QueueCheck'))->getDefaultProperties();
+        $spec = $module['options'];
+
+        $this->assertTrue(isset($spec['nav']),
+            '`manage.php queue --nav` es lo que dice que colas salen en la barra');
+        $this->assertStringContainsString('barra', implode(' ', $spec['nav']));
+    }
+
     function testElDiagnosticoPublicaElSqlDelUltimoTramo() {
         $source = file_get_contents(INCLUDE_DIR . 'cli/modules/queue.php');
 

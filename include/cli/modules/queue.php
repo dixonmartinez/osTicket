@@ -62,6 +62,8 @@ class QueueCheck extends Module {
             'help' => 'Imprime el SQL completo de la consulta de la lista'),
         'periods' => array('', '--periods', 'action' => 'store_true',
             'help' => 'Compara los seis periodos de fecha con los tickets reales'),
+        'nav' => array('', '--nav', 'action' => 'store_true',
+            'help' => 'Que colas salen en la barra de tickets.php y por que las demas no'),
         'json' => array('', '--json', 'action' => 'store_true',
             'help' => 'Salida JSON, para engancharla a otra herramienta'),
     );
@@ -199,6 +201,11 @@ class QueueCheck extends Module {
 
     /** Ejecuta la acción pedida (listar, revisar una o revisar todas). */
     function dispatch($queues) {
+        if ($this->getOption('nav')) {
+            $this->navDiagnosis($queues);
+            return $this->problems ? 1 : 0;
+        }
+
         if ($this->getOption('list')) {
             $this->listQueues($queues);
             return $this->problems ? 1 : 0;
@@ -381,6 +388,78 @@ class QueueCheck extends Module {
     /* ------------------------------------------------------------------ */
     /* Listado                                                             */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * Que colas salen en la barra de `/scp/tickets.php`, y por que las demas no.
+     *
+     * La barra la arma `CustomQueue::getHierarchicalQueues($staff, 0, true)`
+     * con `$primary = true`, que en el primer nivel **solo deja pasar las que
+     * son cola** (`FLAG_QUEUE`). Una cola guardada sin ese bit existe, se ve
+     * en `queue --list`, y sin embargo no aparece en la barra: el sintoma es
+     * «desaparecieron mis colas» y no hay ningun error en el log.
+     *
+     * Este diagnostico recorre **todas** las filas de la tabla y dice, para
+     * cada una, si entra en la barra y el motivo cuando no entra.
+     */
+    function navDiagnosis($queues) {
+        $nav = array();
+        foreach (CustomQueue::getHierarchicalQueues($this->staff, 0, true) as $_) {
+            list($queue,) = $_;
+            $nav[] = $queue->getId();
+        }
+
+        $rows = array();
+        foreach ($queues as $queue) {
+            $id = (int) $queue->getId();
+            $flags = (int) $queue->flags;
+            $reasons = array();
+
+            if ($flags & CustomQueue::FLAG_DISABLED)
+                $reasons[] = 'esta deshabilitada (FLAG_DISABLED)';
+            if (!($flags & CustomQueue::FLAG_QUEUE))
+                $reasons[] = 'no tiene el bit de cola (FLAG_QUEUE): la barra'
+                    . ' solo muestra colas en el primer nivel';
+            if ($queue->parent_id)
+                $reasons[] = 'cuelga de la cola '.$queue->parent_id
+                    .' y va en su desplegable';
+
+            $rows[] = array(
+                'id' => $id,
+                'title' => $queue->getName(),
+                'flags' => $this->flagText($flags),
+                'in_nav' => in_array($id, $nav),
+                'reason' => $reasons ? implode('; ', $reasons) : '',
+            );
+        }
+
+        if ($this->json) {
+            $this->emitJson(array('agent' => $this->staffInfo(),
+                'nav' => $nav, 'queues' => $rows));
+            return;
+        }
+
+        printf("Colas en la barra de tickets.php para %s: %d de %d\n\n",
+            $this->staff->getName(), count($nav), count($rows));
+
+        printf("  %-4s %-34s %-30s %s\n", 'ID', 'Cola', 'Banderas', 'Barra');
+        foreach ($rows as $row) {
+            printf("  %-4d %-34s %-30s %s\n",
+                $row['id'],
+                mb_substr($row['title'], 0, 34),
+                mb_substr($row['flags'], 0, 30),
+                $row['in_nav'] ? 'si' : 'no');
+            if ($row['reason'])
+                printf("       %s\n", $row['reason']);
+        }
+
+        if (!$nav) {
+            $this->problems++;
+            $this->err('');
+            $this->err('Ninguna cola llega a la barra: revisa las banderas de');
+            $this->err('arriba. `FLAG_QUEUE` se activa en la ficha de la cola,');
+            $this->err('en «Queue Visibility» -> «Shows up in queue navigation».');
+        }
+    }
 
     function listQueues($queues) {
         $rows = array();

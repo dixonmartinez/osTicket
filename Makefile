@@ -300,6 +300,9 @@ queues: ## Lista las colas del panel con su identificador y su recuento
 queue-check: ## Diagnostica una cola: criterio, SQL real, filas y recuento (QUEUE=8)
 	@docker compose exec -T php php manage.php queue $(if $(QUEUE),--id=$(QUEUE),--all) $(QUEUE_ARGS)
 
+queue-nav: ## Que colas salen en la barra de tickets.php y por que faltan las demas (AS=dixon)
+	@docker compose exec -T php php manage.php queue --nav $(if $(AS),--as=$(AS),) $(ARGS)
+
 db-views: ## Estado de las tablas materializadas de los formularios (sólo lee)
 	@docker compose exec -T php php manage.php db --views
 

@@ -403,6 +403,46 @@ icono no está en el mapa, el `background-image: none` la dejaría sin dibujo:
 por eso la lista de clases con máscara y la de selectores que la activan es la
 misma.
 
+### 3.5.3 La barra de colas (`#customQ_nav`)
+
+En `/scp/tickets.php` la barra de colas (*Open*, *My Tickets*, *Closed*…) la
+monta `jb.overflowmenu` (`scp/js/jb.overflow.menu.js`): mide la fila y, lo que
+no cabe, lo pasa a un menú secundario detrás de un asa. Es un componente
+**medido**, así que cambiarle el ancho o el flujo desde la hoja lo rompe.
+
+Dos cosas que valían antes y ya no:
+
+- `scp.css` fija `.jb-overflowmenu` en **960 px** con la fila en
+  `position: absolute`. En una pantalla de 1280 px el contenedor no era el
+  ancho real, así que la medida salía mal y podía esconder todas las colas
+  dejando el asa visible con la barra vacía. Ahora el contenedor es
+  `width: auto; height: auto`, la fila vuelve al flujo (`position: static`) y
+  el desbordamiento no pinta borde ni fondo.
+- `refresh()` restaba anchos elemento a elemento con `offset().left`, y
+  cerraba el componente cuando no quedaba nada por mover. Ahora mide por
+  **suma de anchos** (`outerWidth(true)`), mueve **desde el final**, no mueve
+  nunca la pestaña activa ni `#new-ticket` (`.primary-only`) y sólo cierra si
+  el menú secundario quedó vacío.
+
+Reglas para quien toque esta zona: **nada de `display: flex` ni `gap`** en
+`#nav`, `#sub_nav`, `#basic_search` ni `#customQ_nav`; la separación va por
+`margin` (`#nav > li + li { margin-left: 4px }`) y `#basic_search .attached.input`
+necesita `height: auto` porque `scp.css` lo clava en 24 px.
+
+**Si faltan colas pero la barra se ve bien**, el problema no es CSS: la barra
+sólo lista las colas de primer nivel con el bit `FLAG_QUEUE` y sin
+`FLAG_DISABLED` (`CustomQueue::getHierarchicalQueues()`, `$primary = true`).
+Ese bit se activa en la ficha de la cola, *Queue Visibility* → «Shows up in
+queue navigation». Para saberlo sin adivinar:
+
+```bash
+make queue-nav            # o: make queue-nav AS=dixon
+```
+
+Imprime `ID | Cola | Banderas | Barra` y, cuando una cola no entra, el motivo
+(`FLAG_DISABLED`, falta `FLAG_QUEUE`, `parent_id`). `make queue-nav ARGS=--json`
+si lo quieres para un script.
+
 ### 3.6 Indicador de fuerza de la contraseña
 
 `js/password-strength.js` engancha un medidor de cuatro tramos a los campos

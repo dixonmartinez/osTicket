@@ -215,9 +215,38 @@ ul#nav {
     background: transparent;
 }
 
-/* Separacion entre pestanas. Se hace con margen y no con `gap` porque el
-   plugin de desbordamiento mide con `offset()` y `outerWidth(true)`: el
-   margen lo cuenta bien, el hueco de flex no. */
+/* --- Barra de colas (jb.overflowmenu) ------------------------------- */
+/* scp.css la fija en 960x35 px y manda la fila de pestanas a
+   `position:absolute` con `left:0 right:0`. En una pantalla mas ancha que
+   960 px eso deja la barra corta y, como el plugin mide el ancho del
+   elemento para decidir que esconder, la medida no cuadra con la fila: se
+   comia las colas. Aqui la barra ocupa el ancho disponible y la fila vuelve
+   al flujo normal; el menu de desbordamiento sigue flotando a la derecha,
+   pero solo con el ancho de su asa. */
+.jb-overflowmenu {
+    height: auto;
+    width: auto;
+}
+
+#customQ_nav .jb-overflowmenu-menu-primary,
+#sub_nav.jb-overflowmenu-menu-primary {
+    position: static;
+    height: auto !important;
+}
+
+.jb-overflowmenu .jb-overflowmenu-container.jb-overflowmenu-helper-postion,
+#sub_nav .jb-overflowmenu-container {
+    left: auto;
+    width: auto;
+    top: 0;
+    bottom: 0;
+    border: 0;
+    background: transparent;
+}
+
+/* Separacion entre pestanas: con margen y no con `gap`.
+   El plugin de desbordamiento mide con `outerWidth(true)`, que si cuenta el
+   margen; el hueco de flex no lo cuenta. */
 #nav > li + li {
     margin-left: 4px;
 }

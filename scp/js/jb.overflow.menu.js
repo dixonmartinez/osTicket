@@ -109,41 +109,50 @@ $.widget( "jb.overflowmenu", {
             .appendTo( this.primaryMenu )
 
 
-        var vHeight = this.primaryMenuHeight,
-            hWidth = this.secondaryMenuContainer.find('.jb-overflowmenu-menu-secondary-handle')
-                .outerWidth(),
-            vWidth = this.primaryMenuWidth - hWidth,
-            previousRight = this.primaryMenu.offset().left;
+        // Ancho real disponible: el de la fila menos el del asa del menu.
+        //
+        // Antes se restaba elemento a elemento con `offset().left` y
+        // `Math.max(0, left - previousRight)`, arrastrando el error de cada
+        // medida. En /scp/tickets.php el resultado era que la barra se comia
+        // todas las colas (Open, My Tickets, Closed) y solo sobrevivian las
+        // pestanas marcadas `primary-only`: parecia que el filtro de colas
+        // habia desaparecido. Aqui se suma el ancho de lo que queda en la
+        // fila y se van moviendo al menu los ultimos hasta que cabe.
+        var self = this,
+            handle = this.secondaryMenuContainer
+                .find('.jb-overflowmenu-menu-secondary-handle'),
+            handleWidth = handle.is(':visible') ? (handle.outerWidth(true) || 0) : 0,
+            base = this.primaryMenu.width() || this.element.innerWidth() || 0,
+            available = base - handleWidth;
 
-            // Items classed 'primary-only' should always be primary
-            this._getItems()
-                .each(function() {
-                    var $this = $(this);
-                    if ($this.hasClass('primary-only'))
-                      vWidth -= $this.outerWidth(true);
-                });
+        // Sin ancho medible (barra oculta o sin maquetar) no se esconde nada:
+        // mejor una fila larga que una barra vacia.
+        var rowWidth = function() {
+            var sum = 0;
+            self.primaryMenu.children().each(function() {
+                sum += $(this).outerWidth(true) || 0;
+            });
+            return sum;
+        };
 
-            //get the items, filter out the visible ones
-            itemsToHide = this._getItems()
-                .filter(function() {
-                    var $this = $(this),
-                        left = $this.offset().left,
-                        dLeft = Math.max(0, left - previousRight);
-                    previousRight = left + $this.width();
+        if (available > 0) {
+            var candidates = this.primaryMenu.children().toArray().reverse();
+            for (var i = 0; i < candidates.length && rowWidth() > available; i++) {
+                var $item = $(candidates[i]);
+                // Nunca se esconde la pestana activa ni las fijas
+                if ($item.hasClass('primary-only') || $item.hasClass('active')
+                        || $item.hasClass('child'))
+                    continue;
+                // Y siempre queda algo en la fila
+                if (this.primaryMenu.children().length < 2)
+                    break;
+                $item.appendTo(this.secondaryMenu)
+                    .find('i.icon-sort-down, svg.icon-sort-down')
+                    .remove();
+            }
+        }
 
-                    if ($this.hasClass('primary-only'))
-                        return false;
-
-                    vWidth -= dLeft + $this.outerWidth(true);
-                    return vWidth < 1;
-                });
-
-        itemsToHide.appendTo( this.secondaryMenu )
-            .find('i.icon-sort-down, svg.icon-sort-down')
-            .remove();
-
-
-        if( itemsToHide.length == 0 ){
+        if( this.secondaryMenu.children().length == 0 ){
             this.close();
         }
 
