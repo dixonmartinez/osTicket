@@ -935,6 +935,42 @@ class SeedDataTest extends UnitTestCase {
                 'la reparacion no puede borrar datos: ' . $forbidden);
     }
 
+    /**
+     * Los artículos que no se pueden recolocar no se borran solos.
+     *
+     * En la revisión real los 33 artículos de la tabla eran de otra versión
+     * del sembrador: sus preguntas no están en el manifiesto («Aviso de
+     * vulnerabilidad» frente a «¿Cómo abro un ticket?») y sus categorías ya no
+     * existen. No hay a qué recolocarlos, así que se quedan invisibles para
+     * siempre; borrarlos sin permiso no es reparar.
+     */
+    public function testLosArticulosIrrecuperablesSeBorranSoloSiSePide(): void {
+        $source = $this->fuente();
+
+        $this->assertStringContainsString("'purge-orphans' => array", $source,
+            'falta la opcion --purge-orphans');
+
+        $this->assertStringContainsString('if ($purgeOrphans)', $source,
+            'la purga de articulos tiene que ir condicionada a la bandera');
+        $this->assertStringContainsString(
+            "\$this->doctor(\$options['repair'], \$options['purge-orphans'])",
+            $source,
+            'la bandera tiene que llegar desde la linea de comandos');
+
+        $start = strpos($source, 'function purgeOrphanFaq(');
+        $this->assertTrue($start !== false, 'falta purgeOrphanFaq()');
+        $body = substr($source, $start, strpos($source, 'function scalar(', $start)
+            ?: strlen($source));
+
+        // Nunca se borra lo que se puede recolocar ni lo que se ve en el panel
+        $this->assertStringContainsString('isset($known[$question])', $body,
+            'no se puede borrar un articulo del manifiesto');
+        $this->assertStringContainsString('Category::lookup(', $body,
+            'no se puede borrar un articulo cuya categoria existe');
+        $this->assertStringContainsString('self::faqs()', $body,
+            'la lista de preguntas conocidas sale del manifiesto');
+    }
+
     /** Los articulos huerfanos se recolocan por pregunta exacta. */
     public function testLaReparacionRecolocaLosArticulosPorPregunta(): void {
         $source = $this->fuente();

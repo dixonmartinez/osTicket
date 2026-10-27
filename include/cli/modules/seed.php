@@ -102,6 +102,11 @@ class SeedManager extends Module {
         'doctor' => array('', '--doctor', 'action' => 'store_true',
             'help' => 'No crea nada: revisa que los datos sembrados cuadren con '
                 . 'los informes y las colas del panel'),
+        'purge-orphans' => array('', '--purge-orphans',
+            'action' => 'store_true',
+            'help' => 'Con `--repair`: borra los artículos que no se pueden '
+                . 'recolocar (su pregunta no está en el manifiesto y su '
+                . 'categoría ya no existe). Sólo base de conocimiento'),
         'repair' => array('', '--repair', 'action' => 'store_true',
             'help' => 'Con `--doctor`: arregla lo que se puede arreglar sin '
                 . 'borrar nada (artículos sin categoría, entradas fechadas '
@@ -671,7 +676,7 @@ class SeedManager extends Module {
         // `--doctor` no toca nada: sólo mira y dictamina. `--repair` arregla
         // lo que se puede arreglar y después pasa la misma revisión.
         if ($options['doctor'] || $options['repair'])
-            return $this->doctor($options['repair']);
+            return $this->doctor($options['repair'], $options['purge-orphans']);
 
         if ($options['fresh'] && !$this->purge())
             $this->fail('No se pudo borrar el conjunto anterior; no se crea nada');

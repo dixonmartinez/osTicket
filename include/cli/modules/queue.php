@@ -63,6 +63,10 @@ class QueueCheck extends Module {
             'help' => 'Cuántas filas se piden, como la página (25 por omisión)'),
         'sql' => array('', '--sql', 'action' => 'store_true',
             'help' => 'Imprime el SQL completo de la consulta de la lista'),
+        'hydrate' => array('', '--hydrate', 'action' => 'store_true',
+            'help' => 'Recorre las filas como lo hace la página (un modelo por '
+                . 'fila): distingue «la base no devuelve filas» de «la base las '
+                . 'devuelve y la página no las pinta»'),
         'periods' => array('', '--periods', 'action' => 'store_true',
             'help' => 'Compara los seis periodos de fecha con los tickets reales'),
         'nav' => array('', '--nav', 'action' => 'store_true',
@@ -77,6 +81,8 @@ class QueueCheck extends Module {
     var $limit = 25;
     var $json = false;
     var $showSql = false;
+    /** Recorrer las filas como la página, para ver si hidratan (--hydrate). */
+    var $hydrate = false;
     /** @var Staff con el que se calcula la visibilidad. */
     var $staff;
     /** Lo que contestó la base en la comprobación previa (versión, base…). */
@@ -106,6 +112,7 @@ class QueueCheck extends Module {
         $this->limit = max(1, (int) $this->getOption('limit', 25));
         $this->json = (bool) $this->getOption('json');
         $this->showSql = (bool) $this->getOption('sql');
+        $this->hydrate = (bool) $this->getOption('hydrate');
 
         // El ORM lanza «Unable to prepare query:» con el mensaje de MariaDB
         // en blanco cuando `db_query()` alcanza a registrar el fallo: ese
@@ -1006,6 +1013,9 @@ class QueueCheck extends Module {
             'sql' => null,
             'params' => array(),
             'rows' => null,
+            'hydrated' => null,
+            'hydrated_null' => null,
+            'hydrated_numbers' => array(),
             'limit' => $this->limit,
             'count' => null,
             'queue_count' => null,
@@ -1041,6 +1051,37 @@ class QueueCheck extends Module {
         }
         catch (Throwable $e) {
             $result['error'] = $e->getMessage();
+        }
+
+        // Hidratación: lo que hace la página. `rows` dice si la base devuelve
+        // filas; esto dice si el ORM las convierte en tickets. Es el hueco por
+        // el que se pierden las filas sin un solo error visible, así que se
+        // mide aparte (una por una, como el `foreach` de la plantilla).
+        if ($this->hydrate) {
+            try {
+                $built = 0;
+                $nullIds = 0;
+                $numbers = array();
+
+                $query = $this->buildListQuery($queue);
+                $query->limit($this->limit);
+
+                foreach ($query as $ticket) {
+                    $built++;
+                    if (!$ticket['ticket_id'])
+                        $nullIds++;
+                    elseif (count($numbers) < 5)
+                        $numbers[] = $ticket['number'];
+                }
+
+                $result['hydrated'] = $built;
+                $result['hydrated_null'] = $nullIds;
+                $result['hydrated_numbers'] = $numbers;
+            }
+            catch (Throwable $e) {
+                $result['hydrated'] = null;
+                $result['error'] = 'al hidratar: ' . $e->getMessage();
+            }
         }
 
         // Recuento de la **misma** consulta, sin ventana. Es el número que

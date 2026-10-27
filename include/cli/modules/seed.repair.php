@@ -31,12 +31,12 @@ trait SeedRepair {
      *
      * @return int 0 si todo cuadra, 1 si no
      */
-    function doctor($repair = false) {
+    function doctor($repair = false, $purgeOrphans = false) {
         if ($repair) {
             $this->out('Reparación de los datos sembrados '
-                . '(no se borra nada y no se crea nada nuevo)');
+                . '(no se crea nada nuevo)');
             $this->out('');
-            $this->repair();
+            $this->repair($purgeOrphans);
             $this->out('');
             $this->out('Revisión después de reparar');
         }
@@ -124,8 +124,11 @@ trait SeedRepair {
                  ON c.category_id = f.category_id
               WHERE c.category_id IS NULL',
             true, 'los artículos sin categoría no se ven en la base de '
-                . 'conocimiento: `make seed` o `make seed-repair` los '
-                . 'recolocan en la suya (no se borra ninguno)');
+                . 'conocimiento: `make seed-repair` los recoloca si su '
+                . 'pregunta está en el manifiesto; si no (artículos de una '
+                . 'versión anterior), `make seed-repair '
+                . 'SEED_ARGS=--purge-orphans` los borra y `make seed '
+                . '--only=faq` vuelve a crearlos');
 
         // 7. Tickets cuyo departamento no es el del tema (el tema manda)
         $add('tickets en un departamento distinto al de su tema',
@@ -219,9 +222,16 @@ trait SeedRepair {
      * y un departamento que el administrador no ve. Eso es volver a sembrar
      * (`make seed`) o dar el acceso desde el panel.
      */
-    function repair() {
+    function repair($purgeOrphans = false) {
         $this->cleanupOrphans();
         $this->repairFaqCategories();
+
+        // Los que no se pueden recolocar no se tocan salvo que se pida: son
+        // filas de una base de conocimiento anterior y borrar sin permiso no
+        // es reparar.
+        if ($purgeOrphans)
+            $this->purgeOrphanFaq();
+
         $this->repairEntryDates();
 
         // Las vistas materializadas: si a un ticket le falta su fila, la cola
@@ -354,6 +364,71 @@ trait SeedRepair {
         if ($missing)
             $this->warn(sprintf('%d categoría(s) del manifiesto no existen: '
                 . 'créalas con `make seed --only=faq`', $missing));
+    }
+
+    /**
+     * Borra los artículos de la base de conocimiento que ya no se pueden
+     * recolocar (`--purge-orphans`).
+     *
+     * Son filas de una versión anterior del sembrador: su pregunta no está en
+     * el manifiesto actual y su categoría ya no existe, así que no hay a qué
+     * recolocarlas. Se ven en la tabla pero **no en el panel** —una categoría
+     * inexistente las deja fuera de la base de conocimiento—, y se quedan ahí
+     * para siempre: ni `make seed` ni `--fresh` las conocen.
+     *
+     * Sólo se borra cuando se pide con la bandera. Antes de borrar se
+     * enumeran las preguntas, para que se vea qué se va; y **nunca** se toca
+     * un artículo cuya pregunta esté en el manifiesto (ese se recoloca) ni uno
+     * cuya categoría exista (ese se ve en el panel).
+     */
+    function purgeOrphanFaq() {
+        // Las preguntas que el sembrador conoce, normalizadas como las guarda
+        // `FAQ::update()` (`Format::striptags(trim(...))`).
+        $known = array();
+        foreach (self::faqs() as $articles)
+            foreach ($articles as $article)
+                $known[Format::striptags(trim($article[0]))] = true;
+
+        $orphans = array();
+        foreach (FAQ::objects()->all() as $faq) {
+            if (!$faq->getCategoryId()
+                    || Category::lookup($faq->getCategoryId()))
+                continue;
+
+            $question = Format::striptags(trim($faq->getQuestion()));
+            if (isset($known[$question]))
+                continue;
+
+            $orphans[] = $faq;
+        }
+
+        if (!$orphans) {
+            $this->out('  · no hay artículos que borrar: los que quedan se '
+                . 'pueden recolocar');
+            return;
+        }
+
+        foreach (array_slice($orphans, 0, 10) as $faq)
+            $this->out(sprintf('    - «%s» (categoría %s, que no existe)',
+                $faq->getQuestion(), $faq->getCategoryId()));
+        if (count($orphans) > 10)
+            $this->out(sprintf('    - … y %d más', count($orphans) - 10));
+
+        $removed = 0;
+        foreach ($orphans as $faq) {
+            try {
+                $faq->delete();
+                $removed++;
+            }
+            catch (Throwable $e) {
+                $this->warn(sprintf('no se pudo borrar «%s»: %s',
+                    $faq->getQuestion(), $e->getMessage()));
+            }
+        }
+
+        $this->out(sprintf('  · %d artículo(s) sin categoría borrados '
+            . '(no se podían recolocar); ejecute `make seed --only=faq` para '
+            . 'volver a crear los de demostración', $removed));
     }
 
     /**

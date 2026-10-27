@@ -366,6 +366,31 @@ class QueueCheckTest extends UnitTestCase {
             'No se informa de los tickets fuera del alcance del agente');
     }
 
+    /**
+     * `--hydrate` mide el hueco entre «la base devuelve filas» y «la página
+     * las pinta».
+     *
+     * La consulta de la cola 14 devolvía 23 filas y la tabla salía vacía. El
+     * diagnóstico sólo contaba filas en la base, así que ese caso le salía
+     * «OK»: faltaba recorrer las filas como lo hace la plantilla, que es donde
+     * el ORM puede quedarse sin modelos (o con `ticket_id` vacío) sin un error
+     * visible.
+     */
+    function testElDiagnosticoPuedeRecorrerLasFilasComoLaPagina(): void {
+        $source = $this->fuente();
+
+        $this->assertStringContainsString("'hydrate' => array", $source,
+            'falta la opción --hydrate');
+        $this->assertStringContainsString('hydrated_null', $source,
+            'hay que contar los modelos sin `ticket_id`: es la firma del mapa '
+            . 'de campos corrido');
+        $this->assertStringContainsString('hydrated_numbers', $source,
+            'sin los primeros números de ticket no se puede comprobar que sean '
+            . 'los de la cola');
+        $this->assertStringContainsString('--hydrate', $source,
+            'el informe tiene que decir de dónde salen esas cifras');
+    }
+
     function testLenCountsAccentedCharactersOnce() {
         $this->assertEquals(6, QueueCheck::len('Año 26'));
     }

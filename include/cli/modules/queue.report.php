@@ -263,7 +263,8 @@ trait QueueReport {
         }
 
         $this->heading('Números');
-        $this->table(array('Qué', 'Valor'), array(
+
+        $numbers = array(
             array('Filas que devuelve la consulta (LIMIT '.$this->limit.')',
                 $this->number($query['rows'])),
             array('Total de la misma consulta (sin LIMIT)',
@@ -272,7 +273,21 @@ trait QueueReport {
                 $this->number($query['queue_count'])),
             array('`getTotal()` de la cola (sin caché)',
                 $this->number($query['queue_total'])),
-        ));
+        );
+
+        // Con `--hydrate`: lo que hace la página con esas filas. Si la base
+        // devuelve 23 y aquí salen 0, el problema no es el SQL.
+        if ($query['hydrated'] !== null) {
+            $numbers[] = array('Modelos que construye la página (--hydrate)',
+                $this->number($query['hydrated']));
+            $numbers[] = array('De esos, con `ticket_id` vacío',
+                $this->number($query['hydrated_null']));
+            if ($query['hydrated_numbers'])
+                $numbers[] = array('Primeros números de ticket',
+                    implode(', ', $query['hydrated_numbers']));
+        }
+
+        $this->table(array('Qué', 'Valor'), $numbers);
 
         // Por tramos: criterio, visibilidad y filtro de hijos. Es lo primero
         // que hay que mirar cuando *sin columnas* tampoco salen filas.

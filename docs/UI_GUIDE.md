@@ -931,7 +931,7 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 876, §3.13.10).
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 879, §3.13.10).
   `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
   propio Redactor.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
@@ -1038,22 +1038,28 @@ está vacía o rota.
   (`$rendered`). Si no hay ninguna, el pie no promete ninguna, el paginador
   olvida el total (`setTotal(0, true)`) y se explica el motivo en el estado
   vacío que ya existía.
-- **La causa de fondo sigue abierta.** La primera hipótesis era la vista
-  materializada `ost_ticket__cdata` —las columnas de la cola hacen `JOIN`
-  contra ella y el recuento no—, y es una causa real: si a un ticket le falta
-  su fila, se cuenta y no se lista. Pero en la instalación donde se vio, esa
-  vista está completa (`make db-rebuild-views`: 60 de 60 filas, antes y
-  después de reconstruir), así que **en este caso no era eso**. El
-  diagnóstico se hace con la herramienta que ya existe:
+- **El dato y la consulta están bien.** Medido en la instalación donde se vio
+  (`make queue-check QUEUE=14 QUEUE_ARGS=--sql`): la consulta devuelve **23**
+  filas, el total de esa misma consulta es 23, `getCount()` dice 23 y
+  `getTotal()` 23; ninguna columna se come filas (23 con cada una); la vista
+  `ost_ticket__cdata` está completa (60 de 60, 0 tickets sin fila); los 23
+  cierres caen dentro del rango (`2026-01-01 → 2027-01-01`) y el agente ve los
+  ocho departamentos. Veredicto de la herramienta: **«los números cuadran»**.
+  Ni la vista materializada ni el criterio de periodo explican la tabla vacía.
+- Lo que queda por descartar es el **paso de filas a modelos**: la consulta
+  devuelve filas y la plantilla las convierte en `Ticket` una a una. Ese hueco
+  no lo medía nada, así que `make queue-check` gana `--hydrate`:
 
   ```bash
-  make queue-check QUEUE=14            # filas que devuelve frente a lo que cuenta
-  make queue-check QUEUE=14 QUEUE_ARGS=--sql   # y el SQL compilado
+  make queue-check QUEUE=14 --as=d.martinez --hydrate
   ```
 
-  Imprime las filas del SQL de la lista, el recuento de la misma consulta sin
-  ventana y lo que dice `getCount()` de la cola (con y sin su caché de cinco
-  minutos). Con eso se ve cuál de los tres números es el que no cuadra.
+  Recorre las filas como lo hace la página y añade a «Números» cuántos modelos
+  se construyen, cuántos salen con `ticket_id` vacío (la firma del mapa de
+  campos corrido que dejó la barra de colas vacía en `cb6b8f7`) y los primeros
+  números de ticket. Si la base devuelve 23 y aquí salen 0, el problema está en
+  la hidratación; si salen 23, la página tiene que pintarlos y lo que falla es
+  otra cosa (caché del navegador, `pjax`).
 
 #### 3.13.9 Tiempos de respuesta negativos
 
@@ -1084,8 +1090,9 @@ fecha **anterior** a su mensaje padre, la resta sale por debajo de cero.
   `.type-icon::after`, `body #line-chart-here`, las etiquetas del gráfico, el
   guardia del pie de la cola, la fecha de la entrada de apertura, la cota del
   informe y la opción `--repair` del doctor.
-- `php tests/run.php` → **876** pruebas, 0 fallos, 1 omitida.
-  `tests/ReportTimeTest.php` (2), tres en `tests/SeedDataTest.php` y una en
+- `php tests/run.php` → **879** pruebas, 0 fallos, 1 omitida.
+  `tests/ReportTimeTest.php` (2), dos en `tests/QueueCheckTest.php` (una de
+  ellas para `--hydrate`), cuatro en `tests/SeedDataTest.php` y una en
   `tests/QueueEmptyStateTest.php`.
 - `sw.js` sube a **`ost-v35`** para que el service worker suelte las hojas
   viejas.
@@ -1292,8 +1299,8 @@ respuesta, acceso y FAQ).
 |---|---|---|
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
-| 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | La página ya no miente (§3.13.8) y la vista `ost_ticket__cdata` está descartada en esa instalación (60 de 60). Falta leer la salida de `make queue-check QUEUE=14 QUEUE_ARGS=--sql` para decidir si el número que sobra es el recuento o la consulta de la lista |
-| 4 | Pasada de `make seed-repair` en la instalación del usuario | Repara los 48 entradas antes de su padre y los 33 artículos huérfanos sin borrar nada (`docs/SEED.md`), pero hay que ejecutarla allí |
+| 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | `make queue-check QUEUE=14 QUEUE_ARGS=--sql` ya descartó el dato, la consulta, las columnas, la vista `ticket__cdata` y la visibilidad: los cuatro números son 23 y el veredicto es «cuadran». Falta la hidratación (`--hydrate`) y confirmar en el navegador si la página sigue vacía después de una recarga dura |
+| 4 | Pasada de `make seed-repair` en la instalación del usuario | Las 418 entradas ya están en orden (0 antes de su padre) y las vistas reconstruidas. Los 33 artículos son de otra versión: su categoría no existe y su pregunta no está en el manifiesto, así que no se pueden recolocar — quedan `make seed-repair SEED_ARGS=--purge-orphans` y `make seed --only=faq` (`docs/SEED.md`) |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 
 ## 7. Si la interfaz se ve mal después de actualizar

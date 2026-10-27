@@ -46,6 +46,7 @@ docker compose exec -T php php manage.php seed --no-tickets
 | `--no-tickets` | deja la configuración, pero ni tickets ni tareas |
 | `--doctor` | no crea nada: revisa que los datos cuadren con los informes y las colas |
 | `--repair` | arregla lo que el doctor detecta (artículos sin categoría, entradas antes que su padre, restos de hilo y vistas de datos) sin borrar ni volver a sembrar |
+| `--purge-orphans` | con `--repair`: borra los artículos que **no se pueden recolocar** (su pregunta no está en el manifiesto y su categoría ya no existe). Sólo base de conocimiento; nunca toca uno que se vea en el panel |
 | `--list` | muestra los pasos |
 | `--verbose` | muestra cada registro creado |
 | `--quiet` | sólo avisa de los errores |
@@ -420,6 +421,11 @@ Hace cuatro cosas y **no borra ni crea registros**:
 1. **Artículos sin categoría**: se recolocan por la pregunta exacta del
    manifiesto (`SeedManager::faqs()`), en la categoría que les toca. Un
    artículo que no está en el manifiesto no se toca.
+   Si la pregunta tampoco está en el manifiesto —artículos de una versión
+   anterior, con preguntas que ya no existen y categorías borradas— no hay a
+   qué recolocarlos: se quedan en la tabla pero **no se ven en el panel**. Para
+   esos está `make seed-repair SEED_ARGS=--purge-orphans`, que los enumera y los
+   borra; después, `make seed --only=faq` vuelve a crear los de demostración.
 2. **Entradas fechadas antes que su mensaje padre**: se recorren los hilos y
    cada respuesta se coloca detrás de su padre, separando un minuto a los
    hermanos y respetando el orden de escritura (por id). Después se recalcula
