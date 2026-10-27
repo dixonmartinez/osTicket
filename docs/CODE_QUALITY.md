@@ -884,8 +884,21 @@ que no ejecutan código).
   mover clases enteras a un archivo con nombre propio, incluir ese archivo
   desde el original y comprobar con `make classes` que no falta ni sobra
   ninguna.
-- Lo hecho también: `class.forms.php` bajó de 6.220 a **4.516** líneas al
+- Lo hecho también: `class.forms.php` bajó de 6.220 a **4.515** líneas al
   separar los widgets de campo y los formularios de asignación.
+- **`class.forms.php` ya no es un archivo: es un índice de 60 líneas.** Sus 37
+  clases se repartieron por familias, movidas enteras y sin tocar su código:
+  `class.forms.core.php` (592: `Form`, los formularios derivados y el marco de
+  pintado), `class.forms.field.php` (894: `FormField`, el campo base),
+  `class.forms.fields.php` (768: texto, contraseña, área de texto, teléfono,
+  sí/no, elección, número y color), `class.forms.datetime.php` (567),
+  `class.forms.ticket.php` (1.061: tema, SLA, prioridad, zona horaria,
+  departamento, responsable, estado y banderas), `class.forms.file.php` (437) y
+  `class.forms.inline.php` (293). El índice incluye las siete familias en orden
+  de dependencia (el campo base antes que sus hijas) y conserva los seis
+  `FormField::addFieldTypes()` y los dos `include_once()` que ya tenía.
+  Comprobado de dos maneras: el mapa de clases sigue viendo las mismas 37
+  clases y **el texto de cada clase es idéntico** al del archivo original.
 - **`Ticket::create()`, de 536 a 219 líneas.** No se movió código sin más:
   se partió por fases, cada una en `TicketCreate` y con nombre propio
   (`requestErrors`, `topicForms`, `formErrors`, `routing`, `saveForms`,
@@ -905,9 +918,16 @@ que no ejecutan código).
 - Por qué: 6.000 líneas en un archivo hacen que cada búsqueda cueste y que
   los conflictos de fusión sean inevitables.
 - Riesgo: alto. Sólo después de los frentes 1 y 2.
-- Éxito: ningún archivo por encima de 2.000 líneas. De momento ninguno pasa
-  de 5.000 (el mayor, `class.ticket.php`, tiene 4.809), y los que estaban por
-  encima de 3.200 se han reducido un 30 %.
+- Éxito: ningún archivo por encima de 2.000 líneas. Faltan cinco:
+  `class.ticket.php` (4.529), `class.orm.php`
+  (3.643), `include/cli/modules/seed.php` (2.934), `class.queue.php` (2.400) y
+  `class.thread.php` (2.351). Los tres últimos están a tiro: son archivos de
+  once clases cada uno donde ya se movieron las familias grandes.
+- Siguiente por relación riesgo/beneficio: `class.orm.php` (compiladores y
+  ejecutores SQL a un archivo, el modelo y los conjuntos de resultados a otro)
+  y `seed.php` (cada paso del sembrador a su archivo). `class.ticket.php` es el
+  único que exige rasgos o clases colaboradoras, porque es **una sola clase** de
+  4.429 líneas.
 
 ---
 
