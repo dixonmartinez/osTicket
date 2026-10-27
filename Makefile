@@ -27,7 +27,7 @@ ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 	docker-reset docker-test docker-integration docker-security docker-prod \
 	docker-composer docker-qa \
 	docker-bench docker-urls \
-	seed seed-fresh seed-check seed-verbose seed-list seed-doctor \
+	seed seed-fresh seed-check seed-verbose seed-list seed-doctor seed-repair \
 	queues queue-check db-views db-rebuild-views ticket-perf ticket-perf-raw \
 	ticket-perf-xdebug mail test-mail fix-eol
 
@@ -289,6 +289,9 @@ seed-list: ## Igual que seed-check (alias con el nombre del módulo)
 
 seed-doctor: ## Revisa que los datos sembrados cuadren con los informes (no escribe)
 	@docker compose exec -T php php manage.php seed --doctor
+
+seed-repair: ## Arregla lo que el doctor detecta, sin borrar ni volver a sembrar
+	@docker compose exec -T php php manage.php seed --repair
 
 # Diagnóstico de colas: `make queue-check QUEUE=8`, `make queue-check QUEUE=8 QUEUE_ARGS=--sql`
 QUEUE ?=

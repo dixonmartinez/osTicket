@@ -100,6 +100,10 @@ class SeedManager extends Module {
         'doctor' => array('', '--doctor', 'action' => 'store_true',
             'help' => 'No crea nada: revisa que los datos sembrados cuadren con '
                 . 'los informes y las colas del panel'),
+        'repair' => array('', '--repair', 'action' => 'store_true',
+            'help' => 'Con `--doctor`: arregla lo que se puede arreglar sin '
+                . 'borrar nada (artículos sin categoría, entradas fechadas '
+                . 'antes que su mensaje padre, restos de hilo y vistas de datos)'),
     );
 
     /** Contraseña de todos los agentes y de las cuentas de cliente. */
@@ -662,9 +666,10 @@ class SeedManager extends Module {
         // se crea un segundo administrador.
         $this->adminStaff = $this->firstAdmin();
 
-        // `--doctor` no toca nada: sólo mira y dictamina
-        if ($options['doctor'])
-            return $this->doctor();
+        // `--doctor` no toca nada: sólo mira y dictamina. `--repair` arregla
+        // lo que se puede arreglar y después pasa la misma revisión.
+        if ($options['doctor'] || $options['repair'])
+            return $this->doctor($options['repair']);
 
         if ($options['fresh'] && !$this->purge())
             $this->fail('No se pudo borrar el conjunto anterior; no se crea nada');
@@ -1559,8 +1564,19 @@ class SeedManager extends Module {
      *
      * @return int 0 si todo cuadra, 1 si no
      */
-    function doctor() {
-        $this->out('Revisión de los datos sembrados (no se crea ni se borra nada)');
+    function doctor($repair = false) {
+        if ($repair) {
+            $this->out('Reparación de los datos sembrados '
+                . '(no se borra nada y no se crea nada nuevo)');
+            $this->out('');
+            $this->repair();
+            $this->out('');
+            $this->out('Revisión después de reparar');
+        }
+        else {
+            $this->out('Revisión de los datos sembrados '
+                . '(no se crea ni se borra nada)');
+        }
         $this->out('');
 
         $checks = array();
@@ -1607,7 +1623,8 @@ class SeedManager extends Module {
             'SELECT COUNT(*) FROM ' . THREAD_ENTRY_TABLE . ' e
                JOIN ' . THREAD_ENTRY_TABLE . ' p ON p.id = e.pid
               WHERE e.created < p.created',
-            true, 'vuelva a sembrar: el sembrador fecha cada entrada por su id');
+            true, 'las respuestas quedaron antes que su mensaje padre: '
+                . '`make seed-repair` las recoloca detrás (o vuelva a sembrar)');
 
         // 5. Tickets sin fila en la vista de datos: invisibles en el panel
         $add('tickets sin datos de formulario (ticket__cdata)',
@@ -1640,7 +1657,8 @@ class SeedManager extends Module {
                  ON c.category_id = f.category_id
               WHERE c.category_id IS NULL',
             true, 'los artículos sin categoría no se ven en la base de '
-                . 'conocimiento: `--fresh` los recoloca o los borra');
+                . 'conocimiento: `make seed` o `make seed-repair` los '
+                . 'recolocan en la suya (no se borra ninguno)');
 
         // 7. Tickets cuyo departamento no es el del tema (el tema manda)
         $add('tickets en un departamento distinto al de su tema',
@@ -1719,6 +1737,160 @@ class SeedManager extends Module {
 
         $this->out('Todo cuadra.');
         return 0;
+    }
+
+    /**
+     * Arregla, sin borrar y sin volver a sembrar, lo que el chequeo detecta.
+     *
+     * Existe porque el doctor lo prometía en dos de sus pistas
+     * («`--doctor --repair`») y la opción no estaba: el comando respondía lo
+     * mismo que sin ella. Se repara sólo lo que tiene una reparación **sin
+     * pérdida**: no se borra un artículo, no se reescribe un ticket y no se
+     * toca nada que no haya creado el sembrador.
+     *
+     * Lo que no se repara aquí: un ticket sin evento de creación o de cierre,
+     * y un departamento que el administrador no ve. Eso es volver a sembrar
+     * (`make seed`) o dar el acceso desde el panel.
+     */
+    function repair() {
+        $this->cleanupOrphans();
+        $this->repairFaqCategories();
+        $this->repairEntryDates();
+
+        // Las vistas materializadas: si a un ticket le falta su fila, la cola
+        // lo cuenta y no lo pinta.
+        try {
+            DynamicForm::rebuildDynamicDataViews();
+            $this->out('  · vistas de datos de los formularios reconstruidas');
+        }
+        catch (Throwable $e) {
+            $this->warn('no se pudieron reconstruir las vistas: '
+                . $e->getMessage());
+        }
+    }
+
+    /**
+     * Recoloca los artículos de demostración que se quedaron sin categoría.
+     *
+     * Pasa cuando la purga borra las categorías y los artículos sobreviven
+     * (o al revés): el artículo queda con un `category_id` que ya no existe y
+     * **no se ve en la base de conocimiento**. El manifiesto del sembrador
+     * dice a qué categoría va cada pregunta, así que se recoloca por pregunta
+     * exacta; lo que no está en el manifiesto no se toca.
+     */
+    function repairFaqCategories() {
+        $fixed = 0;
+        $missing = 0;
+
+        foreach (self::faqs() as $name => $articles) {
+            if (!($category = $this->categoryByName($name))) {
+                // Sin la categoría no hay dónde recolocar: la crea el paso
+                // `faq` de `make seed`.
+                $missing++;
+                continue;
+            }
+
+            foreach ($articles as $article) {
+                list($question) = $article;
+                if (!($id = $this->faqIdByQuestion($question))
+                        || !($faq = FAQ::lookup($id)))
+                    continue;
+
+                if ($faq->getCategoryId() == $category->getId())
+                    continue;
+
+                $vars = array(
+                    'id' => $id,
+                    'question' => $faq->getQuestion(),
+                    'answer' => $faq->getAnswer(),
+                    'category_id' => $category->getId(),
+                    'ispublished' => FAQ::VISIBILITY_PUBLIC,
+                    'notes' => $faq->getNotes(),
+                    'topics' => $faq->getHelpTopicsIds(),
+                );
+                $errors = array();
+                if (!$faq->update($vars, $errors)) {
+                    $this->warn(sprintf('no se pudo recolocar «%s»: %s',
+                        $question,
+                        Format::array_implode(' · ', ' · ', $errors)));
+                    continue;
+                }
+                $fixed++;
+            }
+        }
+
+        $this->out(sprintf('  · %d artículo(s) recolocados en su categoría',
+            $fixed));
+
+        if ($missing)
+            $this->warn(sprintf('%d categoría(s) del manifiesto no existen: '
+                . 'créalas con `make seed --only=faq`', $missing));
+    }
+
+    /**
+     * Recoloca detrás de su mensaje padre las entradas fechadas antes.
+     *
+     * El *Statistics* nativo mide el tiempo de respuesta restando la fecha del
+     * padre a la de la respuesta: si la resta es negativa, el informe publica
+     * «-3.5 h». La causa está en versiones anteriores del sembrador, que
+     * dejaban la entrada de apertura en `NOW()`; el arreglo (`backdate()`) ya
+     * fecha la apertura, pero una base sembrada antes lo conserva.
+     *
+     * Se recorre el hilo entero y se ordena por id: los hijos de un mismo
+     * padre se separan un minuto entre sí —el orden en que se escribieron— y
+     * se guardan con el ORM, sin SQL a mano.
+     */
+    function repairEntryDates() {
+        $entries = array();
+        foreach (ThreadEntry::objects()
+                ->values('id', 'pid', 'created', 'thread_id') as $row)
+            $entries[(int) $row['id']] = $row;
+
+        ksort($entries);
+
+        $fixed = 0;
+        $threads = array();
+        $offset = array();
+
+        foreach ($entries as $id => $row) {
+            $pid = (int) $row['pid'];
+            if (!$pid || !isset($entries[$pid])
+                    || strtotime($row['created']) >= strtotime($entries[$pid]['created']))
+                continue;
+
+            // Un minuto más por hermano ya recolocado, para no dejar dos
+            // entradas con la misma marca de tiempo.
+            $offset[$pid] = isset($offset[$pid]) ? $offset[$pid] + 1 : 1;
+            $when = date('Y-m-d H:i:s',
+                strtotime($entries[$pid]['created'] . ' +' . $offset[$pid] . ' minutes'));
+
+            ThreadEntry::objects()
+                ->filter(array('id' => $id))
+                ->update(array('created' => $when));
+
+            $entries[$id]['created'] = $when;
+            $threads[(int) $row['thread_id']] = true;
+            $fixed++;
+        }
+
+        // La última actividad del hilo, que es lo que ordena la columna
+        // «Last Updated» de las colas.
+        foreach (array_keys($threads) as $threadId) {
+            $last = null;
+            foreach (ThreadEntry::objects()
+                    ->filter(array('thread_id' => $threadId))
+                    ->values('created') as $row)
+                if ($last === null || $row['created'] > $last)
+                    $last = $row['created'];
+
+            if ($last)
+                Thread::objects()
+                    ->filter(array('id' => $threadId))
+                    ->update(array('lastmessage' => $last));
+        }
+
+        $this->out(sprintf('  · %d entrada(s) recolocadas detrás de su mensaje '
+            . 'padre', $fixed));
     }
 
     /** Un único valor de una consulta, o null si falla. */

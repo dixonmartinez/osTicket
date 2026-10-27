@@ -925,13 +925,13 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
 #### 3.12.6 Cómo se comprueba
 
 - `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158), hoy
-  **187** tras la segunda pasada (§3.13.10). Las
+  **188** tras la segunda pasada (§3.13.10). Las
   nuevas: `.redactor-in` en el tema y ninguna regla de `.redactor-editor`, la
   regla de cuatro clases de la barra, `#response_options > form`, `#note`,
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 873, §3.13.10).
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 876, §3.13.10).
   `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
   propio Redactor.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
@@ -1030,20 +1030,30 @@ se eliminó: funciona también sin JavaScript.
 #### 3.13.8 La cola no promete filas que no trae
 
 «Showing 1 - 23 of about 23» sobre una tabla **sin una sola fila**
-(`tickets.php?queue=14`, «Closed · This Year»). El total y la tabla salen de la
-misma consulta, pero pueden discrepar; cuando discrepan, la página miente.
+(`tickets.php?queue=14`, «Closed · This Year»). El total y la tabla pueden
+discrepar; cuando discrepan, la página miente y el agente no sabe si la cola
+está vacía o rota.
 
 - La plantilla cuenta ahora las filas que **de verdad** ha pintado
   (`$rendered`). Si no hay ninguna, el pie no promete ninguna, el paginador
   olvida el total (`setTotal(0, true)`) y se explica el motivo en el estado
   vacío que ya existía.
-- La causa de fondo es de datos: las columnas de la cola hacen `JOIN` contra
-  la vista materializada `ost_ticket__cdata`, mientras el recuento no la usa.
-  Si a un ticket le falta su fila en esa vista, **se cuenta pero no se lista**.
-  El sembrador la reconstruye al terminar (`SeedManager::refreshTicketView()`,
-  `DynamicForm::rebuildDynamicDataViews()`), `make seed-doctor` lo detecta
-  —«tickets sin datos de formulario»— y se arregla con
-  `make db-rebuild-views` o volviendo a sembrar.
+- **La causa de fondo sigue abierta.** La primera hipótesis era la vista
+  materializada `ost_ticket__cdata` —las columnas de la cola hacen `JOIN`
+  contra ella y el recuento no—, y es una causa real: si a un ticket le falta
+  su fila, se cuenta y no se lista. Pero en la instalación donde se vio, esa
+  vista está completa (`make db-rebuild-views`: 60 de 60 filas, antes y
+  después de reconstruir), así que **en este caso no era eso**. El
+  diagnóstico se hace con la herramienta que ya existe:
+
+  ```bash
+  make queue-check QUEUE=14            # filas que devuelve frente a lo que cuenta
+  make queue-check QUEUE=14 QUEUE_ARGS=--sql   # y el SQL compilado
+  ```
+
+  Imprime las filas del SQL de la lista, el recuento de la misma consulta sin
+  ventana y lo que dice `getCount()` de la cola (con y sin su caché de cinco
+  minutos). Con eso se ve cuál de los tres números es el que no cuadra.
 
 #### 3.13.9 Tiempos de respuesta negativos
 
@@ -1061,17 +1071,22 @@ fecha **anterior** a su mensaje padre, la resta sale por debajo de cero.
   base sembrada antes del arreglo conserva esas filas; se acota en la consulta
   —no al imprimir— para que el promedio tampoco se contamine.
   `tests/ReportTimeTest.php` lo fija.
+- **Reparación de lo ya sembrado**: `make seed-repair`
+  (`manage.php seed --repair`) recoloca esas entradas detrás de su padre,
+  respetando el orden de escritura, y recalcula `thread.lastmessage`. La
+  revisión real de la instalación encontró **48** entradas así. Es el arreglo
+  de datos; la cota del informe es la red por si queda alguna.
 
 #### 3.13.10 Cómo se comprueba
 
-- `php tools/ui/theme-check.php` → **187** comprobaciones (antes 178). Las
+- `php tools/ui/theme-check.php` → **188** comprobaciones (antes 178). Las
   nuevas: select2 v4, el buscador por tipo, la ficha en los dos temas,
   `.type-icon::after`, `body #line-chart-here`, las etiquetas del gráfico, el
-  guardia del pie de la cola, la fecha de la entrada de apertura y la cota del
-  informe.
-- `php tests/run.php` → **873** pruebas, 0 fallos, 1 omitida.
-  `tests/ReportTimeTest.php` (2) y una prueba nueva en `tests/SeedDataTest.php`
-  y otra en `tests/QueueEmptyStateTest.php`.
+  guardia del pie de la cola, la fecha de la entrada de apertura, la cota del
+  informe y la opción `--repair` del doctor.
+- `php tests/run.php` → **876** pruebas, 0 fallos, 1 omitida.
+  `tests/ReportTimeTest.php` (2), tres en `tests/SeedDataTest.php` y una en
+  `tests/QueueEmptyStateTest.php`.
 - `sw.js` sube a **`ost-v35`** para que el service worker suelte las hojas
   viejas.
 
@@ -1262,6 +1277,7 @@ queda en §6.2.
 | 29 | **Gráfico del panel**: fuera el degradado de seis capas con `filter: progid:`; etiquetas de los ejes a 12 px de la escala (venían en 8 pt de Monaco) y visibles en oscuro. Los selectores llevan `body` porque `scp/css/dashboard.css` se carga después. De paso, «period:» deja de salir vacío: la opción se marca en el servidor y no con un script que borraba `selected` (§3.13.4, §3.13.7) | ✅ Hecho | `css/modern.css`, `css/dark.css`, `include/staff/dashboard.inc.php` |
 | 30 | **Iconos de la línea de tiempo y avatar**: el borde blanco de 16 px de `.type-icon::after` pasa al tema, se retira el segundo icono del aviso de vencimiento y el avatar —que el servidor dibuja sobre lienzo blanco— va en círculo con anillo del tema. El realce de las tablas pasa de la celda a la fila, así una celda vacía no queda de otro tono (§3.13.5, §3.13.6) | ✅ Hecho | `css/dark.css`, `css/modern.css` |
 | 31 | **Verdades de la pantalla**: la cola ya no dice «Showing 1 - 23» con la tabla vacía (`$rendered` + `setTotal(0)`), y el tiempo de respuesta no puede ser negativo (la apertura se fecha con el ticket en `SeedManager::backdate()` y el informe acota con `GREATEST`). El origen de las filas invisibles —la vista `ost_ticket__cdata`— lo detecta `make seed-doctor` (§3.13.8, §3.13.9) | ✅ Hecho | `include/staff/templates/queue-tickets.tmpl.php`, `include/cli/modules/seed.php`, `include/class.report.php`, `tests/QueueEmptyStateTest.php`, `tests/ReportTimeTest.php` |
+| 32 | **`make seed-repair`**: el doctor prometía `--doctor --repair` en sus pistas y la opción **no existía**. Ahora repara sin borrar ni volver a sembrar: artículos sin categoría (por pregunta del manifiesto), entradas fechadas antes que su padre (y `thread.lastmessage`), restos de hilo y vistas de datos. Repasa la revisión al terminar (`docs/SEED.md`) | ✅ Hecho | `include/cli/modules/seed.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
@@ -1276,7 +1292,8 @@ respuesta, acceso y FAQ).
 |---|---|---|
 | 1 | Reemplazar `onclick=` inline por `addEventListener` (habilita una CSP sin `unsafe-inline`, ver OST-102 en `SECURITY_AUDIT.md`) | ✅ Hecho: **0** manejadores en `include/` y `scp/` (desde 124 en 71), en diez tandas con `js/actions.js` (§3.9). `make inline-budget` y `make theme` impiden que vuelvan |
 | 1b | Quitar `'unsafe-inline'` de `script-src` | ✅ Hecho: los **98** bloques `<script>` en línea de `include/` y `scp/` llevan `nonce="<?php echo Http::nonce(); ?>"`, la CSP anuncia `script-src 'self' 'nonce-…'` y `make csp-nonce` (dentro de `make ci`) falla si aparece uno sin él. El nonce es **por sesión** porque las pantallas se montan con HTML que llega por AJAX (§3.9, OST-102) |
-| 3 | Reparar en la base las filas que faltan en `ost_ticket__cdata` de la instalación del usuario | El código ya no miente (§3.13.8) y `make seed-doctor` lo detecta, pero la reparación es una orden manual: `make db-rebuild-views` o volver a sembrar. No se hace sola porque reconstruir la vista en cada carga de página es caro |
+| 3 | Cerrar la causa de la cola «Closed · This Year» vacía con 23 en el contador | La página ya no miente (§3.13.8) y la vista `ost_ticket__cdata` está descartada en esa instalación (60 de 60). Falta leer la salida de `make queue-check QUEUE=14 QUEUE_ARGS=--sql` para decidir si el número que sobra es el recuento o la consulta de la lista |
+| 4 | Pasada de `make seed-repair` en la instalación del usuario | Repara los 48 entradas antes de su padre y los 33 artículos huérfanos sin borrar nada (`docs/SEED.md`), pero hay que ejecutarla allí |
 | 2 | Comprobar el modo oscuro con correos reales del buzón de la instalación | Ya hay con qué: `make seed` deja tickets y respuestas de verdad y `docs/MAIL.md` explica cómo verlos en Mailpit. Falta la pasada visual con esa bandeja llena |
 
 ## 7. Si la interfaz se ve mal después de actualizar

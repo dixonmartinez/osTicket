@@ -44,6 +44,8 @@ docker compose exec -T php php manage.php seed --no-tickets
 | `--with-tasks` | al sembrar tickets, crea **una tarea de seguimiento por ticket**, enlazada a él |
 | `--domain=D` | dominio de los correos de demostración (por omisión `example.com`) |
 | `--no-tickets` | deja la configuración, pero ni tickets ni tareas |
+| `--doctor` | no crea nada: revisa que los datos cuadren con los informes y las colas |
+| `--repair` | arregla lo que el doctor detecta (artículos sin categoría, entradas antes que su padre, restos de hilo y vistas de datos) sin borrar ni volver a sembrar |
 | `--list` | muestra los pasos |
 | `--verbose` | muestra cada registro creado |
 | `--quiet` | sólo avisa de los errores |
@@ -374,7 +376,8 @@ Revisión de los datos sembrados (no se crea ni se borra nada)
   ✓  tickets cerrados sin evento «closed»
   ✓  filas de evento de hilo sin hilo detrás
   ✗  entradas anteriores a su mensaje padre: 3
-       → vuelva a sembrar: el sembrador fecha cada entrada por su id
+       → las respuestas quedaron antes que su mensaje padre:
+         `make seed-repair` las recoloca detrás (o vuelva a sembrar)
 
 Cifras
   tickets:           59
@@ -402,6 +405,36 @@ fallo:
 
 La purga de `--fresh` limpia ahora las filas de hilo sin dueño (sólo huérfanas:
 lo que tiene ticket detrás no se toca).
+
+### Reparar sin volver a sembrar (`make seed-repair`)
+
+`make seed-doctor` sólo mira. Lo que tiene una reparación sin pérdida se
+arregla con:
+
+```bash
+make seed-repair        # docker compose exec -T php php manage.php seed --repair
+```
+
+Hace cuatro cosas y **no borra ni crea registros**:
+
+1. **Artículos sin categoría**: se recolocan por la pregunta exacta del
+   manifiesto (`SeedManager::faqs()`), en la categoría que les toca. Un
+   artículo que no está en el manifiesto no se toca.
+2. **Entradas fechadas antes que su mensaje padre**: se recorren los hilos y
+   cada respuesta se coloca detrás de su padre, separando un minuto a los
+   hermanos y respetando el orden de escritura (por id). Después se recalcula
+   `thread.lastmessage`, que es lo que ordena «Last Updated».
+3. **Restos de hilo sin dueño**: los mismos que limpia `--fresh`, pero sólo
+   los huérfanos.
+4. **Vistas de datos de los formularios**: se reconstruyen
+   (`DynamicForm::rebuildDynamicDataViews()`), que es lo que hace
+   `make db-rebuild-views`.
+
+Después de reparar se pasa la misma revisión, así que la salida termina en
+«Todo cuadra.» cuando ya no queda nada. Lo que **no** repara —un ticket sin
+evento de creación o de cierre, o un departamento que el administrador no
+ve— son altas que sólo hace el sembrador: eso es `make seed` (o dar el acceso
+desde el panel).
 
 ### Que el administrador vea lo sembrado
 

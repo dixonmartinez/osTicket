@@ -892,10 +892,78 @@ class SeedDataTest extends UnitTestCase {
         $this->assertStringContainsString("'doctor' => array('', '--doctor'",
             $source);
         // Se resuelve antes de purgar y de crear
-        $doctor = strpos($source, "if (\$options['doctor'])");
+        // `--repair` entra por la misma condición, así que se busca el
+        // principio de la condición y no la línea entera.
+        $doctor = strpos($source, "if (\$options['doctor']");
         $purge = strpos($source, "if (\$options['fresh'] && !\$this->purge())");
         $this->assertTrue($doctor !== false && $doctor < $purge,
             'el chequeo debe ejecutarse antes de crear nada');
+    }
+
+    /**
+     * `--repair` existe y repara sin borrar.
+     *
+     * El doctor prometia `--doctor --repair` en dos de sus pistas y la opcion
+     * no estaba: el comando hacia lo mismo con y sin ella. Ahora repara los
+     * dos fallos que salieron en la revision real del usuario —48 entradas
+     * fechadas antes que su mensaje padre y 33 articulos sin categoria— y no
+     * borra ni crea registros.
+     */
+    public function testLaReparacionExisteYNoBorraNada(): void {
+        $source = $this->fuente();
+
+        $this->assertStringContainsString("'repair' => array", $source,
+            'falta la opcion --repair');
+        $this->assertMatchesRegularExpression(
+            '/\$options\[.doctor.\]\s*\|\|\s*\$options\[.repair.\]/',
+            $source,
+            '--repair tiene que entrar por el mismo camino que --doctor');
+
+        $start = strpos($source, 'function repair(');
+        $this->assertTrue($start !== false, 'falta el metodo repair()');
+        $end = strpos($source, 'function repairFaqCategories(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        foreach (array('cleanupOrphans', 'repairFaqCategories',
+                'repairEntryDates', 'rebuildDynamicDataViews') as $step)
+            $this->assertStringContainsString($step, $body,
+                "la reparacion no incluye $step");
+
+        // Reparar no es purgar: nada de borrar articulos ni tickets.
+        foreach (array('purge(', 'purgeByName(', 'FAQ::objects()->delete') as $forbidden)
+            $this->assertSame(false, strpos($body, $forbidden),
+                'la reparacion no puede borrar datos: ' . $forbidden);
+    }
+
+    /** Los articulos huerfanos se recolocan por pregunta exacta. */
+    public function testLaReparacionRecolocaLosArticulosPorPregunta(): void {
+        $source = $this->fuente();
+        $start = strpos($source, 'function repairFaqCategories(');
+        $this->assertTrue($start !== false);
+        $end = strpos($source, 'function repairEntryDates(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString('faqIdByQuestion(', $body,
+            'sin la pregunta exacta se recolocaria un articulo que no es');
+        $this->assertStringContainsString('categoryByName(', $body);
+        $this->assertStringContainsString("'category_id'", $body);
+    }
+
+    /** Las entradas se recolocan detras de su padre, sin SQL a mano. */
+    public function testLaReparacionDeFechasGuardaElOrdenDelHilo(): void {
+        $source = $this->fuente();
+        $start = strpos($source, 'function repairEntryDates(');
+        $this->assertTrue($start !== false);
+        $end = strpos($source, 'function scalar(', $start);
+        $body = substr($source, $start, $end - $start);
+
+        $this->assertStringContainsString("->values('id', 'pid', 'created'", $body,
+            'hace falta el padre de cada entrada para comparar');
+        $this->assertStringContainsString('lastmessage', $body,
+            'la ultima actividad del hilo se queda atras y la columna '
+            . '«Last Updated» miente');
+        $this->assertSame(false, strpos($body, 'db_query('),
+            'la reparacion se hace con el ORM: no hay que sumar deuda de SQL');
     }
 
     public function testElChequeoRevisaLoQueSalioMalEnLasCapturas(): void {

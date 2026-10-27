@@ -894,6 +894,13 @@ check(strpos($informe, "new SqlFunction('GREATEST'") !== false,
     'el informe acota el tiempo de respuesta a cero',
     'una base sembrada antes del arreglo sigue publicando tiempos negativos');
 
+// Las pistas del doctor prometian `--doctor --repair` y la opcion no existia:
+// el comando respondia lo mismo con y sin ella.
+check(strpos($sembrador, "'repair' => array") !== false
+    && strpos($sembrador, 'function repair(') !== false,
+    'el doctor puede reparar lo que detecta (--repair)',
+    'las pistas dicen `--doctor --repair` y esa opcion no hace nada');
+
 /* Resumen ---------------------------------------------------------------- */
 echo "\n";
 if ($failures === 0) {
