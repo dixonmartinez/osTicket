@@ -706,7 +706,7 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 **Tanda del 2026-10-29: el subsistema de plugins.** Se revisó
 `include/class.plugin.php` (donde vive todo: registro, instalación,
 configuración, instancias y verificación de `phar`) buscando lo que se puede
-mejorar sin tocar la API que ya usan los plugins de terceros. Salieron trece
+mejorar sin tocar la API que ya usan los plugins de terceros. Salieron diecisiete
 defectos reales, casi todos silenciosos, y una pieza nueva:
 
 - **`PluginInfo` (`include/class.plugin.info.php`)** se queda con la lectura
@@ -766,6 +766,22 @@ defectos reales, casi todos silenciosos, y una pieza nueva:
 - Las opciones del desplegable «Add New Instance» que devuelve el plugin
   (`getNewInstanceOptions()`) se imprimían **sin escapar** en `class`, `href`,
   `icon` y `name`. Ahora pasan por `Format::htmlchars()`.
+
+**La lista de plugins tampoco decía la verdad.** En
+`include/staff/plugins.inc.php`:
+
+- Dos `<form>` **anidados**: el de arriba (la barra de acciones) no se cerraba
+  nunca. El navegador descarta el exterior, así que la pantalla dependía de
+  cómo se recupera de HTML inválido. Fuera ese `<form>` vacío: la barra no
+  envía nada.
+- Paginador sobre un **recuento**, con la URL de otra página
+  (`forms.php`), mientras la tabla pinta **todas** las instalaciones: las
+  páginas mostraban lo mismo. Fuera el paginador y el «Showing …», que nadie
+  usaba.
+- `$sel` no estaba definido —un aviso de PHP por fila— y no había forma de
+  conservar la selección al volver con un error. Ahora se lee del POST.
+- `Enabled`/`Disabled` se imprimían **sin traducir** (`<strong>Disabled</strong>`
+  a pelo).
 
 Y en el resto de la pantalla: `scp/plugins.php` no inicializaba `$errors` ni
 `$msg`, así que las plantillas los leían sin definir; `plugin-instance.tmpl.php`

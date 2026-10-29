@@ -1,5 +1,6 @@
-<form action="plugins.php" method="POST" name="forms">
-
+<?php /* Sin <form> aquí: la barra de acciones no envía nada y el
+         formulario real es el de la tabla. El que había se quedaba abierto y
+         anidaba el de abajo (HTML inválido que el navegador descarta) */ ?>
 <div class="sticky bar opaque">
     <div class="content">
         <div class="pull-left flush-left">
@@ -40,11 +41,13 @@
 <div class="clear"></div>
 
 <?php
-$page = ($_GET['p'] && is_numeric($_GET['p'])) ? $_GET['p'] : 1;
-$count = count($ost->plugins->allInstalled());
-$pageNav = new Pagenate($count, $page, PAGE_LIMIT);
-$pageNav->setURL('forms.php');
-$showing=$pageNav->showing().' '._N('plugin', 'plugins', $count);
+// Sin paginador: la tabla lista **todas** las instalaciones, así que las
+// páginas mostraban lo mismo (y la URL apuntaba a `forms.php`).
+$plugins = array();
+foreach ($ost->plugins->allInstalled() as $p)
+    if ($p instanceof Plugin)
+        $plugins[] = $p;
+$count = count($plugins);
 ?>
 
 <form action="plugins.php" method="POST" name="forms">
@@ -66,12 +69,15 @@ $showing=$pageNav->showing().' '._N('plugin', 'plugins', $count);
     </thead>
     <tbody>
 <?php
-foreach ($ost->plugins->allInstalled() as $p) {
-    if (!$p instanceof Plugin)
-        continue; ?>
+// La selección se conserva si el envío anterior volvió con error
+$selected = array_map('intval', (array) ($_POST['ids'] ?? array()));
+foreach ($plugins as $p) {
+    $sel = in_array((int) $p->getId(), $selected); ?>
     <tr>
-        <td align="center"><input type="checkbox" class="ckb" name="ids[]" value="<?php echo $p->getId(); ?>"
-                <?php echo $sel?'checked="checked"':''; ?>></td>
+        <td align="center"><input type="checkbox" class="ckb" name="ids[]"
+            value="<?php echo $p->getId(); ?>" aria-label="<?php
+            echo Format::htmlchars($p->getName()); ?>"<?php
+            echo $sel ? ' checked="checked"' : ''; ?>></td>
         <td><a href="plugins.php?id=<?php echo $p->getId(); ?>">
         <?php echo sprintf('%s (%d)',
                 $p->getName(),
@@ -84,8 +90,8 @@ foreach ($ost->plugins->allInstalled() as $p) {
 
         </td>
         <td><?php echo $p->getVersion(); ?></td>
-        <td><?php echo ($p->isActive())
-            ? 'Enabled' : '<strong>Disabled</strong>'; ?></td>
+        <td><?php echo $p->isActive()
+            ? __('Enabled') : sprintf('<strong>%s</strong>', __('Disabled')); ?></td>
         <td><?php echo Format::datetime($p->getInstallDate()); ?></td>
     </tr>
 <?php } ?>
@@ -106,10 +112,7 @@ foreach ($ost->plugins->allInstalled() as $p) {
      </tr>
     </tfoot>
 </table>
-<?php
-if ($count) //Show options..
-    echo '<div>&nbsp;'.__('Page').':'.$pageNav->getPageLinks().'&nbsp;</div>';
-?>
+
 
 </form>
 

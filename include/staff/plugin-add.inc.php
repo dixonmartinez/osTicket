@@ -24,15 +24,16 @@ foreach ($ost->plugins->allInfos() as $info) {
             <?php
             if ($isCompatible) {?>
             <button class="button action-button" type="submit" name="install_path"
-            value="<?php echo $info['install_path'];
+            value="<?php echo Format::htmlchars($info['install_path']);
             ?>"><?php echo __('Install'); ?></button>
             <?php
             } ?>
             </td>
         <td>
-        <div><strong><?php echo $info['name']; ?></strong><br/>
-        <div><?php echo $info['description']; ?></div>
-        <div class="faded"><em><?php echo __('Version'); ?>: <?php echo $info['version']; ?></em></div>
+        <div><strong><?php echo Format::htmlchars($info['name']); ?></strong><br/>
+        <div><?php echo Format::htmlchars($info['description']); ?></div>
+        <div class="faded"><em><?php echo __('Version'); ?>: <?php
+            echo Format::htmlchars($info['version']); ?></em></div>
         <?php
         if (isset($info['ost_version'])) { ?>
         <div class="faded"><em><?php echo sprintf('%s %s %s', 'osTicket',
@@ -42,7 +43,8 @@ foreach ($ost->plugins->allInfos() as $info) {
                 $info['ost_version']); ?></em></div>
         <?php
         } ?>
-        <div class="faded"><em><?php echo __('Author'); ?>: <?php echo $info['author']; ?></em></div>
+        <div class="faded"><em><?php echo __('Author'); ?>: <?php
+            echo Format::htmlchars($info['author']); ?></em></div>
     </div>
     </td></tr>
     <?php
