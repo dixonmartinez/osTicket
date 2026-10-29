@@ -807,6 +807,13 @@ Lo que **no** se tocó, a propósito: la API que los plugins ya usan
 `plugin.php` (sigue aceptando las mismas claves) y la verificación de firma
 por DNS. Los cambios son de robustez, no de contrato.
 
+**Cómo se verificó aquí.** Este entorno no tiene PHP ni Docker, así que la
+tanda se comprobó con el arnés de `php-wasm` que ahora está documentado en
+`docs/PHP_WASM.md` (el mismo con el que se mide la suite desde el principio,
+pero que hasta hoy sólo existía en la máquina de desarrollo). Resultado:
+**973 pruebas, 0 fallos, 5 omitidas**; `theme-check` 195; `sql-audit` e
+`input-audit` en verde; `class-map` 770 clases en 282 archivos.
+
 Y se añadió el esqueleto que faltaba: `php tools/scaffold.php plugin <nombre>`
 crea en `include/plugins/<nombre>/` el `plugin.php`, la clase con su
 `bootstrap()` y su `PluginConfig`, y un README. El esqueleto está atado al

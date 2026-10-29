@@ -62,6 +62,7 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
 | `php tools/scaffold.php` | Genera esqueletos de página, endpoint AJAX o **plugin** | instantáneo |
+| Arnés `php-wasm` | Ejecuta pruebas y herramientas **sin PHP y sin Docker** (`docs/PHP_WASM.md`) | según la prueba |
 
 No requieren Composer ni extensiones especiales.
 
