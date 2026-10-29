@@ -807,6 +807,14 @@ Lo que **no** se tocó, a propósito: la API que los plugins ya usan
 `plugin.php` (sigue aceptando las mismas claves) y la verificación de firma
 por DNS. Los cambios son de robustez, no de contrato.
 
+**Un defecto de analíticas, del mismo tipo.** `Analytics::getTopicBreakdown()`
+pedía `values('topic__topic')` y leía `$row['topic']`. El alias que produce el
+ORM para un campo de relación es la **ruta** (`topic__topic`), así que el
+nombre llegaba `null`: el panel «Temas más frecuentes» pintaba barras sin
+etiqueta y dejaba un aviso de PHP por fila. Ahora se pide con alias explícito
+y hay dos pruebas de compilación en `tests/QuerySqlTest.php` que fijan la
+convención.
+
 **Cómo se verificó aquí.** Este entorno no tiene PHP ni Docker, así que la
 tanda se comprobó con el arnés de `php-wasm` que ahora está documentado en
 `docs/PHP_WASM.md` (el mismo con el que se mide la suite desde el principio,

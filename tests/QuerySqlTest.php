@@ -443,6 +443,30 @@ class QuerySqlTest extends UnitTestCase {
             . ' ORDER BY A1.`name` ASC', $q['sql']);
     }
 
+    public function testElCampoDeUnaRelacionSeAliasaConLaRuta(): void {
+        // `values('categoria__nombre')` no produce la columna «nombre» sino
+        // «categoria__nombre»: quien lee la fila tiene que pedirla así. Lo
+        // aprendió a golpes el desglose de temas de las analíticas, que leía
+        // `$row['topic']` de un `values('topic__topic')` y pintaba una lista
+        // de etiquetas vacías.
+        $q = $this->compile((new \QuerySet('QuerySqlOrphan'))
+            ->values('category__name'));
+
+        $this->assertSame('SELECT A2.`name` AS `category__name`'
+            . ' FROM `orphan` A1 JOIN `category` A2 ON (A1.`category_id` = A2.`id`)',
+            $q['sql']);
+    }
+
+    public function testElCampoDeUnaRelacionAdmiteAliasPropio(): void {
+        // La forma segura: un alias que no depende de la ruta del campo
+        $q = $this->compile((new \QuerySet('QuerySqlOrphan'))
+            ->values(array('nombre' => 'category__name')));
+
+        $this->assertSame('SELECT A2.`name` AS `nombre`'
+            . ' FROM `orphan` A1 JOIN `category` A2 ON (A1.`category_id` = A2.`id`)',
+            $q['sql']);
+    }
+
     public function testValoresConExpresionAgrupaPorLaExpresion(): void {
         // Las series de analíticas agrupan por DATE()/HOUR(); el GROUP BY
         // tiene que llevar la expresión, no el alias ni la clave primaria

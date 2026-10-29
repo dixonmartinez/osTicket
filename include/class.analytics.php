@@ -534,15 +534,19 @@ class Analytics
     {
         $rows = [];
 
+        // El alias se pide explícito: `values('topic__topic')` produce la
+        // columna «topic__topic», no «topic», y la lista salía con las
+        // etiquetas vacías (y un aviso de PHP por fila)
         $query = Ticket::objects()
             ->filter($this->periodFilter(), $this->deptFilter())
-            ->values('topic__topic')
+            ->values(array('name' => 'topic__topic'))
             ->annotate(array('n' => SqlAggregate::COUNT(new SqlField('ticket_id'))))
             ->order_by('-n')
             ->limit((int) $limit);
 
         foreach ($query as $row)
-            $rows[] = ['name' => $row['topic'], 'count' => (int) $row['n']];
+            $rows[] = ['name' => $row['name'] ?: __('None'),
+                       'count' => (int) $row['n']];
 
         return $rows;
     }
