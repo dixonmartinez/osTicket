@@ -11,6 +11,7 @@
  * Uso:
  *   php tools/scaffold.php page   <nombre> [--title="Título"] [--client]
  *   php tools/scaffold.php ajax   <nombre>
+ *   php tools/scaffold.php plugin <nombre> [--title="Nombre"] [--author="…"]
  *
  * Nunca sobrescribe archivos existentes.
  */
@@ -28,11 +29,13 @@ osTicket scaffolder
 
   php tools/scaffold.php page <nombre> [--title="Título"] [--client]
   php tools/scaffold.php ajax <nombre>
+  php tools/scaffold.php plugin <nombre> [--title="Nombre"] [--author="…"]
 
 Ejemplos
   php tools/scaffold.php page informes --title="Informes"
   php tools/scaffold.php page mis-datos --client --title="Mis datos"
   php tools/scaffold.php ajax inventario
+  php tools/scaffold.php plugin ldap --title="Autenticación LDAP" --author="Ana"
 
 TXT;
 }
@@ -88,6 +91,8 @@ $vars = [
     'class' => $class,
     'title' => $title,
 ];
+
+$author = $options['author'] ?? '';
 
 switch ($kind) {
 case 'page':
@@ -240,6 +245,126 @@ PHP;
     echo "\nRegistra la ruta en el router, por ejemplo en scp/ajax.php:\n";
     echo "  url('^/{$slug}/(?P<id>\\d+)$',\n";
     echo "      array('ajax.{$slug}.php:{$class}AjaxAPI', 'get'))\n";
+    break;
+
+case 'plugin':
+    /* Un plugin es una carpeta en include/plugins/ con un plugin.php que
+       DEVUELVE un arreglo. Las claves las normaliza PluginInfo
+       (include/class.plugin.info.php); las de abajo son las obligatorias. */
+    $pluginTpl = <<<'PHP'
+<?php
+/**
+ * include/plugins/{{slug}}/plugin.php
+ *
+ * Declaración del plugin. **Devuelve un arreglo**; no imprime nada.
+ * Las claves que falten las completa `PluginInfo::normalize()`.
+ */
+require_once(INCLUDE_DIR . 'plugins/{{slug}}/class.{{slug}}.php');
+
+return array(
+    // archivo:Clase dentro de la carpeta del plugin
+    'plugin'      => 'class.{{slug}}.php:{{class}}Plugin',
+    'name'        => '{{title}}',
+    'version'     => '0.1.0',
+    // Versión de osTicket que necesita. Se compara por mayor.menor, así que
+    // '1.18' vale para cualquier 1.18.x. Omítela si no depende de nada.
+    'ost_version' => '1.18',
+    // Subcarpeta de las clases (por omisión, 'include/')
+    'include'     => '',
+    'author'      => '{{author}}',
+    'description' => '{{title}}',
+);
+PHP;
+
+    $classTpl = <<<'PHP'
+<?php
+/**
+ * include/plugins/{{slug}}/class.{{slug}}.php
+ *
+ * Lógica del plugin. `bootstrap()` se ejecuta en cada petición cuando el
+ * plugin está activo; `getConfigClass()` devuelve la clase que declara las
+ * opciones que se ven en Administración → Plugins.
+ */
+class {{class}}Plugin extends Plugin {
+
+    /** Clase de configuración (debe heredar de PluginConfig). */
+    var $config_class = '{{class}}PluginConfig';
+
+    /**
+     * Se llama al arrancar la aplicación, sólo si el plugin está activo.
+     * Engancha aquí tus señales, filtros o rutas.
+     */
+    function bootstrap() {
+        // Ejemplos:
+        //   Signal::connect('ticket.created', array($this, 'onTicketCreated'));
+        //   osTicket::register_namespace(dirname(__FILE__) . '/lib');
+    }
+
+    /**
+     * Una sola instancia basta para este plugin. Devuelve true si quieres
+     * poder crear varias (con su propia configuración cada una).
+     */
+    function isMultiInstance() {
+        return false;
+    }
+}
+
+/**
+ * Opciones del plugin. Cada clave es una columna en la tabla de
+ * configuración; los campos son los de `include/class.forms.php`.
+ */
+class {{class}}PluginConfig extends PluginConfig {
+
+    function getOptions() {
+        return array(
+            'enabled' => new BooleanField(array(
+                'label' => __('Activo'),
+                'default' => true,
+                'configuration' => true,
+            )),
+        );
+    }
+}
+PHP;
+
+    $readmeTpl = <<<'MD'
+# {{title}}
+
+Plugin de osTicket generado con `tools/scaffold.php`.
+
+## Qué trae
+
+| Archivo | Para qué |
+|---|---|
+| `plugin.php` | La declaración que lee `PluginInfo` (nombre, versión, clase) |
+| `class.{{slug}}.php` | El plugin (`bootstrap()`) y su configuración (`PluginConfig`) |
+
+## Probarlo
+
+1. Copia la carpeta `{{slug}}/` a `include/plugins/` de la instalación.
+2. Administración → **Manage → Plugins → Add New Plugin**: aparece en la
+   lista y se instala con un botón.
+3. Sus opciones salen en la ficha del plugin, pestaña **Instances**.
+
+## Reglas
+
+- `plugin.php` **devuelve** un arreglo. No imprimas nada ahí.
+- La clase se declara como `archivo.php:Clase` y el archivo se resuelve
+  dentro de la carpeta del plugin.
+- No edites `include/class.plugin.php` desde un plugin: usa las señales y
+  los ganchos públicos.
+- Para traducir, `Plugin::translate($dominio)` con los `.mo` en `i18n/`.
+MD;
+
+    $vars['author'] = $author;
+    $file = $root . '/include/plugins/' . $slug . '/plugin.php';
+    writeFile($file, render($pluginTpl, $vars));
+    writeFile($root . '/include/plugins/' . $slug . '/class.' . $slug . '.php',
+        render($classTpl, $vars));
+    writeFile($root . '/include/plugins/' . $slug . '/README.md',
+        render($readmeTpl, $vars));
+    echo "\nListo. Instálalo en Administración → Manage → Plugins →\n";
+    echo "Add New Plugin: la carpeta ya está en include/plugins/$slug/.\n";
     break;
 
 default:

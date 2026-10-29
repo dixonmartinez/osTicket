@@ -931,7 +931,7 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 942, §3.13.11).
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 968, §3.13.11).
   `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
   propio Redactor.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
@@ -1144,13 +1144,17 @@ borrar»** y los 33 seguían ahí.
   marcadas y 11 por migrar**, y las **17 del CLI** se informan aparte porque no
   están en el camino de una petición.
 - `php tests/run.php` → medido en **php-wasm** (sin `dom` ni `mbstring`):
-  **942 correctas, 0 fallos, 5 omitidas**. **Veintitrés** son de la última
-  tanda: nueve en `tests/MailerMessageTest.php` (el separador de la respuesta
-  citada y la reescritura de los `cid:`, sacados de `Mailer::send()`), once en
+  **968 correctas, 0 fallos, 5 omitidas**. **Veintiséis** son de la última
+  tanda y todas de `tests/PluginTest.php`: la lectura del `plugin.php`
+  (`PluginInfo`), el contrato del esqueleto que genera
+  `php tools/scaffold.php plugin` y la comparación de versiones. Las
+  **veintitrés** de la tanda anterior siguen ahí: nueve en
+  `tests/MailerMessageTest.php` (el separador de la respuesta citada y la
+  reescritura de los `cid:`, sacados de `Mailer::send()`), once en
   `tests/TicketPostTest.php` (los destinatarios del aviso de mensaje nuevo,
   sacados de `Ticket::postMessage()`) y tres en `tests/MassActionTest.php` (el
-  permiso de combinar/enlazar, departamento por departamento). Las **treinta y
-  siete** de la tanda anterior siguen ahí:
+  permiso de combinar/enlazar, departamento por departamento). Y las
+  **treinta y siete** de la tanda anterior a esa siguen ahí:
   dos en `tests/SeedDataTest.php`, una en `tests/QuerySqlTest.php`, una en
   `tests/QueueEmptyStateTest.php` (el `?p=2`), una en `tests/QueueCheckTest.php`
   (el recuento de páginas), dieciocho en `tests/MassActionTest.php` (los textos de
@@ -1404,6 +1408,7 @@ queda en §6.2.
 | 32 | **`make seed-repair`**: el doctor prometía `--doctor --repair` en sus pistas y la opción **no existía**. Ahora repara sin borrar ni volver a sembrar: artículos sin categoría (por pregunta del manifiesto), entradas fechadas antes que su padre (y `thread.lastmessage`), restos de hilo y vistas de datos. Repasa la revisión al terminar (`docs/SEED.md`) | ✅ Hecho | `include/cli/modules/seed.php`, `Makefile`, `tests/SeedDataTest.php`, `docs/SEED.md` |
 | 38 | **Pantallas de administración con el lenguaje del panel**: `table.form_table` / `.settings_table` (Ajustes, administración y los diálogos de configuración) pasan de dos bordes sueltos, celdas de 4 px y cabecera gris con texto blanco a tarjeta con esquinas redondeadas, filas con aire, una sola banda de cabecera y la etiqueta sólo en las filas de dos columnas (`:nth-last-child(2)`); resalte de fila, errores con token y ayuda contextual atenuada. `ui.css` deja de corregir el contraste de la banda porque ya no existe, y la vista previa trae la pantalla de ajustes completa (§3.14) | ✅ Hecho | `css/modern.css`, `css/dark.css`, `css/ui.css`, `docs/theme-preview.html`, `tools/ui/theme-check.php` |
 | 39 | **`Mailer::send()` deja de ser la función más larga**: de 270 a **147** líneas. Dos piezas puras nuevas en `MailerMessage` (`replyTag()`, con los tres casos del separador de la respuesta citada, y `rewriteContentIds()`, el `cid:` de las imágenes incrustadas) y cuatro pasos privados con nombre en `Mailer` (`addRecipients()`, `attachFiles()`, `deliverViaSmtp()` y `deliverViaSendmail()`); ni el envío ni el orden de los transportes cambian. El permiso de combinar/enlazar sale a `MassAction::mergePermissions()` y el diálogo pasa a abrirse sobre el **primero** de la lista, no sobre el último leído Y los destinatarios del aviso de mensaje nuevo salen de `Ticket::postMessage()` a `TicketPost::alertRecipients()` / `alertableRecipients()`, con once pruebas de dobles, así que `postMessage()` baja de 178 a **142** líneas (`docs/CODE_QUALITY.md`, frente 2) | ✅ Hecho | `include/class.mailer.php`, `include/class.mailer.message.php`, `include/class.massaction.php`, `include/ajax.tickets.php`, `tests/MailerMessageTest.php`, `tests/MassActionTest.php`, `include/class.ticket.post.php`, `include/class.ticket.replies.php`, `tests/TicketPostTest.php` |
+| 40 | **La pantalla de plugins deja de callarse los fallos**: instalar un plugin que no se puede instalar ahora da aviso (antes la lista volvía a salir igual, sin decir nada), una acción en lote inventada responde **Unknown Action** en vez de redirigir como si hubiera funcionado, y un plugin cuya clase no carga **se instala igual** y queda *Defunct* con su ficha visible, en lugar de terminar en error fatal después de guardarlo. La lectura del `plugin.php` sale a `PluginInfo` (`docs/CODE_QUALITY.md`, frente 2; receta en `docs/DEVELOPER_GUIDE.md` §4.6) | ✅ Hecho | `include/class.plugin.info.php`, `include/class.plugin.php`, `scp/plugins.php`, `tools/scaffold.php`, `tests/PluginTest.php` |
 | 37 | **Frente 6, tercera parte**: el backend de búsqueda de MySQL (`MysqlSearchBackend` y su configuración, 480 líneas) sale a `include/class.search.mysql.php` con su registro (`Signal::connect()`, `register()`) para que el buscador no desaparezca en silencio; `include/class.search.php` pasa de 1.955 a **1.476** líneas y lo incluye al final, después de la clase de la que hereda. `tests/SearchMysqlSplitTest.php` fija el orden y que no queden copias; `SearchRecordTest` pasa a leer el archivo nuevo (`docs/CODE_QUALITY.md`, frente 6) | ✅ Hecho | `include/class.search.mysql.php`, `include/class.search.php`, `tests/SearchMysqlSplitTest.php`, `tests/SearchRecordTest.php` |
 | 36 | **Frente 6, segunda mitad**: el formulario de estado del ticket (abrir, cerrar, borrar, marcar como duplicado o respondido) sale a `include/ajax.tickets.status.php` como rasgo `TicketsAjaxStatus`, con los cinco métodos enteros y las rutas del panel intactas: `include/ajax.tickets.php` pasa de 1.677 a **1.333** líneas y deja de ser el archivo más grande del panel. Los ayudantes privados se quedan en la clase porque el rasgo los llama con `self::`; `tests/TicketsAjaxSplitTest.php` lo comprueba todo por código fuente, incluido que no queden copias de los métodos movidos (`docs/CODE_QUALITY.md`, frente 6) | ✅ Hecho | `include/ajax.tickets.status.php`, `include/ajax.tickets.php`, `tests/TicketsAjaxSplitTest.php`, `tools/quality/class-map.php` |
 | 35 | **Frentes 2 y 6, tanda del 2026-10-27**: los textos de los diálogos en lote salen de `MassAction` (`assignPrompt()`, `confirm()`, `failure()`, `agentOrder()`) y el **diálogo de asignación** deja de estar duplicado (`memberOptions()`, `teamAssignees()`, `finish()` y las consultas de agentes de cada tipo), así que `massProcess()` baja de 321 a **227** (tickets) y de 287 a **191** (tareas); el análisis de combinar/enlazar sale a `analyzeMerge()` con siete pruebas; `run()` del gestor de archivos del CLI pasa de 408 a **12** líneas, con una acción por método y un aviso de verdad para la acción inventada; y los vencimientos/SLA del ticket se van al rasgo `TicketSla`, con `class.ticket.php` de 1.982 a **1.834** (`docs/CODE_QUALITY.md`, frentes 2 y 6) | ✅ Hecho | `include/class.massaction.php`, `include/ajax.tickets.php`, `include/ajax.tasks.php`, `include/cli/modules/file.php`, `include/class.ticket.sla.php`, `tests/MassActionTest.php`, `tests/FileManagerTest.php`, `tests/TicketSlaTest.php` |

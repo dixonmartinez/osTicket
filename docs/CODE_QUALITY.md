@@ -703,6 +703,64 @@ del archivo diciendo qué hay dentro y las dependencias declaradas arriba
 mapa se consulta con `make classes`; los candidatos que quedan son
 `class.forms.php` (37 clases) y `class.thread.php` (11).
 
+**Tanda del 2026-10-29: el subsistema de plugins.** Se revisó
+`include/class.plugin.php` (donde vive todo: registro, instalación,
+configuración, instancias y verificación de `phar`) buscando lo que se puede
+mejorar sin tocar la API que ya usan los plugins de terceros. Salieron ocho
+defectos reales, casi todos silenciosos, y una pieza nueva:
+
+- **`PluginInfo` (`include/class.plugin.info.php`)** se queda con la lectura
+  del `plugin.php`: las claves por omisión, la subcarpeta de clases, el
+  `archivo.php:Clase`, la compatibilidad con la versión de osTicket y la
+  decisión de actualizar el registro. No toca la base ni el sistema de
+  archivos, así que tiene **26 pruebas propias** (`tests/PluginTest.php`).
+- **`Undefined array key` en cada `plugin.php` corto.** El instalador
+  completaba seis claves y el resto del código leía `author`, `description`,
+  `include`… sin comprobar. `PluginInfo::normalize()` garantiza todas.
+- **La actualización se disparaba en cada carga.** `Plugin::__onload()`
+  comparaba contra `$this->info['verion']` —sin la «s»—, una clave que no
+  existe: la condición era siempre cierta y `pre_upgrade()` de todos los
+  plugins se ejecutaba en cada petición, con un aviso de PHP por plugin.
+  Ahora lo decide `PluginInfo::needsUpgrade()`.
+- **`getIncludePath()` devolvía la raíz del plugin.** Leía
+  `$info['include_path']`, nombre que ningún `plugin.php` publica (el
+  instalador documenta y normaliza `include`). Se acepta el nombre viejo como
+  alias para no romper plugins ya publicados, pero se lee el correcto.
+- **Instalar un plugin con la clase rota terminaba en error fatal.**
+  `PluginManager::install()` hacía `$p->getImpl()->enable()`; si el
+  `plugin.php` apuntaba a una clase que no carga, `getImpl()` devuelve `null`
+  y la petición moría **después** de haber guardado el plugin. Ahora se
+  instala y queda «Defunct», que es un estado que la pantalla ya sabe
+  mostrar.
+- **`getInstance()` guardaba en dos claves distintas.** Leía y escribía
+  `$instances[$path]` pero con `$path` reasignado al nombre del archivo, y la
+  última línea leía una clave que podía no existir. Ahora la caché va por
+  ruta de instalación y devuelve `null` si la clase no aparece.
+- **`getImpl()` no resolvía `archivo.php` sin clase**, aunque `getInstance()`
+  sí lo hacía: la misma declaración funcionaba por un camino y no por el
+  otro. Los dos usan `PluginInfo::declared()`.
+- **Un plugin defuncto rompía su propia ficha.**
+  `PluginInstance::getConfigClass()` hacía `$this->getPlugin()->getConfigClass()`
+  sobre `null` («Call to a member function on null»). Ahora devuelve `null` y
+  la ficha se dibuja sin configuración.
+- **`showVerificationBadge()` usaba una variable sin definir** en la rama
+  `VERIFY_DNS_PASS` (plugin registrado en DNS pero sin firma verificable).
+- **La pantalla de administración callaba tres fallos** (`scp/plugins.php`):
+  instalar algo que no se puede instalar no daba ningún aviso (la lista
+  volvía a salir igual), una acción en lote inventada redirigía como si nada,
+  y el `switch` no tenía `default`.
+
+Lo que **no** se tocó, a propósito: la API que los plugins ya usan
+(`Plugin`, `PluginConfig`, `PluginInstance`, las señales), el formato del
+`plugin.php` (sigue aceptando las mismas claves) y la verificación de firma
+por DNS. Los cambios son de robustez, no de contrato.
+
+Y se añadió el esqueleto que faltaba: `php tools/scaffold.php plugin <nombre>`
+crea en `include/plugins/<nombre>/` el `plugin.php`, la clase con su
+`bootstrap()` y su `PluginConfig`, y un README. El esqueleto está atado al
+contrato por dos pruebas que evalúan la plantilla y comprueban que
+`PluginInfo::declared()` lee lo que debe leerse.
+
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
 - Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el

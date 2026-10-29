@@ -103,16 +103,27 @@ if ($_POST) {
                 foreach ($plugins as $p)
                     $p->uninstall($errors);
                 break;
+            default:
+                // Antes una acción inventada no decía nada: redirigía igual
+                $errors['err'] = __('Unknown Action');
             }
             // reset cached list
             PluginManager::clearCache();
+            if ($errors)
+                break;
             //Fixme: address sticky cache
             Http::redirect('plugins.php');
         }
         break;
     case 'install':
+        // `install()` devuelve false tanto si el plugin no trae un
+        // plugin.php válido como si pide una versión de osTicket mayor:
+        // antes el fallo no decía nada y la pantalla se quedaba igual
         if (($plugin=$ost->plugins->install($_POST['install_path'])))
             $msg = sprintf(__('Successfully installed %s'),
+                __('a plugin'));
+        else
+            $errors['err'] = sprintf(__('Unable to install %s.'),
                 __('a plugin'));
         break;
     }

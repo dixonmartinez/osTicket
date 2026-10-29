@@ -1,5 +1,7 @@
 <?php
 require_once(INCLUDE_DIR.'/class.config.php');
+/* Lectura del plugin.php: sin base de datos, con pruebas propias */
+require_once(INCLUDE_DIR . 'class.plugin.info.php');
 
 /*
  * PluginConfig
@@ -315,11 +317,6 @@ class PluginManager {
     }
 
     static function getInfoForPath($path, $is_phar=false) {
-        static $defaults = array(
-            'include' => 'include/',
-            'stream' => false,
-        );
-
         $install_path = str_replace(INCLUDE_DIR, '', $path);
         $install_path = str_replace('phar://', '', $install_path);
         if ($is_phar && substr($path, 0, 7) != 'phar://')
@@ -329,10 +326,11 @@ class PluginManager {
             // the plugin.
             if (!file_exists($path . '/plugin.php'))
                 return false;
-            $info = array_merge($defaults, (@include $path . '/plugin.php'));
-            $info['install_path'] = $install_path;
+            // Las claves que falten las pone PluginInfo::normalize(): antes
+            // un plugin.php corto dejaba avisos de «Undefined array key»
+            $info = PluginInfo::normalize(@include $path . '/plugin.php',
+                $install_path, $is_phar);
 
-            // XXX: Ensure 'id' key isset
             static::$plugin_info[$install_path] = $info;
         }
         return static::$plugin_info[$install_path];
@@ -351,14 +349,22 @@ class PluginManager {
                 return $ht;
 
             // Usually this happens when the plugin is being enabled
-            list($path, $class) = explode(':', $info['plugin']);
-            if (!$class)
-                $class = $path;
+            list($file, $class) = PluginInfo::declared($info ?: array());
+            if (!$file)
+                return null;
+            if ($class)
+                require_once(INCLUDE_DIR . $info['install_path'] . '/' . $file);
             else
-                require_once(INCLUDE_DIR . $info['install_path'] . '/' . $path);
+                $class = $file;
+
+            if (!class_exists($class))
+                return null;
+
+            // Se guarda por ruta de instalación: antes se guardaba por el
+            // archivo y la última línea leía una clave que podía no existir
             $instances[$path] = new $class($ht['id']);
         }
-        return $instances[$path];
+        return $instances[$path] ?? null;
     }
 
     static function lookup($id) {
@@ -394,7 +400,13 @@ class PluginManager {
         $p = Plugin::create($vars);
         if ($p->save(true)) {
             // TODO: Trigger enable() for the plugin (for now)
-            $p->getImpl()->enable();
+            //
+            // Un plugin cuyo `plugin.php` apunta a una clase que no carga se
+            // instala igual (queda «Defunct»), pero no puede engancharse:
+            // antes esta línea llamaba a enable() sobre null y la petición
+            // terminaba en error fatal, con el plugin ya guardado.
+            if (($impl = $p->getImpl()))
+                $impl->enable();
             static::clearCache();
             return $p;
         }
@@ -417,16 +429,8 @@ class PluginManager {
      *
      */
      static function isCompatible($version, $ost_version=null) {
-         // Assume compatible if specific osTicket version is not required.
-         if (!$version)
-             return true;
-
-         $matches = array();
-         if (!$ost_version
-                 && preg_match_all('/\./', $version, $matches, PREG_OFFSET_CAPTURE) == 2)
-             $version = substr($version, 0, $matches[0][1][1]);
-
-         return version_compare($ost_version ?: MAJOR_VERSION, $version, '>=');
+         // La comparación vive en PluginInfo, que se prueba sola
+         return PluginInfo::isCompatible($version, $ost_version);
      }
 
     /**
@@ -526,6 +530,8 @@ class PluginManager {
     }
 
     static function showVerificationBadge($phar) {
+        // Sin esto, la rama VERIFY_DNS_PASS usaba una variable sin definir
+        $show_lock = false;
         switch (self::isVerified($phar)) {
         case self::VERIFIED:
             $show_lock = true;
@@ -593,7 +599,11 @@ class Plugin extends VerySimpleModel {
             $this->isPhar());
         // Auto upgrade / downgrade plugins on-load - if we have version
         // mismatch. See upgrade routine for more information
-        if ($this->info['version'] && $this->getVersion() != $this->info['verion'])
+        //
+        // Antes se comparaba con `$this->info['verion']` (sin la «s»), una
+        // clave que no existe: la comparación era siempre cierta y el
+        // gancho pre_upgrade() se ejecutaba en cada carga de página.
+        if (PluginInfo::needsUpgrade($this->getVersion(), $this->info ?: array()))
             $this->upgrade();
     }
 
@@ -701,17 +711,18 @@ class Plugin extends VerySimpleModel {
      * Returns plugin subclass impl if any
      */
     function getImpl() {
-        if (!isset($this->_impl) && $this->info['plugin']) {
-            // TODO: if if the class is already cached in PluginManager
-            list($file, $class) = explode(':', $this->info['plugin']);
+        if (!isset($this->_impl) && !empty($this->info['plugin'])) {
+            // `archivo.php:Clase` puede venir sin clase: en ese caso la clase
+            // se llama como el archivo, que es como lo resolvía getInstance()
+            list($file, $class) = PluginInfo::declared($this->info);
             $path = INCLUDE_DIR . $this->getInstallPath();
             if ($this->isPhar())
                 $path = 'phar://' . $path;
-            $file = "$path/$file";
-            if (file_exists($file)) {
+            if ($file && file_exists($path = "$path/$file")) {
                 // Register possible plugin namespace before init
-                osTicket::register_namespace(dirname($file).'/lib');
-                @include_once $file;
+                osTicket::register_namespace(dirname($path) . '/lib');
+                @include_once $path;
+                $class = $class ?: basename($file, '.php');
                 if (class_exists($class))
                     $this->_impl = $class::lookup($this->getId());
             }
@@ -722,15 +733,17 @@ class Plugin extends VerySimpleModel {
     }
 
     function getId() { return $this->get('id'); }
-    function getName() { return $this->__($this->get('name', $this->info['name'])); }
+    // `$this->info` puede ser false si el `plugin.php` desapareció: se lee
+    // con `??` para no dejar avisos de PHP por cada plugin huérfano
+    function getName() { return $this->__($this->get('name', $this->info['name'] ?? '')); }
     function isActive() { return ($this->get('isactive')); }
     function isPhar() { return $this->get('isphar'); }
-    function getVersion() { return $this->get('version', $this->info['version']); }
-    function getosTicketVersion() { return $this->info['ost_version']; }
-    function getAuthor() { return $this->info['author']; }
+    function getVersion() { return $this->get('version', $this->info['version'] ?? ''); }
+    function getosTicketVersion() { return $this->info['ost_version'] ?? null; }
+    function getAuthor() { return $this->info['author'] ?? ''; }
     function getInstallDate() { return $this->get('installed'); }
     function getInstallPath() { return $this->get('install_path'); }
-    function getNotes() { return $this->get('notes') ?: $this->info['description']; }
+    function getNotes() { return $this->get('notes') ?: ($this->info['description'] ?? ''); }
 
     function getStatus() {
         return __($this->isActive() ? 'Active' : 'Disabled');
@@ -757,15 +770,25 @@ class Plugin extends VerySimpleModel {
         return $this->instances->findFirst(['id' => (int) $id]);
     }
 
+    /**
+     * Carpeta de clases del plugin (`include/plugins/<x>/include/` por
+     * omisión).
+     *
+     * Leía la clave `include_path`, que ningún `plugin.php` publica —el
+     * instalador documenta y normaliza `include`—, así que devolvía la raíz
+     * del plugin.
+     */
     function getIncludePath() {
-        return realpath(INCLUDE_DIR . $this->info['install_path'] . '/'
-            . $this->info['include_path']) . '/';
+        $path = INCLUDE_DIR . PluginInfo::includePath(
+            $this->info['install_path'] ?? '', $this->info ?: array());
+
+        return realpath($path) . '/';
     }
 
     function isDefunct() {
         if (!isset($this->defunct)) {
             $this->defunct = false;
-            if (!$this->info['plugin'] || !$this->getImpl())
+            if (empty($this->info['plugin']) || !$this->getImpl())
                 $this->defunct = true;
         }
         return  $this->defunct;
@@ -859,7 +882,7 @@ class Plugin extends VerySimpleModel {
 
         // For now we're just updating the version if we have a mismatch
         // The true version is what is packaged with the plugin
-        if ($this->getVersion() != $this->info['version'])
+        if (PluginInfo::needsUpgrade($this->getVersion(), $this->info ?: array()))
             $this->version = $this->info['version'];
 
         $this->save();
@@ -1087,7 +1110,12 @@ class PluginInstance extends VerySimpleModel {
     }
 
     function getConfigClass() {
-        return $this->config_class ?: $this->getPlugin()->getConfigClass();
+        if ($this->config_class)
+            return $this->config_class;
+
+        // Un plugin defuncto (la clase no carga) no tiene config: antes esto
+        // terminaba en «Call to a member function getConfigClass() on null»
+        return ($plugin = $this->getPlugin()) ? $plugin->getConfigClass() : null;
     }
 
     function getConfig($defaults=[]) {

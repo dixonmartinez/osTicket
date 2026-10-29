@@ -61,7 +61,7 @@ php -S 0.0.0.0:8080 -t .        # o: make serve
 | `make ci` | lint + audit + security + theme + classes + input-audit + sql-audit + unit (verificación previa al commit) | ~11 s |
 | `make docker-test` | `make ci` dentro del contenedor | ~30 s |
 | `make docker-qa` | PHPStan + PHP_CodeSniffer (requiere `make docker-composer`) | variable |
-| `php tools/scaffold.php` | Genera esqueletos de página/AJAX | instantáneo |
+| `php tools/scaffold.php` | Genera esqueletos de página, endpoint AJAX o **plugin** | instantáneo |
 
 No requieren Composer ni extensiones especiales.
 
@@ -227,13 +227,94 @@ métrica:
 3. Píntalo en `include/staff/analytics.inc.php` con `AnalyticsChart::barList()`
    o `lineSvg()` (SVG generado en el servidor, sin JavaScript).
 
-### 4.6 Tarea programada / cron
+### 4.6 Escribir un plugin
+
+```bash
+php tools/scaffold.php plugin ldap --title="Autenticación LDAP" --author="Ana"
+# crea include/plugins/ldap/{plugin.php,class.ldap.php,README.md}
+```
+
+Un plugin es **una carpeta en `include/plugins/`** con un `plugin.php` que
+**devuelve un arreglo** (o un `.phar` con la misma forma). Esa carpeta
+aparece sola en *Administración → Manage → Plugins → Add New Plugin*, sin
+registrar nada a mano.
+
+```php
+<?php
+// include/plugins/ldap/plugin.php
+require_once(INCLUDE_DIR . 'plugins/ldap/class.ldap.php');
+
+return array(
+    'plugin'      => 'class.ldap.php:LdapPlugin',  // archivo:Clase
+    'name'        => 'Autenticación LDAP',
+    'version'     => '0.1.0',
+    'ost_version' => '1.18',      // opcional; se compara por mayor.menor
+    'include'     => '',          // subcarpeta de clases; por omisión 'include/'
+    'author'      => 'Ana',
+    'description' => 'Entra con la cuenta de la empresa',
+);
+```
+
+| Clave | Obligatoria | Para qué |
+|---|---|---|
+| `plugin` | sí (salvo plugin sin enganches) | `archivo.php:Clase` dentro de la carpeta |
+| `name` | sí | Nombre que sale en la lista y en el menú |
+| `version` | recomendada | Se compara con la guardada para decidir si migrar |
+| `ost_version` | no | Versión mínima de osTicket; `1.18` vale para todo 1.18.x |
+| `include` | no | Dónde viven las clases; **el nombre viejo `include_path` se acepta como alias** |
+| `author`, `description` | no | Sólo informativos (con valor vacío no hay avisos) |
+
+La clase hereda de `Plugin` y sólo tiene que implementar lo que necesite:
+
+```php
+class LdapPlugin extends Plugin {
+    var $config_class = 'LdapPluginConfig';
+
+    function bootstrap() {                  // en cada petición, si está activo
+        Signal::connect('ticket.created', array($this, 'onTicketCreated'));
+    }
+
+    function isMultiInstance() { return false; }   // una sola instancia
+}
+```
+
+Las opciones que se ven en la ficha del plugin son las de `PluginConfig`:
+
+```php
+class LdapPluginConfig extends PluginConfig {
+    function getOptions() {
+        return array(
+            'host' => new TextboxField(array(
+                'label' => __('Servidor'), 'required' => true,
+                'configuration' => true,
+            )),
+        );
+    }
+}
+```
+
+Reglas que la aplicación da por hechas:
+
+- `plugin.php` **devuelve** el arreglo: no imprimas nada ahí (se incluye en
+  la misma petición que dibuja la pantalla).
+- Un plugin cuya clase no carga **se instala igual** y queda marcado como
+  *Defunct*; no engancha nada y su ficha se dibuja sin configuración.
+- La actualización de versión se dispara sola al cargar. Si necesitas migrar
+  datos, sobrescribe `pre_upgrade()` y devuelve `false` si algo no cuadra.
+- Traduce con `Plugin::translate($dominio)` y los `.mo` en `i18n/`.
+- No edites `include/class.plugin.php` desde un plugin: usa señales.
+
+Todo lo que decide «cómo se lee un plugin» vive en
+`include/class.plugin.info.php` (`PluginInfo`), con pruebas en
+`tests/PluginTest.php`.
+
+### 4.7 Tarea programada / cron
 
 Añade la lógica en `include/class.cron.php` (`Cron::run()` → tareas
 registradas) o como módulo CLI en `include/cli/modules/`. El cron del
 sistema ejecuta `api/cron.php` con la clave configurada.
 
-### 4.6 Nuevo idioma o traducción
+### 4.8 Nuevo idioma o traducción
 
 ```bash
 php manage.php i18n --help
