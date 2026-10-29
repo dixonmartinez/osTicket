@@ -135,6 +135,41 @@ class PluginTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Registro DNS de un phar verificado                                  */
+    /* ------------------------------------------------------------------ */
+
+    public function testUnRegistroSeConvierteEnArreglo(): void {
+        $info = PluginInfo::parseRegistry('v=1; i=storage:s3; s=MEUC=; V=0.1;');
+
+        $this->assertSame('1', $info['v']);
+        $this->assertSame('storage:s3', $info['i']);
+        $this->assertSame('MEUC=', $info['s']);
+        $this->assertSame('0.1', $info['V']);
+    }
+
+    public function testSeRecortanLosEspacios(): void {
+        $this->assertSame(array('v' => '1', 's' => 'abc'),
+            PluginInfo::parseRegistry('  v = 1 ;  s = abc  '));
+    }
+
+    public function testUnaEntradaSinIgualSeIgnora(): void {
+        // antes dejaba un aviso de PHP y una clave con valor vacío
+        $this->assertSame(array('v' => '1'),
+            PluginInfo::parseRegistry('v=1; basura; ; '));
+    }
+
+    public function testSoloSePartePorElPrimerIgual(): void {
+        // la firma en base64 puede acabar en «=»
+        $this->assertSame(array('s' => 'MEUCIQ=='),
+            PluginInfo::parseRegistry('s=MEUCIQ=='));
+    }
+
+    public function testUnRegistroVacioNoDevuelveNada(): void {
+        $this->assertSame(array(), PluginInfo::parseRegistry(''));
+        $this->assertSame(array(), PluginInfo::parseRegistry(null));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Compatibilidad                                                      */
     /* ------------------------------------------------------------------ */
 

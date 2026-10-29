@@ -706,14 +706,15 @@ mapa se consulta con `make classes`; los candidatos que quedan son
 **Tanda del 2026-10-29: el subsistema de plugins.** Se revisó
 `include/class.plugin.php` (donde vive todo: registro, instalación,
 configuración, instancias y verificación de `phar`) buscando lo que se puede
-mejorar sin tocar la API que ya usan los plugins de terceros. Salieron ocho
+mejorar sin tocar la API que ya usan los plugins de terceros. Salieron trece
 defectos reales, casi todos silenciosos, y una pieza nueva:
 
 - **`PluginInfo` (`include/class.plugin.info.php`)** se queda con la lectura
   del `plugin.php`: las claves por omisión, la subcarpeta de clases, el
-  `archivo.php:Clase`, la compatibilidad con la versión de osTicket y la
-  decisión de actualizar el registro. No toca la base ni el sistema de
-  archivos, así que tiene **26 pruebas propias** (`tests/PluginTest.php`).
+  `archivo.php:Clase`, la compatibilidad con la versión de osTicket, la
+  decisión de actualizar el registro y la lectura del registro DNS de un
+  `.phar` firmado. No toca la base ni el sistema de archivos, así que tiene
+  **31 pruebas propias** (`tests/PluginTest.php`).
 - **`Undefined array key` en cada `plugin.php` corto.** El instalador
   completaba seis claves y el resto del código leía `author`, `description`,
   `include`… sin comprobar. `PluginInfo::normalize()` garantiza todas.
@@ -749,6 +750,41 @@ defectos reales, casi todos silenciosos, y una pieza nueva:
   instalar algo que no se puede instalar no daba ningún aviso (la lista
   volvía a salir igual), una acción en lote inventada redirigía como si nada,
   y el `switch` no tenía `default`.
+
+**La pestaña de instancias, que estaba rota sin decirlo.** En
+`include/staff/templates/plugin-instances.tmpl.php`:
+
+- El `</form>` vivía **dentro** de `if ($pageNav->getNumPages())`, y el
+  paginador nunca tiene más de una página —lista el `Pagenate` sobre un
+  recuento, mientras la tabla pinta **todas** las instancias—. Resultado: en
+  el caso normal el formulario quedaba **sin cerrar** y todo lo que venía
+  después caía dentro de él. Fuera el paginador (mentía: la misma lista en
+  todas las páginas) y el `</form>` se cierra siempre.
+- Cada fila empezaba con `<?php echo $icon; ?>`, una variable que **no se
+  definió nunca**: un aviso de PHP por instancia. Se sustituye por un
+  `aria-label` en la casilla, que es lo que faltaba para lectores de pantalla.
+- Las opciones del desplegable «Add New Instance» que devuelve el plugin
+  (`getNewInstanceOptions()`) se imprimían **sin escapar** en `class`, `href`,
+  `icon` y `name`. Ahora pasan por `Format::htmlchars()`.
+
+Y en el resto de la pantalla: `scp/plugins.php` no inicializaba `$errors` ni
+`$msg`, así que las plantillas los leían sin definir; `plugin-instance.tmpl.php`
+leía `$errors['name']`, `$info['name']`, `$info['notes']` e `$info['isactive']`
+sin valor por omisión; y `plugin.inc.php` leía `$info['notes']` en la primera
+carga. Cinco avisos de PHP por pantalla, ninguno visible salvo en el log.
+
+**La verificación de firma ya no puede tumbar la página.** `isVerified()`
+hacía `new Phar($phar)` sin protección: un `.phar` ilegible lanzaba la
+excepción en mitad de *Configuración → Sistema*, y además consultaba DNS una
+vez por insignia pintada. Ahora:
+
+- el trabajo vive en `verifySignature()`, con `try/catch` que devuelve
+  `VERIFY_ERROR` (un valor que la pantalla ya sabe pintar);
+- el resultado se cachea por archivo y petición (una consulta DNS, no N);
+- el registro TXT se lee con `PluginInfo::parseRegistry()`, que ignora los
+  fragmentos sin `=` en vez de dejar avisos y claves vacías (cinco pruebas);
+- `allInfos()` restaura el manejador de errores con `finally`: antes, con un
+  phar inválido se quedaba puesto para el resto de la petición.
 
 Lo que **no** se tocó, a propósito: la API que los plugins ya usan
 (`Plugin`, `PluginConfig`, `PluginInstance`, las señales), el formato del

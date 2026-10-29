@@ -1,8 +1,8 @@
 <?php
-$page = ($_GET['p'] && is_numeric($_GET['p'])) ? $_GET['p'] : 1;
+// Sin paginador: la tabla de abajo lista **todas** las instancias, así que
+// un paginador sólo podía mentir (misma lista en todas las páginas) y, peor,
+// el `</form>` vivía dentro de su `if`.
 $instances = $plugin->getNumInstances();
-$pageNav = new Pagenate($instances, $page, PAGE_LIMIT);
-$pageNav->setURL('plugins.php?id='.$plugin->getId().'&a=instances');
 // use dialog modal or page to add or configure an instance
 $modal = $plugin->useModalConfig();
 ?>
@@ -41,11 +41,12 @@ $modal = $plugin->useModalConfig();
             <ul>
                 <?php
                 foreach ($newInstanceOptions as $opt) { ?>
-                <li><a class="<?php echo $opt['class']; ?>"
-                    href="<?php echo $opt['href']; ?>">
-                    <i class="<?php echo $opt['icon'] ?: 'icon-plus-sign';
-                ?> icon-fixed-width"></i>&nbsp;
-                    <?php echo  $opt['name'];; ?></a></li>
+                <li><a class="<?php echo Format::htmlchars($opt['class'] ?? ''); ?>"
+                    href="<?php echo Format::htmlchars($opt['href'] ?? '#'); ?>">
+                    <i class="<?php
+                        echo Format::htmlchars($opt['icon'] ?: 'icon-plus-sign');
+                    ?> icon-fixed-width"></i>&nbsp;
+                    <?php echo Format::htmlchars($opt['name'] ?? ''); ?></a></li>
                 <?php
                 } ?>
             </ul>
@@ -89,8 +90,10 @@ if ($instances) { ?>
     foreach ($plugin->getInstances()->order_by('name') as $i) {
         $id = $i->getId(); ?>
     <tr id="plugin-instance-<?php echo $id; ?>" class="<?php if (!$i->isEnabled()) echo 'disabled'; ?>">
-        <td nowrap><?php echo $icon; ?>
-            <input type="checkbox" value="<?php echo $id ?>" class="mass nowarn"/>
+        <td nowrap>
+            <input type="checkbox" value="<?php echo $id; ?>"
+                class="mass nowarn" aria-label="<?php
+                echo Format::htmlchars($i->getName()); ?>"/>
         </td>
         <td>
             <a <?php echo $modal ? 'class="instance-config"' : ''; ?>
@@ -116,9 +119,7 @@ if ($instances) { ?>
 ?>
 </tbody>
 </table>
-<?php if ($pageNav && $pageNav->getNumPages()) { ?>
-    <div><?php echo __('Page').':'.$pageNav->getPageLinks('instances', $pjax_container); ?></div>
 </form>
-<?php }
+<?php
 }?>
 </div>

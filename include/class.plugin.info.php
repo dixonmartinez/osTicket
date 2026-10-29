@@ -130,6 +130,33 @@ class PluginInfo {
     }
 
     /**
+     * El registro DNS de un `.phar` verificado, convertido en arreglo.
+     *
+     * El registro es una cadena de pares separados por `;`, por ejemplo
+     * `v=1; i=storage:s3; s=MEUC…=; V=0.1;`. Un fragmento sin `=` (una
+     * entrada vacía, un TXT ajeno o un espacio suelto) se ignora: antes
+     * `list($k, $v) = explode('=', …)` dejaba un aviso de PHP y una clave
+     * con valor vacío en la página de configuración.
+     *
+     * @param string $txt contenido del registro TXT
+     *
+     * @return array clave => valor
+     */
+    static function parseRegistry($txt) {
+        $info = array();
+        foreach (explode(';', (string) $txt) as $pair) {
+            $parts = explode('=', trim($pair), 2);
+            $key = trim($parts[0]);
+            if (count($parts) !== 2 || $key === '')
+                continue;
+
+            $info[$key] = trim($parts[1]);
+        }
+
+        return $info;
+    }
+
+    /**
      * ¿Este plugin sirve con la versión de osTicket instalada?
      *
      * El requisito se compara **sólo por versión mayor y menor** cuando se

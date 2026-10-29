@@ -285,23 +285,27 @@ class PluginManager {
             if (substr($p, strlen($p) - 5) == '.phar'
                     && class_exists('Phar')
                     && Phar::isValidPharFilename($p)) {
-                try {
                 // When public key is invalid, openssl throws a
                 // 'supplied key param cannot be coerced into a public key' warning
                 // and phar ignores sig verification.
                 // We need to protect from that by catching the warning
                 // Thanks, https://github.com/koto/phar-util
                 set_error_handler(array('self', 'throwException'));
-                $ph = new Phar($p);
-                restore_error_handler();
-                // Verify the signature
-                $ph->getSignature();
-                $p = 'phar://' . $p;
-                $is_phar = true;
+                try {
+                    $ph = new Phar($p);
+                    // Verify the signature
+                    $ph->getSignature();
+                    $p = 'phar://' . $p;
+                    $is_phar = true;
                 } catch (UnexpectedValueException $e) {
                     // Cannot find signature file
                 } catch (RuntimeException $e) {
                     // Invalid signature file
+                } finally {
+                    // Antes sólo se restauraba si todo iba bien: con un phar
+                    // inválido el manejador se quedaba puesto para el resto
+                    // de la petición
+                    restore_error_handler();
                 }
 
             }
@@ -479,6 +483,7 @@ class PluginManager {
      */
     static function isVerified($phar) {
         static $pubkey = null;
+        static $cache = array();
 
         if (!class_exists('Phar') || !extension_loaded('openssl'))
             return self::VERIFY_EXT_MISSING;
@@ -493,17 +498,38 @@ class PluginManager {
             return self::VERIFY_ERROR;
         }
 
-        $P = new Phar($phar);
-        $sig = $P->getSignature();
+        // La comprobación consulta DNS: se hace una vez por archivo y
+        // petición, no una por cada vez que la pantalla pinta la insignia
+        if (!array_key_exists($phar, $cache))
+            $cache[$phar] = self::verifySignature($phar, $pubkey);
+
+        return $cache[$phar];
+    }
+
+    /**
+     * La verificación en sí: firma del `phar` contra el registro DNS.
+     *
+     * Un `.phar` ilegible o con la firma dañada lanza excepciones de la
+     * clase `Phar`; aquí se convierten en `VERIFY_ERROR`, que es un valor
+     * que la pantalla ya sabe pintar, en vez de tumbar la página de
+     * configuración del sistema.
+     */
+    static private function verifySignature($phar, $pubkey) {
+        try {
+            $P = new Phar($phar);
+            $sig = $P->getSignature();
+        } catch (Throwable $t) {
+            return self::VERIFY_ERROR;
+        }
+
         $info = array();
         $ignored = null;
-        if ($r = dns_get_record($sig['hash'].'.'.self::$verify_domain.'.', DNS_TXT)) {
+        if ($r = @dns_get_record($sig['hash'].'.'.self::$verify_domain.'.', DNS_TXT)) {
             foreach ($r as $rec) {
-                foreach (explode(';', $rec['txt']) as $kv) {
-                    list($k, $v) = explode('=', trim($kv));
-                    $info[$k] = trim($v);
-                }
-                if ($info['v'] && $info['s'])
+                // El registro es «clave=valor;clave=valor». Lo lee
+                // PluginInfo::parseRegistry(), que ignora las entradas rotas
+                $info = PluginInfo::parseRegistry($rec['txt'] ?? '');
+                if (!empty($info['v']) && !empty($info['s']))
                     break;
             }
         }
@@ -523,7 +549,7 @@ class PluginManager {
                 );
                 $result = openssl_verify($sig['hash'], $signature, $pubkey,
                     OPENSSL_ALGO_SHA1);
-                return $codes[$result];
+                return $codes[$result] ?? self::VERIFY_ERROR;
             }
         }
         return self::VERIFY_FAILED;

@@ -83,7 +83,7 @@ $info= Format::htmlchars(($errors && $_POST) ? $_POST : array(), true);
             <tr>
                 <td colspan="7"><textarea name="notes" class="richtext no-bar"
                     rows="6" cols="80"><?php
-                    echo $info['notes'] ?: $plugin->getNotes(); ?></textarea>
+                    echo ($info['notes'] ?? '') ?: $plugin->getNotes(); ?></textarea>
                 </td>
             </tr>
         </tbody>

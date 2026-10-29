@@ -1,6 +1,9 @@
 <?php
 $info = $instance ? $instance->getInfo() : $plugin->getNewInstanceDefaults($_GET);
 $info = Format::htmlchars(($errors && $_POST) ? array_merge($info, $_POST) : $info, true);
+// Las claves que falten se leen vacías: la primera vez no hay ni nombre ni
+// notas, y el error sólo aparece cuando alguien envía el formulario mal
+$info = array_merge(array('name' => '', 'notes' => '', 'isactive' => 1), $info);
 $form = $instance ? $instance->getForm() : $plugin->getConfigForm($info);
 ?>
 <ul class="clean tabs" id="instance-tabs"> <li class="<?php
@@ -26,7 +29,7 @@ $form = $instance ? $instance->getForm() : $plugin->getConfigForm($info);
                     <input size="50" type="text" autofocus
                         name="name"
                         value="<?php echo $info['name']; ?>"/><br/>
-                    <span class="error"><?php echo  $errors['name']; ?></span>
+                    <span class="error"><?php echo $errors['name'] ?? ''; ?></span>
                 </td>
             </tr>
             <tr>

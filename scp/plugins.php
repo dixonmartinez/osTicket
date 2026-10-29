@@ -2,6 +2,10 @@
 require('admin.inc.php');
 require_once(INCLUDE_DIR."/class.plugin.php");
 $plugin = $instance = null;
+// Sin esto, las plantillas leían `$errors` y `$msg` sin definir en la
+// primera carga de la página (un aviso de PHP por cada una)
+$errors = array();
+$msg = '';
 if ($_REQUEST['id'] ) {
     if (!($plugin=PluginManager::lookup((int) $_REQUEST['id'])))
         $errors['err'] = sprintf(__('%s: Unknown or invalid ID.'),
