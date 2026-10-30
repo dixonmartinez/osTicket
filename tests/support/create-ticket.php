@@ -131,11 +131,28 @@ function sembrar() {
         . TestDatabase::table('help_topic') . '`');
 }
 
-/** Primer id de una tabla, para no fijar ids a mano. */
+/**
+ * Primer id de una tabla, para no fijar ids a mano.
+ *
+ * La columna se dice siempre: no todas las tablas llaman `id` a su clave
+ * (`ost_help_topic` usa `topic_id`, `ost_team` `team_id`…). Y se comprueba
+ * que exista antes de consultarla, para que un nombre equivocado salga como
+ * «la tabla X no tiene columna Y» en vez de un error de SQL a mitad.
+ */
 function primerId($tabla, $columna = 'id') {
+    if (!preg_match('/^\w+$/', $tabla) || !preg_match('/^\w+$/', $columna))
+        responder(array('ok' => false,
+            'motivo' => 'nombre de tabla o columna inválido'));
+
+    $real = TestDatabase::table($tabla);
+    if (!TestDatabase::value(sprintf("SHOW COLUMNS FROM `%s` LIKE '%s'",
+                $real, $columna)))
+        responder(array('ok' => false, 'motivo' => sprintf(
+            'la tabla %s no tiene columna %s', $real, $columna)));
+
     return (int) TestDatabase::value(sprintf(
         'SELECT `%s` FROM `%s` ORDER BY `%s` LIMIT 1',
-        $columna, TestDatabase::table($tabla), $columna));
+        $columna, $real, $columna));
 }
 
 /**
@@ -159,8 +176,8 @@ function configurarInstalacion($dept_id) {
         'default_email_id' => 0,
         'alert_email_id' => 0,
         'default_dept_id' => $dept_id,
-        'default_sla_id' => primerId('sla'),
-        'schedule_id' => primerId('schedule'),
+        'default_sla_id' => primerId('sla', 'id'),
+        'schedule_id' => primerId('schedule', 'id'),
         'default_template_id' => (int) TestDatabase::value(
             'SELECT `tpl_id` FROM `'
             . TestDatabase::table('email_template_group')
@@ -184,11 +201,24 @@ function configurarInstalacion($dept_id) {
 if (!sembrar())
     responder(array('ok' => false, 'motivo' => 'la siembra no dejó temas de ayuda'));
 
-$dept_id = primerId('department');
-configurarInstalacion($dept_id);
+/* Cada tabla llama a su clave de una forma: `department.id`, pero
+ * `help_topic.topic_id`. Los ids se piden por su nombre real. */
+$ids = array(
+    'department' => primerId('department', 'id'),
+    'help_topic' => primerId('help_topic', 'topic_id'),
+    'role' => primerId('role', 'id'),
+);
+foreach ($ids as $tabla => $id) {
+    if (!$id)
+        responder(array('ok' => false,
+            'motivo' => 'la siembra no dejó filas en ' . $tabla));
+}
 
-$role_id = primerId('role');
-$topic_id = primerId('help_topic');
+$dept_id = $ids['department'];
+$topic_id = $ids['help_topic'];
+$role_id = $ids['role'];
+
+configurarInstalacion($dept_id);
 
 function permisosDeAdmin() {
     return array(
