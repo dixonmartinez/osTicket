@@ -138,12 +138,26 @@ class TicketCreateIntegrationTest extends IntegrationTestCase {
         $this->assertSame('cliente@example.test', $r['user_email']);
         $this->assertSame('Cliente De Prueba', $r['user_name']);
 
-        // El departamento sale del tema, no de la petición (que no lo manda).
+        /* El departamento sale del tema, no de la petición (que no lo manda).
+         *
+         * Los temas de la siembra no traen departamento (`dept_id = 0`) y el
+         * ticket cae al de por omisión; por eso el ayudante le da uno al tema,
+         * distinto del de por omisión. Sin eso la comprobación pasaba por
+         * casualidad: tema y ticket coincidían en el departamento por
+         * omisión.
+         */
         $deptDelTema = $this->value(sprintf(
             'SELECT dept_id FROM `%s` WHERE topic_id = %d',
             $this->table('help_topic'), (int) $ticket['topic_id']));
+
+        $this->assertGreaterThan(0, (int) $deptDelTema,
+            'el tema de la prueba no tiene departamento: no se puede saber si '
+            . 'el del ticket viene de él');
         $this->assertSame((int) $deptDelTema, (int) $ticket['dept_id'],
             'el departamento del ticket no es el del tema de ayuda');
+        $this->assertFalse((int) $r['default_dept_id'] == (int) $ticket['dept_id'],
+            'el ticket cayó en el departamento por omisión: el del tema no se '
+            . 'aplicó');
 
         $this->assertGreaterThan(0, (int) $ticket['status_id'],
             'el ticket quedó sin estado');

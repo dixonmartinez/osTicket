@@ -664,6 +664,19 @@ tabla vacía. Por eso, si una tabla clave queda sin filas, la respuesta añade:
 El resumen también sale por `stderr`, antes del JSON, para que se lea en la
 consola de `make integration` sin descifrar una línea.
 
+**Los temas de ayuda de la siembra no traen departamento.** `help_topic.yaml`
+no lo pone y `Topic::__create()` lo deja en 0, así que en una instalación nueva
+todo ticket del portal cae al departamento por omisión
+(`TicketCreate::routing()`: `$deptId ?: $cfg->getDefaultDeptId()`). La prueba
+de integración daba por hecho lo contrario y pasaba **por casualidad**: tema y
+ticket coincidían en ese departamento por omisión. Ahora el ayudante le da al
+tema un departamento distinto y la prueba comprueba las tres cosas: que el
+tema tiene departamento, que el del ticket es ese, y que **no** es el de por
+omisión. La regla tiene además cinco casos unitarios en
+`tests/TicketCreateTest.php` (el tema manda, sin departamento en el tema se usa
+el de por omisión, sin tema igual, el estado sale del tema, el origen se
+normaliza).
+
 **El correo del cliente no se verifica por DNS en las pruebas.** Una
 instalación nueva trae `verify_email_addrs` en 1 (`Config::$defaults`), así que
 el campo del cliente pregunta por el registro MX de su dominio. Con

@@ -176,6 +176,110 @@ class TicketCreateTest extends UnitTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* A dónde va el ticket (routing)                                      */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * El departamento del tema manda sobre el de por omisión.
+     *
+     * Es la regla que la prueba de integración daba por buena sin querer: los
+     * temas de la siembra no traen departamento, así que tema y ticket
+     * coincidían en el departamento por omisión y la comprobación pasaba
+     * aunque el ruteo no mirara el tema.
+     */
+    public function testElDepartamentoDelTemaManda(): void {
+        $vars = $this->vars();
+        $autorespond = true;
+
+        $r = TicketCreate::routing($vars, $this->config(array('default_dept_id' => 1)),
+            $this->form(), $this->tema(array('dept_id' => 4)),
+            $this->usuario(), $autorespond);
+
+        $this->assertSame(4, $r['dept_id'],
+            'el ticket tiene que ir al departamento del tema');
+    }
+
+    public function testSinDepartamentoEnElTemaSeUsaElDePorOmision(): void {
+        $vars = $this->vars();
+        $autorespond = true;
+
+        $r = TicketCreate::routing($vars, $this->config(array('default_dept_id' => 1)),
+            $this->form(), $this->tema(array('dept_id' => 0)),
+            $this->usuario(), $autorespond);
+
+        $this->assertSame(1, $r['dept_id'],
+            'sin departamento en el tema se usa el de la configuración');
+    }
+
+    public function testSinTemaTambienVaAlDePorOmision(): void {
+        $vars = $this->vars();
+        $autorespond = true;
+
+        $r = TicketCreate::routing($vars, $this->config(array('default_dept_id' => 2)),
+            $this->form(), null, $this->usuario(), $autorespond);
+
+        $this->assertSame(2, $r['dept_id']);
+        $this->assertSame(0, $r['topic_id'], 'sin tema no hay id de tema');
+    }
+
+    public function testElEstadoTambienSaleDelTema(): void {
+        $vars = $this->vars();
+        $autorespond = true;
+
+        $r = TicketCreate::routing($vars, $this->config(),
+            $this->form(), $this->tema(array('status_id' => 3)),
+            $this->usuario(), $autorespond);
+
+        $this->assertSame(3, $r['status_id']);
+    }
+
+    public function testElOrigenSeNormalizaEnElRuteo(): void {
+        $vars = $this->vars(array('source' => 'phone'));
+        $autorespond = true;
+
+        $r = TicketCreate::routing($vars, $this->config(),
+            $this->form(), $this->tema(), $this->usuario(), $autorespond);
+
+        $this->assertSame('Phone', $r['source']);
+    }
+
+    /** La petición del portal: sin departamento, estado ni asignación. */
+    private function vars(array $extra = array()) {
+        return $extra + array(
+            'deptId' => 0, 'statusId' => 0, 'emailId' => 0, 'slaId' => 0,
+            'staffId' => 0, 'teamId' => 0, 'source' => 'Web',
+            'ip' => '127.0.0.1',
+        );
+    }
+
+    /** `$cfg` de mentira: sólo lo que consulta `routing()`. */
+    private function config(array $extra = array()) {
+        return new TicketCreateFakeConfig($extra + array(
+            'default_dept_id' => 1, 'default_status_id' => 1,
+            'default_priority_id' => 2, 'default_sla_id' => 1,
+            'number' => '000000',
+        ));
+    }
+
+    /** Formulario de mentira: el ruteo sólo pregunta por la prioridad. */
+    private function form() {
+        return new TicketCreateFakeForm();
+    }
+
+    /** Tema de mentira con los valores que lee el ruteo. */
+    private function tema(array $extra = array()) {
+        return new TicketCreateFakeTopic($extra + array(
+            'id' => 5, 'dept_id' => 0, 'status_id' => 0, 'priority_id' => 0,
+            'staff_id' => 0, 'team_id' => 0, 'sla_id' => 0, 'number' => '000001',
+        ));
+    }
+
+    /** Cliente sin organización: lo único que consulta el ruteo. */
+    private function usuario() {
+        return new TicketCreateFakeUser();
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Origen guardado                                                     */
     /* ------------------------------------------------------------------ */
 
@@ -270,4 +374,59 @@ class TicketCreateFakeField {
         return !empty($this->visibilidad['user']);
     }
 
+}
+
+/** Configuración mínima para `TicketCreate::routing()`. */
+class TicketCreateFakeConfig {
+    private $v;
+
+    function __construct(array $v) {
+        $this->v = $v;
+    }
+
+    private function get($key) {
+        return isset($this->v[$key]) ? $this->v[$key] : null;
+    }
+
+    function getDefaultDeptId()     { return $this->get('default_dept_id'); }
+    function getDefaultTicketStatusId() { return $this->get('default_status_id'); }
+    function getDefaultPriorityId() { return $this->get('default_priority_id'); }
+    function getDefaultSLAId()      { return $this->get('default_sla_id'); }
+    function getNewTicketNumber()   { return $this->get('number'); }
+    // Sin tema en la petición el ruteo pregunta por el de la configuración.
+    function getDefaultTopic()      { return null; }
+}
+
+/** Formulario de mentira: sin respuesta de prioridad. */
+class TicketCreateFakeForm {
+    function getAnswer($name) { return null; }
+    function setAnswer($name, $a = null, $b = null) { }
+}
+
+/** Tema de mentira. */
+class TicketCreateFakeTopic {
+    private $v;
+
+    function __construct(array $v) {
+        $this->v = $v;
+    }
+
+    private function get($key) {
+        return isset($this->v[$key]) ? $this->v[$key] : null;
+    }
+
+    function getId()      { return $this->get('id'); }
+    function getDeptId()  { return $this->get('dept_id'); }
+    function getStatusId(){ return $this->get('status_id'); }
+    function getPriorityId() { return $this->get('priority_id'); }
+    function getStaffId() { return $this->get('staff_id'); }
+    function getTeamId()  { return $this->get('team_id'); }
+    function getSLAId()   { return $this->get('sla_id'); }
+    function autoRespond(){ return true; }
+    function getNewTicketNumber() { return $this->get('number'); }
+}
+
+/** Cliente de mentira, sin organización. */
+class TicketCreateFakeUser {
+    function getOrganization() { return null; }
 }

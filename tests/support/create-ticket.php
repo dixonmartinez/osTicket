@@ -372,6 +372,41 @@ $dept_id = $ids['department'];
 $topic_id = $ids['help_topic'];
 $role_id = $ids['role'];
 
+/**
+ * El tema de prueba, con un departamento propio.
+ *
+ * Los temas que siembra el instalador **no traen departamento** (`dept_id =
+ * 0`): el ticket cae entonces al departamento por omisión. Para poder
+ * comprobar que el departamento sale del tema hay que dárselo, y que no sea
+ * el de por omisión, o la comprobación pasaría por casualidad. Se elige el
+ * primer departamento público que no sea el de por omisión.
+ */
+function departamentoDelTema($topic_id, $default_id) {
+    $id = (int) TestDatabase::value(sprintf(
+        'SELECT `id` FROM `%s` WHERE `id` <> %d AND (`ispublic` = 1'
+        . ' OR `ispublic` IS NULL) ORDER BY `id` LIMIT 1',
+        TestDatabase::table('department'), (int) $default_id));
+
+    if (!$id)
+        $id = (int) TestDatabase::value(sprintf(
+            'SELECT `id` FROM `%s` WHERE `id` <> %d ORDER BY `id` LIMIT 1',
+            TestDatabase::table('department'), (int) $default_id));
+
+    if (!$id)
+        return 0;
+
+    $tema = Topic::lookup($topic_id);
+    if (!$tema)
+        return 0;
+
+    $tema->dept_id = $id;
+    $tema->save();
+
+    return $id;
+}
+
+$topic_dept_id = departamentoDelTema($topic_id, $dept_id);
+
 configurarInstalacion($dept_id);
 
 /* 4. La aplicación en marcha: `Ticket::create()` y `Ticket::open()` usan los
@@ -530,6 +565,10 @@ if ($ticket) {
         'number' => $ticket->getNumber(),
         'dept_id' => (int) $ticket->getDeptId(),
         'topic_id' => (int) $ticket->getTopicId(),
+        // El departamento que tiene el tema y el de por omisión: la prueba
+        // comprueba que el del ticket es el del tema, no el de por omisión.
+        'topic_dept_id' => (int) $topic_dept_id,
+        'default_dept_id' => (int) $dept_id,
         'status_id' => (int) $ticket->getStatusId(),
         'source' => $ticket->getSource(),
         'subject' => $ticket->getSubject(),
