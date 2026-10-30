@@ -1022,6 +1022,17 @@ html[data-theme="dark"] .redactor-box iframe {
     color-scheme: light;
 }
 
+/* Mientras arranca —y si un plugin lanza una excepción y el arranque se
+   queda a medias— el contenido vive en la caja pero sin la clase `.redactor-in`.
+   El `<textarea>` original existe desde el primer paso del montaje, así que se
+   pinta en papel aunque el editor no llegue a completarse: antes el texto
+   quedaba oscuro sobre oscuro y parecía que la descripción estaba vacía. */
+html[data-theme="dark"] .redactor-box > textarea {
+    background-color: var(--dk-editor-paper);
+    color: #1a1f24;
+    border-color: var(--dk-border);
+}
+
 /* El texto de ayuda del editor tiene que leerse sobre ese papel claro */
 html[data-theme="dark"] .redactor-in.redactor-placeholder::before,
 html[data-theme="dark"] .redactor-in[data-placeholder]::before,
@@ -1692,6 +1703,79 @@ html[data-theme="dark"] #kb > li h4 span {
 html[data-theme="dark"] #kb-search #breadcrumbs,
 html[data-theme="dark"] #kb-search #breadcrumbs a {
     color: var(--dk-text-muted);
+}
+
+/* Ficha de la FAQ (scp/faq.php?...): el cuerpo de la respuesta es HTML
+   nuestro —lo que se escribió en el editor—, no el de un correo. Con las
+   reglas del hilo se quedaba en «papel» claro: un rectángulo blanco de 670 px
+   en mitad de la pantalla oscura. Aquí va sobre la superficie del tema, como
+   la portada y las páginas del portal. */
+html[data-theme="dark"] .faq-content .thread-body {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .faq-content .thread-body p,
+html[data-theme="dark"] .faq-content .thread-body div,
+html[data-theme="dark"] .faq-content .thread-body span,
+html[data-theme="dark"] .faq-content .thread-body strong,
+html[data-theme="dark"] .faq-content .thread-body em,
+html[data-theme="dark"] .faq-content .thread-body li,
+html[data-theme="dark"] .faq-content .thread-body h1,
+html[data-theme="dark"] .faq-content .thread-body h2,
+html[data-theme="dark"] .faq-content .thread-body h3,
+html[data-theme="dark"] .faq-content .thread-body h4 {
+    color: inherit;
+}
+
+html[data-theme="dark"] .faq-content .thread-body a {
+    color: var(--dk-link) !important;
+}
+
+html[data-theme="dark"] .faq-content .thread-body table,
+html[data-theme="dark"] .faq-content .thread-body td,
+html[data-theme="dark"] .faq-content .thread-body th {
+    background-color: transparent;
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .faq-content .thread-body blockquote {
+    background: var(--dk-surface-2);
+    border-left-color: var(--dk-border-strong);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .faq-content .thread-body pre,
+html[data-theme="dark"] .faq-content .thread-body code,
+html[data-theme="dark"] .faq-content .thread-body kbd {
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+/* La barra lateral de la ficha (scp.css: .sidebar con #F7FBFE y borde azul).
+   Sin esto queda un panel claro con texto gris claro: «Help Topics»,
+   «Published» y «Manage Access» casi no se leían. */
+html[data-theme="dark"] .faq-meta {
+    background: var(--dk-surface-2);
+    border-color: var(--dk-border);
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .faq-meta section header,
+html[data-theme="dark"] .faq-meta section div,
+html[data-theme="dark"] .faq-meta section strong {
+    color: var(--dk-text);
+}
+
+html[data-theme="dark"] .faq-meta a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] .faq-meta a:hover {
+    color: var(--dk-link-hover);
 }
 
 /* Formulario de acceso del cliente: theme.css lo pinta con #f6f6f6 y una

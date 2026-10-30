@@ -874,6 +874,47 @@ declaraban.
 195; `sql-audit`, `input-audit` y `csp-nonce` en verde (98 scripts en línea,
 0 sin nonce).
 
+**Tres defectos de una tanda de capturas, con la causa en el código y no en
+el CSS.** El usuario reportó tres cosas: el texto del editor no se veía, la
+base de conocimiento decía «NO FAQs found» con 33 artículos y la ficha de la
+FAQ tenía colores equivocados. Ninguna era de estilos, aunque dos se vieran
+como tal.
+
+- **El editor no arrancaba.** El parche de la barra
+  (`js/redactor-osticket.js`) tiene un `addButtonAuto()` que coloca el botón
+  que aporta un plugin detrás del botón anterior de la lista. Para
+  `fullscreen` ese anterior es el separador `|` que añadimos para agrupar la
+  barra: Redactor busca `.re-|`, que no es un selector CSS válido, jQuery
+  lanza `not a valid selector`, y la excepción sale del `start()` del plugin y
+  **aborta el arranque del editor**. La caja se quedaba a medio montar —sin
+  `.redactor-in`, que es donde el tema pone el papel claro— y el texto salía
+  oscuro sobre oscuro; el segundo editor de la misma pantalla (la nota
+  interna) ni llegaba a inicializarse. Lo que hacía falta no era otra regla
+  de color: era no lanzar. Se retrocede hasta el primer botón real, con
+  `addButtonFirst()` como salida. De paso, el `textarea` original se pinta en
+  papel, para que un fallo de arranque no vuelva a esconder el contenido.
+- **Las categorías de la base de conocimiento se guardaban con el valor
+  equivocado.** `Category::update()` hacía `$vars['pid'] ?: 0` y el esquema
+  dice `category_pid DEFAULT NULL`; el listado (`IS NULL`) y
+  `findIdByName()` (`?: null`) esperaban NULL. Una categoría editada o
+  sembrada quedaba fuera del listado —de ahí «NO FAQs found» con el
+  desplegable contando 33— y además se podía crear un duplicado con el mismo
+  nombre, porque la búsqueda por nombre tampoco la encontraba. Ahora se
+  escribe NULL y se leen las dos formas (`Category::topLevel()`), de modo que
+  las instalaciones con ceros no necesitan migración.
+- **La ficha de la FAQ usaba el «papel» del correo.** `.thread-body` está
+  reservado en el tema oscuro para el HTML de terceros (correos, notas), que
+  trae colores propios y no se puede invertir. La ficha de la FAQ usa la misma
+  clase para su respuesta, así que heredaba un bloque claro de 670 px en mitad
+  de la pantalla. Se separa por contexto (`.faq-content .thread-body`), como
+  ya se había hecho con la portada del portal.
+
+Los tres se fijan con pruebas que no necesitan navegador: una de estructura
+en `tests/EditorToolbarTest.php` (contra el propio `addButtonAuto`), cuatro en
+`tests/FaqCategoryTest.php` y una de compilación en `tests/QuerySqlTest.php`
+que exige que «nulo o cero» sea un `OR`. Y cuatro comprobaciones nuevas en
+`make theme` (199).
+
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
 - Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el

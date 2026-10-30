@@ -1295,6 +1295,19 @@ ul.tabs li.active a {
     }
 }
 
+/* --- Ficha de la FAQ --------------------------------------------------- */
+/* La respuesta se dibuja con `.thread-body.bleed`, que existe para las
+   entradas del hilo: alli el marco del ticket pone el aire. En la ficha de la
+   FAQ no hay marco, asi que el texto tocaba el borde de la caja y el bloque
+   se leia como un recorte suelto. Aqui pasa a ser una tarjeta mas, con los
+   mismos tokens: en oscuro la pinta css/dark.css. */
+.faq-content .thread-body {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    padding: 12px 14px;
+}
+
 /* --- Ficha del ticket: un solo panel de propiedades ------------------- */
 /* `table.ticket_info` son dos tablas dentro de una: la mitad izquierda
    (estado, prioridad, departamento, fecha) y la derecha (usuario, correo,

@@ -193,7 +193,11 @@ class Category extends VerySimpleModel {
 
         $this->ispublic = $vars['ispublic'];
         $this->name = $vars['name'];
-        $this->category_pid = $vars['pid'] ?: 0;
+        // NULL, no 0: así lo declara el esquema (`category_pid ... DEFAULT
+        // NULL`) y así lo espera el resto de la clase. Con 0, la categoría
+        // desaparecía del listado de la base de conocimiento, que busca las
+        // de primer nivel con `IS NULL` (ver `topLevel()`).
+        $this->category_pid = $vars['pid'] ?: null;
         $this->description = Format::sanitize($vars['description']);
         $this->notes = Format::sanitize($vars['notes']);
 
@@ -276,20 +280,44 @@ class Category extends VerySimpleModel {
 
     /* ------------------> Static methods <--------------------- */
 
+    /**
+     * Categorias de primer nivel.
+     *
+     * El esquema guarda la ausencia de padre como NULL, pero las filas creadas
+     * o editadas con una version anterior quedaron en 0 (`update()` hacia
+     * `$vars['pid'] ?: 0`). Se aceptan las dos formas mientras haya datos
+     * antiguos: con `IS NULL` a secas, una categoria editada desaparecia del
+     * listado de la base de conocimiento y la pantalla decia «NO FAQs found»
+     * con sus articulos ahi dentro.
+     */
+    static function topLevel() {
+        return Q::ANY(array(
+            'category_pid__isnull' => true,
+            'category_pid' => 0,
+        ));
+    }
+
+    /** Criterio del padre: el indicado, o «primer nivel» si no hay. */
+    static function parentIs($pid=null) {
+        return $pid
+            ? Q::all(array('category_pid' => $pid))
+            : self::topLevel();
+    }
+
     static function findIdByName($name, $pid=null) {
-        $row = self::objects()->filter(array(
-            'name'=>$name,
-            'category_pid'  => $pid ?: null
-        ))->values_flat('category_id')->first();
+        $row = self::objects()
+            ->filter(array('name' => $name))
+            ->filter(self::parentIs($pid))
+            ->values_flat('category_id')->first();
 
         return ($row) ? $row[0] : null;
     }
 
     static function findByName($name, $pid=null) {
-        return self::objects()->filter(array(
-            'name'=>$name,
-            'category_pid'  => $pid ?: null
-        ))->one();
+        return self::objects()
+            ->filter(array('name' => $name))
+            ->filter(self::parentIs($pid))
+            ->one();
     }
 
     static function getNameById($id) {

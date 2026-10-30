@@ -811,6 +811,41 @@ check(strpos($redactorJs, 'redactor-separator') !== false
     'los grupos de la barra se separan con un trazo',
     'los `|` de la lista de botones no dibujan nada: la barra sale sin grupos');
 
+// El `|` de la lista no es un boton. Si `addButtonAuto()` se ancla en el,
+// jQuery recibe `.re-|` (selector invalido), lanza una excepcion dentro del
+// `start()` del plugin y el editor se queda a medio arrancar: sin
+// `.redactor-in`, sin el papel del tema y con el texto invisible. Paso con
+// `fullscreen`, que va justo detras de un separador.
+$redactorAuto = '';
+if (preg_match('/addButtonAuto:\s*function\s*\([^)]*\)\s*\{.*?\n\s{6}\},/s',
+        $redactorJs, $m))
+    $redactorAuto = $m[0];
+check($redactorAuto !== ''
+    && strpos($redactorAuto, "=== '|'") !== false
+    && !preg_match('/addButtonAfter\(\s*this\.opts\.buttons\[/', $redactorAuto),
+    'el boton automatico salta los separadores al buscar su ancla',
+    'addButtonAuto se ancla en `|`: el editor lanza «not a valid selector» y no arranca');
+
+// Y mientras arranca (o si algo falla), el contenido no puede quedar oscuro
+// sobre oscuro: el textarea original se pinta en papel.
+check(strpos($darkSinComentarios, '.redactor-box > textarea') !== false,
+    'el editor a medio montar conserva el papel del tema',
+    'sin regla para `.redactor-box > textarea`, el texto del editor no se ve en oscuro');
+
+/* Base de conocimiento: la ficha de la FAQ ------------------------------- */
+// El cuerpo de la respuesta es HTML propio (lo escrito en el editor), no el
+// de un correo: con las reglas del hilo se quedaba en papel claro y salia un
+// rectangulo blanco de 670 px en mitad de la pantalla oscura.
+check(strpos($darkSinComentarios, '.faq-content .thread-body') !== false,
+    'la respuesta de la FAQ se lee sobre la superficie del tema',
+    'la ficha de la FAQ usa el papel claro del hilo: un bloque blanco en oscuro');
+
+// scp.css pinta `.sidebar` con #F7FBFE y borde #C8DDFA: la ficha de la FAQ
+// usa esa barra para «Help Topics», «Published» y «Manage Access».
+check(strpos($darkSinComentarios, '.faq-meta') !== false,
+    'la barra lateral de la FAQ sigue el tema oscuro',
+    '.faq-meta conserva el #F7FBFE de scp.css: texto claro sobre panel claro');
+
 /* Tablas ---------------------------------------------------------------- */
 check(strpos($sinComentarios, 'table.dashboard-stats td:not(:empty)') !== false,
     'la tabla de estadisticas anula el blanco por celda',

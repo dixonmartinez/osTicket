@@ -155,6 +155,27 @@ class QuerySqlTest extends UnitTestCase {
         return new \QuerySet('QuerySqlProbe');
     }
 
+    /**
+     * «Nulo o cero»: las dos formas del primer nivel de una categoría.
+     *
+     * El esquema guarda la ausencia de padre como NULL, pero las filas
+     * editadas con una versión anterior quedaron en 0. El listado de la base
+     * de conocimiento las busca con `Q::ANY()`, y esto fija que el ORM lo
+     * compila como un `OR` y no pierde ninguna de las dos: con `IS NULL` a
+     * secas, la pantalla decía «NO FAQs found» con las FAQs dentro.
+     */
+    public function testUnNuloOCeroSeCompilaComoUnOr(): void {
+        $qs = new \QuerySet('QuerySqlProbe');
+        $qs->filter(\Q::ANY(array('name__isnull' => true, 'name' => 'Cero')));
+
+        $q = $this->compile($qs);
+
+        $this->assertStringContainsString('`name` IS NULL', $q['sql']);
+        $this->assertStringContainsString('`name` = ', $q['sql']);
+        $this->assertStringContainsString(' OR ', $q['sql']);
+        $this->assertSame(array('Cero'), $q['params']);
+    }
+
     /* ------------------------------------------------------------------ */
     /* select_related declarado en la meta                                 */
     /* ------------------------------------------------------------------ */

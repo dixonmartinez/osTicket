@@ -148,9 +148,12 @@ if($_REQUEST['q'] || $_REQUEST['cid'] || $_REQUEST['topicId']) { //Search.
         echo '</div>';
     }
 } else { //Category Listing.
+    // `Category::topLevel()` acepta NULL y 0: las categorías editadas con la
+    // versión anterior guardaban 0 y con `IS NULL` a secas desaparecían del
+    // listado (la pantalla decía «NO FAQs found» con las FAQs ahí).
     $categories = Category::objects()
         ->annotate(array('faq_count'=>SqlAggregate::COUNT('faqs')))
-        ->filter(array('category_pid__isnull' => true));
+        ->filter(Category::topLevel());
 
 
     if (count($categories)) {

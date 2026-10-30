@@ -70,7 +70,11 @@
 //     editable; `.redactor-editor` no existe) y gana la especificidad de la
 //     barra del editor. La barra del editor estrena botones y separadores de
 //     grupo, y la zona de adjuntos se marca con la clase `ost-drop-over`.
-const VERSION = 'ost-v36';
+// v37: el editor deja de anclarse en un separador `|` (una excepcion de jQuery
+//     abortaba su arranque y el texto quedaba invisible), y la ficha de la FAQ
+//     deja de usar el papel claro del hilo: respuesta y barra lateral siguen
+//     el tema oscuro.
+const VERSION = 'ost-v37';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

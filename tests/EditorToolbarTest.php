@@ -123,6 +123,52 @@ class EditorToolbarTest extends UnitTestCase {
         }
     }
 
+    /**
+     * El botón que añade un plugin no puede anclarse a un separador.
+     *
+     * `addButtonAuto()` inserta el botón detrás del que tiene delante en la
+     * lista. Si ese anterior es `|`, Redactor busca `.re-|`, que no es un
+     * selector CSS válido: jQuery lanza una excepción, la excepción sale del
+     * `start()` del plugin y aborta el arranque del editor. El resultado que
+     * vio el usuario: el área de escritura a medio montar, sin `.redactor-in`
+     * y sin el papel del tema, con el texto invisible sobre el fondo oscuro.
+     *
+     * Pasaba con `fullscreen`, que va justo detrás de un `|`.
+     */
+    public function testElBotonAutomaticoNoUsaUnSeparadorComoAncla(): void {
+        $js = $this->fichero('js/redactor-osticket.js');
+
+        $this->assertMatchesRegularExpression(
+            '/addButtonAuto:\s*function\s*\([^)]*\)\s*\{.*?\n\s{6}\},/s',
+            $js, 'no se encontró `addButtonAuto` en el parche del editor');
+        preg_match(
+            '/addButtonAuto:\s*function\s*\([^)]*\)\s*\{.*?\n\s{6}\},/s',
+            $js, $m);
+        $cuerpo = $m[0];
+
+        // El ancla no puede salir del índice directo de la lista: puede ser `|`
+        $this->assertFalse(
+            (bool) preg_match('/addButtonAfter\(\s*this\.opts\.buttons\[/', $cuerpo),
+            '`addButtonAuto` ancla el botón en `this.opts.buttons[pos - 1]`, que '
+            . 'puede ser el separador `|`: jQuery lanza «not a valid selector» y '
+            . 'el editor se queda sin arrancar');
+        $this->assertStringContainsString("=== '|'", $cuerpo,
+            'falta el salto sobre los separadores al buscar el botón anterior');
+        $this->assertStringContainsString('addButtonFirst', $cuerpo,
+            'si no hay ningún botón real delante, el botón va al principio');
+
+        // Y de verdad hay un botón de plugin detrás de un separador
+        $barra = $this->botonesBarra();
+        $detras = array();
+        for ($i = 1; $i < count($barra); $i++)
+            if ($barra[$i - 1] === '|')
+                $detras[] = $barra[$i];
+        $enRiesgo = array_intersect($detras, $this->botonesDePlugins());
+        $this->assertTrue(count($enRiesgo) > 0,
+            'la prueba no vale de nada si ningún botón de plugin va detrás de un '
+            . 'separador');
+    }
+
     /** La barra va por grupos y los grupos se dibujan. */
     public function testLosGruposSeSeparanConUnTrazo(): void {
         $this->assertTrue(in_array('|', $this->botonesBarra(), true),

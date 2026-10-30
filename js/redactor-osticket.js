@@ -241,13 +241,28 @@
   var stockAddButton = stockToolbar.prototype.addButton;
   R$.add('service', 'toolbar', $R.extend(stockToolbar.prototype, {
       addButtonAuto: function(name, btnObj) {
-          var pos = this.opts.buttons.indexOf(name);
+          var buttons = this.opts.buttons || [],
+              pos = buttons.indexOf(name);
 
           if (pos === -1)
               return this.addButton(name, btnObj);
-          if (pos === 0)
-              return this.addButtonFirst(name, btnObj);
-          return this.addButtonAfter(this.opts.buttons[pos - 1], name, btnObj);
+
+          // El boton anterior puede ser un separador `|`, que no es un boton:
+          // `addButtonAfter('|')` busca `.re-|`, que no es un selector CSS
+          // valido, y jQuery lanza una excepcion. Esa excepcion sale del
+          // `start()` del plugin y aborta el arranque del editor: la caja se
+          // queda a medio construir —sin `.redactor-in`, sin el papel del
+          // tema— y el texto se vuelve invisible sobre el fondo oscuro. Pasaba
+          // con `fullscreen`, que va justo detras de un `|` en la lista de
+          // botones (ver `redactor-plugins.js`, `addButtonAuto('fullscreen')`).
+          // Se retrocede hasta el primer boton real que haya delante.
+          for (var i = pos - 1; i >= 0; i--) {
+              if (buttons[i] === '|')
+                  continue;
+              return this.addButtonAfter(buttons[i], name, btnObj);
+          }
+
+          return this.addButtonFirst(name, btnObj);
       },
 
       // Redactor no dibuja nada para el simbolo `|` de la lista de botones:

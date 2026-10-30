@@ -535,7 +535,10 @@ function seedFaq() {
                 $vars = array(
                     'id' => 0,
                     'name' => $categoryName,
-                    'pid' => 0,
+                    // NULL, como en el esquema: `Category::update()` guarda
+                    // null para el primer nivel. Con 0, la categoría quedaba
+                    // fuera del listado de la base de conocimiento.
+                    'pid' => null,
                     'ispublic' => Category::VISIBILITY_FEATURED,
                     'description' => sprintf('Artículos sobre %s',
                         self::lower($categoryName)),
