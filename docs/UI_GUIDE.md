@@ -1692,7 +1692,7 @@ pantalla con botón de cancelar, que es lo que distingue una ficha de una lista.
 
 **Cómo se comprueba.** `tests/AdminLayoutTest.php` → **7 pruebas**, 164
 controles etiquetados y 125 comprobaciones del pie de acciones; `php
-tests/run.php` → **1.040** pruebas; `theme-check` → **218**. `sw.js` sube a
+tests/run.php` → **1.042** pruebas; `theme-check` → **218**. `sw.js` sube a
 **`ost-v45`**.
 
 ### 3.20 El agente y el cliente
@@ -1734,6 +1734,36 @@ descubre las plantillas con `<form>` de `include/staff/` y de `include/client/`
 - una casilla o un radio de esas pantallas se queda fuera de su etiqueta
   (**129** controles; las casillas `ckb`/`mass` de las listas se marcan desde
   la fila y quedan fuera a propósito).
+
+### 3.21 El orden de las listas no puede pedir columnas que no existen
+
+Al pulsar la cabecera «Status» de *Equipos*, la pantalla se caía con un error
+de base de datos:
+
+```
+DB Error #1054: Unknown column 'A1.isenabled' in 'ORDER BY'
+SELECT A1.*, COUNT(DISTINCT A3.`staff_id`) AS `members_count` FROM `ost_team` A1 …
+ORDER BY A1.`isenabled` ASC
+```
+
+`include/staff/teams.inc.php` traducía la columna `status` a `isenabled`, que es
+el nombre del **campo del formulario**, no el de la tabla: en `ost_team` el
+estado es un bit de `flags` (`Team::FLAG_ENABLED`) y el modelo lo traduce a
+`isEnabled()`. `Plan de SLA` tenía el mismo error (`isactive` sobre `ost_sla`,
+que también guarda `flags`). Las dos se ordenan ya por `flags`, igual que
+*Departamentos*, que sí lo tenía bien.
+
+**Cómo se impide que vuelva.** `tests/SortColumnsTest.php` lee el instalador
+(`setup/inc/streams/core/install-mysql.sql`) y las constantes de `bootstrap.php`
+para saber la tabla de cada modelo (`Team::objects()` → `TEAM_TABLE` →
+`ost_team`) y comprueba que cada columna de `$sortOptions` existe en ella
+(**47** columnas revisadas en 16 listas). Las uniones (`dept__name`) y los
+contadores calculados con `annotate()` (`members_count`) se saltan a propósito,
+porque no son columnas de la tabla.
+
+Se verificó al revés: devolviendo `isenabled` a `teams.inc.php`, la prueba falla
+y dice la columna y la tabla. Sin base de datos: el esquema se lee del
+instalador.
 
 ## 4. Reglas para no romper nada
 
@@ -1944,6 +1974,7 @@ queda en §6.2.
 | 51 | **«Reorganiza todas las interfaces en un estándar»**: seis pantallas de administración seguían con el marcado original. **106** casillas y botones de opción sólo se podían marcar en el cuadradito de 13 px (ninguna llevaba `<label>`); las bandas de sección se quedaban en la columna de las etiquetas (sin `colspan`); los avisos de tickets y tareas eran una fila por destinatario (7 y 5 grupos, más de dos pantallas de scroll); y los avisos de tareas se ocultaban con `style="display:none"`. Ahora: etiqueta en cada control (envolvente o `for`/`id`), bandas a dos columnas, destinatarios en `.ost-check-grid`, pestañas `clean` y el mismo pie en todas. `tests/AdminLayoutTest.php` recorre por `glob()` todas las pantallas y lo impide (§3.18) | ✅ Hecho | `include/staff/settings-{agents,users,emails,kb,autoresp,alerts,tasks,tickets}.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
 | 52 | **«Sigue con los demás módulos»**: las cinco reglas de las pantallas de ajustes no llegaban a *Manage*. **18** fichas (más `role`, `plugin`, `plugin-instance`, `schedule`, `dynamic-form` y `dynamic-list`) tenían el pie centrado con `style="text-align:center"`, con el envío primero y «Cancelar» al final; ahora es `p.form-actions` con cancelar→reset→guardar, y la separación la hace la hoja (`margin-right: auto`), no `order`, para no romper el orden del teclado. Tres casillas se quedaban sin nombre: el campo dinámico de un tema de ayuda (ahora `for`/`id`), y las de borrar de `dynamic-list` y `dynamic-form` (etiqueta con `title` y `.sr-only`). El escáner de la prueba cortaba las etiquetas en el `?>` de un `echo`, así que las casillas con PHP en los atributos contaban como anónimas: ahora **164** controles revisados y **125** comprobaciones del pie (§3.19) | ✅ Hecho | 24 `include/staff/*.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
 | 53 | **Agente y cliente**: el pie de los formularios sólo se había arreglado en la administración. La ficha del ticket del agente tenía dos `<p style="text-align:center;">` («Post Reply» y «Post Note») con el envío delante del reset, y el portal del cliente usaba un `<p class="buttons">` que **ninguna hoja pinta**: la alineación dependía del estilo en línea. Ahora las siete plantillas usan `p.form-actions` (cancelar → reset → enviar), se quitaron los cuatro `<hr>` que dejaban dos rayas y se añadió `tests/AgentClientLayoutTest.php` sobre 81 plantillas y 129 controles (§3.20) | ✅ Hecho | `include/staff/ticket-view.inc.php`, `include/client/{open,view,edit,profile,register}.inc.php`, `tests/AgentClientLayoutTest.php`, `sw.js` |
+| 54 | **`teams.php?sort=status` caía con `DB Error #1054: Unknown column 'A1.isenabled' in 'ORDER BY'`**: el orden usaba el nombre del campo del formulario, no el de la columna (`ost_team` guarda el estado en `flags`). El mismo error estaba en *Planes de SLA* (`isactive` sobre `ost_sla`, que también usa `flags`). Las dos listas ordenan ya por `flags` y `tests/SortColumnsTest.php` valida la 47 columnas de orden contra el instalador (§3.21) | ✅ Hecho | `include/staff/{teams,slaplans}.inc.php`, `tests/SortColumnsTest.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

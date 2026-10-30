@@ -4,7 +4,7 @@ if(!defined('OSTADMININC') || !$thisstaff->isAdmin()) die('Access Denied');
 $qs = array();
 $sortOptions=array(
         'name' => 'name',
-        'status' => 'isactive',
+        'status' => 'flags',
         'period' => 'grace_period',
         'created' => 'created',
         'updated' => 'updated'

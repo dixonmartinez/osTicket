@@ -4,7 +4,7 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin()) die('Access
 $qs = array();
 $sortOptions=array(
         'name' => 'name',
-        'status' => 'isenabled',
+        'status' => 'flags',
         'members' => 'members_count',
         'lead' => 'lead__lastname',
         'created' => 'created',
