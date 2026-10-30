@@ -247,12 +247,19 @@ implements TemplateVariable, Searchable {
                 $user->setOrganization($org, false);
 
             try {
-                $user->save(true);
+                // Si el `INSERT` no entra, `save()` devuelve `false` sin
+                // lanzar: sin esto, el alta del cliente fallaba en silencio y
+                // el agente sólo veía «Incomplete client information».
+                if (!$user->save(true) && ($why = VerySimpleModel::getLastError()))
+                    error_log('osTicket: no se pudo crear el cliente '
+                        . $vars['email'] . ': ' . $why);
                 $user->emails->add($user->default_email);
                 // Attach initial custom fields
                 $user->addDynamicData($vars);
             }
             catch (OrmException $e) {
+                error_log('osTicket: no se pudo crear el cliente '
+                    . $vars['email'] . ': ' . $e->getMessage());
                 return null;
             }
             $type = array('type' => 'created');
@@ -1059,7 +1066,12 @@ class UserEmail extends UserEmailModel {
         $email = static::lookup(array('address'=>$address));
         if (!$email) {
             $email = new static(array('address'=>$address));
-            $email->save();
+            // El resultado se comprobaba con la mirada: si el `INSERT` fallaba
+            // se devolvía una dirección sin guardar y el fallo aparecía más
+            // tarde, como un cliente sin correo.
+            if (!$email->save() && ($why = VerySimpleModel::getLastError()))
+                error_log('osTicket: no se pudo guardar la dirección '
+                    . $address . ': ' . $why);
         }
         return $email;
     }

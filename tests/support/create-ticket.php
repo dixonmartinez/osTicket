@@ -230,6 +230,74 @@ function primerId($tabla, $columna = 'id') {
 }
 
 /**
+ * Por qué falla el cliente del ticket.
+ *
+ * `Ticket::create()` mete todo lo del contacto en un solo `$errors['user']`
+ * («Incomplete client information») tanto si un campo del formulario no valida
+ * como si el `INSERT` del cliente se rechaza. Aquí se separan las dos cosas:
+ * los errores campo a campo del formulario y el error del motor, que
+ * `User::fromVars()` se traga (`catch (OrmException) { return null; }`).
+ */
+function diagnosticoUsuario($vars) {
+    $info = array();
+
+    try {
+        $form = UserForm::getUserForm()->getForm($vars);
+        $info['valida'] = (bool) $form->isValid(
+            TicketCreate::fieldFilter('web')('user'));
+        $info['campos'] = $form->errors();
+        $limpio = $form->getClean();
+        $info['limpio'] = is_array($limpio)
+            ? array_intersect_key($limpio, array_flip(array('name', 'email')))
+            : null;
+
+        if ($info['valida']) {
+            VerySimpleModel::$lastError = null;
+            $info['creado'] = (bool) User::fromVars($limpio, true);
+            $info['sql'] = VerySimpleModel::getLastError();
+        }
+    }
+    catch (Throwable $e) {
+        $info['excepcion'] = get_class($e) . ': ' . $e->getMessage();
+    }
+
+    return $info;
+}
+
+/**
+ * Los formularios dinámicos y sus campos.
+ *
+ * Si la siembra creó el formulario pero no sus campos, el del cliente queda
+ * sin `email` ni `name`, la validación pasa sin mirar nada y `User::fromVars()`
+ * se queda sin dirección con la que crear al cliente. Desde fuera eso es
+ * «Incomplete client information» y nada más.
+ */
+function estadoFormularios() {
+    $formularios = array();
+    foreach (TestDatabase::rows(sprintf(
+            'SELECT f.id, f.type, f.title,'
+            . ' (SELECT COUNT(*) FROM `%s` ff WHERE ff.form_id = f.id) AS campos'
+            . ' FROM `%s` f ORDER BY f.id',
+            TestDatabase::table('form_field'),
+            TestDatabase::table('form'))) as $fila)
+        $formularios[] = $fila;
+
+    return $formularios;
+}
+
+/** Los últimos errores que la aplicación apuntó en `ost_syslog`. */
+function ultimosAvisos($cuantos = 5) {
+    $avisos = array();
+    foreach (TestDatabase::rows(sprintf(
+            'SELECT log_type, title, LEFT(log, 600) AS detalle FROM `%s`'
+            . ' ORDER BY log_id DESC LIMIT %d',
+            TestDatabase::table('syslog'), (int) $cuantos)) as $fila)
+        $avisos[] = $fila;
+
+    return $avisos;
+}
+
+/**
  * Lo que el instalador escribe en la configuración **después** de sembrar
  * (`setup/inc/class.installer.php`, «Create config settings»).
  *
@@ -430,11 +498,24 @@ else {
 $datos = array(
     'ok' => (bool) $ticket,
     'modo' => $mode,
-    'errores' => array_values(array_filter(array_keys($errors), 'is_string')),
+    'errores' => array_keys(array_filter($errors, 'is_string')),
     'err' => isset($errors['err']) ? $errors['err'] : null,
     'tickets' => (int) TestDatabase::value('SELECT COUNT(*) FROM `'
         . TestDatabase::table('ticket') . '`'),
 );
+
+/* El motivo de un fallo, con nombre y apellidos. `$errors['user']` es un
+ * mensaje genérico («Incomplete client information»): lo que hace falta saber
+ * es **qué campo** no pasó la validación o qué dijo el motor al guardar. */
+if (!$ticket)
+    $datos['detalle'] = array(
+        'errores' => $errors,
+        'usuario' => diagnosticoUsuario($vars),
+        'formularios' => estadoFormularios(),
+        'filas' => filasSembradas(),
+        'syslog' => ultimosAvisos(),
+        'sql_ultimo' => VerySimpleModel::getLastError(),
+    );
 
 if ($ticket) {
     $datos += array(
