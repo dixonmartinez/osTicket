@@ -1236,11 +1236,16 @@ $(document).on('click.note', '.quicknote .action.edit-note', function(e) {
     e.preventDefault();
     var note = $(this).closest('.quicknote'),
         body = note.find('.body'),
-        T = $('<textarea>').text(body.html());
+        // `richtext` para que el editor lo monte el mismo codigo que el resto
+        // de la aplicacion (`js/redactor-osticket.js`): antes se llamaba a
+        // `T.redactor()` a pelo y la nota salia con la barra de fabrica de
+        // Redactor —siete botones, sin los plugins de osTicket—, que es lo
+        // que se veia como «un editor sin enriquecer».
+        T = $('<textarea class="richtext ost-note-editor">').text(body.html());
     if (note.closest('.dialog, .tip_box').length)
-        T.addClass('no-bar small');
+        T.addClass('small');
     body.replaceWith(T);
-    T.redactor({ focusEnd: true });
+    T.redact({ focusEnd: true });
     note.find('.action.edit-note').hide();
     note.find('.action.save-note').show();
     note.find('.action.cancel-edit').show();
@@ -1297,7 +1302,8 @@ $(document).on('click.note', '.quicknote .delete', function() {
 });
 $(document).on('click', '#new-note', function() {
   var note = $(this).closest('.quicknote'),
-    T = $('<textarea>'),
+    // Mismo criterio que al editar: el editor lo monta `redact()`.
+    T = $('<textarea class="richtext ost-note-editor">'),
     button = $('<input type="button">').val(__('Create'));
     button.click(function() {
       $.post('ajax.php/' + note.data('url'),
@@ -1312,11 +1318,11 @@ $(document).on('click', '#new-note', function() {
       );
     });
     if (note.closest('.dialog, .tip_box').length)
-        T.addClass('no-bar small');
+        T.addClass('small');
     note.replaceWith(T);
     $('<p>').addClass('submit').css('text-align', 'center')
         .append(button).appendTo(T.parent());
-    T.redactor({ focusEnd: true });
+    T.redact({ focusEnd: true });
     return false;
 });
 

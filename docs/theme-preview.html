@@ -562,6 +562,32 @@
                 Word u Outlook trae color negro en linea y sobre fondo oscuro
                 desapareceria. La barra y el marco si siguen el tema.
             </p>
+
+            <!-- Editor de nota: la caja lleva ademas `ost-note-editor`, la
+                 marca que pone el editor al arrancar (y que copia a la caja
+                 `js/redactor-osticket.js`). Lo que se escribe aqui se vuelve a
+                 mostrar sobre la superficie del tema, asi que la superficie del
+                 editor tambien es la del tema y no el papel de los correos. -->
+            <div class="redactor-box redactor-styles-on ost-note-editor" style="margin-top:10px;width:100%;max-width:640px;">
+                <div class="redactor-toolbar redactor-toolbar" role="toolbar">
+                    <a href="#" class="re-button re-button-icon" rel="format" aria-label="Formato"><i class="re-icon-format"></i></a>
+                    <span class="redactor-separator" aria-hidden="true"></span>
+                    <a href="#" class="re-button re-button-icon" rel="bold" aria-label="Negrita"><i class="re-icon-bold"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="italic" aria-label="Cursiva"><i class="re-icon-italic"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="deleted" aria-label="Tachado"><i class="re-icon-deleted"></i></a>
+                    <span class="redactor-separator" aria-hidden="true"></span>
+                    <a href="#" class="re-button re-button-icon" rel="lists" aria-label="Listas"><i class="re-icon-lists"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="link" aria-label="Enlace"><i class="re-icon-link"></i></a>
+                    <a href="#" class="re-button re-button-icon" rel="image" aria-label="Imagen"><i class="re-icon-image"></i></a>
+                </div>
+                <div class="redactor-in" contenteditable="true"
+                     style="min-height:75px;padding:10px 16px;"><p>Nota con <b>negrita</b> y una lista:</p><ul><li>uno</li><li>dos</li></ul></div>
+            </div>
+            <p class="faded" style="max-width:640px;">
+                El editor de nota, en cambio, sigue la superficie del tema: lo escrito
+                ahi se lee despues en esa misma superficie (la ficha de la nota, la
+                celda del campo), no en el papel claro de un correo.
+            </p>
         </div>
 
         <div class="demo-sec">

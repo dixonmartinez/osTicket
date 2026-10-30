@@ -933,6 +933,34 @@ papel sobre fondo oscuro.**
   lo pinta con `rgba(0,0,0,.35)`: gris de papel. Se veía el número y no el
   icono, que es justo el que dice de qué es el número.
 
+**El editor de nota no estaba enriquecido: tres defectos, ninguno en la hoja
+de estilos.**
+
+- **`no-bar` no significa «sin barra», significa «barra flotante».** Los campos
+  memo de los formularios (`include/class.forms.widget.php`) salían con
+  `richtext no-bar`, y en `js/redactor-osticket.js` esa clase activa `air`: la
+  barra aparece encima del texto **seleccionado**. En una captura, un campo
+  memo sin tocar es una caja clara sin botones; nada dice que se pueda dar
+  formato. Ahora el campo sale con barra a la vista.
+- **Un editor montado a mano pierde todo lo que aporta el código común.**
+  `scp/js/scp.js` llamaba a `T.redactor({focusEnd: true})`, así que la nota
+  rápida usaba la lista de botones de fábrica de Redactor —siete— en vez de la
+  de osTicket, con sus plugins, sus separadores y su historia. El arreglo no
+  era copiar la lista: era no duplicarla. `redact()` se expone como
+  `$.fn.redact` para poder montar un editor suelto con las mismas opciones.
+- **Una sola forma de montar el editor no vale para todos los sitios.** La
+  barra completa son 23 botones y ~1.100 px de ancho; en la celda de un
+  formulario o en la caja de un diálogo se parte en dos filas. `redact()` elige
+  entre `air`, `short` y `full` según dónde esté el campo, y esa decisión —que
+  antes estaba repartida entre plantillas, clases CSS y llamadas a
+  Redactor— vive ahora en una sola tabla (`editorButtons` / `editorPlugins`).
+
+La lección para el resto del proyecto es la misma que dejó el desplegable de
+colas: **una marca con nombre engañoso es una trampa para el siguiente**. Aquí
+`no-bar` no quitaba la barra y `richtext` sí la ponía, pero sólo si el campo se
+montaba por el camino común. `tests/NoteEditorTest.php` fija las tres piezas y
+`make theme` las cinco reglas del tema oscuro.
+
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
 - Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el

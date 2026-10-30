@@ -234,7 +234,14 @@ class TextareaWidget extends Widget {
                     break;
                 case 'html':
                     if ($v) {
-                        $class = array('richtext', 'no-bar');
+                        // Con barra visible (`air` la esconde hasta que se
+                        // selecciona texto: el campo parecía un textarea
+                        // plano) y corta, que la celda de un formulario no da
+                        // para los 23 botones de la barra completa.
+                        // `ost-note-editor` marca la superficie para que el
+                        // tema oscuro la pinte como el resto de la ficha en
+                        // vez del «papel» claro de los correos.
+                        $class = array('richtext', 'ost-note-editor', 'ost-memo-field');
                         $class[] = @$config['size'] ?: 'small';
                         $attrs['class'] =  '"'.implode(' ', $class).'"';
                         $this->value = Format::viewableImages($this->value);

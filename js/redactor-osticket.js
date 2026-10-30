@@ -382,49 +382,70 @@
 
 /* Redactor richtext init */
 $(function() {
-    var captureImageSizes = function(html) {
-        $('img', this.$box).each(function(i, img) {
-            // TODO: Rewrite the entire <img> tag. Otherwise the @width
-            // and @height attributes will begin to accumulate
-            before = img.outerHTML;
-            if (img.clientWidth && img.clientHeight)
-                $(img).attr('width', img.clientWidth)
-                      .attr('height',img.clientHeight);
-            html = html.replace(before, img.outerHTML);
-        });
-        return html;
-    },
-    redact = $.fn.redact = function(el, options) {
+    // Botones y plugins del editor, por forma de montarlo. Los nombres tienen
+    // que existir en este Redactor (`js/redactor.min.js`, `y.buttons`) o
+    // llegar con un plugin que se cargue: un nombre inventado se ignora sin
+    // error, y un botón de plugin que no se carga desaparece sin avisar.
+    //   air:   barra flotante sobre el texto seleccionado (clase `no-bar`)
+    //   short: barra fija y corta: un campo memo dentro de una tabla (la celda
+    //          puede medir 400 px) o cualquier editor dentro de un diálogo,
+    //          donde la barra completa se parte en dos filas
+    //   full:  barra completa (respuesta, artículos, cuerpos de correo, y la
+    //          nota rápida de la ficha, que ocupa el ancho de la página)
+    var editorButtons = {
+            air: ['format', '|', 'bold', 'italic', 'underline', 'deleted',
+                'lists', 'link', 'image'],
+            short: ['format', '|', 'bold', 'italic', 'underline', 'deleted',
+                '|', 'lists', 'link', 'image'],
+            full: ['html', 'format', '|', 'undo', 'redo', '|',
+                'bold', 'italic', 'underline', 'deleted', 'sub', 'sup',
+                'fontcolor', 'fontfamily', '|',
+                'ul', 'ol', 'outdent', 'indent', '|',
+                'image', 'video', 'file', 'table', 'link', 'line', '|',
+                'fullscreen']
+        },
+        editorPlugins = {
+            air: ['imagemanager', 'definedlinks'],
+            short: ['imagemanager', 'definedlinks'],
+            full: ['imagemanager', 'table', 'video', 'definedlinks', 'autolock',
+                'fontcolor', 'fontfamily', 'fullscreen']
+        },
+        captureImageSizes = function(html) {
+            $('img', this.$box).each(function(i, img) {
+                // TODO: Rewrite the entire <img> tag. Otherwise the @width
+                // and @height attributes will begin to accumulate
+                before = img.outerHTML;
+                if (img.clientWidth && img.clientHeight)
+                    $(img).attr('width', img.clientWidth)
+                          .attr('height',img.clientHeight);
+                html = html.replace(before, img.outerHTML);
+            });
+            return html;
+        },
+        redact = function(el, options) {
         var el = $(el),
             sizes = {'small': '75px', 'medium': '150px', 'large': '225px'},
             selectedSize = sizes['medium'];
         $.each(sizes, function(k, v) {
             if (el.hasClass(k)) selectedSize = v;
         });
+        // La barra completa son 23 botones (unos 1.100 px): en la celda de un
+        // formulario o en la caja de un diálogo se parte en dos filas y empuja
+        // los campos hacia abajo. Ahí se usa `short`: los mismos botones de
+        // formato que tenía la barra flotante, más la lista numerada, en una
+        // sola fila. Los campos memo llegan marcados desde el widget
+        // (`ost-memo-field`); el resto se decide por dónde está la caja.
+        var inDialog = el.closest('.dialog, .tip_box').length > 0,
+            mode = el.hasClass('no-bar') ? 'air'
+                : (inDialog || el.hasClass('ost-memo-field') ? 'short' : 'full');
         var options = $.extend({
-                'air': el.hasClass('no-bar'),
-                // La barra va por grupos, separados con `|`. Todos los
-                // botones existen en este Redactor (js/redactor.min.js,
-                // `y.buttons`) o llegan con un plugin que si se carga; un
-                // nombre que no exista se ignora sin romper nada.
-                //   modo:    html (codigo), format (parrafo/cita/titulos)
-                //   historia: undo, redo
-                //   texto:   negrita, cursiva, subrayado, tachado, sub, sup,
-                //            color y tipografia
-                //   listas:  vineta, numerada, sangria a izquierda/derecha
-                //   insertar: imagen, video, fichero, tabla, enlace, linea
-                //   pantalla completa (plugin fullscreen)
-                'buttons': el.hasClass('no-bar')
-                  ? ['format', '|', 'bold', 'italic', 'underline', 'deleted', 'lists', 'link', 'image']
-                  : ['html', 'format', '|', 'undo', 'redo', '|',
-                    'bold', 'italic', 'underline', 'deleted', 'sub', 'sup',
-                    'fontcolor', 'fontfamily', '|',
-                    'ul', 'ol', 'outdent', 'indent', '|',
-                    'image', 'video', 'file', 'table', 'link', 'line', '|',
-                    'fullscreen'],
-                'buttonSource': !el.hasClass('no-bar'),
-                'autoresize': !el.hasClass('no-bar') && !el.closest('.dialog').length,
-                'maxHeight': el.closest('.dialog').length ? selectedSize : false,
+                'air': mode === 'air',
+                // Las listas van por grupos, separados con `|` (ver
+                // `editorButtons`, arriba).
+                'buttons': editorButtons[mode].slice(),
+                'buttonSource': mode === 'full',
+                'autoresize': mode === 'full',
+                'maxHeight': inDialog ? selectedSize : false,
                 'minHeight': selectedSize,
                 'maxWidth': el.hasClass('fullscreen') ? '950px' : false,
                 'focus': false,
@@ -432,10 +453,7 @@ $(function() {
                 // `fullscreen` (js/redactor-plugins.js): si el plugin no esta
                 // en esta lista, el boton no llega a crearse y desaparece de
                 // la barra sin avisar.
-                'plugins': el.hasClass('no-bar')
-                  ? ['imagemanager','definedlinks']
-                  : ['imagemanager','table','video','definedlinks','autolock',
-                    'fontcolor','fontfamily','fullscreen'],
+                'plugins': editorPlugins[mode].slice(),
                 'imageUpload': el.hasClass('draft'),
                 'imageCaption': false,
                 'imageManagerJson': 'ajax.php/draft/images/browse',
@@ -446,7 +464,10 @@ $(function() {
                 'imageResizable': true,
                 'syncBeforeCallback': captureImageSizes,
                 'tabFocus': false,
-                'toolbarFixed': true,
+                // Dentro de un diálogo la barra no se pega a la ventana: el
+                // diálogo ya tiene su propio desplazamiento y la barra
+                // flotante acababa encima del título o fuera de la caja.
+                'toolbarFixed': !inDialog,
                 'callbacks': {
                     'start': function() {
                         var $element = $R.dom(this.rootElement),
@@ -517,8 +538,15 @@ $(function() {
             if (c.editor_spacing == 'single')
                 options.breakline = true;
             el.data('redactor', el.redactor(options));
+            // Los editores de nota (nota rápida de la ficha y campos memo de
+            // los formularios) se marcan desde el propio `<textarea>`
+            // (`ost-note-editor`), pero la caja que dibuja Redactor es otra:
+            // el tema oscuro necesita la marca en `.redactor-box` para pintar
+            // la superficie del editor y no el «papel» claro de los correos.
+            if (el.hasClass('ost-note-editor'))
+                el.closest('.redactor-box').addClass('ost-note-editor');
         });
-    },
+    };
     findRichtextBoxes = function() {
         $('.richtext').each(function(i,el) {
             if ($(el).hasClass('ifhtml'))
@@ -540,13 +568,20 @@ $(function() {
                 redactor.stop();
         });
     };
+    // El editor también se engancha como plugin de jQuery, para montar uno
+    // suelto sin pasar por `findRichtextBoxes()` (nota rápida de la ficha):
+    //   $(textarea).redact({focusEnd: true})
+    $.fn.redact = function(options) {
+        return this.each(function() {
+            redact(this, options);
+        });
+    };
     findRichtextBoxes();
     $(document).ajaxStop(findRichtextBoxes);
     $(document).on('pjax:start', cleanupRedactorElements);
 });
 
 $(document).on('focusout.redactor', 'div.redactor_richtext', function (e) {
-    alert('focusout.redactor');
     $(this).siblings('textarea').trigger('change');
 });
 

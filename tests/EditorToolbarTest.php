@@ -30,17 +30,30 @@ class EditorToolbarTest extends UnitTestCase {
         return (string) file_get_contents(ROOT_DIR . '/' . $ruta);
     }
 
-    /** El arreglo `buttons` de la barra completa (la variante con barra). */
-    private function botonesBarra(): array {
+    /**
+     * Una de las listas del editor (`editorButtons` / `editorPlugins`) según
+     * la forma de montarlo: `air` (barra flotante), `short` (barra corta: un
+     * campo memo o cualquier editor dentro de un diálogo) o `full` (barra
+     * completa).
+     */
+    private function lista(string $constante, string $clave = 'full'): array {
         $js = $this->fichero('js/redactor-osticket.js');
 
-        $patron = "/'buttons':\s*el\.hasClass\('no-bar'\)\s*\?\s*\[[^\]]*\]\s*:\s*\[([^\]]*)\]/s";
-        if (!preg_match($patron, $js, $m))
+        if (!preg_match('/' . preg_quote($constante, '/') . '\s*=\s*\{(.*?)\n\s{8}\},/s',
+                $js, $m))
+            return array();
+        if (!preg_match('/\b' . preg_quote($clave, '/') . ':\s*\[([^\]]*)\]/s',
+                $m[1], $n))
             return array();
 
         // El separador de grupo (`|`) también forma parte de la lista
-        preg_match_all("/'([a-zA-Z|]+)'/", $m[1], $nombres);
+        preg_match_all("/'([a-zA-Z|]+)'/", $n[1], $nombres);
         return $nombres[1];
+    }
+
+    /** Los botones de la barra completa (respuesta, artículos, correos). */
+    private function botonesBarra(): array {
+        return $this->lista('editorButtons', 'full');
     }
 
     /** Botones que trae el propio Redactor (el objeto `y.buttons`). */
@@ -109,16 +122,13 @@ class EditorToolbarTest extends UnitTestCase {
      * `plugins`, así que su `addButtonAuto` nunca se ejecutaba.
      */
     public function testLosPluginsQueAportanBotonesEstanCargados(): void {
-        $js = $this->fichero('js/redactor-osticket.js');
-
-        $patron = "/'plugins':\s*el\.hasClass\('no-bar'\)\s*\?\s*\[[^\]]*\]\s*:\s*\[([^\]]*)\]/s";
-        $this->assertMatchesRegularExpression($patron, $js,
+        $plugins = $this->lista('editorPlugins', 'full');
+        $this->assertGreaterThan(5, count($plugins),
             'no se encontró la lista de plugins del editor');
-        preg_match($patron, $js, $m);
 
         foreach (array('imagemanager', 'table', 'video', 'definedlinks',
                 'autolock', 'fontcolor', 'fontfamily', 'fullscreen') as $plugin) {
-            $this->assertStringContainsString("'" . $plugin . "'", $m[1],
+            $this->assertTrue(in_array($plugin, $plugins, true),
                 sprintf('el plugin «%s» aporta botones y no se carga', $plugin));
         }
     }

@@ -936,18 +936,86 @@ fatal, no un adorno que no se ve; por eso la fila usa `getDesc()` y escapa con
 #### 3.12.6 Cómo se comprueba
 
 - `php tools/ui/theme-check.php` → **178** comprobaciones (antes 158), hoy
-  **195** tras las pasadas de §3.13.11 y §3.14. Las
+  **208** tras las pasadas de §3.13.11, §3.14 y §3.12.7. Las
   nuevas: `.redactor-in` en el tema y ninguna regla de `.redactor-editor`, la
   regla de cuatro clases de la barra, `#response_options > form`, `#note`,
   `.tixTitle h3`, el token `--dk-editor-paper`, los seis botones nuevos, el
   plugin `fullscreen`, el separador, la tabla de estadísticas, las pestañas,
   las dos salidas vacías de la base de conocimiento y la fila de prioridad.
-- `php tests/run.php` → **869** pruebas, 0 fallos (hoy 975, §3.13.11).
+- `php tests/run.php` → **869** pruebas, 0 fallos (hoy **1.003**).
   `tests/EditorToolbarTest.php` (10 pruebas) valida los botones contra el
-  propio Redactor.
+  propio Redactor y `tests/NoteEditorTest.php` (8 pruebas) cubre el editor de
+  nota: el campo memo sin `no-bar`, la marca en la caja, la nota rápida por
+  `redact()`, la barra corta del diálogo y la superficie oscura.
 - `node tools/ui/dark-audit.js` ya no marca el editor como zona clara
   inesperada: su lista de excepciones pasa de `.redactor-editor` a
   `.redactor-in` (el papel claro del editor es deliberado, §3.7).
+
+#### 3.12.7 El editor de nota: barra a la vista y superficie del tema
+
+Dos capturas con el asunto «el editor de nota no está enriquecido»: el
+*Internal Notes* del diálogo *Add New Organization* y la nota rápida de la
+ficha de una organización. Las tres causas eran distintas y ninguna estaba en
+la hoja de estilos.
+
+**1. El campo memo llegaba con `no-bar`.** `include/class.forms.widget.php`
+dibujaba todo campo memo con HTML como `richtext no-bar small`, y en
+`js/redactor-osticket.js` `no-bar` significa **barra flotante** (`air`): la
+barra no existe hasta que se selecciona texto. Quien abre el formulario ve una
+caja clara sin un solo botón, es decir, un textarea. Ahora el campo sale con
+`richtext ost-note-editor ost-memo-field` (sin `no-bar`) y la barra está a la
+vista.
+
+**2. La nota rápida se montaba con la barra de fábrica.** `scp/js/scp.js`
+llamaba a `T.redactor({focusEnd: true})` directamente, así que Redactor ponía
+su lista por defecto —siete botones, sin historia, sin color, sin tablas y sin
+los plugins de osTicket—. Ahora el textarea se crea con la clase `richtext` y
+se monta con el mismo `redact()` que el resto de la aplicación. Para poder
+usarlo suelto, `redact()` se expone también como plugin de jQuery:
+
+```js
+$.fn.redact = function(options) {
+    return this.each(function() { redact(this, options); });
+};
+```
+
+**3. No todos los sitios caben en la misma barra.** La barra completa tiene 23
+botones (~1.100 px): en la celda de 400 px de un formulario, o en la caja de
+640 px de un diálogo, se parte en dos filas y empuja los campos hacia abajo.
+`redact()` elige ahora la forma de montarlo:
+
+| Modo | Cuándo | Botones | Barra |
+| --- | --- | --- | --- |
+| `air` | clase `no-bar` (notas secundarias de las pantallas de administración) | 8 | flotante, sobre el texto seleccionado |
+| `short` | campo memo del widget (`ost-memo-field`) o cualquier editor dentro de `.dialog`/`.tip_box` | 8 | fija, una sola fila |
+| `full` | el resto (respuesta, artículos, cuerpos de correo y la nota rápida de la ficha) | 23 | fija y completa |
+
+Los tres nombres y sus listas viven en una sola tabla por tipo
+(`editorButtons` y `editorPlugins`, con las claves `air`/`short`/`full`); antes
+la decisión estaba repartida entre plantillas, clases CSS y llamadas a
+Redactor.
+
+Con `toolbarFixed` apagado dentro del diálogo: la barra no se pega a la ventana
+(el diálogo ya tiene su propio desplazamiento y acababa encima del título).
+
+**4. La superficie.** El editor de un correo se queda en «papel» claro (§3.7)
+porque el HTML pegado trae `color:#000` en línea. Un editor de nota no: lo que
+se escribe ahí se vuelve a mostrar en la superficie del tema (`.quicknote
+.body`, la celda del campo). Por eso los dos editores de nota llevan la marca
+`ost-note-editor` —la pone el widget en el `<textarea>` y `scp/js/scp.js` en la
+nota rápida— y `redact()` la copia a la caja de Redactor al arrancar, que es
+donde el tema la necesita:
+
+```css
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in {
+    background-color: var(--dk-surface-2) !important;
+}
+```
+
+El `!important` hace falta porque la regla del papel lo lleva y Redactor
+escribe el fondo en línea al inicializar. El `textarea` original (si el editor
+no llega a montarse), los enlaces, el texto de ayuda y el cursor tienen su
+propia regla sobre esa superficie.
 
 ### 3.13 Segunda pasada: capturas nuevas
 
@@ -1395,7 +1463,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 203 verificaciones (195 antes de las filas 42-46) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 208 verificaciones (195 antes de las filas 42-47) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1434,6 +1502,7 @@ queda en §6.2.
 | 44 | **La ficha de la FAQ en oscuro**: la respuesta se dibuja con `.thread-body`, que el tema reserva como «papel claro» para el HTML de los correos; en la ficha salía un rectángulo blanco de 670 px en mitad de la pantalla oscura, y la barra lateral (`.sidebar`, `#F7FBFE` y borde azul de scp.css) dejaba «Help Topics», «Published» y «Manage Access» en gris claro sobre panel claro. Ahora la respuesta es una tarjeta con los tokens del tema y la barra lateral sigue el oscuro | ✅ Hecho | `css/dark.css`, `css/modern.css`, `make theme` |
 | 45 | **El desplegable de colas desaparecía antes de poder hacer clic**: se abre con `li.item:hover` y scp.css lo coloca a **31 px** del borde de la pestaña, la altura de su pestaña original; con la pastilla de la capa moderna quedaban varios píxeles de aire entre la pestaña y el panel, así que al bajar el ratón se salía de la pestaña, el `:hover` dejaba de cumplirse y el panel se cerraba antes del clic. Ahora se ancla al borde inferior (`top: 100%`), lleva un puente invisible de 8 px y se abre también con el teclado (`:focus-within`) (§3.5.3) | ✅ Hecho | `css/modern.css`, `make theme` |
 | 46 | **El icono de comentarios de las colas no se veía en oscuro**: el recuento de entradas del hilo va dentro de `.faded-more`, que scp.css pinta con **negro al 35 %** —un gris pensado para papel—. Se veía el número y no el icono. Ahora usa el gris atenuado del tema | ✅ Hecho | `css/dark.css`, `make theme` |
+| 47 | **«El editor de nota no está enriquecido»**: dos capturas, el *Internal Notes* del diálogo *Add New Organization* y la nota rápida de la ficha de una organización. En el diálogo el campo llegaba marcado `richtext no-bar`, y `no-bar` monta la barra **flotante** (`air`): no había ni un botón a la vista hasta seleccionar texto, así que el campo se leía como un textarea plano. La nota rápida sí tenía barra, pero de **siete botones**: se montaba con `T.redactor({focusEnd: true})` a pelo y salía la barra de fábrica de Redactor, sin los botones ni los plugins de osTicket. Y las dos cajas se quedaban en el «papel» claro del tema (`--dk-editor-paper`), un bloque blanco en mitad de una pantalla oscura. Ahora los campos memo salen con barra visible y la nota rápida la monta el mismo `redact()` que el resto de la aplicación, con la barra completa (ocupa el ancho de la página) mientras los campos memo usan la barra corta, que es la que cabe en la celda de un formulario; las dos cajas llevan la marca `ost-note-editor` y el tema oscuro las pinta sobre su superficie, que es donde después se lee la nota (§3.12.7) | ✅ Hecho | `include/class.forms.widget.php`, `js/redactor-osticket.js`, `scp/js/scp.js`, `css/dark.css`, `tests/NoteEditorTest.php`, `tests/EditorToolbarTest.php`, `make theme` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

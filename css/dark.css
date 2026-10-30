@@ -1059,6 +1059,44 @@ html[data-theme="dark"] .redactor-box .redactor-in {
     caret-color: #1a1f24;
 }
 
+/* --- Editores de nota ------------------------------------------------ */
+/* La nota rápida de la ficha y los campos memo de los formularios no
+   escriben HTML de terceros: lo que se teclea ahí se vuelve a mostrar sobre
+   la superficie del tema (`.quicknote .body`, la celda del campo), así que el
+   editor usa esa misma superficie. El «papel» claro se queda para los
+   editores de correo y de respuesta, cuyo resultado sí se pinta en papel.
+
+   La marca la pone el propio editor: `include/class.forms.widget.php` en el
+   `<textarea>` de los campos memo y `scp/js/scp.js` en la nota rápida; al
+   arrancar, `js/redactor-osticket.js` la copia a la caja de Redactor. */
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in,
+html[data-theme="dark"] .redactor-box.ost-note-editor iframe {
+    background-color: var(--dk-surface-2) !important;
+    color: var(--dk-text);
+    border-color: var(--dk-border);
+    color-scheme: dark;
+}
+
+html[data-theme="dark"] .redactor-box.ost-note-editor > textarea {
+    background-color: var(--dk-surface-2);
+    color: var(--dk-text);
+    border-color: var(--dk-border);
+}
+
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in a {
+    color: var(--dk-link);
+}
+
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in.redactor-placeholder::before,
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in[data-placeholder]::before,
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in[placeholder]::before {
+    color: var(--dk-text-faint);
+}
+
+html[data-theme="dark"] .redactor-box.ost-note-editor .redactor-in {
+    caret-color: var(--dk-text);
+}
+
 /* La barra: redactor.css la pinta con una regla de cuatro clases
    (`.redactor-box.redactor-styles-on .redactor-toolbar.redactor-toolbar`)
    que gana por especificidad a la del tema. De ahí que en oscuro quedara

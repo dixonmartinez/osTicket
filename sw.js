@@ -78,7 +78,11 @@
 //     31 px fijos quedaba un hueco y se cerraba antes de poder hacer clic) y
 //     las cifras atenuadas de las colas se ven en oscuro (el icono de
 //     comentarios era negro al 35 % sobre fondo oscuro).
-const VERSION = 'ost-v38';
+// v39: el editor de nota deja de ser una caja sin botones: los campos memo
+//     salen con la barra a la vista, la nota rapida la monta el editor comun
+//     (no la barra de fabrica de Redactor) y en oscuro la superficie del
+//     editor de nota sigue el tema en vez del papel claro de los correos.
+const VERSION = 'ost-v39';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

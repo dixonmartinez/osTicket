@@ -832,8 +832,15 @@ foreach (array("'undo'", "'redo'", "'indent'", "'outdent'", "'ul'", "'ol'") as $
         "la barra del editor trae el boton $boton",
         "falta el boton $boton en la barra del editor");
 
-check(strpos($redactorJs, "'fullscreen']") !== false
-    && strpos($redactorJs, "'fontfamily','fullscreen'") !== false,
+// El boton lo crea el plugin (`addButtonAuto`): si el plugin no se carga, el
+// boton no llega a existir y desaparece sin error. Se lee la lista `full` de
+// `editorPlugins`, que es la de los editores con barra completa.
+$pluginsEditor = '';
+if (preg_match('/editorPlugins\s*=\s*\{(.*?)\n\s{8}\},/s', $redactorJs, $m)
+        && preg_match('/\bfull:\s*\[([^\]]*)\]/s', $m[1], $n))
+    $pluginsEditor = $n[1];
+check(strpos($pluginsEditor, "'fullscreen'") !== false
+    && strpos($pluginsEditor, "'fontfamily'") !== false,
     'el plugin fullscreen se carga (sin el, el boton no llega a crearse)',
     'el boton de pantalla completa esta en buttons pero su plugin no en plugins');
 
@@ -862,6 +869,42 @@ check($redactorAuto !== ''
 check(strpos($darkSinComentarios, '.redactor-box > textarea') !== false,
     'el editor a medio montar conserva el papel del tema',
     'sin regla para `.redactor-box > textarea`, el texto del editor no se ve en oscuro');
+
+/* El editor de nota ------------------------------------------------------ */
+// La nota rápida de la ficha y los campos memo de los formularios no escriben
+// HTML de terceros: lo que se teclea ahí se vuelve a mostrar sobre la
+// superficie del tema, así que la caja del editor usa esa superficie y no el
+// «papel» claro que se reserva para los correos. Sin esta regla, la nota salía
+// como un bloque blanco en mitad de la pantalla oscura.
+check(strpos($darkSinComentarios, '.redactor-box.ost-note-editor .redactor-in') !== false
+    && strpos($darkSinComentarios, 'var(--dk-surface-2) !important') !== false,
+    'el editor de nota se pinta sobre la superficie del tema',
+    'el editor de nota conserva el papel claro: un bloque blanco en oscuro');
+
+check(strpos($darkSinComentarios, '.redactor-box.ost-note-editor > textarea') !== false,
+    'la nota a medio montar también sigue el tema',
+    'si el editor de la nota no arranca, el textarea se queda en papel claro');
+
+// El campo memo llegaba con `no-bar`, que monta la barra flotante: no había
+// barra que ver hasta seleccionar texto y el campo parecía un textarea plano.
+$formWidget = read("$root/include/class.forms.widget.php");
+check(strpos($formWidget, "'richtext', 'ost-note-editor'") !== false
+    && strpos($formWidget, "'no-bar'") === false,
+    'los campos memo montan la barra visible del editor',
+    'el campo memo se dibuja con la barra flotante (no-bar): parece un textarea sin formato');
+
+// La nota rápida llamaba a `T.redactor()` directamente: la barra era la de
+// fábrica de Redactor (siete botones, sin los plugins de osTicket).
+$scpJs = read("$root/scp/js/scp.js");
+check(strpos($scpJs, 'T.redact({ focusEnd: true })') !== false
+    && strpos($scpJs, 'T.redactor({ focusEnd: true })') === false,
+    'la nota rápida se monta con el editor común',
+    'la nota rápida llama a Redactor directamente: barra de fábrica y sin los plugins del editor');
+
+check(strpos($redactorJs, "ost-note-editor") !== false
+    && strpos($redactorJs, "closest('.redactor-box').addClass('ost-note-editor')") !== false,
+    'la marca del editor de nota llega a la caja de Redactor',
+    'la caja de Redactor no recibe la marca: el tema no distingue nota de correo');
 
 /* Base de conocimiento: la ficha de la FAQ ------------------------------- */
 // El cuerpo de la respuesta es HTML propio (lo escrito en el editor), no el
