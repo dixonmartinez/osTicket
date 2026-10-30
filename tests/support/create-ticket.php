@@ -43,11 +43,32 @@ if (PHP_SAPI !== 'cli') {
 $mode = isset($argv[1]) ? $argv[1] : 'portal';
 
 /* Respuesta para la prueba: una línea JSON y nada más. */
+$respondido = false;
 function responder(array $datos) {
+    global $respondido;
+    $respondido = true;
     echo json_encode($datos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         "\n";
     exit(0);
 }
+
+/* Red de seguridad: la aplicación apaga `display_errors`, así que un error
+ * fatal (una clase que no se encuentra, una consulta rechazada) dejaría la
+ * salida vacía y la prueba fallaría sin decir por qué. */
+register_shutdown_function(function () {
+    global $respondido;
+
+    if ($respondido)
+        return;
+
+    $error = error_get_last();
+
+    echo json_encode(array(
+        'ok' => false,
+        'motivo' => 'el ayudante murió: '
+            . ($error ? $error['message'] : 'sin detalle de PHP'),
+    ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";
+});
 
 /* 1. El arranque de la aplicación, con las constantes que pone ost-config.php
  *    pero sin sesión de usuario ni redirecciones. */
@@ -110,9 +131,6 @@ function sembrar() {
         . TestDatabase::table('help_topic') . '`');
 }
 
-if (!sembrar())
-    responder(array('ok' => false, 'motivo' => 'la siembra no dejó temas de ayuda'));
-
 /** Primer id de una tabla, para no fijar ids a mano. */
 function primerId($tabla, $columna = 'id') {
     return (int) TestDatabase::value(sprintf(
@@ -120,7 +138,55 @@ function primerId($tabla, $columna = 'id') {
         $columna, TestDatabase::table($tabla), $columna));
 }
 
+/**
+ * Lo que el instalador escribe en la configuración **después** de sembrar
+ * (`setup/inc/class.installer.php`, «Create config settings»).
+ *
+ * `loadDefaultData()` sólo deja los valores por omisión de cada sección; estos
+ * —departamento, SLA, horario, plantilla y, sobre todo, la firma del esquema—
+ * los pone el instalador a mano. Sin ellos el ticket saldría sin departamento
+ * y `osTicket::start()` creería que hay una actualización pendiente.
+ */
+function configurarInstalacion($dept_id) {
+    require_once INCLUDE_DIR . 'class.migrater.php';
+
+    $streams = DatabaseMigrater::getUpgradeStreams(UPGRADE_DIR . 'streams/');
+
+    $config = new Config('core');
+    $config->updateAll(array(
+        // Sin cuenta de correo a propósito: así el alta no intenta avisar a
+        // nadie y la prueba no depende de un SMTP.
+        'default_email_id' => 0,
+        'alert_email_id' => 0,
+        'default_dept_id' => $dept_id,
+        'default_sla_id' => primerId('sla'),
+        'schedule_id' => primerId('schedule'),
+        'default_template_id' => (int) TestDatabase::value(
+            'SELECT `tpl_id` FROM `'
+            . TestDatabase::table('email_template_group')
+            . '` ORDER BY `tpl_id` LIMIT 1'),
+        'default_timezone' => 'UTC',
+        'admin_email' => ADMIN_EMAIL,
+        'schema_signature' => isset($streams['core']) ? $streams['core'] : '',
+        'helpdesk_url' => 'http://osticket.test/',
+        'helpdesk_title' => 'Pruebas de osTicket',
+    ));
+
+    // Las demás corrientes del esquema también llevan su firma.
+    foreach ($streams as $stream => $firma) {
+        if ($stream == 'core')
+            continue;
+        $otra = new Config($stream);
+        $otra->update('schema_signature', $firma);
+    }
+}
+
+if (!sembrar())
+    responder(array('ok' => false, 'motivo' => 'la siembra no dejó temas de ayuda'));
+
 $dept_id = primerId('department');
+configurarInstalacion($dept_id);
+
 $role_id = primerId('role');
 $topic_id = primerId('help_topic');
 
