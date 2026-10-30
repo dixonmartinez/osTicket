@@ -1837,6 +1837,35 @@ Lo que estas pruebas **no** pueden ver es el clic real: sin navegador en este
 entorno, el cambio de pestaña, el guardado y el borrado en bloque hay que
 probarlos en la instalación. `sw.js` sube a **`ost-v46`**.
 
+### 3.23 Las pantallas que el glob no miraba
+
+Cuando se arregló el pie de la ficha del ticket (§3.20), la de la **tarea** se
+quedó atrás con sus dos `<p style="text-align:center;">`: la prueba recorría
+`include/staff/*.inc.php` y esas dos plantillas viven en
+`include/staff/templates/`. El mismo agujero dejaba fuera `scp/emailtest.php`,
+la única pantalla del panel que no está en `include/staff/`.
+
+Qué se corrigió:
+
+| Defecto | Dónde | Arreglo |
+|---|---|---|
+| Dos pies centrados con el envío delante del reset | `include/staff/templates/task-view.tmpl.php` | `p.form-actions` con reset → enviar |
+| Pie centrado con cancelar al final | `scp/emailtest.php` | `p.form-actions` con cancelar → reset → enviar |
+| **26** pantallas centraban celdas con `align="center"` | las listas de gestión | `class="centered"` (ya estaba en `scp.css`) |
+| **20** casillas y botones de opción sin etiqueta | `dynamic-field-config`, `email-oauth2auth`, `merge-tickets`, `org-profile`, `schedule-add`, `ticket-status`, `user-account`, `user-delete`, `user-register` | dentro de `<label>`, con el texto que ya tenían al lado |
+
+`align` es un atributo que HTML5 retiró: el navegador lo sigue aplicando, pero
+ninguna hoja puede sobrescribirlo. `.centered` hace lo mismo y sí se puede
+temar.
+
+**Cómo se comprueba.** La prueba del pie y la de las casillas ahora recorren
+también `include/staff/templates/*.tmpl.php` y `scp/emailtest.php` (**146
+plantillas, 167 controles**), y `tests/AdminLayoutTest.php` gana una octava
+prueba que recorre `include/staff`, `include/client` y `scp` y falla si vuelve
+a aparecer un `align="center"` (**265 archivos**). Las 20
+etiquetas que faltaban salieron justo de ampliar el recorrido: no estaban en
+ninguna lista de tareas.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -2048,6 +2077,8 @@ queda en §6.2.
 | 53 | **Agente y cliente**: el pie de los formularios sólo se había arreglado en la administración. La ficha del ticket del agente tenía dos `<p style="text-align:center;">` («Post Reply» y «Post Note») con el envío delante del reset, y el portal del cliente usaba un `<p class="buttons">` que **ninguna hoja pinta**: la alineación dependía del estilo en línea. Ahora las siete plantillas usan `p.form-actions` (cancelar → reset → enviar), se quitaron los cuatro `<hr>` que dejaban dos rayas y se añadió `tests/AgentClientLayoutTest.php` sobre 81 plantillas y 129 controles (§3.20) | ✅ Hecho | `include/staff/ticket-view.inc.php`, `include/client/{open,view,edit,profile,register}.inc.php`, `tests/AgentClientLayoutTest.php`, `sw.js` |
 | 54 | **`teams.php?sort=status` caía con `DB Error #1054: Unknown column 'A1.isenabled' in 'ORDER BY'`**: el orden usaba el nombre del campo del formulario, no el de la columna (`ost_team` guarda el estado en `flags`). El mismo error estaba en *Planes de SLA* (`isactive` sobre `ost_sla`, que también usa `flags`). Las dos listas ordenan ya por `flags` y `tests/SortColumnsTest.php` valida la 47 columnas de orden contra el instalador (§3.21) | ✅ Hecho | `include/staff/{teams,slaplans}.inc.php`, `tests/SortColumnsTest.php` |
 | 55 | **Paso 1 del frente pendiente: el pie «Reset Changes / Save Changes» en `settings.php?t=tickets#queues`**, una pestaña que es una lista. No se podía borrar: un único `<form>` envuelve las cinco pestañas y las acciones en bloque de Colas envían ese formulario pulsando el botón del pie. Ahora el panel se marca con `data-ost-list`, `scp.js` pone `ost-tab-list` en el pie al cambiar de pestaña, la hoja lo esconde con `visibility` (no `display: none`) y el borrado en bloque envía con `HTMLFormElement.prototype.submit.call($form[0])`, que era el fallo de fondo: `form.submit` está tapado por el campo `name="submit"` (§3.22) | ✅ Hecho | `include/staff/{settings-tickets,settings-agents,queues-ticket}.inc.php`, `scp/js/scp.js`, `css/modern.css`, `tests/AdminSettingsTest.php`, `sw.js` |
+
+| 56 | **Las pantallas que el glob no miraba**: la ficha de la **tarea** seguía con sus dos pies centrados (la prueba sólo miraba `include/staff/*.inc.php`, y esa plantilla vive en `templates/`), `scp/emailtest.php` también, **26** listas centraban celdas con `align="center"` —atributo retirado en HTML5 que ninguna hoja puede sobrescribir— y **20** casillas de nueve diálogos no tenían etiqueta. Ahora todos los pies son `p.form-actions`, las celdas usan `class="centered"` y cada control se marca desde su texto (§3.23) | ✅ Hecho | `include/staff/templates/*.tmpl.php`, `scp/emailtest.php`, 26 `include/staff/*.inc.php`, `tests/AdminLayoutTest.php`, `tests/AgentClientLayoutTest.php` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

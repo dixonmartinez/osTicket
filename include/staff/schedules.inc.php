@@ -60,7 +60,7 @@ $showing=$pageNav->showing().' '._N('schedule', 'schedules', $count);
             if ($ids && in_array($form->get('id'),$ids))
                 $sel = true; ?>
         <tr>
-            <td align="center">
+            <td class="centered">
                 <input width="7" type="checkbox" class="ckb" name="ids[]"
                 value="<?php echo $schedule->getId(); ?>"
                     <?php echo $sel?'checked="checked"':''; ?>>

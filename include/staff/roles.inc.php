@@ -57,7 +57,7 @@ csrf_token(); ?>
             if ($ids && in_array($id, $ids))
                 $sel = true; ?>
         <tr>
-            <td align="center">
+            <td class="centered">
                 <?php
                 if ($role->isDeleteable()) { ?>
                 <input width="7" type="checkbox" class="ckb" name="ids[]"

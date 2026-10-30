@@ -95,8 +95,8 @@ $action = $info['action'] ?: ('#tickets/status/'. $state);
             <tbody>
                 <tr>
                     <td>
-                        <input type="checkbox" name="children">
-                        <?php echo __('Set status for all children.'); ?>
+                        <label><input type="checkbox" name="children">
+                        <?php echo __('Set status for all children.'); ?></label>
                     </td>
                 </tr>
             </tbody>

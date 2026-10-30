@@ -148,7 +148,7 @@ if ($total) { ?>
             <?php
             //Implement mass  action....if need be.
             if (0) { ?>
-            <td align="center" class="nohover">
+            <td class="nohover centered">
                 <input class="ckb" type="checkbox" name="tids[]" value="<?php echo $T['ticket_id']; ?>" <?php echo $sel?'checked="checked"':''; ?>>
             </td>
             <?php

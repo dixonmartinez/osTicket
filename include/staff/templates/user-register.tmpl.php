@@ -72,10 +72,10 @@ echo sprintf(__(
                     <?php echo __('Status'); ?>:
                 </td>
                 <td>
-                  <input type="checkbox" id="sendemail" name="sendemail" value="1"
+                  <label><input type="checkbox" id="sendemail" name="sendemail" value="1"
                     <?php echo $info['sendemail'] ? 'checked="checked"' :
                     ''; ?> ><?php echo sprintf(__(
-                    'Send account activation email to %s.'), $user->getEmail()); ?>
+                    'Send account activation email to %s.'), $user->getEmail()); ?></label>
                 </td>
             </tr>
         </tbody>
@@ -106,13 +106,13 @@ echo sprintf(__(
                     <?php echo __('Password Change'); ?>:
                 </td>
                 <td colspan=2>
-                    <input type="checkbox" name="pwreset-flag" value="1" <?php
+                    <label><input type="checkbox" name="pwreset-flag" value="1" <?php
                         echo $info['pwreset-flag'] ?  'checked="checked"' : ''; ?>>
-                        <?php echo __('Require password change on login'); ?>
+                        <?php echo __('Require password change on login'); ?></label>
                     <br/>
-                    <input type="checkbox" name="forbid-pwreset-flag" value="1" <?php
+                    <label><input type="checkbox" name="forbid-pwreset-flag" value="1" <?php
                         echo $info['forbid-pwreset-flag'] ?  'checked="checked"' : ''; ?>>
-                        <?php echo __('User cannot change password'); ?>
+                        <?php echo __('User cannot change password'); ?></label>
                 </td>
             </tr>
         </tbody>

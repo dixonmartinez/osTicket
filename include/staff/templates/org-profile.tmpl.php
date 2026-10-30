@@ -80,9 +80,9 @@ if ($ticket && $ticket->getOwnerId() == $user->getId())
                     <?php echo __('Auto-Assignment'); ?>:
                 </td>
                 <td>
-                    <input type="checkbox" name="assign-am-flag" value="1" <?php echo $info['assign-am-flag']?'checked="checked"':''; ?>>
+                    <label><input type="checkbox" name="assign-am-flag" value="1" <?php echo $info['assign-am-flag']?'checked="checked"':''; ?>>
                     <?php echo __(
-                    'Assign tickets from this organization to the <em>Account Manager</em>'); ?>
+                    'Assign tickets from this organization to the <em>Account Manager</em>'); ?></label>
             </tr>
             <tr>
                 <td width="180">
@@ -126,8 +126,8 @@ if ($ticket && $ticket->getOwnerId() == $user->getId())
                     <?php echo __('Primary Contacts'); ?>:
                 </td>
                 <td>
-                    <input type="checkbox" name="collab-pc-flag" value="1" <?php echo $info['collab-pc-flag']?'checked="checked"':''; ?>>
-                    <?php echo __('Add to all tickets from this organization'); ?>
+                    <label><input type="checkbox" name="collab-pc-flag" value="1" <?php echo $info['collab-pc-flag']?'checked="checked"':''; ?>>
+                    <?php echo __('Add to all tickets from this organization'); ?></label>
                 </td>
             </tr>
             <tr>
@@ -135,8 +135,8 @@ if ($ticket && $ticket->getOwnerId() == $user->getId())
                     <?php echo __('Organization Members'); ?>:
                 </td>
                 <td>
-                    <input type="checkbox" name="collab-all-flag" value="1" <?php echo $info['collab-all-flag']?'checked="checked"':''; ?>>
-                    <?php echo __('Add to all tickets from this organization'); ?>
+                    <label><input type="checkbox" name="collab-all-flag" value="1" <?php echo $info['collab-all-flag']?'checked="checked"':''; ?>>
+                    <?php echo __('Add to all tickets from this organization'); ?></label>
                 </td>
             </tr>
             <tr>

@@ -18,11 +18,11 @@
         </div>
     </div>
     <div class="span6">
-    <input type="checkbox" name="flags[]" value="<?php
+    <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_ENABLED; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_ENABLED)) echo 'checked="checked"';
             if ($field->hasFlag(DynamicFormField::FLAG_MASK_DISABLE)) echo ' disabled="disabled"';
-        ?>> <?php echo __('Enabled'); ?><br/>
+        ?>> <?php echo __('Enabled'); ?></label><br/>
     </div>
     <hr class="faded"/>
 
@@ -34,18 +34,18 @@
         </div>
     </div>
     <div class="span3">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_CLIENT_VIEW; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_CLIENT_VIEW)) echo 'checked="checked"';
             if ($field->isPrivacyForced()) echo ' disabled="disabled"';
-        ?>> <?php echo __('For EndUsers'); ?><br/>
+        ?>> <?php echo __('For EndUsers'); ?></label><br/>
     </div>
     <div class="span3">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_AGENT_VIEW; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_AGENT_VIEW)) echo 'checked="checked"';
             if ($field->isPrivacyForced()) echo ' disabled="disabled"';
-        ?>> <?php echo __('For Agents'); ?><br/>
+        ?>> <?php echo __('For Agents'); ?></label><br/>
     </div>
 
 <?php if ($field->getImpl()->hasData()) { ?>
@@ -59,18 +59,18 @@
         </div>
     </div>
     <div class="span3">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_CLIENT_REQUIRED; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_CLIENT_REQUIRED)) echo 'checked="checked"';
             if ($field->isRequirementForced()) echo ' disabled="disabled"';
-        ?>> <?php echo __('For EndUsers'); ?><br/>
+        ?>> <?php echo __('For EndUsers'); ?></label><br/>
     </div>
     <div class="span3">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_AGENT_REQUIRED; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_AGENT_REQUIRED)) echo 'checked="checked"';
             if ($field->isRequirementForced()) echo ' disabled="disabled"';
-        ?>> <?php echo __('For Agents'); ?><br/>
+        ?>> <?php echo __('For Agents'); ?></label><br/>
     </div>
     <hr class="faded"/>
 
@@ -83,16 +83,16 @@
     </div>
 
     <div class="span3">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_CLIENT_EDIT; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_CLIENT_EDIT)) echo 'checked="checked"';
-        ?>> <?php echo __('For EndUsers'); ?><br/>
+        ?>> <?php echo __('For EndUsers'); ?></label><br/>
     </div>
     <div class="span3">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_AGENT_EDIT; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_AGENT_EDIT)) echo 'checked="checked"';
-        ?>> <?php echo __('For Agents'); ?><br/>
+        ?>> <?php echo __('For Agents'); ?></label><br/>
     </div>
 
 <?php if (in_array($field->get('form')->get('type'), array('G', 'T', 'A'))) { ?>
@@ -107,10 +107,10 @@
         </div>
     </div>
     <div class="span6">
-        <input type="checkbox" name="flags[]" value="<?php
+        <label><input type="checkbox" name="flags[]" value="<?php
             echo DynamicFormField::FLAG_CLOSE_REQUIRED; ?>" <?php
             if ($field->hasFlag(DynamicFormField::FLAG_CLOSE_REQUIRED)) echo 'checked="checked"';
-        ?>> <?php echo __('Require entry to close a thread'); ?><br/>
+        ?>> <?php echo __('Require entry to close a thread'); ?></label><br/>
     </div>
 <?php } ?>
 <?php } ?>

@@ -99,7 +99,7 @@ $def_priority = ($c = $cfg->getDefaultPriority()) ? $c->getDesc() : '';
                 $default=($id==$defaultId);
                 ?>
             <tr id="<?php echo $id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]"
                     value="<?php echo $id; ?>"
                     <?php echo $sel ? 'checked="checked" ' : ''; ?>

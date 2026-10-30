@@ -132,7 +132,7 @@ $showing = $pageNav->showing().' '._N('department', 'departments', $count);
                 $default= ($defaultId == $dept->getId()) ?' <small>'.__('(Default)').'</small>' : '';
                 ?>
             <tr id="<?php echo $id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]"
                   value="<?php echo $id; ?>"
                   <?php echo $sel? 'checked="checked"' : ''; ?>

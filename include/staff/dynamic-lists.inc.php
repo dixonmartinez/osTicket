@@ -56,7 +56,7 @@ $showing=$pageNav->showing().' '._N('custom list', 'custom lists', $count);
             if ($ids && in_array($form->get('id'),$ids))
                 $sel = true; ?>
         <tr>
-            <td align="center">
+            <td class="centered">
                 <?php
                 if ($list->isDeleteable()) { ?>
                 <input width="7" type="checkbox" class="ckb" name="ids[]"

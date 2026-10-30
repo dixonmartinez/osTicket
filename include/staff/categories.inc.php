@@ -90,7 +90,7 @@ $pageNav->paginate($categories);
                 $faqs=sprintf('<a href="faq.php?cid=%d">%d</a>',$C->getId(),$C->faq_count);
             ?>
             <tr id="<?php echo $C->getId(); ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" name="ids[]" value="<?php echo $C->getId(); ?>" class="ckb"
                             <?php echo $sel?'checked="checked"':''; ?>>
                 </td>

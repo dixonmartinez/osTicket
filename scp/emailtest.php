@@ -128,10 +128,10 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
         </tr>
     </tbody>
 </table>
-<p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo __('Send Message');?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="emails.php">
+    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo __('Send Message');?>">
 </p>
 </form>
 <?php

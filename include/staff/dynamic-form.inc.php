@@ -182,7 +182,7 @@ if ($form && count($langs) > 1) { ?>
         $fi = $f->getImpl();
         $ferrors = $f->errors(); ?>
         <tr>
-            <td align="center"><i class="icon-sort"></i></td>
+            <td class="centered"><i class="icon-sort"></i></td>
             <td><input type="text" size="32" name="label-<?php echo $id; ?>"
                 data-translate-tag="<?php echo $f->getTranslateTag('label'); ?>"
                 value="<?php echo Format::htmlchars($f->get('label')); ?>"/>
@@ -221,7 +221,7 @@ if ($form && count($langs) > 1) { ?>
                     if ($ferrors['name']) echo '<br/>'; echo $ferrors['name'];
                 ?></font>
                 </td>
-            <td align="center">
+            <td class="centered">
                 <label title="<?php echo Format::htmlchars(sprintf(__('Delete %s'),
                     $f->get('label'))); ?>"><input class="delete-box" type="checkbox"
                     name="delete-<?php echo $id; ?>"
@@ -237,7 +237,7 @@ if ($form && count($langs) > 1) { ?>
     <?php
     }
     for ($i=0; $i<$newcount; $i++) { ?>
-            <td align="center"><em>+</em>
+            <td class="centered"><em>+</em>
                 <input type="hidden" name="sort-new-<?php echo $i; ?>"
                     value="<?php echo $info["sort-new-$i"]; ?>"/></td>
             <td><input type="text" size="32" name="label-new-<?php echo $i; ?>"

@@ -110,7 +110,7 @@ $qstr .= '&amp;order='.urlencode($order=='DESC' ? 'ASC' : 'DESC');
                     $sel=true;
                 ?>
             <tr id="<?php echo $id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]"
                   value="<?php echo $id; ?>"
                             <?php echo $sel ? 'checked="checked"' : ''; ?>> </td>

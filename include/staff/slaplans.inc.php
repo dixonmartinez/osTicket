@@ -115,7 +115,7 @@ $qstr .= '&amp;order='.($order=='DESC' ? 'ASC' : 'DESC');
                     $default = '<small><em>(Default)</em></small>';
                 ?>
             <tr id="<?php echo $id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]" value="<?php echo $id; ?>"
                     <?php echo $sel ? 'checked="checked"' :'' ; ?>>
                 </td>

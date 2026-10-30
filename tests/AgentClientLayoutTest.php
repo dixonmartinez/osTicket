@@ -29,14 +29,23 @@ class AgentClientLayoutTest extends UnitTestCase {
         return (string) file_get_contents(ROOT_DIR . '/' . $ruta);
     }
 
-    /** Pantallas del panel del agente que dibujan un formulario. */
+    /**
+     * Pantallas del panel del agente que dibujan un formulario.
+     *
+     * Incluye `include/staff/templates/`, que es donde viven la ficha del
+     * ticket y la de la tarea: la segunda se quedó con el pie centrado cuando
+     * se arregló la primera, porque el glob sólo miraba el primer nivel.
+     */
     private function plantillasDelAgente(): array {
         $salida = array();
-        foreach (glob(ROOT_DIR . '/include/staff/*.inc.php') as $ruta) {
-            $php = (string) file_get_contents($ruta);
-            if (strpos($php, '<form') === false)
-                continue;
-            $salida[] = 'include/staff/' . basename($ruta);
+        foreach (array('include/staff/*.inc.php',
+                'include/staff/templates/*.tmpl.php') as $patron) {
+            foreach (glob(ROOT_DIR . '/' . $patron) as $ruta) {
+                $php = (string) file_get_contents($ruta);
+                if (strpos($php, '<form') === false)
+                    continue;
+                $salida[] = substr($ruta, strlen(ROOT_DIR) + 1);
+            }
         }
         sort($salida);
 
@@ -125,8 +134,10 @@ class AgentClientLayoutTest extends UnitTestCase {
     /* ------------------------------------------------------------------ */
 
     public function testNingunPieSeCentraConEstiloEnLinea(): void {
+        // `scp/emailtest.php` es la única pantalla del panel que no vive en
+        // `include/staff/` y también tenía el pie centrado a mano.
         $pantallas = array_merge($this->plantillasDelAgente(),
-            $this->plantillasDelCliente());
+            $this->plantillasDelCliente(), array('scp/emailtest.php'));
 
         $this->assertTrue(count($pantallas) > 30,
             sprintf('sólo se revisaron %d plantillas', count($pantallas)));

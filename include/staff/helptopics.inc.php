@@ -130,7 +130,7 @@ $order_by = 'sort';
                 $priority = $topic->priority ?: $defaultPriority;
                 ?>
             <tr id="<?php echo $id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="hidden" name="sort-<?php echo $id; ?>" value="<?php
                         echo $topic->sort ?: $sort; ?>"/>
                   <input type="checkbox" class="ckb" name="ids[]"

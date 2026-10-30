@@ -102,7 +102,7 @@ else
                 $inuse = ($page->topics || in_array($page->id, $defaultPages));
                 ?>
             <tr id="<?php echo $page->id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]" value="<?php echo $page->id; ?>"
                             <?php echo $sel?'checked="checked"':''; ?>>
                 </td>

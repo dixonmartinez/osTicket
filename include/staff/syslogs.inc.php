@@ -157,7 +157,7 @@ else
                     $sel=true;
                 ?>
             <tr id="<?php echo $row['log_id']; ?>">
-                <td align="center" nowrap>
+                <td class="centered" nowrap>
                   <input type="checkbox" class="ckb" name="ids[]" value="<?php echo $row['log_id']; ?>"
                             <?php echo $sel?'checked="checked"':''; ?>> </td>
                 <td>&nbsp;<a class="tip" href="#log/<?php echo $row['log_id']; ?>"><?php echo Format::htmlchars($row['title']); ?></a></td>

@@ -196,7 +196,7 @@ $agents->limit($pageNav->getLimit())->offset($pageNav->getStart());
                     $sel=true;
                 ?>
                <tr id="<?php echo $id; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]"
                   value="<?php echo $id; ?>" <?php echo $sel ? 'checked="checked"' : ''; ?> >
                 <td><a href="staff.php?id=<?php echo $id; ?>"><?php echo

@@ -186,7 +186,7 @@ else
                     $sel=true;
                 ?>
                <tr id="<?php echo $U['id']; ?>">
-                <td nowrap align="center">
+                <td class="centered" nowrap>
                     <input type="checkbox" value="<?php echo $U['id']; ?>" class="ckb mass nowarn"/>
                 </td>
                 <td>&nbsp;

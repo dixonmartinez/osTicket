@@ -62,14 +62,14 @@ else { ?>
 
     <?php
     if (($num=$user->tickets->count())) {
-        echo '<div><input type="checkbox" name="deletetickets" value="1" > <strong>'
+        echo '<div><label><input type="checkbox" name="deletetickets" value="1" > <strong>'
             .sprintf(__('Delete %1$s %2$s %3$s and any associated attachments and data.'),
                 sprintf('<a href="tickets.php?a=search&uid=%d" target="_blank">',
                     $user->getId()),
                 sprintf(_N('one ticket', '%d tickets', $num), $num),
                 '</a>'
             )
-            .'</strong></div><hr>';
+            .'</strong></label></div><hr>';
     }
     ?>
         <p class="full-width">

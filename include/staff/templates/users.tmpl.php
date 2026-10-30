@@ -127,7 +127,7 @@ if ($num) { ?>
                     $sel=true;
                 ?>
                <tr id="<?php echo $row['id']; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]"
                     value="<?php echo $row['id']; ?>" <?php echo $sel?'checked="checked"':''; ?> >
                 </td>

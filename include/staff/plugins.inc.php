@@ -74,7 +74,7 @@ $selected = array_map('intval', (array) ($_POST['ids'] ?? array()));
 foreach ($plugins as $p) {
     $sel = in_array((int) $p->getId(), $selected); ?>
     <tr>
-        <td align="center"><input type="checkbox" class="ckb" name="ids[]"
+        <td class="centered"><input type="checkbox" class="ckb" name="ids[]"
             value="<?php echo $p->getId(); ?>" aria-label="<?php
             echo Format::htmlchars($p->getName()); ?>"<?php
             echo $sel ? ' checked="checked"' : ''; ?>></td>

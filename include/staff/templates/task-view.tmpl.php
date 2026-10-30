@@ -645,9 +645,9 @@ else
                 </td>
             </tr>
         </table>
-       <p  style="text-align:center;">
-           <input class="save pending" type="submit" value="<?php echo __('Post Update');?>">
+       <p class="form-actions">
            <input type="reset" value="<?php echo __('Reset');?>">
+           <input class="save pending" type="submit" value="<?php echo __('Post Update');?>">
        </p>
     </form>
     <?php
@@ -705,9 +705,9 @@ else
                 </td>
             </tr>
         </table>
-       <p  style="text-align:center;">
-           <input class="save pending" type="submit" value="<?php echo __('Post Note');?>">
+       <p class="form-actions">
            <input type="reset" value="<?php echo __('Reset');?>">
+           <input class="save pending" type="submit" value="<?php echo __('Post Note');?>">
        </p>
     </form>
  </div>

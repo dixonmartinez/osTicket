@@ -162,13 +162,13 @@ foreach ($tickets as $t) {
     <hr>
     <?php echo ($title == 'merge') ? __('Merge Type: ') : ''; ?>
     <?php echo ($title == 'merge') ? '<i class="help-tip icon-question-sign" href="#merge_types"></i>' : ''; ?><br>
-    <input <?php echo ($title == 'link') ? 'style="display:none"' : '';?> type="radio" name="combine" value="1"
+    <label><input <?php echo ($title == 'link') ? 'style="display:none"' : '';?> type="radio" name="combine" value="1"
            <?php echo ($ticket->getMergeType() == 'combine' || ($title == 'merge' && !$parent))?'checked="checked"':''; ?>>
-           <?php echo ($title == 'merge') ? __('Combine Threads') : '';?>
-    <input <?php echo ($title == 'link') ? 'style="display:none"' : '';?> type="radio" name="combine" value="0"
+           <?php echo ($title == 'merge') ? __('Combine Threads') : '';?></label>
+    <label><input <?php echo ($title == 'link') ? 'style="display:none"' : '';?> type="radio" name="combine" value="0"
            <?php echo ($ticket->getMergeType() == 'separate')?'checked="checked"':''; ?>>
-           <?php echo ($title == 'merge') ? __('Separate Threads') : '';?>
-    <input style="display:none" type="radio" name="combine" value="2" <?php echo ($ticket->getMergeType() == 'visual' && $title == 'link')?'checked="checked"':''; ?>>
+           <?php echo ($title == 'merge') ? __('Separate Threads') : '';?></label>
+    <label><input style="display:none" type="radio" name="combine" value="2" <?php echo ($ticket->getMergeType() == 'visual' && $title == 'link')?'checked="checked"':''; ?>></label>
 </div>
 <?php if ($title == 'merge') { ?>
 <hr>

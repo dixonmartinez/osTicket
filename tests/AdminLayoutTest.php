@@ -116,6 +116,41 @@ class AdminLayoutTest extends UnitTestCase {
     /* ------------------------------------------------------------------ */
 
     /**
+     * Las celdas se centran con `class="centered"`, no con `align="center"`.
+     *
+     * `align` es un atributo de HTML 3.2 que HTML5 retiró: el navegador lo
+     * sigue aplicando por compatibilidad, pero no lo puede cambiar una hoja
+     * (lo que se escribe en la etiqueta gana) y ensucia el HTML de todas las
+     * listas —26 pantallas lo llevaban en la columna de las casillas o de los
+     * iconos—. `.centered` ya estaba en `scp/css/scp.css`, así que la
+     * conversión no necesita una regla nueva.
+     */
+    public function testLasCeldasNoCentranConElAtributoAlign(): void {
+        $quedan = array();
+        $revisadas = 0;
+
+        $patrones = array('include/staff/*.inc.php',
+            'include/staff/templates/*.tmpl.php', 'include/client/*.php',
+            'include/client/*.inc.php', 'scp/*.php');
+
+        foreach ($patrones as $patron) {
+            foreach (glob(ROOT_DIR . '/' . $patron) as $ruta) {
+                $revisadas++;
+                $php = (string) file_get_contents($ruta);
+                if (preg_match('/<(?:td|th|p|div)\b[^>]*\balign="center"/i',
+                        $php))
+                    $quedan[] = substr($ruta, strlen(ROOT_DIR) + 1);
+            }
+        }
+
+        $this->assertTrue($revisadas > 60,
+            sprintf('sólo se revisaron %d archivos', $revisadas));
+        $this->assertSame(array(), $quedan,
+            'estas pantallas siguen centrando con `align="center"`: '
+                . implode(', ', $quedan));
+    }
+
+    /**
      * `input[type=checkbox]` fuera de un `<label>` sólo se puede marcar en el
      * cuadradito. Es la queja que más se repite: «no se puede pulsar el
      * texto».

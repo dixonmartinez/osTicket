@@ -85,9 +85,9 @@ if (isset($errors['err'])) {
                         name="name"
                         disabled="disabled"
                         value="<?php echo $addr; ?>"/>&nbsp;
-                    <input type="checkbox" name="strict_matching"
+                    <label><input type="checkbox" name="strict_matching"
                         <?php if ($info['strict_matching']) echo 'checked="checked"'; ?>>
-                    &nbsp;<?php echo __('Strict Matching'); ?>
+                    &nbsp;<?php echo __('Strict Matching'); ?></label>
                     <i class="help-tip icon-question-sign" href="#strict_matching"></i>
                     <span class="error"><br/> <?php echo $errors['name']; ?></span>
                 </td>

@@ -126,18 +126,18 @@ if ($info['error']) {
             <tr>
                 <td colspan="2">
                 <?php
-                  echo sprintf('<div><input type="checkbox" name="locked-flag" %s
-                       value="1"> %s</div>',
+                  echo sprintf('<div><label><input type="checkbox" name="locked-flag" %s
+                       value="1"> %s</label></div>',
                        $account->isLocked() ?  'checked="checked"' : '',
                        __('Administratively Locked')
                        );
                   ?>
-                   <div><input type="checkbox" name="pwreset-flag" value="1" <?php
+                   <div><label><input type="checkbox" name="pwreset-flag" value="1" <?php
                     echo $account->isPasswdResetForced() ?
-                    'checked="checked"' : ''; ?>> <?php echo __('Password Reset Required'); ?></div>
-                   <div><input type="checkbox" name="forbid-pwchange-flag" value="1" <?php
+                    'checked="checked"' : ''; ?>> <?php echo __('Password Reset Required'); ?></label></div>
+                   <div><label><input type="checkbox" name="forbid-pwchange-flag" value="1" <?php
                     echo !$account->isPasswdResetEnabled() ?
-                    'checked="checked"' : ''; ?>> <?php echo __('User cannot change password'); ?></div>
+                    'checked="checked"' : ''; ?>> <?php echo __('User cannot change password'); ?></label></div>
                 </td>
             </tr>
         </tbody>

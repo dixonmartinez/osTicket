@@ -137,7 +137,7 @@ else
                 $sel=true;
             ?>
            <tr id="<?php echo $org['id']; ?>">
-            <td nowrap align="center">
+            <td class="centered" nowrap>
                 <input type="checkbox" value="<?php echo $org['id']; ?>" class="ckb mass nowarn"/>
             </td>
             <td>&nbsp; <a href="orgs.php?id=<?php echo $org['id']; ?>"><?php

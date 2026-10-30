@@ -143,7 +143,7 @@ else
                 $files=$row['files']?'<span class="Icon file">&nbsp;</span>':'';
                 ?>
             <tr id="<?php echo $row['canned_id']; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" name="ids[]" value="<?php echo $row['canned_id']; ?>" class="ckb"
                             <?php echo $sel?'checked="checked"':''; ?> />
                 </td>

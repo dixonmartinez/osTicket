@@ -13,11 +13,11 @@
 if ($schedule) { ?>
 <hr>
 <div>
-<input type="checkbox" checked="checked"
+<label><input type="checkbox" checked="checked"
     name="sid"
     value="<?php echo $schedule->getId(); ?>">
 &nbsp;<?php echo sprintf('Clone %s Entries',sprintf('<u>%s</u>',
-            $schedule->getName())); ?>
+            $schedule->getName())); ?></label>
     <div class="error"><?php echo $errors['sid']; ?> </div>
 </div>
 <?php

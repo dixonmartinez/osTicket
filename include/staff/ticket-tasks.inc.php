@@ -105,17 +105,17 @@ if ($count) { ?>
 
         ?>
         <tr id="<?php echo $id; ?>">
-            <td align="center" class="nohover">
+            <td class="nohover centered">
                 <input class="ckb" type="checkbox" name="tids[]"
                 value="<?php echo $id; ?>" <?php echo $sel?'checked="checked"':''; ?>>
             </td>
-            <td align="center" nowrap>
+            <td class="centered" nowrap>
               <a class="Icon no-pjax preview"
                 title="<?php echo __('Preview Task'); ?>"
                 href="<?php echo $viewhref; ?>"
                 data-preview="#tasks/<?php echo $id; ?>/preview"
                 ><?php echo $task->getNumber(); ?></a></td>
-            <td align="center" nowrap><?php echo
+            <td class="centered" nowrap><?php echo
             Format::datetime($task->created); ?></td>
             <td><?php echo $status; ?></td>
             <td>

@@ -387,7 +387,7 @@ if ($thisstaff->hasPerm(Task::PERM_DELETE, false)) {
                     if ($ids && in_array($T['id'], $ids))
                         $sel = true;
                     ?>
-                <td align="center" class="nohover">
+                <td class="nohover centered">
                     <input class="ckb" type="checkbox" name="tids[]"
                         value="<?php echo $T['id']; ?>" <?php echo $sel?'checked="checked"':''; ?>>
                 </td>
@@ -402,7 +402,7 @@ if ($thisstaff->hasPerm(Task::PERM_DELETE, false)) {
                     href="tickets.php?id=<?php echo $T['ticket__ticket_id']; ?>"
                     data-preview="#tickets/<?php echo $T['ticket__ticket_id']; ?>/preview"
                     ><?php echo $T['ticket__number']; ?></a></td>
-                <td align="center" nowrap><?php echo
+                <td class="centered" nowrap><?php echo
                 Format::datetime($T[$date_col ?: 'created']); ?></td>
                 <td><a <?php if ($flag) { ?> class="Icon <?php echo $flag; ?>Ticket" title="<?php echo ucfirst($flag); ?> Ticket" <?php } ?>
                     href="tasks.php?id=<?php echo $T['id']; ?>"><?php

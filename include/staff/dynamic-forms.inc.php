@@ -63,7 +63,7 @@ $showing=$pageNav->showing().' '._N('form','forms',$count);
             ->filter(array('type__in'=>array_keys($forms)))
             ->order_by('type', 'title') as $form) { ?>
         <tr>
-        <td align="center"><i class="<?php echo $forms[$form->get('type')]; ?>"></i></td>
+        <td class="centered"><i class="<?php echo $forms[$form->get('type')]; ?>"></i></td>
             <td><a href="?id=<?php echo $form->get('id'); ?>">
                 <?php echo $form->get('title'); ?></a>
             <td><?php echo $form->get('updated'); ?></td>
@@ -86,7 +86,7 @@ $showing=$pageNav->showing().' '._N('form','forms',$count);
             if($ids && in_array($form->get('id'),$ids))
                 $sel=true; ?>
         <tr>
-            <td align="center"><?php if ($form->isDeletable()) { ?>
+            <td class="centered"><?php if ($form->isDeletable()) { ?>
                 <input type="checkbox" class="ckb" name="ids[]" value="<?php echo $form->get('id'); ?>"
                     <?php echo $sel?'checked="checked"':''; ?>>
             <?php } ?></td>

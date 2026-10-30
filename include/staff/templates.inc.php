@@ -113,7 +113,7 @@ else
                 $default=($defaultTplId==$row['tpl_id'])?'<small class="faded">('.__('System Default').')</small>':'';
                 ?>
             <tr id="<?php echo $row['tpl_id']; ?>">
-                <td align="center">
+                <td class="centered">
                   <input type="checkbox" class="ckb" name="ids[]" value="<?php echo $row['tpl_id']; ?>"
                             <?php echo $sel?'checked="checked"':''; ?> <?php echo $default?'disabled="disabled"':''; ?> >
                 </td>

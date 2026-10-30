@@ -135,7 +135,7 @@ $num = count($rows);
                         $sel=true;
                     ?>
                    <tr id="<?php echo $row['id']; ?>">
-                    <td align="center">
+                    <td class="centered">
                       <input type="checkbox" class="ckb" name="ids[]" value="<?php echo $row['id']; ?>" <?php echo $sel?'checked="checked"':''; ?>>
                     </td>
                     <td>&nbsp;<a href="banlist.php?id=<?php echo $row['id']; ?>"><?php echo Format::htmlchars($row['val']); ?></a></td>
