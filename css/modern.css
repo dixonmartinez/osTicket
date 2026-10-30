@@ -352,6 +352,44 @@ ul#sub_nav {
     vertical-align: middle;
 }
 
+/* El desplegable de colas (`div.customQ-dropdown`) se abre con
+   `li.item:hover` y scp.css lo coloca a **31 px** del borde superior de la
+   pestana: una medida atada a la altura de la pestana original. Con la
+   pastilla de esta capa la pestana mide otra cosa, asi que quedaba aire entre
+   la pestana y el panel; al bajar el raton se salia de la pestana, el `:hover`
+   dejaba de cumplirse y el panel se cerraba justo antes de poder hacer clic.
+   Ahora se ancla al borde inferior de su propia pestana y lleva un puente
+   invisible encima, por si el alto cambia al pasar por encima.
+
+   `li.item` tiene que ser el sistema de referencia: scp.css solo se lo pone a
+   la barra de colas (`#customQ_nav ... li.item`) y el mismo desplegable se
+   usa en la pestana «Search». */
+.jb-overflowmenu-menu-primary > li.item {
+    position: relative;
+}
+
+.jb-overflowmenu-menu-primary div.customQ-dropdown {
+    top: 100%;
+    z-index: 12;
+}
+
+.jb-overflowmenu-menu-primary div.customQ-dropdown::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 8px;
+}
+
+/* Y que tambien se abra con el teclado: con el foco dentro de la pestana (o
+   del propio panel) el menu sigue desplegado, sin depender del raton. */
+#customQ_nav li.item:focus-within div.customQ-dropdown,
+#sub_nav li.item:focus-within div.customQ-dropdown,
+.jb-overflowmenu-menu-primary li.item:focus-within div.customQ-dropdown {
+    display: block;
+}
+
 /* Las pestanas de cola del panel son `li.item` y al pasar por encima scp.css
    les mete borde y les cambia el relleno: se movian 1 px al pasar el raton.
    Aqui el realce es el de la pastilla, sin desplazamiento. */

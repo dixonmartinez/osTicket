@@ -437,6 +437,17 @@ Dos cosas más que valían antes y ya no:
   nunca la pestaña activa ni `#new-ticket` (`.primary-only`) y sólo cierra si
   el menú secundario quedó vacío.
 
+**El desplegable se abría y se cerraba solo.** Se muestra con
+`li.item:hover div.customQ-dropdown`, y `scp.css` lo coloca a **31 px** del
+borde superior de la pestaña: una medida calculada para su pestaña original
+(26 px de `line-height` más 5 de relleno). Con la pastilla de la capa moderna
+la pestaña mide otra cosa, así que quedaba aire entre la pestaña y el panel; al
+bajar el ratón se salía de la pestaña, el `:hover` dejaba de cumplirse y el
+panel desaparecía justo antes de poder hacer clic. Ahora el panel se ancla al
+borde inferior de su propia pestaña (`top: 100%` con `li.item` como referencia)
+y lleva un puente invisible de 8 px encima, por si el alto cambia. De paso se
+abre también con el teclado (`li.item:focus-within`).
+
 Reglas para quien toque esta zona: **nada de `display: flex` ni `gap`** en
 `#nav`, `#sub_nav`, `#basic_search` ni `#customQ_nav`; la separación va por
 `margin` (`#nav > li + li { margin-left: 4px }`) y `#basic_search .attached.input`
@@ -1384,7 +1395,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 199 verificaciones (195 antes de las filas 42-44) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 203 verificaciones (195 antes de las filas 42-46) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1421,6 +1432,8 @@ queda en §6.2.
 | 42 | **El texto del editor dejaba de verse**: `addButtonAuto()` anclaba el botón que añade un plugin en el botón anterior de la lista, y para `fullscreen` ese anterior es el separador `\|`. Redactor buscaba `.re-\|` —que no es un selector CSS válido—, jQuery lanzaba `not a valid selector`, la excepción salía del `start()` del plugin y **abortaba el arranque del editor**: la caja quedaba a medio montar, sin `.redactor-in` y sin el papel del tema, así que el texto salía oscuro sobre fondo oscuro (y el segundo editor de la misma pantalla ni se inicializaba). Ahora se retrocede hasta el primer botón real y, mientras arranca, el `textarea` original se pinta en papel | ✅ Hecho | `js/redactor-osticket.js`, `css/dark.css`, `tests/EditorToolbarTest.php`, `make theme` |
 | 43 | **«NO FAQs found» con 33 artículos dentro**: el listado de la base de conocimiento busca las categorías de primer nivel con `category_pid IS NULL`, pero `Category::update()` guardaba **0** (`$vars['pid'] ?: 0`) y el sembrador pasaba `pid => 0`. Una categoría editada o sembrada desaparecía del listado y la pantalla se quedaba vacía mientras el desplegable de al lado contaba 33. Ahora se escribe `NULL` (como dice el esquema) y se leen las dos formas, para no obligar a migrar los datos que ya tienen ceros | ✅ Hecho | `include/class.category.php` (`topLevel()`, `parentIs()`), `include/staff/faq-categories.inc.php`, `include/cli/modules/seed.writes.php`, `tests/FaqCategoryTest.php`, `tests/QuerySqlTest.php` |
 | 44 | **La ficha de la FAQ en oscuro**: la respuesta se dibuja con `.thread-body`, que el tema reserva como «papel claro» para el HTML de los correos; en la ficha salía un rectángulo blanco de 670 px en mitad de la pantalla oscura, y la barra lateral (`.sidebar`, `#F7FBFE` y borde azul de scp.css) dejaba «Help Topics», «Published» y «Manage Access» en gris claro sobre panel claro. Ahora la respuesta es una tarjeta con los tokens del tema y la barra lateral sigue el oscuro | ✅ Hecho | `css/dark.css`, `css/modern.css`, `make theme` |
+| 45 | **El desplegable de colas desaparecía antes de poder hacer clic**: se abre con `li.item:hover` y scp.css lo coloca a **31 px** del borde de la pestaña, la altura de su pestaña original; con la pastilla de la capa moderna quedaban varios píxeles de aire entre la pestaña y el panel, así que al bajar el ratón se salía de la pestaña, el `:hover` dejaba de cumplirse y el panel se cerraba antes del clic. Ahora se ancla al borde inferior (`top: 100%`), lleva un puente invisible de 8 px y se abre también con el teclado (`:focus-within`) (§3.5.3) | ✅ Hecho | `css/modern.css`, `make theme` |
+| 46 | **El icono de comentarios de las colas no se veía en oscuro**: el recuento de entradas del hilo va dentro de `.faded-more`, que scp.css pinta con **negro al 35 %** —un gris pensado para papel—. Se veía el número y no el icono. Ahora usa el gris atenuado del tema | ✅ Hecho | `css/dark.css`, `make theme` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

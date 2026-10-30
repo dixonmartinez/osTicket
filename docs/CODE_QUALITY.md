@@ -913,7 +913,25 @@ Los tres se fijan con pruebas que no necesitan navegador: una de estructura
 en `tests/EditorToolbarTest.php` (contra el propio `addButtonAuto`), cuatro en
 `tests/FaqCategoryTest.php` y una de compilación en `tests/QuerySqlTest.php`
 que exige que «nulo o cero» sea un `OR`. Y cuatro comprobaciones nuevas en
-`make theme` (199).
+`make theme` (203).
+
+**Dos defectos más de las capturas: el `:hover` tenía un hueco y un gris de
+papel sobre fondo oscuro.**
+
+- **El desplegable de colas se cerraba antes del clic.** No había ningún
+  manejador de JavaScript de por medio: el panel se muestra con
+  `li.item:hover div.customQ-dropdown` y `scp.css` lo coloca a 31 px del borde
+  de la pestaña, una medida atada a la altura de la pestaña original. La capa
+  moderna cambió esa altura, así que entre la pestaña y el panel quedaba aire;
+  al bajar el ratón se salía de la pestaña —y el panel, aunque es hijo suyo,
+  se cerraba antes de llegar—. Se ancla con `top: 100%` sobre su propia
+  pestaña y lleva un puente invisible de 8 px. Es el tipo de fallo que no
+  aparece en una prueba de clic: aparece al mover el ratón, y por eso lo fija
+  `make theme` leyendo la hoja.
+- **El icono de comentarios de la fila de cola era invisible en oscuro.**
+  `class.queue.column.php` envuelve el recuento en `.faded-more`, y `scp.css`
+  lo pinta con `rgba(0,0,0,.35)`: gris de papel. Se veía el número y no el
+  icono, que es justo el que dice de qué es el número.
 
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 

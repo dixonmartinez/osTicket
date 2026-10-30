@@ -74,7 +74,11 @@
 //     abortaba su arranque y el texto quedaba invisible), y la ficha de la FAQ
 //     deja de usar el papel claro del hilo: respuesta y barra lateral siguen
 //     el tema oscuro.
-const VERSION = 'ost-v37';
+// v38: el desplegable de colas se ancla al borde inferior de su pestana (con
+//     31 px fijos quedaba un hueco y se cerraba antes de poder hacer clic) y
+//     las cifras atenuadas de las colas se ven en oscuro (el icono de
+//     comentarios era negro al 35 % sobre fondo oscuro).
+const VERSION = 'ost-v38';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

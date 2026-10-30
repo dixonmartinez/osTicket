@@ -477,6 +477,37 @@ check(substr_count($uicss, '--ost-nav-icon:') >= 60
     'los iconos de #nav y #sub_nav se dibujan con máscaras SVG',
     'css/ui.css no tiene las máscaras de #nav/#sub_nav: los iconos vuelven a ser PNG con fondo blanco');
 
+/** Barra de colas: el desplegable se queda abierto hasta poder hacer clic. */
+/* Se abre con `li.item:hover`, así que el panel tiene que tocar la pestaña:
+   scp.css lo coloca a 31 px (la altura de su pestaña original) y con la
+   pastilla de la capa moderna quedaban 3 px de aire. Al bajar el ratón hacia
+   el panel se salía de la pestaña, el `:hover` dejaba de cumplirse y el panel
+   desaparecía justo antes del clic. */
+check(strpos($sinComentarios, '.jb-overflowmenu-menu-primary div.customQ-dropdown {') !== false
+    && preg_match('/\.jb-overflowmenu-menu-primary div\.customQ-dropdown\s*\{[^}]*top:\s*100%/s',
+        $sinComentarios),
+    'el desplegable de colas se ancla al borde inferior de su pestana',
+    'el desplegable se queda a 31 px de la pestana: al bajar el raton se cierra antes del clic');
+
+check(preg_match('/div\.customQ-dropdown::before\s*\{[^}]*height:\s*8px/s',
+        $sinComentarios) === 1,
+    'el desplegable de colas tiene un puente invisible sobre el hueco',
+    'sin puente, un cambio de alto de la pestana vuelve a dejar el menu inalcanzable');
+
+check(strpos($sinComentarios, 'li.item:focus-within div.customQ-dropdown') !== false,
+    'el desplegable de colas tambien se abre con el teclado',
+    'el desplegable solo responde al raton: con Tab no se llega a las colas');
+
+/* El icono de comentarios de las colas (`class.queue.column.php`) va dentro de
+   un `.faded-more`, que scp.css pinta con negro al 35 %: en oscuro se veia el
+   numero y no el icono. */
+$darkPlano = preg_replace('#/\*.*?\*/#s', '', $dark);
+check(strpos($darkPlano, '.faded-more,') !== false
+    && preg_match('/html\[data-theme="dark"\] \.faded-more[^{]*\{[^}]*color:\s*var\(--dk-text/s',
+        $darkPlano),
+    'las cifras atenuadas de las colas se ven en oscuro',
+    '.faded-more sigue en rgba(0,0,0,.35): el icono de comentarios desaparece sobre fondo oscuro');
+
 $preview = read("$root/docs/theme-preview.html");
 check(strpos($preview, 'id="error_bar"') !== false
     && strpos($preview, 'class="error-banner"') !== false,

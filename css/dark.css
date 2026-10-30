@@ -132,6 +132,20 @@ html[data-theme="dark"] small.muted {
     color: var(--dk-text-muted);
 }
 
+/* scp.css pinta `.faded-more` con negro al 35 % —un gris pensado para papel—
+   y es lo que llevan el icono de comentarios y el número de entradas del
+   hilo en las colas (class.queue.column.php). En oscuro quedaba invisible:
+   se veía el número «6» y no el icono. */
+html[data-theme="dark"] .faded-more,
+html[data-theme="dark"] .faded-more i {
+    color: var(--dk-text-muted);
+}
+
+html[data-theme="dark"] .faded strong,
+html[data-theme="dark"] .faded b {
+    color: var(--dk-text);
+}
+
 /* ================================================================== */
 /* 3. Cabecera y navegación                                           */
 /* ================================================================== */
