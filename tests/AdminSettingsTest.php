@@ -300,4 +300,171 @@ class AdminSettingsTest extends UnitTestCase {
             . '|\.tabs li\.active[^{]*\{[^}]*border-left-color:\s*var\(--dk-border\)/s',
             $dark, 'la pestaña activa perdió el trazo de acento del borde superior');
     }
+
+    /* ------------------------------------------------------------------ */
+    /* 7. Los formularios largos                                          */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Sistema tenía una sola tabla con las cuatro secciones: para llegar a
+     * «Login required» había que bajar más de dos pantallas. Ahora cada
+     * sección es una pestaña, como en Perfil de la empresa y en Tickets.
+     */
+    public function testElSistemaSeReparteEnPestanas(): void {
+        $php = $this->fichero('include/staff/settings-system.inc.php');
+
+        $pestanas = array(
+            'system-general' => 'name="log_graceperiod"',
+            'system-datetime' => 'name="date_formats"',
+            'system-languages' => 'name="system_language"',
+            'system-attachments' => 'name="default_storage_bk"',
+        );
+
+        $anterior = -1;
+        foreach ($pestanas as $id => $campo) {
+            $enlace = strpos($php, sprintf('href="#%s"', $id));
+            $this->assertTrue($enlace !== false,
+                sprintf('el sistema perdió la pestaña %s', $id));
+
+            $contenido = strpos($php, sprintf('<div class="tab_content" id="%s">', $id));
+            if ($contenido === false)
+                $contenido = strpos($php,
+                    sprintf('<div class="hidden tab_content" id="%s">', $id));
+            $this->assertTrue($contenido !== false,
+                sprintf('la pestaña %s no tiene contenido', $id));
+
+            $this->assertTrue($enlace < $contenido,
+                sprintf('el enlace de %s va después de su contenido', $id));
+            $this->assertTrue($contenido > $anterior,
+                sprintf('la pestaña %s está fuera de orden', $id));
+            $anterior = $contenido;
+
+            $donde = strpos($php, $campo);
+            $this->assertTrue($donde !== false,
+                sprintf('el campo %s desapareció de los ajustes', $campo));
+            $this->assertTrue($donde > $contenido,
+                sprintf('el campo %s quedó en otra pestaña', $campo));
+        }
+
+        // Y sólo la primera se ve al entrar.
+        $this->assertStringContainsString('<div class="tab_content" id="system-general">',
+            $php, 'la primera pestaña del sistema arranca oculta');
+        $this->assertFalse(
+            strpos($php, '<div class="tab_content" id="system-datetime">') !== false,
+            'la segunda pestaña del sistema no está oculta');
+    }
+
+    /**
+     * La pestaña «Settings» de Tickets tenía las casillas de comportamiento
+     * mezcladas con los desplegables de numeración. Ahora están aparte.
+     */
+    public function testLasOpcionesDeLosTicketsVanAparte(): void {
+        $php = $this->fichero('include/staff/settings-tickets.inc.php');
+
+        $this->assertStringContainsString('<a href="#options">', $php,
+            'los tickets perdieron la pestaña de opciones');
+
+        $opciones = strpos($php, '<div class="hidden tab_content" id="options">');
+        $this->assertTrue($opciones !== false, 'la pestaña de opciones no tiene contenido');
+
+        foreach (array('Human Verification', 'Collaborator Tickets Visibility',
+            'Claim on Response', 'Auto-refer on Close',
+            'Require Help Topic to Close', 'Allow External Images') as $casilla) {
+            $donde = strpos($php, $casilla);
+            $this->assertTrue($donde !== false,
+                sprintf('la casilla %s desapareció de los ajustes de tickets', $casilla));
+            $this->assertTrue($donde > $opciones,
+                sprintf('la casilla %s se quedó en la pestaña de ajustes', $casilla));
+        }
+
+        // Los desplegables siguen en «Settings», antes del corte.
+        $this->assertTrue(strpos($php, 'Maximum Open Tickets') < $opciones,
+            'la numeración de tickets se coló en la pestaña de opciones');
+
+        // Las otras tres pestañas siguen ahí.
+        foreach (array('autoresp', 'alerts', 'queues') as $id)
+            $this->assertStringContainsString(
+                sprintf('id="%s"', $id), $php,
+                sprintf('los tickets perdieron la pestaña %s', $id));
+    }
+
+    /**
+     * Al guardar desde una pestaña se vuelve a ella: el `action` no lleva el
+     * hash y la respuesta abría siempre la primera.
+     */
+    public function testAlGuardarSeVuelveALaMismaPestana(): void {
+        $js = $this->fichero('scp/js/scp.js');
+
+        $this->assertMatchesRegularExpression(
+            '/\$\(document\)\.on\(\'submit\', \'form:has\(ul\.tabs\)\'/',
+            $js, 'guardar desde una pestaña devuelve a la primera');
+        $this->assertStringContainsString("action.split('#')[0] + hash", $js,
+            'el hash de la pestaña no se conserva al enviar el formulario');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* 8. Imágenes                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /** El selector de archivos sólo ofrece imágenes, y lo dice. */
+    public function testElSelectorSoloOfreceImagenes(): void {
+        $php = $this->fichero('include/staff/settings-pages.inc.php');
+
+        $accept = 'accept="image/png,image/jpeg,image/gif,image/webp"';
+        $this->assertSame(2, substr_count($php, $accept),
+            'los dos selectores de archivo (logo y fondo) tienen que ofrecer '
+            . 'sólo imágenes');
+
+        $this->assertSame(2,
+            substr_count($php, "<span class=\"hint\"><?php echo __('PNG, JPG, GIF or WebP'); ?></span>"),
+            'la pantalla no dice qué formatos se admiten');
+    }
+
+    /**
+     * El navegador se salta `accept` con un POST a mano: la comprobación del
+     * servidor no puede depender de que el PHP tenga GD, que era lo que la
+     * desactivaba entera.
+     */
+    public function testElServidorCompruebaQueSeaUnaImagen(): void {
+        $php = $this->fichero('include/class.file.php');
+
+        foreach (array('uploadLogo', 'uploadBackdrop') as $metodo) {
+            $inicio = strpos($php, "static function $metodo(");
+            $this->assertTrue($inicio !== false,
+                sprintf('%s desapareció', $metodo));
+            $fin = strpos($php, "\n    }", $inicio);
+            $cuerpo = substr($php, $inicio, $fin - $inicio);
+
+            $this->assertStringContainsString('self::_validateImage(', $cuerpo,
+                sprintf('%s guarda el archivo sin comprobar que sea una imagen',
+                    $metodo));
+            $this->assertFalse(strpos($cuerpo, "extension_loaded('gd')") !== false,
+                sprintf('%s vuelve a atar la comprobación a GD', $metodo));
+        }
+
+        $this->assertStringContainsString('FileInput::isImage(', $php,
+            'la comprobación de imagen no usa la lista de tipos admitidos');
+        $this->assertStringContainsString("__('Invalid image file type')", $php,
+            'se perdió el aviso de tipo de imagen no válido');
+    }
+
+    /**
+     * La fila «Default» de la galería lleva dos imágenes: con `flex` cada una
+     * pedía el ancho entero de la columna y la segunda se salía encima del
+     * nombre —el logo de osTicket es transparente y el texto blanco se veía a
+     * través—.
+     */
+    public function testLaGaleriaNoDejaQueLaImagenTapeElNombre(): void {
+        $css = $this->sinComentarios($this->fichero('css/modern.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.media-thumb\s*\{[^}]*display:\s*grid[^}]*'
+            . 'grid-auto-columns:\s*minmax\(0,\s*1fr\)/s', $css,
+            'la vista previa vuelve a dejar que dos imágenes se salgan de su '
+            . 'columna y tapen el nombre');
+
+        $this->assertMatchesRegularExpression(
+            '/\.media-thumb img\s*\{[^}]*max-width:\s*100%/s', $css,
+            'la imagen no se limita al ancho de su columna');
+    }
 }

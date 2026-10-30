@@ -985,6 +985,24 @@ simplemente no hace nada**, y un `selected` de más tampoco. `make theme` no
 puede verlo (es comportamiento), así que lo fijan
 `tests/AdminSettingsTest.php` y `tests/AdminSettingsTest::testNingunaOpcionQuedaMarcadaDosVeces`.
 
+**Administración: la validación de las imágenes dependía de una extensión
+opcional.**
+
+`AttachmentFile::uploadLogo()` y `uploadBackdrop()` comprobaban el tipo con
+`getimagesize()`… dentro de un `if (extension_loaded('gd'))`. En un PHP sin GD
+—que es perfectamente válido— no se comprobaba **nada**: se guardaba como logo
+el archivo que llegara y luego se servía desde el dominio del panel. El
+formulario tampoco lo impedía: el selector de archivos no llevaba `accept`, así
+que el diálogo ofrecía «All Files (*.*)».
+
+Ahora la comprobación no depende de GD: `getimagesize()` si está, `finfo` si
+no, y la extensión como último recurso. La lista de tipos admitidos y la
+normalización (`IMAGE/PNG`, `image/png; charset=binary`) viven en
+`FileInput::IMAGE_TYPES` / `FileInput::isImage()`, que es lo único de esto que
+se puede probar sin subir un archivo — y está probado en
+`tests/FileInputTest.php`. Un SVG queda fuera a propósito: es una imagen, pero
+también un documento con scripts, y se sirve desde el mismo dominio.
+
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
 - Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el

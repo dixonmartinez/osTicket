@@ -1413,6 +1413,93 @@ fila espaciadora. `php tests/run.php` → **1.016** pruebas (13 nuevas en
 botones, las cuatro casillas, las dos opciones que ahora no se duplican, la
 galería con sus etiquetas y la confirmación del borrado.
 
+### 3.16 Administración, tercera pasada: la galería y los formularios largos
+
+Otra tanda de capturas de `settings.php`, esta vez con tres avisos del usuario:
+un texto blanco que se veía *dentro* de los logos, que se podía subir cualquier
+archivo y que los ajustes obligaban a bajar y bajar.
+
+#### 3.16.1 El texto que se veía a través del logo
+
+La fila «Default» de *Logos* lleva **dos** imágenes —el logo del portal y el
+del panel— dentro de la misma columna:
+
+```php
+<div class="media-thumb">
+    <img src="assets/default/images/logo.png" ...>
+    <img src="scp/images/ost-logo.png" ...>
+</div>
+```
+
+`.media-thumb` era `display: flex` y cada `img` tenía `max-width: 100%`, que es
+el 100 % de la columna (220 px) **para cada una**: las dos juntas ocupaban
+440 px dentro de una columna de 220 y la segunda se salía por encima de
+`.media-info`. Como el logo de osTicket es un PNG transparente, el nombre y el
+tamaño —en blanco, sobre el tema oscuro— se veían *a través* de la imagen: eso
+era el «texto en blanco» de la captura.
+
+La vista previa pasa a ser una rejilla con una pista por imagen
+(`grid-auto-flow: column` + `grid-auto-columns: minmax(0, 1fr)`): con una
+imagen ocupa la columna entera; con dos, cada una toma la mitad. Ninguna puede
+invadir la columna del nombre.
+
+#### 3.16.2 Cualquier archivo valía como logo
+
+El selector de archivos no llevaba `accept`: el diálogo del sistema ofrecía
+«All Files (*.*)» (se ve en la captura) y el servidor guardaba lo que llegara
+como logo o como fondo de acceso, que después se sirve desde el dominio del
+panel.
+
+- **En el navegador**, `accept="image/png,image/jpeg,image/gif,image/webp"` en
+  los dos selectores, y al lado la lista de formatos (`.media-upload .hint`):
+  sin decirla, que el diálogo no ofrezca un PDF parece un fallo.
+- **En el servidor**, `AttachmentFile::uploadLogo()` / `uploadBackdrop()`
+  comprobaban el tipo **sólo si el PHP traía GD**:
+
+  ```php
+  if (extension_loaded('gd')) { ... getimagesize() ... }
+  ```
+
+  Sin GD no se comprobaba nada. Ahora la comprobación no depende de GD: mira el
+  contenido con `getimagesize()`, si no con `finfo` y, en el peor caso, con la
+  extensión del nombre. La lista de tipos admitidos vive en
+  `FileInput::IMAGE_TYPES` y se consulta con `FileInput::isImage()`, que
+  normaliza (`IMAGE/PNG`, `image/png; charset=binary`) antes de comparar. Un SVG
+  queda fuera a propósito: es una imagen, pero también un documento con
+  scripts, y se sirve desde el mismo dominio que el panel.
+
+#### 3.16.3 Los formularios largos, repartidos en pestañas
+
+*Sistema* era una sola tabla de cuatro secciones —34 filas, más de dos
+pantallas y media a 1080p— y en *Tickets* la pestaña «Settings» mezclaba la
+numeración de tickets con las casillas de comportamiento. Los dos usan ahora el
+mismo patrón que ya tenían *Perfil de la empresa* y los propios *Tickets*:
+
+| Pantalla | Antes | Ahora |
+|---|---|---|
+| Sistema | Una tabla con `GENERAL SETTINGS`, `DATE AND TIME OPTIONS`, `SYSTEM LANGUAGES` y `ATTACHMENTS…` | Cuatro pestañas: **General**, **Fecha y hora**, **Idiomas**, **Adjuntos** (14, 5, 2 y 3 filas) |
+| Tickets | «Settings» con 17 filas | **Settings** (numeración, estado, SLA, cola, límite) y **Options** (verificación humana, colaboradores, reclamar al responder, auto-referir, tema obligatorio, imágenes externas y adjuntos) |
+
+Las secciones no se han tocado por dentro: cada una es la misma tabla con su
+banda de título y su ayuda contextual, sólo que ahora es una pestaña. Y no se
+pierde nada al guardar: **al enviar, el `action` del formulario recibe el hash
+de la pestaña** (`scp/js/scp.js`), que `scp_prep` vuelve a leer al cargar la
+página. Antes, guardar desde «Idiomas» devolvía siempre a la primera pestaña.
+
+Las pestañas siguen siendo las de `scp.js` (`ul.tabs > li > a` → `div.tab_content`),
+así que el enlace directo (`settings.php?t=system#system-languages`) y el aviso
+de error en la pestaña (`div.error:not(:empty)` → `li.error`) siguen
+funcionando igual.
+
+**Cómo se comprueba.** `php tools/ui/theme-check.php` → **217**
+comprobaciones (antes 215): la rejilla de la vista previa y la pista de
+formatos. `php tests/run.php` → **1.027** pruebas, con **19** en
+`tests/AdminSettingsTest.php` (las pestañas del sistema con sus campos en su
+sitio, las opciones de tickets, el hash al guardar, `accept=`, la comprobación
+del servidor sin GD y la rejilla de la galería) y **22** en
+`tests/FileInputTest.php` (qué tipos pasan, la normalización y la extensión
+como último recurso). `sw.js` sube a **`ost-v41`**.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -1576,7 +1663,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 215 verificaciones (195 antes de las filas 42-48) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 217 verificaciones (195 antes de las filas 42-49) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1617,6 +1704,7 @@ queda en §6.2.
 | 46 | **El icono de comentarios de las colas no se veía en oscuro**: el recuento de entradas del hilo va dentro de `.faded-more`, que scp.css pinta con **negro al 35 %** —un gris pensado para papel—. Se veía el número y no el icono. Ahora usa el gris atenuado del tema | ✅ Hecho | `css/dark.css`, `make theme` |
 | 47 | **«El editor de nota no está enriquecido»**: dos capturas, el *Internal Notes* del diálogo *Add New Organization* y la nota rápida de la ficha de una organización. En el diálogo el campo llegaba marcado `richtext no-bar`, y `no-bar` monta la barra **flotante** (`air`): no había ni un botón a la vista hasta seleccionar texto, así que el campo se leía como un textarea plano. La nota rápida sí tenía barra, pero de **siete botones**: se montaba con `T.redactor({focusEnd: true})` a pelo y salía la barra de fábrica de Redactor, sin los botones ni los plugins de osTicket. Y las dos cajas se quedaban en el «papel» claro del tema (`--dk-editor-paper`), un bloque blanco en mitad de una pantalla oscura. Ahora los campos memo salen con barra visible y la nota rápida la monta el mismo `redact()` que el resto de la aplicación, con la barra completa (ocupa el ancho de la página) mientras los campos memo usan la barra corta, que es la que cabe en la celda de un formulario; las dos cajas llevan la marca `ost-note-editor` y el tema oscuro las pinta sobre su superficie, que es donde después se lee la nota (§3.12.7) | ✅ Hecho | `include/class.forms.widget.php`, `js/redactor-osticket.js`, `scp/js/scp.js`, `css/dark.css`, `tests/NoteEditorTest.php`, `tests/EditorToolbarTest.php`, `make theme` |
 | 48 | **Parte de administración (capturas de `settings.php`)**: seis defectos, dos de ellos de datos. (a) La banda de aviso salía como «⚠The setup directory…»: el icono que dibuja `css/ui.css` caía encima del texto porque la banda no reservaba su hueco. (b) `Save Changes` y `Reset Changes` eran dos botones idénticos, centrados y lejos de la tabla; en oscuro el principal perdía el acento porque la regla de botones del tema gana a la de «primario». (c) En *Logos* y *Login Backdrop* el borrado **no pedía confirmación**: el manejador estaba enganchado a `#save`, un formulario que no existe en esa pantalla. (d) `Never Purge Logs` y `Small` llevaban `selected` fijo, así que había dos opciones marcadas a la vez. (e) Las tablas de ajustes pedían `width="940"` y dejaban una franja muerta a la derecha de la pestaña; las casillas no tenían `<label for>`. (f) La galería de imágenes era una tabla anidada con los radios en columnas separadas de la imagen. Ahora hay barra de acciones con el acento en los dos temas, galería en filas con la opción marcada visible y el borrado confirmado en fase de captura (§3.15) | ✅ Hecho | `include/staff/settings-*.inc.php`, `include/staff/template.inc.php`, `include/staff/templates/dynamic-form.tmpl.php`, `css/modern.css`, `css/dark.css`, `tests/AdminSettingsTest.php`, `make theme` |
+| 49 | **Segunda tanda de `settings.php`**: tres avisos. (a) Se veía «un texto en blanco» dentro de los logos: la fila *Default* lleva dos imágenes y, con `flex`, cada una pedía la columna entera; la segunda se salía encima del nombre y el logo transparente dejaba ver el texto. (b) El selector de archivos ofrecía «All Files (*.*)» y el servidor sólo comprobaba que fuera imagen **si el PHP tenía GD**: sin esa extensión se guardaba como logo cualquier cosa. (c) *Sistema* pedía bajar más de dos pantallas y *Tickets* mezclaba numeración y casillas en una sola pestaña. Ahora la vista previa es una rejilla (una pista por imagen), los dos selectores llevan `accept` y el servidor valida el contenido con `getimagesize`/`finfo`/extensión, y los dos formularios se reparten en pestañas —Sistema: General, Fecha y hora, Idiomas, Adjuntos; Tickets: Settings y Options— conservando la pestaña al guardar (§3.16) | ✅ Hecho | `css/modern.css`, `include/staff/settings-{pages,system,tickets}.inc.php`, `include/class.file.php`, `include/class.file.input.php`, `scp/js/scp.js`, `tests/FileInputTest.php`, `tests/AdminSettingsTest.php`, `make theme` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

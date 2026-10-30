@@ -11,6 +11,8 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
 <ul class="clean tabs">
     <li class="active"><a href="#settings"><i class="icon-asterisk"></i>
         <?php echo __('Settings'); ?></a></li>
+    <li><a href="#options"><i class="icon-check"></i>
+        <?php echo __('Options'); ?></a></li>
     <li><a href="#autoresp"><i class="icon-mail-reply-all"></i>
         <?php echo __('Autoresponder'); ?></a></li>
     <li><a href="#alerts"><i class="icon-bell-alt"></i>
@@ -196,6 +198,13 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
                 <i class="help-tip icon-question-sign" href="#maximum_open_tickets"></i>
             </td>
         </tr>
+    </tbody>
+</table>
+</div>
+
+<div class="hidden tab_content" id="options">
+<table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
+    <tbody>
         <tr>
             <td><?php echo __('Human Verification');?>:</td>
             <td>

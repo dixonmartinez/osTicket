@@ -87,7 +87,12 @@
 //     en filas, pestanas inactivas sin relleno y la banda de aviso con su
 //     icono al lado del texto. Sin subir la version se sirve el modern.css
 //     de la cache.
-const VERSION = 'ost-v40';
+// v41: administracion, tercera pasada: la vista previa de la galeria es una
+//     rejilla (dos imagenes ya no se salen encima del nombre), el formato
+//     admitido se explica junto al selector y los ajustes largos van en
+//     pestanas. Sin subir la version se sirven el modern.css y el scp.js de
+//     la cache, y la barra de acciones nueva no aparece.
+const VERSION = 'ost-v41';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

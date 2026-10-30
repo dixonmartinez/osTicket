@@ -7,6 +7,18 @@ $gmtime = Misc::gmtime();
 <form action="settings.php?t=system" method="post" class="save">
 <?php csrf_token(); ?>
 <input type="hidden" name="t" value="system" >
+
+<ul class="clean tabs">
+    <li class="active"><a href="#system-general"><i class="icon-asterisk"></i>
+        <?php echo __('General'); ?></a></li>
+    <li><a href="#system-datetime"><i class="icon-time"></i>
+        <?php echo __('Date and Time'); ?></a></li>
+    <li><a href="#system-languages"><i class="icon-globe"></i>
+        <?php echo __('Languages'); ?></a></li>
+    <li><a href="#system-attachments"><i class="icon-paper-clip"></i>
+        <?php echo __('Attachments'); ?></a></li>
+</ul>
+<div class="tab_content" id="system-general">
 <table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
     <thead>
         <tr>
@@ -188,6 +200,13 @@ $gmtime = Misc::gmtime();
             <?php } ?>
             </td>
         </tr>
+    </tbody>
+</table>
+</div>
+
+<div class="hidden tab_content" id="system-datetime">
+<table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
+    <tbody>
         <tr>
             <th colspan="2">
                 <em><b><?php echo __('Date and Time Options'); ?></b>&nbsp;
@@ -305,6 +324,13 @@ $gmtime = Misc::gmtime();
                 href="#default_schedule"></i>
             </td>
         </tr>
+    </tbody>
+</table>
+</div>
+
+<div class="hidden tab_content" id="system-languages">
+<table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
+    <tbody>
         <tr>
             <th colspan="2">
                 <em><b><?php echo __('System Languages'); ?></b>&nbsp;
@@ -363,6 +389,13 @@ $gmtime = Misc::gmtime();
             <span class="error">&nbsp;<?php echo $errors['add_secondary_language']; ?></span>
             <i class="help-tip icon-question-sign" href="#secondary_language"></i>
         </td></tr>
+    </tbody>
+</table>
+</div>
+
+<div class="hidden tab_content" id="system-attachments">
+<table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
+    <tbody>
         <tr>
             <th colspan="2">
                 <em><b><?php echo __('Attachments Storage and Settings');?></b>
@@ -444,6 +477,7 @@ $gmtime = Misc::gmtime();
         </tr>
     </tbody>
 </table>
+</div>
 <p class="form-actions">
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes');?>">
     <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes');?>">

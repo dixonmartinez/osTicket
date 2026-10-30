@@ -192,4 +192,56 @@ class FileInputTest extends UnitTestCase {
         $this->assertFalse(array_key_exists('size', $attributes));
         $this->assertSame('T', $attributes['ft']);
     }
+
+    /* ------------------------------------------------------------------ */
+    /* Imágenes: logos y fondos de acceso                                  */
+    /* ------------------------------------------------------------------ */
+
+    /** Los cuatro tipos que se admiten, y sólo esos. */
+    function testSoloLasImagenesAdmitidasPasan() {
+        foreach (array('image/png', 'image/jpeg', 'image/gif', 'image/webp')
+                as $type)
+            $this->assertTrue(FileInput::isImage($type),
+                sprintf('%s debería admitirse como logo', $type));
+
+        foreach (array('image/svg+xml', 'text/html', 'application/pdf',
+                'application/zip', '', null, 'image') as $type)
+            $this->assertFalse(FileInput::isImage($type),
+                sprintf('«%s» no puede guardarse como logo',
+                    is_null($type) ? 'null' : $type));
+    }
+
+    /**
+     * El tipo llega del navegador con parámetros (`; charset=…`) y a veces en
+     * mayúsculas: las dos cosas se normalizan antes de comparar.
+     */
+    function testElTipoSeNormalizaAntesDeComparar() {
+        $this->assertTrue(FileInput::isImage('IMAGE/PNG'));
+        $this->assertTrue(FileInput::isImage('image/jpeg; charset=binary'));
+        $this->assertTrue(FileInput::isImage('  image/png  '));
+    }
+
+    /** La extensión es el último recurso cuando no hay GD ni `fileinfo`. */
+    function testLaExtensionDaElTipoCuandoNoHayComoMirarElContenido() {
+        $this->assertSame('image/png', FileInput::imageTypeFromName('logo.PNG'));
+        $this->assertSame('image/jpeg', FileInput::imageTypeFromName('foto.jpg'));
+        $this->assertSame('image/jpeg', FileInput::imageTypeFromName('foto.jpeg'));
+        $this->assertSame('image/gif', FileInput::imageTypeFromName('a.gif'));
+        $this->assertSame('image/webp', FileInput::imageTypeFromName('b.webp'));
+    }
+
+    /** Y una extensión que no es de imagen no vale como prueba. */
+    function testUnaExtensionQueNoEsImagenNoPasa() {
+        foreach (array('logo.svg', 'manual.pdf', 'backdrop.exe', 'sin-extension',
+                '', null) as $name)
+            $this->assertSame(null, FileInput::imageTypeFromName($name),
+                sprintf('«%s» no puede colarse como imagen',
+                    is_null($name) ? 'null' : $name));
+    }
+
+    /** Un `.png` que no es una imagen sigue rechazándose si hay `finfo`. */
+    function testUnPngQueNoEsImagenNoPasaConFinfo() {
+        $this->assertFalse(FileInput::isImage('text/html'));
+        $this->assertTrue(FileInput::isImage('image/png'));
+    }
 }

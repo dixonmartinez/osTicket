@@ -1041,6 +1041,20 @@ $(document).on('click.tab', 'ul.tabs > li > a', function(e) {
     }
 
 });
+// Al guardar un formulario con pestanas se vuelve a la misma pestana. El
+// action no lleva el hash —no se puede saber desde PHP—, asi que la respuesta
+// se abria siempre en la primera. El hash ya lo pone el clic en la pestana
+// ($.changeHash) y scp_prep lo vuelve a leer al cargar la pagina.
+$(document).on('submit', 'form:has(ul.tabs)', function() {
+    var hash = window.location.hash,
+        action = $(this).attr('action') || '';
+
+    if (!hash || hash.length < 2)
+        return;
+
+    $(this).attr('action', action.split('#')[0] + hash);
+});
+
 $.changeHash = function(hash, quiet) {
   if (quiet) {
     hash = hash.replace( /^#/, '' );

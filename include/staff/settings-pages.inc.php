@@ -188,7 +188,9 @@ $staff_logo = $ost->getConfig()->getStaffLogoId();
     <div class="media-upload">
         <label for="logo-file"><i class="icon-upload"></i>
             <?php echo __('Upload a new logo'); ?></label>
-        <input type="file" id="logo-file" name="logo[]" size="30" value=""/>
+        <input type="file" id="logo-file" name="logo[]" size="30" value=""
+            accept="image/png,image/jpeg,image/gif,image/webp"/>
+        <span class="hint"><?php echo __('PNG, JPG, GIF or WebP'); ?></span>
         <span class="error"><?php echo $errors['logo']; ?></span>
     </div>
 </div>
@@ -256,7 +258,9 @@ $staff_logo = $ost->getConfig()->getStaffLogoId();
     <div class="media-upload">
         <label for="backdrop-file"><i class="icon-upload"></i>
             <?php echo __('Upload a new backdrop'); ?></label>
-        <input type="file" id="backdrop-file" name="backdrop[]" size="30" value=""/>
+        <input type="file" id="backdrop-file" name="backdrop[]" size="30" value=""
+            accept="image/png,image/jpeg,image/gif,image/webp"/>
+        <span class="hint"><?php echo __('PNG, JPG, GIF or WebP'); ?></span>
         <span class="error"><?php echo $errors['backdrop']; ?></span>
     </div>
 </div>

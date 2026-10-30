@@ -117,6 +117,62 @@ class FileInput {
             && isset($file['size']) && $file['size'] > 0;
     }
 
+    /** Los tipos que se admiten como logo o como fondo de acceso. */
+    const IMAGE_TYPES = array(
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    );
+
+    /**
+     * ¿Es una de las imágenes que se admiten como logo o fondo?
+     *
+     * Compara en minúsculas y sin los parámetros que a veces acompañan al
+     * tipo (`image/png; charset=binary`). Todo lo que no esté en la lista
+     * queda fuera: un SVG es una imagen, pero es también un documento con
+     * scripts, y se sirve desde el mismo dominio del panel.
+     *
+     * @param string|null $type
+     * @return bool
+     */
+    static function isImage($type) {
+        if (!is_string($type) || !$type)
+            return false;
+
+        $type = strtolower(trim(explode(';', $type)[0]));
+
+        return isset(self::IMAGE_TYPES[$type]);
+    }
+
+    /**
+     * El tipo de imagen que corresponde al nombre del archivo, o `null`.
+     *
+     * Es el último recurso: sirve cuando el PHP no tiene ni GD ni `fileinfo`
+     * para mirar el contenido. La extensión sola no prueba nada —un `.png`
+     * puede ser cualquier cosa—, pero antes ni eso se miraba y se guardaba
+     * como logo lo que llegara.
+     *
+     * @param string|null $name
+     * @return string|null
+     */
+    static function imageTypeFromName($name) {
+        if (!is_string($name) || !$name)
+            return null;
+
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if (!$ext)
+            return null;
+
+        // `jpeg` y `jpg` son el mismo tipo.
+        if ($ext === 'jpeg')
+            $ext = 'jpg';
+
+        $type = array_search($ext, self::IMAGE_TYPES, true);
+
+        return $type === false ? null : $type;
+    }
+
     /**
      * Los atributos con los que se construye el modelo del archivo.
      *

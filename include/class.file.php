@@ -370,51 +370,76 @@ class AttachmentFile extends VerySimpleModel
     }
 
     static function uploadBackdrop(array $file, &$error) {
-        if (extension_loaded('gd')) {
-            $source_path = $file['tmp_name'];
-            list($source_width, $source_height, $source_type) = getimagesize($source_path);
+        if (!self::_validateImage($file, $error))
+            return false;
 
-            switch ($source_type) {
-                case IMAGETYPE_GIF:
-                case IMAGETYPE_JPEG:
-                case IMAGETYPE_PNG:
-                case IMAGETYPE_WEBP:
-                    break;
-                default:
-                    $error = __('Invalid image file type');
-                    return false;
-            }
-        }
         return self::upload($file, 'B', false);
     }
 
     static function uploadLogo($file, &$error, $aspect_ratio=2) {
-        /* Borrowed in part from
-         * http://salman-w.blogspot.com/2009/04/crop-to-fit-image-using-aspphp.html
-         */
-        if (extension_loaded('gd')) {
-            $source_path = $file['tmp_name'];
-            list($source_width, $source_height, $source_type) = getimagesize($source_path);
+        if (!self::_validateImage($file, $error, $aspect_ratio))
+            return false;
 
-            switch ($source_type) {
-                case IMAGETYPE_GIF:
-                case IMAGETYPE_JPEG:
-                case IMAGETYPE_PNG:
-                case IMAGETYPE_WEBP:
-                    break;
-                default:
-                    $error = __('Invalid image file type');
-                    return false;
-            }
-
-            $source_aspect_ratio = $source_width / $source_height;
-
-            if ($source_aspect_ratio < $aspect_ratio) {
-                $error = __('Image is too square. Upload a wider image');
-                return false;
-            }
-        }
         return self::upload($file, 'L', false);
+    }
+
+    /**
+     * Lo que se guarda como logo o como fondo tiene que ser una imagen.
+     *
+     * Antes esta comprobación vivía dentro de un `if (extension_loaded('gd'))`
+     * y, cuando el PHP del servidor no traía GD, no se comprobaba **nada**: se
+     * guardaba como logo el archivo que llegara —un PDF, un ZIP o un HTML— y
+     * luego se servía desde el dominio del panel. Ahora la comprobación no
+     * depende de GD: mira el contenido con `getimagesize()`, con `finfo` o, en
+     * el peor caso, con la extensión del nombre.
+     */
+    private static function _validateImage($file, &$error, $aspect_ratio=0) {
+        $info = self::_imageInfo($file);
+
+        if (!FileInput::isImage($info['type'])) {
+            $error = __('Invalid image file type');
+            return false;
+        }
+
+        // El logo se recorta a lo ancho: uno cuadrado se estira hasta partir.
+        if ($aspect_ratio && $info['width'] && $info['height']
+                && ($info['width'] / $info['height']) < $aspect_ratio) {
+            $error = __('Image is too square. Upload a wider image');
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Tipo y medidas de la imagen, por el contenido y no por el nombre. */
+    private static function _imageInfo($file) {
+        $info = array('type' => null, 'width' => 0, 'height' => 0);
+        $path = isset($file['tmp_name']) ? $file['tmp_name'] : null;
+
+        if (!$path || !is_file($path))
+            return $info;
+
+        // Con GD, `getimagesize()` da el tipo real y las medidas de una vez.
+        if ($size = @getimagesize($path)) {
+            $info['type'] = isset($size['mime']) ? $size['mime'] : null;
+            $info['width'] = $size[0];
+            $info['height'] = $size[1];
+        }
+
+        // Sin GD queda `finfo`, que lee los primeros bytes del archivo.
+        if (!$info['type'] && function_exists('finfo_open')
+                && ($finfo = finfo_open(FILEINFO_MIME_TYPE))) {
+            $info['type'] = finfo_file($finfo, $path) ?: null;
+            finfo_close($finfo);
+        }
+
+        // Y si tampoco, la extensión: es lo único que queda en un PHP sin
+        // `fileinfo`, y sigue siendo mejor que no mirar nada.
+        if (!FileInput::isImage($info['type']))
+            $info['type'] = FileInput::imageTypeFromName(
+                isset($file['name']) ? $file['name'] : '');
+
+        return $info;
     }
 
     static function create(&$file, $ft='T', $deduplicate=true) {

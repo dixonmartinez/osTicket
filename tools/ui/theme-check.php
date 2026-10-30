@@ -1071,6 +1071,23 @@ check(strpos($darkSinComentarios, '#line-chart-here text') !== false,
     'las etiquetas de los ejes se ven en oscuro',
     'las etiquetas de los ejes se dibujan en negro sobre la superficie oscura');
 
+// La galeria de logos: la fila «Default» lleva dos imagenes y con `flex`
+// cada una pedia el ancho entero de la columna; la segunda se salia encima del
+// nombre y, como el logo de osTicket es transparente, el texto blanco se veia
+// a traves. Con una pista por imagen no hay desbordamiento.
+check(preg_match('/\.media-thumb\s*\{[^}]*display:\s*grid/s', $sinComentarios)
+    && preg_match('/\.media-thumb\s*\{[^}]*grid-auto-columns:\s*minmax\(0,\s*1fr\)/s',
+        $sinComentarios),
+    'la vista previa de la galeria no se sale de su columna',
+    '.media-thumb vuelve a ser flex: la segunda imagen tapa el nombre');
+
+// Lo que se puede subir se dice al lado del selector; si no, rechazar un PDF
+// parece un fallo de la aplicacion.
+check(preg_match('/\.media-upload \.hint\s*\{[^}]*color:\s*var\(--ui-text-muted\)/s',
+        $sinComentarios),
+    'el formato admitido se explica junto al selector de archivos',
+    'la pista de formatos se queda sin estilo propio y se pierde en el pie');
+
 /* Verdades que la pantalla no puede contradecir ------------------------- */
 $plantillaCola = read("$root/include/staff/templates/queue-tickets.tmpl.php");
 check(strpos($plantillaCola, '$rendered++') !== false

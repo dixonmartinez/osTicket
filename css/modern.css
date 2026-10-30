@@ -1740,15 +1740,24 @@ p.form-actions button {
 /* La vista previa lleva el fondo de superficie del tema. En oscuro se aclara
    (css/dark.css): los logos del producto son PNG con partes oscuras que sobre
    una superficie oscura se comen el dibujo. */
+/* Una rejilla y no un `flex`: la fila «Default» lleva dos imágenes y con
+   `flex` cada una reclamaba todo el ancho de la columna, así que la segunda
+   se salía por encima del nombre y del tamaño (el logo de osTicket es un PNG
+   con transparencia: el texto blanco se veía a través). Con una pista por
+   imagen cada una toma su parte y ninguna invade la columna vecina. */
 .media-thumb {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     align-items: center;
+    justify-items: start;
     gap: 8px;
     min-width: 0;
 }
 
 .media-thumb img {
     max-width: 100%;
+    min-width: 0;
     max-height: 58px;
     height: auto;
     padding: 6px;
@@ -1863,6 +1872,13 @@ p.form-actions button {
     gap: 6px;
     font-weight: 600;
     cursor: pointer;
+}
+
+/* Qué se puede subir y qué no: el selector nativo ya filtra (`accept`), pero
+   sin decirlo, rechazar un PDF parece un fallo de la aplicación. */
+.media-upload .hint {
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-sm);
 }
 
 @media (max-width: 900px) {
