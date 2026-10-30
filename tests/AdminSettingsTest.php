@@ -527,4 +527,58 @@ class AdminSettingsTest extends UnitTestCase {
             '/\.media-thumb img\s*\{[^}]*max-width:\s*100%/s', $css,
             'la imagen no se limita al ancho de su columna');
     }
+
+    /**
+     * El pie «Reset Changes / Save Changes» aparecía también en la pestaña de
+     * *Colas* —una lista, sin un solo ajuste— y en la de *Plantillas* de
+     * agentes, que son enlaces. Se oculta la barra, pero no se quita del
+     * documento: las acciones en bloque de esas pestañas envían el formulario.
+     */
+    public function testElPieNoApareceEnLasPestanasDeLista(): void {
+        $tickets = $this->fichero('include/staff/settings-tickets.inc.php');
+        $agentes = $this->fichero('include/staff/settings-agents.inc.php');
+
+        $this->assertMatchesRegularExpression(
+            '/<div[^>]*id="queues"[^>]*data-ost-list/s', $tickets,
+            'la pestaña de colas no está marcada como lista y vuelve a ofrecer '
+                . '«Guardar» sin nada que guardar');
+        $this->assertMatchesRegularExpression(
+            '/<div[^>]*id="templates"[^>]*data-ost-list/s', $agentes,
+            'la pestaña de plantillas de agentes no está marcada como lista');
+
+        $css = $this->sinComentarios($this->fichero('css/modern.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/p\.form-actions\.ost-tab-list\s*\{[^}]*visibility:\s*hidden/s',
+            $css, 'la barra de guardar no se esconde en las pestañas que son '
+                . 'listas');
+        $this->assertFalse(
+            (bool) preg_match('/p\.form-actions\.ost-tab-list\s*\{[^}]*'
+                . 'display:\s*none/s', $css),
+            'el pie no puede desaparecer con `display: none`: las acciones en '
+                . 'bloque lo usan para enviar el formulario');
+
+        $js = $this->fichero('scp/js/scp.js');
+        $this->assertStringContainsString("toggleClass('ost-tab-list'", $js,
+            'al cambiar de pestaña nadie actualiza la barra de guardar');
+        $this->assertStringContainsString('$tab.is(\'[data-ost-list]\')', $js,
+            'la hoja de la pestaña no dice si es una lista');
+    }
+
+    /**
+     * Y el envío de las acciones en bloque no puede depender de pulsar un botón
+     * que ahora está oculto. `form.submit` está tapado por el campo
+     * `name="submit"` del pie, así que se llama al método del prototipo.
+     */
+    public function testLasAccionesEnBloqueDeColasEnvianElFormulario(): void {
+        $php = $this->fichero('include/staff/queues-ticket.inc.php');
+
+        $this->assertStringContainsString(
+            'HTMLFormElement.prototype.submit.call($form[0])', $php,
+            'el borrado masivo de colas sigue dependiendo de pulsar el botón '
+                . 'del pie');
+        $this->assertFalse(
+            strpos($php, "find('[type=submit]').trigger('click')") !== false,
+            'el envío se hace pulsando un botón que ya está oculto');
+    }
 }

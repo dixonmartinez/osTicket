@@ -1037,6 +1037,13 @@ $(document).on('click.tab', 'ul.tabs > li > a', function(e) {
         $(this).closest('li').addClass('active');
         $container.children('.tab_content').hide();
         $tab.fadeIn('fast').show();
+        // El pie de guardar solo tiene sentido en las pestanas con ajustes
+        // propios: una pestana que es una lista (Colas, Plantillas) no envia
+        // nada al formulario y ofrecia "Reset Changes / Save Changes" para
+        // nada. Se oculta con la clase, no se quita del documento: las
+        // acciones en bloque siguen enviando el formulario.
+        $tab.closest('form').find('p.form-actions').first()
+            .toggleClass('ost-tab-list', $tab.is('[data-ost-list]'));
         return false;
     }
 

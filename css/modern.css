@@ -1697,6 +1697,22 @@ p.form-actions button[name="close"] {
     margin-right: auto;
 }
 
+/* Una pestaña que es una lista (Colas en Tickets, Plantillas en Agentes) no
+   tiene ajustes propios: el pie de «Reset Changes / Save Changes» no guardaba
+   nada. Se oculta sin quitarlo del documento porque las acciones en bloque de
+   esa pestaña envían el formulario, y se ocupa de la clase `scp.js` al cambiar
+   de pestaña. No se usa `display: none` a propósito: `visibility` deja el
+   botón fuera de la vista y del orden de tabulación, pero el envío programático
+   sigue funcionando. */
+p.form-actions.ost-tab-list {
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+    overflow: hidden;
+}
+
 /* --- Casillas y botones de opción ------------------------------------ */
 /* Una casilla de 13 px no es un control: la etiqueta tiene que pulsarse
    entera. En las pantallas de administración cada casilla va dentro de su

@@ -396,6 +396,15 @@ ampliar el banco de `make docker-integration` (hoy 19 casos y sólo ORM).
    punta a punta: **sin esa prueba no se pueden partir sin riesgo**, y eso es
    exactamente lo que el frente tiene pendiente desde el principio.
    `make docker-integration` es el camino.
+
+   **Qué hace falta para escribirlas.** El banco (`tests/lib/Database.php`)
+   crea `<base>_test` con el esquema del instalador y conecta como `root`: no
+   necesita ni un volcado ni datos previos. Lo que sí necesita es un MariaDB
+   vivo, y este entorno de trabajo no lo tiene (ni Docker, ni `mysqli`), así que
+   la prueba se puede escribir aquí pero no ejecutar: hay que correrla en la
+   instalación con `make docker-integration` y devolver la salida. Para
+   `Mailer::send()` hace falta además un buzón de pruebas (Mailpit) en el
+   `compose.yaml`.
 2. **Dos funciones intermedias (120–175 líneas) que nadie ha tocado**, y que
    no estaban en el plan: `Report::getTabularData()` (158) y
    `Thread::create()` (158). Son del mismo tipo que las que ya se partieron

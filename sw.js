@@ -98,7 +98,7 @@
 // v43: el estandar de las pantallas de administracion: etiqueta en cada
 //     casilla, bandas a dos columnas y los avisos en rejilla. Sin subir la
 //     version se sirven el modern.css y las plantillas de la cache.
-const VERSION = 'ost-v45';
+const VERSION = 'ost-v46';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

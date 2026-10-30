@@ -281,7 +281,7 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
     <?php include STAFFINC_DIR . 'settings-alerts.inc.php'; ?>
 </div>
 
-<div class="hidden tab_content" id="queues">
+<div class="hidden tab_content" id="queues" data-ost-list="1">
     <?php include STAFFINC_DIR . 'queues-ticket.inc.php'; ?>
 </div>
 

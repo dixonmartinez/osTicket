@@ -98,8 +98,10 @@ $(function() {
         $form.append($('<input type="hidden" name="count" />')
           .val(ids.length));
         $form.attr('action', action);
-        // I don't know why, but submitting the form doesn't work...
-        $form.find('[type=submit]').trigger('click');
+        // El pie de guardar esta oculto en esta pestana (es una lista) y,
+        // ademas, `form.submit` esta tapado por el campo `name="submit"` del
+        // propio pie: se llama al metodo del prototipo para enviar de verdad.
+        HTMLFormElement.prototype.submit.call($form[0]);
       });
     }
     else {

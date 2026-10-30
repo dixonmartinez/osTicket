@@ -1692,7 +1692,7 @@ pantalla con botón de cancelar, que es lo que distingue una ficha de una lista.
 
 **Cómo se comprueba.** `tests/AdminLayoutTest.php` → **7 pruebas**, 164
 controles etiquetados y 125 comprobaciones del pie de acciones; `php
-tests/run.php` → **1.042** pruebas; `theme-check` → **218**. `sw.js` sube a
+tests/run.php` → **1.044** pruebas; `theme-check` → **218**. `sw.js` sube a
 **`ost-v45`**.
 
 ### 3.20 El agente y el cliente
@@ -1764,6 +1764,78 @@ porque no son columnas de la tabla.
 Se verificó al revés: devolviendo `isenabled` a `teams.inc.php`, la prueba falla
 y dice la columna y la tabla. Sin base de datos: el esquema se lee del
 instalador.
+
+### 3.22 El pie de guardar en las pestañas que son listas
+
+`settings.php?t=tickets#queues` enseñaba «Reset Changes / Save Changes» en la
+pestaña de **Colas**, que es una lista: no había un solo ajuste que guardar
+debajo. Lo mismo en **Plantillas** de `settings.php?t=agents`, que son enlaces a
+los editores de contenido.
+
+No se podía simplemente borrar el pie: un único `<form>` envuelve las cinco
+pestañas de *Tickets*, y las acciones en bloque de Colas (*Enable*, *Disable*,
+*Delete*) **envían ese formulario** para llegar a `queues.php`:
+
+```js
+// queues-ticket.inc.php, antes
+$form.attr('action', action);
+$form.find('[type=submit]').trigger('click');   // el botón del pie
+```
+
+Qué se hizo, en tres piezas:
+
+1. **La pestaña se declara lista.** `data-ost-list="1"` en el panel
+   (`#queues` y `#templates`), con el prefijo `data-ost-*` de la casa.
+2. **`scp/js/scp.js` sincroniza la barra** al cambiar de pestaña: añade
+   `ost-tab-list` al `p.form-actions` del formulario si el panel visible está
+   marcado como lista y se la quita al volver a una pestaña con ajustes. Va en
+   el mismo manejador que ya mostraba y ocultaba los paneles, así que también
+   se aplica al entrar por el hash (`scp_prep` dispara el clic de la pestaña).
+3. **La hoja la esconde sin arrancarla del documento**:
+
+   ```css
+   p.form-actions.ost-tab-list {
+       visibility: hidden;
+       height: 0;
+       margin: 0;
+       padding: 0;
+       border-top: 0;
+       overflow: hidden;
+   }
+   ```
+
+   Con `display: none` el botón dejaría de servir para enviar el formulario.
+   `visibility: hidden` lo saca de la vista, del orden de tabulación y del
+   árbol de accesibilidad, pero el envío programático sigue funcionando.
+
+Y, ya que el pie puede estar oculto, **el envío de las acciones en bloque dejó
+de depender de pulsar su botón**:
+
+```js
+// queues-ticket.inc.php, ahora
+$form.attr('action', action);
+// `form.submit` está tapado por el campo `name="submit"` del propio pie:
+// se llama al método del prototipo para enviar de verdad.
+HTMLFormElement.prototype.submit.call($form[0]);
+```
+
+Ese era el motivo del comentario original («I don't know why, but submitting
+the form doesn't work»): cuando un formulario tiene un campo llamado `submit`,
+`form.submit` ya no es la función del navegador sino el propio `<input>`.
+
+**Cómo se comprueba.** Dos pruebas nuevas en `tests/AdminSettingsTest.php` (23
+en total, **1044** en la suite):
+
+- los dos paneles están marcados con `data-ost-list`;
+- la regla `p.form-actions.ost-tab-list` existe, esconde la barra y **no** usa
+  `display: none`;
+- `scp.js` sigue haciendo `toggleClass('ost-tab-list', $tab.is('[data-ost-list]'))`;
+- `queues-ticket.inc.php` envía con `HTMLFormElement.prototype.submit` y ya no
+  pulsa `[type=submit]`.
+
+Lo que estas pruebas **no** pueden ver es el clic real: sin navegador en este
+entorno, el cambio de pestaña, el guardado y el borrado en bloque hay que
+probarlos en la instalación. `sw.js` sube a **`ost-v46`**.
 
 ## 4. Reglas para no romper nada
 
@@ -1975,6 +2047,7 @@ queda en §6.2.
 | 52 | **«Sigue con los demás módulos»**: las cinco reglas de las pantallas de ajustes no llegaban a *Manage*. **18** fichas (más `role`, `plugin`, `plugin-instance`, `schedule`, `dynamic-form` y `dynamic-list`) tenían el pie centrado con `style="text-align:center"`, con el envío primero y «Cancelar» al final; ahora es `p.form-actions` con cancelar→reset→guardar, y la separación la hace la hoja (`margin-right: auto`), no `order`, para no romper el orden del teclado. Tres casillas se quedaban sin nombre: el campo dinámico de un tema de ayuda (ahora `for`/`id`), y las de borrar de `dynamic-list` y `dynamic-form` (etiqueta con `title` y `.sr-only`). El escáner de la prueba cortaba las etiquetas en el `?>` de un `echo`, así que las casillas con PHP en los atributos contaban como anónimas: ahora **164** controles revisados y **125** comprobaciones del pie (§3.19) | ✅ Hecho | 24 `include/staff/*.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
 | 53 | **Agente y cliente**: el pie de los formularios sólo se había arreglado en la administración. La ficha del ticket del agente tenía dos `<p style="text-align:center;">` («Post Reply» y «Post Note») con el envío delante del reset, y el portal del cliente usaba un `<p class="buttons">` que **ninguna hoja pinta**: la alineación dependía del estilo en línea. Ahora las siete plantillas usan `p.form-actions` (cancelar → reset → enviar), se quitaron los cuatro `<hr>` que dejaban dos rayas y se añadió `tests/AgentClientLayoutTest.php` sobre 81 plantillas y 129 controles (§3.20) | ✅ Hecho | `include/staff/ticket-view.inc.php`, `include/client/{open,view,edit,profile,register}.inc.php`, `tests/AgentClientLayoutTest.php`, `sw.js` |
 | 54 | **`teams.php?sort=status` caía con `DB Error #1054: Unknown column 'A1.isenabled' in 'ORDER BY'`**: el orden usaba el nombre del campo del formulario, no el de la columna (`ost_team` guarda el estado en `flags`). El mismo error estaba en *Planes de SLA* (`isactive` sobre `ost_sla`, que también usa `flags`). Las dos listas ordenan ya por `flags` y `tests/SortColumnsTest.php` valida la 47 columnas de orden contra el instalador (§3.21) | ✅ Hecho | `include/staff/{teams,slaplans}.inc.php`, `tests/SortColumnsTest.php` |
+| 55 | **Paso 1 del frente pendiente: el pie «Reset Changes / Save Changes» en `settings.php?t=tickets#queues`**, una pestaña que es una lista. No se podía borrar: un único `<form>` envuelve las cinco pestañas y las acciones en bloque de Colas envían ese formulario pulsando el botón del pie. Ahora el panel se marca con `data-ost-list`, `scp.js` pone `ost-tab-list` en el pie al cambiar de pestaña, la hoja lo esconde con `visibility` (no `display: none`) y el borrado en bloque envía con `HTMLFormElement.prototype.submit.call($form[0])`, que era el fallo de fondo: `form.submit` está tapado por el campo `name="submit"` (§3.22) | ✅ Hecho | `include/staff/{settings-tickets,settings-agents,queues-ticket}.inc.php`, `scp/js/scp.js`, `css/modern.css`, `tests/AdminSettingsTest.php`, `sw.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,
