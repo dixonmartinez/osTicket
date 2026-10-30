@@ -73,10 +73,10 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                     <?php echo __('Filter Status');?>:
                 </td>
                 <td>
-                    <input type="radio" name="isactive" value="1" <?php echo
-                    $info['isactive']?'checked="checked"':''; ?>> <?php echo __('Active'); ?>
-                    <input type="radio" name="isactive" value="0" <?php echo !$info['isactive']?'checked="checked"':''; ?>
-                    > <?php echo __('Disabled'); ?>
+                    <label><input type="radio" name="isactive" value="1" <?php echo
+                    $info['isactive']?'checked="checked"':''; ?>> <?php echo __('Active'); ?></label>
+                    <label><input type="radio" name="isactive" value="0" <?php echo !$info['isactive']?'checked="checked"':''; ?>
+                    > <?php echo __('Disabled'); ?></label>
                     &nbsp;<span class="error">*&nbsp;</span>
                 </td>
             </tr>
@@ -334,11 +334,11 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
             </tbody>
         </table>
     </div>
-    <p style="text-align:center;">
-        <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-        <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
-        <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="filters.php">
-    </p>
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="filters.php">
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
+</p>
 </form>
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
    var fixHelper = function(e, ui) {

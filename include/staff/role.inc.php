@@ -117,10 +117,9 @@ $info = Format::htmlchars(($errors && $_POST) ? array_merge($info, $_POST) : $in
         </div>
         <?php } ?>
     </div>
-    <p class="centered">
-        <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-        <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
-        <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>"
-            data-href="?">
-    </p>
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="?">
+    <input type="reset" name="reset" value="<?php echo __('Reset'); ?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
+</p>
 </form>

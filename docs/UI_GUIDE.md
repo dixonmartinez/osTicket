@@ -1630,6 +1630,71 @@ Se verificó al revés: quitando una etiqueta de `settings-kb`, la prueba falla.
 `php tools/ui/theme-check.php` → **218** comprobaciones. `sw.js` sube a
 **`ost-v43`**.
 
+### 3.19 Las pantallas de *Manage*
+
+Las cinco reglas de §3.18 no se quedaron en `scp/settings.php`. Las fichas que
+se abren desde *Manage* —departamentos, equipos, roles, horarios, filtros,
+listas y formularios dinámicos, plugins, FAQ, categorías, correos, temas de
+ayuda, colas, planes de SLA, agentes, plantillas, páginas, claves de API y
+reglas de ban— tenían el mismo marcado de 2010: el pie de botones centrado con
+`style="text-align:center"` y el envío primero, el reset después y «Cancelar» al
+final, y las casillas sueltas fuera de su etiqueta.
+
+#### 3.19.1 Un solo pie de acciones
+
+Todas usan ya `p.form-actions`:
+
+```php
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="…">
+    <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
+</p>
+```
+
+El orden del documento es el orden del teclado: cancelar, reset y guardar. Que
+«Cancelar» quede a la izquierda lo hace la hoja con `margin-right: auto` y no
+`order: -1`, que habría dejado la pestaña del teclado saltando al final. Se
+convirtieron 24 pantallas (`role`, `plugin`, `plugin-instance`, `schedule`,
+`dynamic-form` y `dynamic-list` se sumaron después: usaban `p.centered`).
+
+Las barras de acciones en bloque (`p#actions` de `categories.inc.php`, con
+*Make Public*, *Make Internal* y *Delete*) **no** se convierten: no son un pie
+de guardar y sus tres botones envían acciones distintas.
+
+#### 3.19.2 Tres casillas que no se podían nombrar
+
+Al revisar las pantallas una a una quedaron tres controles sin nombre
+accesible; no bastaba con envolverlos:
+
+| Fichero | Qué pasaba | Arreglo |
+|---|---|---|
+| `helptopic.inc.php` | La casilla `fields[]` de cada campo dinámico estaba en su celda, con el nombre del campo en la celda de al lado, sin relación entre ambas | `id="field-<id>"` en la casilla y `<label for="field-<id>">` en la celda del nombre: el campo se enciende desde su nombre |
+| `dynamic-list.inc.php` | La casilla `delete-prop-<id>` se pintaba con `sprintf('<label><input …>')`: una etiqueta vacía, sin texto | `<label title="Delete <campo>">` + `<span class="sr-only">`: se anuncia qué propiedad se borra |
+| `dynamic-form.inc.php` | La casilla `delete-box` (la que dispara el diálogo de borrado) no tenía etiqueta; el nombre del campo sólo viajaba en `data-field-label` | Etiqueta envolvente con el mismo `Delete <campo>` visible sólo para lectores de pantalla; `data-field-label` se conserva porque lo lee el JS |
+
+Las tres se apoyan en `.sr-only`, que ya existía en `css/ui.css`.
+
+#### 3.19.3 La prueba también leía mal el marcado
+
+`testCadaCasillaYRadioTieneSuEtiqueta` usaba `/<input\b[^>]*>/`. Con un `echo`
+dentro de un atributo —`value="<?php echo $id; ?>"`— la expresión se corta en el
+`?>` del `echo` y la etiqueta llega a medias: sin `name` y sin `id`. Por eso las
+casillas con PHP en los atributos parecían no tener ni nombre. Ahora la prueba
+recorre la etiqueta con un escáner que salta los bloques PHP (`entradas()`), y
+por eso el recuento sube de 144 a **164** controles revisados.
+
+El descubrimiento de pantallas también cambió: antes sólo entraban las que
+tenían `class="form_table"` y se quedaban fuera ocho fichas que usan la tabla
+de dos columnas y pestañas (categorías, FAQ, temas de ayuda, agentes, colas,
+plantillas, el perfil y la instancia de un plugin). Ahora entra además toda
+pantalla con botón de cancelar, que es lo que distingue una ficha de una lista.
+
+**Cómo se comprueba.** `tests/AdminLayoutTest.php` → **7 pruebas**, 164
+controles etiquetados y 125 comprobaciones del pie de acciones; `php
+tests/run.php` → **1.036** pruebas; `theme-check` → **218**. `sw.js` sube a
+**`ost-v44`**.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -1837,6 +1902,7 @@ queda en §6.2.
 | 49 | **Segunda tanda de `settings.php`**: tres avisos. (a) Se veía «un texto en blanco» dentro de los logos: la fila *Default* lleva dos imágenes y, con `flex`, cada una pedía la columna entera; la segunda se salía encima del nombre y el logo transparente dejaba ver el texto. (b) El selector de archivos ofrecía «All Files (*.*)» y el servidor sólo comprobaba que fuera imagen **si el PHP tenía GD**: sin esa extensión se guardaba como logo cualquier cosa. (c) *Sistema* pedía bajar más de dos pantallas y *Tickets* mezclaba numeración y casillas en una sola pestaña. Ahora la vista previa es una rejilla (una pista por imagen), los dos selectores llevan `accept` y el servidor valida el contenido con `getimagesize`/`finfo`/extensión, y los dos formularios se reparten en pestañas —Sistema: General, Fecha y hora, Idiomas, Adjuntos; Tickets: Settings y Options— conservando la pestaña al guardar (§3.16) | ✅ Hecho | `css/modern.css`, `include/staff/settings-{pages,system,tickets}.inc.php`, `include/class.file.php`, `include/class.file.input.php`, `scp/js/scp.js`, `tests/FileInputTest.php`, `tests/AdminSettingsTest.php`, `make theme` |
 | 50 | **Tercera tanda (Tickets → Alerts, Tasks, Agents y el diálogo de plantilla)**: dos defectos de código que las comprobaciones anteriores no veían. (a) Las pestañas inactivas seguían rellenas: una regla vieja de `css/dark.css` (`ul.tabs li`, especificidad 0,2,3) ganaba a la nueva por peso y por orden, y `make theme` daba el arreglo por bueno porque la regla transparente *existía*; además, el `padding-left` de 20 px de la tira se leía como una pestaña vacía. (b) El editor de plantillas del diálogo escribía con el texto del tema (#e6ebf0) sobre el papel claro: `.dialog *` fija el color en cada descendiente y el contenido del editor son párrafos, así que heredar no bastaba (§3.17) | ✅ Hecho | `css/dark.css`, `tools/ui/theme-check.php`, `tests/AdminSettingsTest.php`, `sw.js` |
 | 51 | **«Reorganiza todas las interfaces en un estándar»**: seis pantallas de administración seguían con el marcado original. **106** casillas y botones de opción sólo se podían marcar en el cuadradito de 13 px (ninguna llevaba `<label>`); las bandas de sección se quedaban en la columna de las etiquetas (sin `colspan`); los avisos de tickets y tareas eran una fila por destinatario (7 y 5 grupos, más de dos pantallas de scroll); y los avisos de tareas se ocultaban con `style="display:none"`. Ahora: etiqueta en cada control (envolvente o `for`/`id`), bandas a dos columnas, destinatarios en `.ost-check-grid`, pestañas `clean` y el mismo pie en todas. `tests/AdminLayoutTest.php` recorre por `glob()` todas las pantallas y lo impide (§3.18) | ✅ Hecho | `include/staff/settings-{agents,users,emails,kb,autoresp,alerts,tasks,tickets}.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
+| 52 | **«Sigue con los demás módulos»**: las cinco reglas de las pantallas de ajustes no llegaban a *Manage*. **18** fichas (más `role`, `plugin`, `plugin-instance`, `schedule`, `dynamic-form` y `dynamic-list`) tenían el pie centrado con `style="text-align:center"`, con el envío primero y «Cancelar» al final; ahora es `p.form-actions` con cancelar→reset→guardar, y la separación la hace la hoja (`margin-right: auto`), no `order`, para no romper el orden del teclado. Tres casillas se quedaban sin nombre: el campo dinámico de un tema de ayuda (ahora `for`/`id`), y las de borrar de `dynamic-list` y `dynamic-form` (etiqueta con `title` y `.sr-only`). El escáner de la prueba cortaba las etiquetas en el `?>` de un `echo`, así que las casillas con PHP en los atributos contaban como anónimas: ahora **164** controles revisados y **125** comprobaciones del pie (§3.19) | ✅ Hecho | 24 `include/staff/*.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

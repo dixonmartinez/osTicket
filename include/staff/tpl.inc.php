@@ -128,10 +128,9 @@ if ($template instanceof EmailTemplate) {
     ?></textarea>
 </div>
 
-<p style="text-align:center">
-    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
+<p class="form-actions">
+    <input class="button" type="button" name="cancel" value="<?php echo __('Cancel Changes'); ?>" data-href="templates.php?tpl_id=<?php echo $tpl_id; ?>">
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes'); ?>" data-reload />
-    <input class="button" type="button" name="cancel" value="<?php echo __('Cancel Changes'); ?>"
-        data-href="templates.php?tpl_id=<?php echo $tpl_id; ?>">
+    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
 </p>
 </form>

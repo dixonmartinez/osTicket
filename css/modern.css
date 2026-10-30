@@ -1687,6 +1687,16 @@ p.form-actions button {
     margin: 0;
 }
 
+/* Cancelar (o cerrar) se queda a la izquierda: es la salida, no la acción.
+   Se separa con `margin-right: auto` en vez de `order` para que el orden del
+   documento —y el del teclado— siga siendo cancelar, reset, guardar. */
+p.form-actions input[name="cancel"],
+p.form-actions input[name="close"],
+p.form-actions button[name="cancel"],
+p.form-actions button[name="close"] {
+    margin-right: auto;
+}
+
 /* --- Casillas y botones de opción ------------------------------------ */
 /* Una casilla de 13 px no es un control: la etiqueta tiene que pulsarse
    entera. En las pantallas de administración cada casilla va dentro de su

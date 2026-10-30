@@ -73,8 +73,8 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <?php echo __('Type');?>:
             </td>
             <td>
-                <input type="radio" name="ispublic" value="1" <?php echo $info['ispublic']?'checked="checked"':''; ?>> <?php echo __('Public'); ?>
-                <input type="radio" name="ispublic" value="0" <?php echo !$info['ispublic']?'checked="checked"':''; ?>> <?php echo __('Private/Internal'); ?>
+                <label><input type="radio" name="ispublic" value="1" <?php echo $info['ispublic']?'checked="checked"':''; ?>> <?php echo __('Public'); ?></label>
+                <label><input type="radio" name="ispublic" value="0" <?php echo !$info['ispublic']?'checked="checked"':''; ?>> <?php echo __('Private/Internal'); ?></label>
                 &nbsp;<span class="error">*&nbsp;<?php echo $errors['ispublic']; ?></span> <i class="help-tip icon-question-sign" href="#type"></i>
             </td>
         </tr>
@@ -337,8 +337,8 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <?php echo __('Auto-Response'); ?>:
             </td>
             <td>
-                <input type="checkbox" name="noautoresp" value="1" <?php echo $info['noautoresp']?'checked="checked"':''; ?> >
-                    <?php echo __('<strong>Disable</strong> new ticket auto-response'); ?>
+                <label><input type="checkbox" name="noautoresp" value="1" <?php echo $info['noautoresp']?'checked="checked"':''; ?> >
+                    <?php echo __('<strong>Disable</strong> new ticket auto-response'); ?></label>
                     <i class="help-tip icon-question-sign" href="#ticket_auto_response"></i>
             </td>
         </tr>
@@ -381,10 +381,11 @@ foreach ($forms as $F) {
     <?php
         foreach ($F->getDynamicFields() as $f) { ?>
         <tr>
-            <td><input type="checkbox" name="fields[]" value="<?php
-                echo $f->get('id'); ?>" <?php
+            <td><input type="checkbox" id="field-<?php echo $f->get('id'); ?>"
+                name="fields[]" value="<?php echo $f->get('id'); ?>" <?php
                 if (!$f->_disabled) echo 'checked="checked"'; ?>/></td>
-            <td><?php echo $f->get('label'); ?></td>
+            <td><label for="field-<?php echo $f->get('id'); ?>"><?php
+                echo $f->get('label'); ?></label></td>
             <td><?php $t=FormField::getFieldType($f->get('type')); echo __($t[0]); ?></td>
             <td><?php echo $f->getVisibilityDescription(); ?></td>
             <td><?php echo $f->get('name'); ?></td>
@@ -417,10 +418,10 @@ foreach ($forms as $F) {
 
 </div>
 
-<p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="helptopics.php">
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
 </p>
 </form>
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">

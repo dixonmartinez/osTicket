@@ -180,10 +180,10 @@ if ($queue->parent) { ?>
           <tbody>
             <tr>
               <td colspan="3">
-                <input type="checkbox" name="inherit-sorting" <?php
+                <label><input type="checkbox" name="inherit-sorting" <?php
                   if ($queue->inheritSorting()) echo 'checked="checked"'; ?>
                   data-inherit-toggle />
-                <?php echo __('Inherit sorting from the parent queue'); ?>
+                <?php echo __('Inherit sorting from the parent queue'); ?></label>
                 <br /><br />
               </td>
             </tr>
@@ -402,10 +402,10 @@ if ($queue->getConditions()) {
 
   </div>
 
-  <p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-go-back>
-  </p>
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
+</p>
 
 </form>

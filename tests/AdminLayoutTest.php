@@ -39,6 +39,66 @@ class AdminLayoutTest extends UnitTestCase {
     }
 
     /**
+     * El resto de pantallas de administración: las que se abren desde
+     * *Manage* (departamentos, equipos, roles, horarios, filtros, listas…).
+     * No cuelgan de `settings.php`, así que se descubren por su marcado.
+     */
+    private function pantallasDeGestion(): array {
+        $pantallas = array();
+        foreach (glob(ROOT_DIR . '/include/staff/*.inc.php') as $ruta) {
+            $php = (string) file_get_contents($ruta);
+            $nombre = basename($ruta, '.inc.php');
+            if (strpos($nombre, 'settings-') === 0)
+                continue;
+            // Dos generaciones de marcado: las pantallas con `form_table` y
+            // las que ya usan la tabla de dos columnas y pestañas (categorías,
+            // FAQ, temas de ayuda, agentes, plantillas…). Las segundas se
+            // reconocen por su botón de cancelar: sólo las fichas lo tienen.
+            if (strpos($php, 'class="form_table') === false
+                    && strpos($php, 'name="cancel"') === false)
+                continue;
+            $pantallas[] = $nombre;
+        }
+        sort($pantallas);
+
+        return $pantallas;
+    }
+
+    /** Todas: las de ajustes y las de gestión. */
+    private function todas(): array {
+        return array_merge($this->pantallas(), $this->pantallasDeGestion());
+    }
+
+    /**
+     * Etiquetas `<input …>` completas. La expresión regular de siempre
+     * (`/<input[^>]*>/`) se corta en el `?>` de un `echo` dentro de un
+     * atributo (`value="<?php echo $id; ?>"`) y deja la etiqueta a medias,
+     * sin `name` ni `id`. Aquí se salta el bloque PHP.
+     */
+    private function entradas(string $php): array {
+        $salida = array();
+        $largo = strlen($php);
+        $i = 0;
+        while (($ini = strpos($php, '<input', $i)) !== false) {
+            $j = $ini;
+            while ($j < $largo) {
+                if (substr($php, $j, 2) === '<?') {
+                    $fin = strpos($php, '?>', $j);
+                    $j = $fin === false ? $largo : $fin + 2;
+                    continue;
+                }
+                if ($php[$j] === '>')
+                    break;
+                $j++;
+            }
+            $salida[] = array(substr($php, $ini, $j + 1 - $ini), $ini);
+            $i = $j + 1;
+        }
+
+        return $salida;
+    }
+
+    /**
      * Rango de los `<label>` de un archivo, para saber qué controles van
      * dentro de una etiqueta.
      */
@@ -63,22 +123,25 @@ class AdminLayoutTest extends UnitTestCase {
     public function testCadaCasillaYRadioTieneSuEtiqueta(): void {
         $revisados = 0;
 
-        foreach ($this->pantallas() as $pantalla) {
+        foreach ($this->todas() as $pantalla) {
             $php = $this->fichero("include/staff/$pantalla.inc.php");
             $etiquetas = $this->etiquetas($php);
 
-            preg_match_all('/<input\b[^>]*>/s', $php, $inputs,
-                PREG_OFFSET_CAPTURE);
+            $inputs = $this->entradas($php);
             preg_match_all('/<label\b[^>]*\bfor="([^"]+)"/s', $php, $conFor);
 
-            foreach ($inputs[0] as $input) {
+            foreach ($inputs as $input) {
                 list($tag, $pos) = $input;
                 if (!preg_match('/type="(checkbox|radio)"/', $tag))
                     continue;
-                // Las casillas de selección múltiple de una lista no llevan
-                // etiqueta: su etiqueta es la fila, y marcarlas en masa es
-                // precisamente lo que se quiere.
+                // Las de selección múltiple de una lista se marcan desde su
+                // fila entera (`mass`), no desde un texto al lado.
                 if (strpos($tag, 'class="mass') !== false)
+                    continue;
+                // Y huecos de la lista: la celda «Delete» de un campo que no
+                // se puede borrar es una casilla deshabilitada y sin nombre.
+                if (strpos($tag, 'disabled') !== false
+                        && strpos($tag, 'name=') === false)
                     continue;
 
                 $revisados++;
@@ -130,21 +193,66 @@ class AdminLayoutTest extends UnitTestCase {
      * el título aparece cortado a 220 px.
      */
     public function testLasBandasDeSeccionOcupanLasDosColumnas(): void {
-        foreach ($this->pantallas() as $pantalla) {
+        foreach ($this->todas() as $pantalla) {
             $php = $this->fichero("include/staff/$pantalla.inc.php");
 
-            // Sólo las tablas de ajustes: las de una lista (`table.list`)
-            // tienen sus propias cabeceras de columna.
-            if (strpos($php, 'settings_table') === false)
-                continue;
-
-            preg_match_all('/<th\b[^>]*>/s', $php, $ths);
+            // `colspan="2"` en las tablas de etiqueta y valor; las de una
+            // lista de campos llegan a siete columnas.
+            preg_match_all('/<tr><th\b[^>]*>/s', $php, $ths);
             foreach ($ths[0] as $th) {
-                $this->assertStringContainsString('colspan="2"', $th,
-                    sprintf('%s: una banda de sección sin `colspan="2"`',
+                $this->assertMatchesRegularExpression('/colspan="([2-9]|[1-9]\d+)"/',
+                    $th, sprintf('%s: una banda de sección sin `colspan`',
                         $pantalla));
             }
         }
+    }
+
+    /**
+     * El pie de los formularios de gestión: no puede quedar ninguno de los
+     * `<p style="text-align:center">` con el submit primero, el reset después
+     * y el cancel al final, que era el patrón de todas estas pantallas.
+     */
+    public function testLosBotonesVandeCancelarAResetYGuardar(): void {
+        $pantallas = 0;
+
+        foreach ($this->todas() as $pantalla) {
+            $php = $this->fichero("include/staff/$pantalla.inc.php");
+            if (strpos($php, '<form') === false)
+                continue;
+
+            $this->assertFalse(
+                (bool) preg_match('/<p[^>]*style="text-align:center/', $php),
+                sprintf('%s conserva los botones centrados con estilo en línea',
+                    $pantalla));
+
+            if (strpos($php, 'class="form-actions"') === false)
+                continue;
+
+            $pantallas++;
+
+            // Cancelar (si lo hay) va antes que el reset, y el envío al final:
+            // el orden del documento es el orden de la pantalla.
+            $inicio = strpos($php, 'class="form-actions"');
+            $fin = strpos($php, '</p>', $inicio);
+            $barra = substr($php, $inicio, $fin - $inicio);
+
+            $reset = strpos($barra, 'type="reset"');
+            $submit = strpos($barra, 'type="submit"');
+            $this->assertTrue($reset !== false && $submit !== false,
+                sprintf('%s perdió el reset o el envío', $pantalla));
+            $this->assertLessThan($submit, $reset,
+                sprintf('en %s el envío tiene que quedar a la derecha del reset',
+                    $pantalla));
+
+            $cancel = strpos($barra, 'name="cancel"');
+            if ($cancel !== false)
+                $this->assertLessThan($reset, $cancel,
+                    sprintf('en %s «Cancelar» tiene que ir antes que el reset',
+                        $pantalla));
+        }
+
+        $this->assertTrue($pantallas >= 20,
+            sprintf('sólo %d pantallas con barra de acciones', $pantallas));
     }
 
     /* ------------------------------------------------------------------ */

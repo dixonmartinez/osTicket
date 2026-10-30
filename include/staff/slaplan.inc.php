@@ -54,8 +54,8 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <?php echo __('Status');?>:
             </td>
             <td>
-                <input type="radio" name="isactive" value="1" <?php echo $info['isactive']?'checked="checked"':''; ?>><strong><?php echo __('Active');?></strong>
-                <input type="radio" name="isactive" value="0" <?php echo !$info['isactive']?'checked="checked"':''; ?>><?php echo __('Disabled');?>
+                <label><input type="radio" name="isactive" value="1" <?php echo $info['isactive']?'checked="checked"':''; ?>><strong><?php echo __('Active');?></strong></label>
+                <label><input type="radio" name="isactive" value="0" <?php echo !$info['isactive']?'checked="checked"':''; ?>><?php echo __('Disabled');?></label>
                 &nbsp;<span class="error">*&nbsp;<?php echo $errors['isactive']; ?></span>
             </td>
         </tr>
@@ -96,8 +96,8 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <?php echo __('Transient'); ?>:
             </td>
             <td>
-                <input type="checkbox" name="transient" value="1" <?php echo $info['transient']?'checked="checked"':''; ?> >
-                <?php echo __('SLA can be overridden on ticket transfer or help topic change'); ?>
+                <label><input type="checkbox" name="transient" value="1" <?php echo $info['transient']?'checked="checked"':''; ?> >
+                <?php echo __('SLA can be overridden on ticket transfer or help topic change'); ?></label>
                 &nbsp;<i class="help-tip icon-question-sign" href="#transient"></i>
             </td>
         </tr>
@@ -106,9 +106,9 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
                 <?php echo __('Ticket Overdue Alerts');?>:
             </td>
             <td>
-                <input type="checkbox" name="disable_overdue_alerts" value="1" <?php echo $info['disable_overdue_alerts']?'checked="checked"':''; ?> >
+                <label><input type="checkbox" name="disable_overdue_alerts" value="1" <?php echo $info['disable_overdue_alerts']?'checked="checked"':''; ?> >
                     <?php echo __('<strong>Disable</strong> overdue alerts notices.'); ?>
-                    <em><?php echo __('(Override global setting)'); ?></em>
+                    <em><?php echo __('(Override global setting)'); ?></em></label>
             </td>
         </tr>
         <tr>
@@ -125,9 +125,9 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
         </tr>
     </tbody>
 </table>
-<p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="slas.php">
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
 </p>
 </form>

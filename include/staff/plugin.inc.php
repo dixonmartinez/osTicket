@@ -88,12 +88,11 @@ $info= Format::htmlchars(($errors && $_POST) ? $_POST : array(), true);
             </tr>
         </tbody>
         </table>
-        <p class="centered">
-        <input type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
-        <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
-        <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>"
-            data-href="?">
-        </p>
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="?">
+    <input type="reset" name="reset" value="<?php echo __('Reset'); ?>">
+    <input type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
+</p>
     </form>
 </div>
 <div id="instances" class="tab_content hidden">

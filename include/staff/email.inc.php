@@ -214,10 +214,10 @@ if ($email) { ?>
 </div>
 <?php
 } ?>
-<p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="emails.php">
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
 </p>
 </form>
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">

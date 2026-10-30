@@ -465,11 +465,11 @@ foreach ($staff->teams as $TM) {
   <!-- ============== Audits =================== -->
 <?php Signal::send('agent.audit', $staff, $extras); ?>
 
-  <p style="text-align:center;">
-      <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-      <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
-      <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-go-back>
-  </p>
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-go-back>
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
+</p>
 </form>
 
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">

@@ -253,9 +253,9 @@ echo $attrs; ?>><?php echo $draft ?: Format::viewableImages($answer);
         rows="8" style="width: 80%;"><?php echo Format::viewableImages($info['notes']); ?></textarea>
 </div>
 
-<p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>" data-discard-draft />
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="faq.php?<?php echo $qstr; ?>">
+    <input type="reset" name="reset" value="<?php echo __('Reset'); ?>" data-discard-draft />
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
 </p>
 </form>

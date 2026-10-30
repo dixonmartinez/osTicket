@@ -119,9 +119,9 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
     <div id="msg_warning"><?php echo __('Canned response is in use by email filter(s)');?>: <?php
     echo implode(', ', $canned->getFilters()); ?></div>
  <?php } ?>
-<p style="text-align:center;">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>" data-discard-draft />
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="canned.php">
+    <input type="reset" name="reset" value="<?php echo __('Reset'); ?>" data-discard-draft />
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
 </p>
 </form>

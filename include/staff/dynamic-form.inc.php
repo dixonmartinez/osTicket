@@ -222,10 +222,13 @@ if ($form && count($langs) > 1) { ?>
                 ?></font>
                 </td>
             <td align="center">
-                <input class="delete-box" type="checkbox" name="delete-<?php echo $id; ?>"
+                <label title="<?php echo Format::htmlchars(sprintf(__('Delete %s'),
+                    $f->get('label'))); ?>"><input class="delete-box" type="checkbox"
+                    name="delete-<?php echo $id; ?>"
                     data-field-label="<?php echo $f->get('label'); ?>"
                     data-field-id="<?php echo $id; ?>"
-                    <?php echo $deletable; ?>/>
+                    <?php echo $deletable; ?>/><span class="sr-only"><?php
+                    echo Format::htmlchars(sprintf(__('Delete %s'), $f->get('label'))); ?></span></label>
                 <input type="hidden" name="sort-<?php echo $id; ?>"
                     value="<?php echo $f->get('sort'); ?>"/>
             </td>
@@ -289,10 +292,10 @@ if ($form && count($langs) > 1) { ?>
         </tr>
     </tbody>
     </table>
-<p class="centered">
-    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
+<p class="form-actions">
     <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="?">
+    <input type="reset" name="reset" value="<?php echo __('Reset'); ?>">
+    <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
 </p>
 
 <div style="display:none;" class="draggable dialog" id="delete-confirm">

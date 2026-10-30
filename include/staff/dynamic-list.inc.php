@@ -176,11 +176,15 @@ $info=Format::htmlchars(($errors && $_POST) ? array_merge($info,$_POST) : $info,
                 </td>
             <td>
                 <?php
-                if (!$f->isDeletable())
+                if (!$f->isDeletable()) {
                     echo '<i class="icon-ban-circle"></i>';
-                else
-                    echo sprintf('<input type="checkbox" name="delete-prop-%s">', $id);
-                ?>
+                } else {
+                    $rm = sprintf(__('Delete %s'), $f->get('label')); ?>
+                    <label title="<?php echo Format::htmlchars($rm); ?>">
+                        <input type="checkbox" name="delete-prop-<?php echo $id; ?>">
+                        <span class="sr-only"><?php echo Format::htmlchars($rm); ?></span>
+                    </label>
+                <?php } ?>
                 <input type="hidden" name="prop-sort-<?php echo $id; ?>"
                     value="<?php echo $f->get('sort'); ?>"/>
                 </td>
@@ -227,11 +231,10 @@ $info=Format::htmlchars(($errors && $_POST) ? array_merge($info,$_POST) : $info,
 </div>
 <?php } ?>
 
-<p class="centered">
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-href="?">
+    <input type="reset" name="reset" value="<?php echo __('Reset'); ?>">
     <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset'); ?>">
-    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>"
-        data-href="?">
 </p>
 </form>
 
