@@ -49,17 +49,17 @@ class TestSecurityHardening extends Test {
     }
 
     function testCspComposition() {
-        $cfg = new class {
-            function getAllowIframes() { return "'self'"; }
-        };
+        $cfg = new SecurityTestConfig();
         $csp = Http::csp($cfg);
         $this->assert(strpos($csp, "object-src 'none'") !== false);
         $this->assert(strpos($csp, "base-uri 'self'") !== false);
         $this->assert(strpos($csp, "frame-ancestors 'self'") !== false);
         $this->assert(strpos($csp, "'unsafe-eval'") === false);
 
+        // OST-102 fase 3: el panel ya no tiene eval(); la directiva no se
+        // emite ni siquiera si se pide
         $staff = Http::csp($cfg, ['unsafe-eval' => true]);
-        $this->assert(strpos($staff, "'unsafe-eval'") !== false);
+        $this->assert(strpos($staff, "'unsafe-eval'") === false);
     }
 
     function testPasswordHashStrength() {
@@ -81,4 +81,17 @@ class TestSecurityHardening extends Test {
         $this->assert(!Passwd::needsRehash(''));
         $this->assert(!Passwd::needsRehash(null));
     }
+}
+
+/**
+ * Configuración mínima para las pruebas de la CSP.
+ *
+ * `Http::csp()` recibe `?Config`, así que un objeto anónimo ya no vale: esta
+ * subclase no llama al constructor del padre (que leería la base de datos) y
+ * sólo responde a lo que la cabecera consulta.
+ */
+class SecurityTestConfig extends Config {
+    function __construct() {}
+
+    function getAllowIframes() { return "'self'"; }
 }

@@ -277,21 +277,18 @@ class SecurityPosture
      * la carpeta sigue en el repositorio porque es código versionado. Para no
      * pedirle al administrador que borre archivos versionados, se comprueba
      * de verdad si el instalador responde.
-     *
-     * Devuelve true (expuesto, hay que avisar) o false (bloqueado, silencio).
-     * Si no hay forma de comprobarlo, devuelve true para no ocultar el aviso.
      */
-    public static function isSetupExposed() {
+    public static function setupProbeState() {
         // Escape explícito para despliegues que bloquean /setup/ de otra forma
         // (proxy externo, WAF, autenticación básica).
         if (getenv('OST_SETUP_LOCKED') === '1')
-            return false;
+            return 'blocked';
 
         // Sólo se puede comprobar si hay una URL interna alcanzable desde el
         // contenedor de PHP (en Docker, el servicio `nginx`).
         $base = getenv('OST_INTERNAL_URL') ?: '';
         if (!$base)
-            return true;
+            return 'unknown';
 
         $cache = sys_get_temp_dir() . '/ost-setup-probe-' . md5($base) . '.cache';
         $now = time();
@@ -304,7 +301,7 @@ class SecurityPosture
             list($state, $when) = $parts;
             $ttl = ($state === 'unknown') ? 30 : 300;
             if ($now - (int) $when < $ttl)
-                return $state !== 'blocked';
+                return $state;
         }
 
         $status = self::probeSetupStatus($base);
@@ -315,13 +312,21 @@ class SecurityPosture
         elseif ($status === 200)
             $state = 'exposed';
         else
-            // Sin respuesta: no se puede afirmar nada. Se avisa (postura
-            // conservadora) y se reintenta pronto.
+            // Sin respuesta: no se puede afirmar nada. Se reintenta pronto.
             $state = 'unknown';
 
         @file_put_contents($cache, $state . ' ' . $now);
 
-        return $state !== 'blocked';
+        return $state;
+    }
+
+    /**
+     * Versión de dos valores de `setupProbeState()`, para quien sólo necesita
+     * decidir si avisar. `unknown` cuenta como expuesto: más vale un aviso de
+     * más que un instalador abierto en silencio.
+     */
+    public static function isSetupExposed() {
+        return self::setupProbeState() !== 'blocked';
     }
 
     /** Último código HTTP visto por el sondeo (0 = sin respuesta). */
@@ -333,6 +338,263 @@ class SecurityPosture
 
     public static function getSetupProbeStatus() {
         return self::$setupProbeStatus;
+    }
+
+    /* ================================================================== */
+    /* OST-103 a OST-106: las recomendaciones de operación                 */
+    /* ================================================================== */
+
+    /**
+     * ¿Hay límite de intentos de acceso en la configuración del servidor?
+     *
+     * OST-103 pedía limitar los intentos **en la infraestructura**: un
+     * formulario de acceso acepta un número ilimitado de contraseñas por
+     * segundo, y eso no se arregla en PHP. El repositorio trae la
+     * configuración de nginx del entorno Docker; esta comprobación dice si el
+     * límite está puesto de verdad, leyendo los archivos:
+     *
+     *   - `docker/nginx/00-limits.conf` declara las zonas (`limit_req_zone`);
+     *   - `docker/nginx/default.conf` las aplica en cada acceso.
+     *
+     * No mira el nginx que esté corriendo: mira lo que se va a desplegar.
+     *
+     * @return array{configured: bool, zones: string[], paths: string[],
+     *               problems: string[]}
+     */
+    public static function rateLimit($root)
+    {
+        $limits = self::readFile($root . '/docker/nginx/00-limits.conf');
+        $site = self::readFile($root . '/docker/nginx/default.conf');
+        $problems = [];
+        $zones = [];
+        $paths = [];
+
+        if ($limits === null)
+            $problems[] = 'docker/nginx/00-limits.conf no existe';
+        elseif (preg_match_all('/limit_req_zone\s+\S+\s+zone=([a-z0-9_]+)/i',
+                $limits, $m))
+            $zones = $m[1];
+        else
+            $problems[] = '00-limits.conf no declara ninguna limit_req_zone';
+
+        // A qué rutas se les aplica: bloques `location = /x { … limit_req … }`
+        if ($site === null)
+            $problems[] = 'docker/nginx/default.conf no existe';
+        else {
+            if (preg_match_all(
+                    '/location\s+=\s+(\S+)\s*\{([^}]*)\}/s', $site, $blocks, PREG_SET_ORDER)) {
+                foreach ($blocks as $block) {
+                    if (preg_match('/limit_req\s+zone=([a-z0-9_]+)/i', $block[2], $z)
+                            && in_array($z[1], $zones))
+                        $paths[] = $block[1];
+                }
+            }
+            if (!$paths)
+                $problems[] = 'default.conf no aplica ninguna zona a un acceso';
+        }
+
+        return [
+            'configured' => !$problems,
+            'zones' => $zones,
+            'paths' => array_values(array_unique($paths)),
+            'problems' => $problems,
+        ];
+    }
+
+    /**
+     * Inventario de librerías: las de Composer y las que viajan dentro del
+     * repositorio (mPDF, laminas, PEAR…, que no se instalan con Composer en
+     * tiempo de ejecución).
+     *
+     * OST-106 pedía saber qué hay y en qué versión para poder seguir sus
+     * avisos. Esto no consulta Internet: enumera lo que hay, leyendo la
+     * fuente de cada versión —los `composer.lock` empaquetados, la constante
+     * de la clase o la cabecera del archivo— en vez de una lista a mano que
+     * envejece.
+     *
+     * @return array<int, array{name: string, version: string, source: string}>
+     */
+    public static function dependencyInventory($root)
+    {
+        $out = [];
+        $seen = [];
+
+        // 1. Composer: restricciones declaradas (el runtime no usa Composer,
+        //    pero sus dependencias de desarrollo sí se auditan)
+        $composer = json_decode(self::readFile($root . '/composer.json') ?: '', true);
+        if (is_array($composer)) {
+            foreach (['require', 'require-dev'] as $section) {
+                foreach (($composer[$section] ?? []) as $name => $version) {
+                    if ($name === 'php' || isset($seen[$name]))
+                        continue;
+                    $seen[$name] = true;
+                    $out[] = [
+                        'name' => $name,
+                        'version' => (string) $version,
+                        'source' => 'composer:' . $section,
+                    ];
+                }
+            }
+        }
+
+        // 2. Librerías empaquetadas con su propio composer.lock (mPDF,
+        //    laminas-mail y lo que arrastran). El lock dice la versión exacta,
+        //    pero también lista las dependencias de DESARROLLO de esa
+        //    librería —psalm, phpunit, los estándares de código—, que no
+        //    viajan en el repositorio. Se incluye sólo lo que está de verdad
+        //    en `vendor/`: el inventario tiene que servir para valorar un
+        //    aviso, y llenarlo de paquetes que no se despliegan lo estropea.
+        $locks = glob($root . '/include/*/composer.lock') ?: [];
+        sort($locks);
+        foreach ($locks as $lock) {
+            $base = dirname($lock);
+            $source = 'lock:include/' . basename($base);
+            $meta = json_decode(self::readFile($lock) ?: '', true);
+            if (!is_array($meta))
+                continue;
+
+            foreach (($meta['packages'] ?? []) as $dep) {
+                if (!is_array($dep) || empty($dep['name']) || isset($seen[$dep['name']]))
+                    continue;
+                if (!is_dir($base . '/vendor/' . $dep['name']))
+                    continue;
+                $seen[$dep['name']] = true;
+                $out[] = [
+                    'name' => $dep['name'],
+                    'version' => (string) ($dep['version'] ?? 'desconocida'),
+                    'source' => $source,
+                ];
+            }
+
+            // La librería dueña del lock no aparece en su propio lock
+            $own = json_decode(self::readFile($base . '/composer.json') ?: '', true);
+            $name = is_array($own) ? ($own['name'] ?? null) : null;
+            if ($name && !isset($seen[$name])) {
+                $seen[$name] = true;
+                $out[] = [
+                    'name' => $name,
+                    'version' => (string) ($own['version'] ?? 'no fijada'),
+                    'source' => 'incluida:include/' . basename($base),
+                ];
+            }
+        }
+
+        // 3. Lo que no tiene lock ni manifiesto: la versión está donde cada
+        //    proyecto la puso (o en ningún sitio).
+        $single = [
+            // [nombre, archivo, patrón, origen]
+            ['mpdf/mpdf',
+                'include/mpdf/vendor/mpdf/mpdf/src/Mpdf.php',
+                "/const VERSION = '([^']+)'/", 'incluida:include/mpdf'],
+            ['pear/mail', 'include/pear/Mail.php',
+                '/\$Revision:\s*(\d+)/', 'incluida:include/pear'],
+            ['htmLawed', 'include/htmLawed.php',
+                '/@version\s+([\w.\-]+)/', 'incluida:include'],
+            ['phpass', 'include/PasswordHash.php',
+                '/^#\s*Version\s+([\w.\-]+)/m', 'incluida:include'],
+        ];
+        foreach ($single as list($name, $path, $pattern, $source)) {
+            if (isset($seen[$name]))
+                continue;
+            $body = self::readFile($root . '/' . $path);
+            if ($body === null)
+                continue;
+            $version = preg_match($pattern, $body, $m) ? $m[1] : 'sin versión';
+            if ($name === 'pear/mail' && $version !== 'sin versión')
+                $version = 'CVS r' . $version;
+            $seen[$name] = true;
+            $out[] = ['name' => $name, 'version' => $version, 'source' => $source];
+        }
+
+        // 4. Spyc no declara versión en ninguna parte: se dice tal cual, que
+        //    es más útil que omitirlo.
+        if (!isset($seen['spyc']) && is_readable($root . '/include/Spyc.php')) {
+            $seen['spyc'] = true;
+            $out[] = ['name' => 'spyc', 'version' => 'sin versión', 'source' => 'incluida:include'];
+        }
+
+        usort($out, function ($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+
+        return $out;
+    }
+
+    /**
+     * ¿Quedan hashes de contraseña antiguos?
+     *
+     * Recibe la lista de hashes ya leída de la base (el llamador decide de
+     * dónde) para no depender de la conexión aquí. Los heredados se
+     * reescriben solos en el primer acceso correcto (`Passwd::needsRehash()`),
+     * así que el número baja solo con el uso; el cero significa que ya no
+     * queda ninguno.
+     *
+     * @param iterable $hashes
+     * @return array{total: int, legacy: int, modern: int, done: bool}
+     */
+    public static function classifyHashes($hashes)
+    {
+        $total = $legacy = 0;
+        foreach ($hashes as $hash) {
+            if (!$hash)
+                continue;
+            $total++;
+            if (Passwd::isLegacy($hash))
+                $legacy++;
+        }
+
+        return [
+            'total' => $total,
+            'legacy' => $legacy,
+            'modern' => $total - $legacy,
+            'done' => $legacy === 0,
+        ];
+    }
+
+    /**
+     * Estado del directorio `setup/` (OST-104).
+     *
+     * Cuatro estados posibles:
+     *   - `absent`:  ya no está en el servidor (lo mejor);
+     *   - `blocked`: está, pero el servidor no lo sirve;
+     *   - `exposed`: está y responde (un instalador reabierto);
+     *   - `unknown`: está y no hay forma de comprobarlo desde aquí.
+     *
+     * @param string      $root      raíz del proyecto
+     * @param bool|null   $reachable resultado ya conocido de `isSetupExposed()`
+     *
+     * @return array{state: string, present: bool, detail: string}
+     */
+    public static function setupState($root, $reachable = null)
+    {
+        if (!is_dir($root . '/setup'))
+            return [
+                'state' => 'absent',
+                'present' => false,
+                'detail' => 'El directorio setup/ no está en el servidor.',
+            ];
+
+        $state = $reachable === null
+            ? self::setupProbeState()
+            : ($reachable ? 'exposed' : 'blocked');
+
+        $details = [
+            'exposed' => 'setup/ responde: cualquiera puede reinstalar o cambiar la configuración.',
+            'blocked' => 'setup/ está en disco pero el servidor no lo sirve.',
+            'unknown' => 'setup/ está en disco y no se pudo comprobar (define OST_INTERNAL_URL o borra el directorio).',
+        ];
+
+        return [
+            'state' => $state,
+            'present' => true,
+            'detail' => $details[$state],
+        ];
+    }
+
+    /** Lee un archivo relativo a la raíz; null si no existe o no se puede leer. */
+    private static function readFile($path)
+    {
+        return is_readable($path) ? @file_get_contents($path) : null;
     }
 
     /**

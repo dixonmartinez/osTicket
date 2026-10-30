@@ -63,11 +63,11 @@ esta rama salvo los que requieren una decisión operativa del administrador
 | OST-011 | **Crítica (9.2)** | PHP vulnerable a **php2shell** (CVE-2026-109618 / 109619) | ✅ Mitigado + controlado |
 | OST-012 | Media | Configuración PHP que habilita rutas de php2shell (`session.upload_progress`, `fatal_error_backtraces`) | ✅ Corregido |
 | OST-101 | Baja | `validateId()` siempre `true` (modo estricto inefectivo) | ⏳ Recomendación |
-| OST-102 | Media | `unsafe-inline` / `unsafe-eval` en la CSP | 🔄 En curso (0 manejadores inline; quedan los `<script>` en línea) |
-| OST-103 | Media | Sin limitación de intentos a nivel de infraestructura | ⏳ Recomendación |
-| OST-104 | Media | Directorio `setup/` presente tras instalar | ⏳ Operación |
-| OST-105 | Media | Contraseñas heredadas MD5 en base de datos | ⏳ Operación |
-| OST-106 | Media | Inventario/servicio de actualizaciones de librerías | ⏳ Recomendación |
+| OST-102 | Media | `unsafe-inline` / `unsafe-eval` en la CSP | ✅ Cerrado (0 manejadores inline, nonce en los `<script>`, `unsafe-eval` eliminado; `style-src` conserva `'unsafe-inline'` a propósito) |
+| OST-103 | Media | Sin limitación de intentos a nivel de infraestructura | ✅ Límite en nginx (`00-limits.conf`) y comprobable con `make operations` |
+| OST-104 | Media | Directorio `setup/` presente tras instalar | ✅ Aviso + comprobación en `make operations`; borrarlo es decisión de despliegue |
+| OST-105 | Media | Contraseñas heredadas MD5 en base de datos | ✅ Rehash automático al entrar + recuento con `make operations OPERATIONS_ARGS=--hashes=…` |
+| OST-106 | Media | Inventario/servicio de actualizaciones de librerías | ✅ Inventario automático (incluidas las empaquetadas); los avisos, `composer audit` |
 
 \* La severidad aplica **sólo** a instalaciones que cumplen la condición
 indicada (heredadas o con `SECRET_SALT` ausente). En una instalación nueva
@@ -240,14 +240,15 @@ X-Frame-Options: SAMEORIGIN            (sólo si no se permite iframe)
 Strict-Transport-Security: ...         (sólo sobre HTTPS)
 Content-Security-Policy: object-src 'none'; base-uri 'self';
     style-src 'self' 'unsafe-inline';
-    script-src 'self' 'nonce-<por sesión>' ['unsafe-eval' sólo en el panel];
+    script-src 'self' 'nonce-<por sesión>';
     frame-ancestors <configuración del administrador>
 ```
 
-`script-src` ya no anuncia `'unsafe-inline'`: los 98 bloques `<script>` en
-línea de las plantillas llevan el atributo `nonce` que emite
-`Http::nonce()` (OST-102). `style-src` sí lo conserva, porque los atributos
-`style=` de las plantillas son cientos y no ejecutan código.
+`script-src` no anuncia `'unsafe-inline'` —los 98 bloques `<script>` en línea
+de las plantillas llevan el atributo `nonce` que emite `Http::nonce()`— ni
+`'unsafe-eval'`, que `Http::csp()` descarta aunque se lo pidan (OST-102).
+`style-src` sí conserva `'unsafe-inline'`, porque los atributos `style=` de
+las plantillas son cientos y no ejecutan código.
 
 La CSP se mantiene **deliberadamente conservadora**: sólo se añaden
 directivas que no rompen imágenes remotas, plugins ni widgets embebidos.
@@ -398,7 +399,9 @@ obsoleto entre peticiones por *upload-progress* y *backtraces* fatales
    sufijos de distribución (`8.4.27-1ubuntu1`) y `isVulnerablePhp()`.
 2. `tools/security/php-cve-check.php` — comprobación en CLI y CI con `exit 1`
    cuando la versión está afectada (`--json` para pipelines). Integrada en
-   `make security` y `make ci`.
+   `make security` y `make ci`. Su hermano
+   `tools/security/operations-check.php` (`make operations`) informa de las
+   recomendaciones de operación (OST-103 a OST-106).
 3. Docker — imagen basada en `PHP_VERSION=8.4.27` y entrypoint que **aborta el
    arranque** con `OST_FAIL_ON_VULNERABLE_PHP=1`.
 4. Interfaz — *Admin → System Settings → Security Posture* y aviso en el panel
@@ -537,7 +540,7 @@ inline en plantillas.
 3. Eliminar `unsafe-eval` del panel sustituyendo los widgets que usan `eval`.
 4. Medir con `Content-Security-Policy-Report-Only` antes de aplicar.
 
-**Estado: fases 1 y 2 hechas.**
+**Estado: cerrado (fases 1, 2 y 3).**
 
 - `js/actions.js` implementa las acciones declarativas que sustituyen a los
   `onclick` más repetidos (`data-href`, `data-go-back`,
@@ -558,8 +561,23 @@ rechazaría el del trozo por no coincidir con el del documento. Con un nonce
 por sesión coinciden siempre. El coste es que el nonce vive mientras dure la
 sesión; se pierde al cerrarla.
 
-**Lo que queda**: `'unsafe-eval'` en el panel (los widgets de editor y de
-gráficas antiguos), y `'unsafe-inline'` en `style-src`. Un complemento de
+- **`unsafe-eval` fuera (fase 3)**: el único `eval()` del proyecto estaba en
+  `js/jquery-ui-timepicker-addon.js`, que convertía los atributos `time:*` de
+  un `<input>` en opciones del widget evaluándolos como JavaScript.
+  `_parseAttr()` los lee ahora con `JSON.parse` (y, si no son JSON, con
+  booleanos y números) — mismos valores, sin ejecutar código.
+  `include/staff/header.inc.php` pide la CSP sin la directiva, y
+  `Http::csp()` la descarta siempre: si alguien la vuelve a pedir por
+  `addExtraHeader()`, no se emite y queda un aviso en el registro de
+  seguridad en vez de una cabecera silenciosa. Lo fijan
+  `CspNonceTest::testElPanelYaNoUsaEval` y
+  `testElJavaScriptDelProyectoNoTieneEval`, que recorren `js/` y `scp/js/`
+  buscando `eval` como llamada.
+
+**Lo que queda**: `'unsafe-inline'` en `style-src`, que se conserva a
+propósito: osTicket cambia colores y tamaños con atributos `style=` en las
+plantillas de los widgets (jQuery UI, editor) y quitarlo dejaría pantallas sin
+estilos en lugar de más seguras. Un complemento de
 terceros que escriba `<script>` en su propia plantilla tampoco funcionará sin
 nonce: `addExtraHeader()` se lo pone, y para el resto queda la salida de
 emergencia `Http::csp(null, ['nonce' => false])` (vuelve a
@@ -572,37 +590,102 @@ La aplicación cuenta *strikes* por usuario (`class.auth.php`) y rota el
 token CSRF en cada intento, pero un ataque distribuido con muchos usuarios
 no se frena.
 
-**Recomendación**: limitar en el balanceador/WAF (`/scp/login.php`,
-`/login.php`, `/api/`, `/pwreset.php`) p. ej. 10 intentos/minuto por IP y
-100/hora por ASN, con bloqueo progresivo. Considerar `fail2ban` sobre el log
-de osTicket.
+**Hecho** (era una decisión de despliegue, no código pendiente): el entorno
+Docker limita en nginx, delante de PHP.
+
+- `docker/nginx/00-limits.conf` declara las zonas:
+  `ost_login` (10 peticiones/minuto por IP) y `ost_api` (120/minuto). El
+  prefijo `00-` es obligatorio: nginx resuelve `limit_req zone=` mientras lee
+  la configuración y `conf.d/*.conf` se carga por orden alfabético; con el
+  nombre `limits.conf` iría después de `default.conf` y nginx **no
+  arrancaría** («unknown limit_req_zone»).
+- `docker/nginx/default.conf` las aplica con `location =` (coincidencia
+  exacta, que gana a la expresión regular de PHP) a `/scp/login.php`,
+  `/login.php` y `/pwreset.php` —las tres puertas donde se comprueba una
+  contraseña o un token— y al prefijo `/api/` con su propio cubo. **No** se
+  limita `/scp/index.php` ni `/index.php`: son el panel y la portada, se
+  recargan continuamente y un 429 ahí rompería el uso normal; a esos accesos
+  los protege el contador de intentos por usuario de `class.auth.php`. Los
+  parámetros de
+  FastCGI están en `docker/nginx/fastcgi-osticket.conf`, fuera de `conf.d/`
+  (son directivas de `location`, no de `http`), para no duplicarlos.
+- Al superar el límite se responde **429** (`limit_req_status 429`), no el 503
+  por defecto: es el código que los clientes HTTP entienden.
+- `make operations` comprueba que la zona está declarada y aplicada; falla si
+  alguien borra una de las dos mitades.
+
+**Lo que sigue siendo de operación**: el `rate` es una estimación para una IP
+por persona. Detrás de un NAT (una oficina entera) hay que subir el `burst`;
+con usuarios repartidos, se puede bajar el `rate`. Para ataques distribuidos
+sigue haciendo falta `fail2ban` sobre el log de osTicket o un WAF.
 
 ### OST-104 — Directorio `setup/` tras la instalación · Media
 
 `scp/admin.inc.php` ya avisa, pero el directorio sigue accesible y contiene
 herramientas de instalación/actualización.
 
-**Recomendación**: eliminar `setup/` (o bloquearlo en el servidor web) en
-producción como parte del despliegue. Incluido en el checklist (§7).
+**Hecho**: el aviso del panel ya no depende de que el directorio exista
+(`setup/` está versionado y siempre está), sino de si **responde**:
+`SecurityPosture::setupProbeState()` pide `/setup/install.php` por HTTP usando
+`OST_INTERNAL_URL`, cachea el resultado en `sys_get_temp_dir()` (5 minutos si
+es concluyente, 30 s si no hubo respuesta) y distingue cuatro estados —
+`absent`, `blocked`, `exposed`, `unknown`—. `OST_SETUP_LOCKED=1` lo silencia
+cuando el bloqueo está en otra capa (WAF, proxy, autenticación básica).
+`make operations` imprime el estado. El bloqueo definitivo se hace con el
+bloque `location ^~ /setup/` de `docker/nginx/default.conf` (comentado a
+propósito hasta que la instalación termina) o borrando el directorio.
+
+**Recomendación que queda**: borrarlo en la imagen de producción, como parte
+del despliegue. Incluido en el checklist (§7).
 
 ### OST-105 — Hashes MD5 heredados en base de datos · Media
 
 Sólo desaparecen cuando el usuario inicia sesión (ahora con rehash
 automático). Un volcado de base de datos filtrado permitiría crackearlos.
 
-**Recomendación**: forzar el cambio de contraseña a los usuarios cuyo hash
-no empiece por `$2` o `$P$` (consulta de auditoría incluida en §7).
+**Hecho**: `Passwd::isLegacy()` clasifica el hash (bcrypt y argon2 son
+modernos; MD5, DES y desconocidos, heredados) y
+`SecurityPosture::classifyHashes()` cuenta los que quedan. `make operations
+OPERATIONS_ARGS=--hashes=volcado.txt` da el número y dice si la migración está
+terminada:
+
+```sh
+mysql -N -e "SELECT passwd FROM ost_staff UNION ALL SELECT passwd FROM ost_user" \
+    osticket > volcado.txt
+make operations OPERATIONS_ARGS=--hashes=volcado.txt
+```
+
+El rehash es automático en el primer acceso correcto (`needsRehash()`), así
+que el número baja solo con el uso, sin que nadie se quede fuera: un hash
+heredado **sigue validando** (`Passwd::cmp()`), sólo es más débil hasta que se
+reescribe. Lo fijan las pruebas de `tests/SecurityOperationsTest.php`.
+
+**Recomendación que queda**: si el recuento no baja lo suficiente (cuentas que
+nunca vuelven a entrar), forzar un cambio de contraseña desde el panel a esos
+usuarios. Es una acción sobre los datos, no una migración de código.
 
 ### OST-106 — Ciclo de vida de dependencias · Media
 
 `mpdf`, `laminas-mail`, `pear`, `htmLawed` y `Spyc` están embebidos y sus
 versiones no se rastrean en el repositorio.
 
-**Recomendación**: inventariar versiones exactas (hecho: ver
-[`DEPENDENCIES.md`](DEPENDENCIES.md)), suscribirse a los avisos de seguridad de cada
-proyecto y automatizar la comprobación en CI (por ejemplo con
-`composer audit` sobre un `composer.lock` de referencia o un script que lea
-los `composer.lock` embebidos).
+**Hecho en parte**: `SecurityPosture::dependencyInventory()` genera el
+inventario leyendo lo que hay —`composer.json` (las de desarrollo) y las
+empaquetadas, con su versión tomada de donde cada proyecto la pone: la
+constante `VERSION` de `Mpdf.php` (8.2.7) y el `$Id:` de `Mail.php` de PEAR
+(que no declara versión propia). Ya no hay que mantener la lista a mano:
+
+```sh
+make operations            # incluye el inventario con versiones
+php tools/security/operations-check.php --json   # para un script
+```
+
+**Recomendación que queda**: los *avisos* no se pueden automatizar aquí
+porque las librerías empaquetadas no tienen `composer.lock` ni servicio de
+actualizaciones; hay que seguir los anuncios de mPDF, laminas-mail, PEAR Mail,
+htmLawed y Spyc a mano. `composer audit` cubre sólo las de desarrollo
+(phpstan, phpunit, php_codesniffer). Ver
+[`DEPENDENCIES.md`](DEPENDENCIES.md).
 
 ---
 
@@ -613,7 +696,8 @@ los `composer.lock` embebidos).
 - [ ] `include/ost-config.php` con permisos `640` y propietario del usuario
       del servidor web.
 - [ ] `SECRET_SALT` aleatorio de 32+ caracteres definido manualmente.
-- [ ] `setup/` eliminado o bloqueado tras instalar/actualizar.
+- [ ] `setup/` eliminado o bloqueado tras instalar/actualizar
+      (`make operations` dice en cuál de los cuatro estados está).
 - [ ] Panel de administración restringido por IP o VPN (`scp/admin.php`).
 - [ ] HTTPS forzado (`force_https`) y HSTS activo.
 - [ ] 2FA obligatorio para agentes (`force_2fa`).
@@ -625,6 +709,8 @@ los `composer.lock` embebidos).
 - [ ] Versión **con el parche de php2shell** (≥ 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12).
       Ver [`SECURITY_PHP2SHELL.md`](SECURITY_PHP2SHELL.md).
 - [ ] `php tools/security/php-cve-check.php` termina con código 0.
+- [ ] `php tools/security/operations-check.php` informa: límite de intentos
+      configurado, `setup/` no expuesto y ninguna librería sin versión.
 - [ ] Sin `php_value`/`php_flag`/`PHP_VALUE`/`.user.ini` que alteren la seguridad.
 
 ```ini
@@ -686,16 +772,34 @@ add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
 client_max_body_size 24m;
+
+# Límite de intentos en los accesos (OST-103). El archivo con las zonas
+# (limit_req_zone) tiene que cargarse antes que este server: en Docker es
+# conf.d/00-limits.conf, y por eso el prefijo 00-.
+limit_req_zone $binary_remote_addr zone=ost_login:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=ost_api:10m rate=120r/m;
+limit_req_status 429;
+
+location = /scp/login.php { limit_req zone=ost_login burst=5 nodelay; }
+location = /login.php     { limit_req zone=ost_login burst=5 nodelay; }
+location = /pwreset.php   { limit_req zone=ost_login burst=5 nodelay; }
+location /api/            { limit_req zone=ost_api burst=60 nodelay; }
 ```
 
 ### Consultas de auditoría útiles
 
 ```sql
--- Cuentas con hashes heredados (MD5) que deben resetear contraseña
+-- Cuentas con hashes heredados que deben resetear contraseña.
+-- `$2%` es bcrypt y `$argon2%` argon2; lo demás ($P$ es phpass) es heredado.
 SELECT id, username FROM ost_staff
- WHERE passwd NOT LIKE '$2%' AND passwd NOT LIKE '$P$%';
+ WHERE passwd NOT LIKE '$2%' AND passwd NOT LIKE '$argon2%';
 SELECT id, username FROM ost_user_account
- WHERE passwd NOT LIKE '$2%' AND passwd NOT LIKE '$P$%';
+ WHERE passwd NOT LIKE '$2%' AND passwd NOT LIKE '$argon2%';
+
+-- El mismo recuento, con el nombre de la tabla a la vista:
+--   mysql -N -e "SELECT passwd FROM ost_staff UNION ALL
+--                SELECT passwd FROM ost_user" osticket > volcado.txt
+--   make operations OPERATIONS_ARGS=--hashes=volcado.txt
 
 -- Sesiones activas inusualmente largas
 SELECT session_id, user_id, lastseen FROM ost_session

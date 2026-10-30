@@ -273,7 +273,12 @@ docker/
       10-dev.ini             OPcache con revalidación
       10-prod.ini            OPcache + JIT inmutable
       90-xdebug.ini          Xdebug 3
-  nginx/default.conf         server block, FastCGI, bloqueo de rutas internas
+  nginx/
+    00-limits.conf           zonas de limit_req (OST-103); el prefijo 00- hace
+                             que nginx las lea antes que default.conf
+    fastcgi-osticket.conf    fragmento de `location` compartido (FastCGI +
+                             PATH_INFO); fuera de conf.d/ a propósito
+    default.conf             server block, bloqueo de rutas internas, accesos
   mysql/init/01-charset.sql  ajustes iniciales de la base
 .vscode/
   launch.json                lanzadores de Xdebug (web, CLI, pruebas)
@@ -317,6 +322,20 @@ Antes de exponerlo a Internet:
 > un archivo propio.
 
 ## 8. Problemas frecuentes
+
+**`nginx` no arranca: `unknown limit_req_zone "ost_login"`.** Falta el archivo
+de zonas o se llama de otra forma: `limit_req` se resuelve al leer la
+configuración y `conf.d/*.conf` se carga por orden alfabético, así que las
+zonas tienen que estar en `00-limits.conf` (no en `limits.conf`). Comprueba
+que los dos montajes están en el `compose` que estás usando.
+
+**El acceso devuelve `429 Too Many Requests`.** Es el límite de intentos de
+OST-103, no un fallo: 10 peticiones por minuto y por IP a `login.php`,
+`scp/login.php` y `pwreset.php`, con 5 de margen seguidas. Si hay varias
+personas detrás de la misma IP (una oficina con NAT), sube `burst` y `rate` en
+`docker/nginx/00-limits.conf` y `docker/nginx/default.conf`, y reinicia
+nginx: `docker compose restart nginx`. El panel (`scp/index.php`) y la portada
+no están limitados a propósito.
 
 **En Windows: `exec /usr/local/bin/osticket-entrypoint: no such file or directory`.**
 El script llegó con finales de línea CRLF. El repositorio incluye

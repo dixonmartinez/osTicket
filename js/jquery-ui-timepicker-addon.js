@@ -170,6 +170,29 @@
 		},
 
 		/*
+		* Read a `time:xxx` attribute as JSON, without evaluating code.
+		*
+		* El addon original evaluaba el atributo como código para que un
+		* `time:step="15"` llegara como número y un `time:showSecond="false"`
+		* como booleano. Eso obligaba a servir el panel con
+		* `script-src 'unsafe-eval'`, que es justo lo que la CSP intenta
+		* evitar: cualquier inyección de HTML se convertía en ejecución de
+		* código.
+		*
+		* Ahora se interpreta como JSON y, si no lo es (comillas simples,
+		* claves sin comillas, texto suelto), se deja como texto — que es lo
+		* que hacía el `catch` del original. Los valores que de verdad se usan
+		* (`15`, `true`, `"hh:mm"`, `[1,2]`) son JSON válido.
+		*/
+		_parseAttr: function (value) {
+			try {
+				return JSON.parse(value);
+			} catch (err) {
+				return value;
+			}
+		},
+
+		/*
 		* Create a new Timepicker instance
 		*/
 		_newInst: function ($input, opts) {
@@ -182,11 +205,7 @@
 				if (this._defaults.hasOwnProperty(attrName)) {
 					var attrValue = $input.attr('time:' + attrName);
 					if (attrValue) {
-						try {
-							inlineSettings[attrName] = eval(attrValue);
-						} catch (err) {
-							inlineSettings[attrName] = attrValue;
-						}
+						inlineSettings[attrName] = this._parseAttr(attrValue);
 					}
 				}
 			}

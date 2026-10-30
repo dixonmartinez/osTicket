@@ -41,6 +41,9 @@ your server and follow the mitigation checklist:
 
 ```bash
 php tools/security/php-cve-check.php        # exit code 1 = vulnerable
+
+# Rate limiting, setup/ exposure and the dependency inventory (OST-103..106)
+php tools/security/operations-check.php     # or: make operations
 ```
 
 * Deployment guide and temporary mitigations:

@@ -21,7 +21,7 @@ BASELINE ?= tools/audit/baseline.json
 ROOT     := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .DEFAULT_GOAL := help
-.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security theme theme-check metrics metrics-json classes input-audit sql-audit csp-nonce integration ci clean perms serve browser-audit \
+.PHONY: help php-version lint audit audit-all audit-json baseline test test-legacy unit unit-list security operations operations-strict theme theme-check metrics metrics-json classes input-audit sql-audit csp-nonce integration ci clean perms serve browser-audit \
 	dark-audit dark-audit-client contrast-audit contrast-audit-client docker-dark-audit \
 	docker-up docker-down docker-logs docker-shell docker-build docker-install \
 	docker-reset docker-test docker-integration docker-security docker-prod \
@@ -116,6 +116,12 @@ integration: fix-eol ## Pruebas de integración contra MariaDB (crea <base>_test
 
 security: ## Comprueba la versión de PHP frente a php2shell (CVE-2026-109618/19)
 	@$(PHP) $(ROOT)/tools/security/php-cve-check.php
+
+operations: ## Informe de OST-103 a OST-106 (límite de intentos, setup/, MD5, librerías)
+	@$(PHP) $(ROOT)/tools/security/operations-check.php $(OPERATIONS_ARGS)
+
+operations-strict: ## Lo mismo, fallando también con los avisos
+	@$(PHP) $(ROOT)/tools/security/operations-check.php --strict $(OPERATIONS_ARGS)
 
 theme: ## Revisa que el tema claro/oscuro siga completo y conectado
 	@$(PHP) $(ROOT)/tools/ui/theme-check.php
@@ -263,6 +269,9 @@ docker-security: ## Comprueba php2shell, la postura y el acceso a /setup/
 	@echo ""
 	@echo "→ ¿Sigue accesible /setup/ desde la web?"
 	@docker compose exec -T php php tools/security/setup-probe.php
+	@echo ""
+	@echo "→ Límite de intentos, setup/ e inventario (OST-103/104/106)"
+	@docker compose exec -T php php tools/security/operations-check.php
 
 # Opciones del sembrador: `make seed SEED_ARGS="-v --only=topics"`.
 # Ojo: `make seed -v` NO funciona — `-v` lo consume make y muestra su versión.

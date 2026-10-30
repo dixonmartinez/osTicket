@@ -3,7 +3,10 @@ header("Content-Type: text/html; charset=UTF-8");
 // Hardening headers + CSP. The agent panel still depends on eval() for a
 // couple of legacy widgets, hence the explicit opt-in below.
 Http::security_headers($cfg);
-header('Content-Security-Policy: '.Http::csp($cfg, ['unsafe-eval' => true]));
+/* Sin 'unsafe-eval': el único eval del panel era el del selector de fecha y
+   hora, ya sustituido por JSON.parse (OST-102, fase 3). Http::csp() tampoco
+   deja pedirla: no hay forma de volver a abrirla por descuido. */
+header('Content-Security-Policy: '.Http::csp($cfg));
 
 $title = ($ost && ($title=$ost->getPageTitle()))
     ? $title : ('osTicket :: '.__('Staff Control Panel'));

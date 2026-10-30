@@ -828,6 +828,52 @@ crea en `include/plugins/<nombre>/` el `plugin.php`, la clase con su
 contrato por dos pruebas que evalúan la plantilla y comprueban que
 `PluginInfo::declared()` lee lo que debe leerse.
 
+**Cuatro decisiones de operación, convertidas en código comprobable.** Las
+recomendaciones OST-103 a OST-106 de `docs/SECURITY_AUDIT.md` llevaban tiempo
+marcadas «pendiente» sin ser código pendiente: eran parámetros de despliegue.
+Ahora se pueden medir.
+
+- **OST-103** (límite de intentos): se aplica en nginx, delante de PHP.
+  `docker/nginx/00-limits.conf` declara las zonas y `default.conf` las usa en
+  `location =` —coincidencia exacta, que gana a la expresión regular de PHP—
+  sobre `/scp/login.php`, `/login.php`, `/pwreset.php` y la API (nunca sobre
+  `/scp/index.php` ni `/index.php`, que se recargan todo el rato). Los
+  parámetros de FastCGI salieron a `docker/nginx/fastcgi-osticket.conf` para
+  no duplicarlos en cuatro bloques. El prefijo `00-` del nombre es
+  **obligatorio**: nginx resuelve `limit_req zone=` mientras lee la
+  configuración y `conf.d/*.conf` se carga por orden alfabético, así que con
+  el nombre `limits.conf` no arrancaría. Hay una prueba que lo fija.
+- **OST-104** (`setup/`): el aviso del panel ya no mira si el directorio
+  existe —está versionado y siempre está— sino si **responde**;
+  `setupProbeState()` distingue `absent`, `blocked`, `exposed` y `unknown`, y
+  cachea el sondeo.
+- **OST-105** (MD5 heredados): `Passwd::isLegacy()` clasifica y
+  `classifyHashes()` cuenta. El rehash ya era automático al entrar; lo único
+  que faltaba era poder decir cuántos quedan sin abrir un cliente de SQL.
+- **OST-106** (inventario): `dependencyInventory()` lee las versiones de
+  donde cada proyecto las pone —la constante `VERSION` de mPDF y el `$Id:` de
+  PEAR, que no declara ninguna— en vez de mantener una lista a mano.
+
+Todo se ve con `make operations` (`tools/security/operations-check.php`),
+hermano del `php-cve-check.php` que ya existía: lectura de archivos, sin red,
+con `--json` para un pipeline. Y una prueba de que la comprobación no se
+cree configurada cuando no lo está: un fixture con la zona declarada y sin
+aplicar tiene que salir en rojo.
+
+En la misma tanda, **la CSP se queda sin `'unsafe-eval'`** (fase 3 de
+OST-102): el único `eval()` del proyecto estaba en el añadido del timepicker,
+que evaluaba los atributos `time:*` de un campo como opciones del widget;
+`_parseAttr()` los lee con `JSON.parse`, sin ejecutar código. `Http::csp()`
+descarta la directiva aunque se la pidan y avisa en el registro de seguridad
+en vez de emitirla en silencio. De paso, `Http::security_headers()` y
+`Http::csp()` pasan a estar tipadas (`?Config $cfg = null`): eran las dos
+funciones que se llamaban con `null` desde media docena de sitios y no lo
+declaraban.
+
+**Medición de la tanda**: **989 pruebas, 0 fallos, 5 omitidas**; `theme-check`
+195; `sql-audit`, `input-audit` y `csp-nonce` en verde (98 scripts en línea,
+0 sin nonce).
+
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
 - Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el
@@ -1160,9 +1206,10 @@ ejecutarlo (`DOMEval`), así que basta con que la etiqueta lo traiga.
 nonce se informa con archivo y línea. Resultado hoy: **98 en línea, 0 sin
 nonce**.
 
-**Lo que queda de la CSP**: `'unsafe-eval'` en el panel (editores y gráficas
-antiguas) y `'unsafe-inline'` en `style-src` (cientos de atributos `style=`
-que no ejecutan código).
+**Lo que queda de la CSP**: sólo `'unsafe-inline'` en `style-src` (cientos de
+atributos `style=` que no ejecutan código). `'unsafe-eval'` salió del panel
+en la tanda de OST-102/103 que se cuenta en el frente 2: el `eval()` era el
+del añadido del timepicker y ahora se lee con `JSON.parse`.
 
 ### Frente 6 — Partir los archivos de más de 2.000 líneas ✅ Hecho
 

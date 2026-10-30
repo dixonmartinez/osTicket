@@ -64,5 +64,25 @@ class Passwd {
         // Anything else (legacy MD5, DES, unknown) should be upgraded
         return true;
     }
+
+    /**
+     * ¿El hash guardado es de los antiguos?
+     *
+     * Los modernos son bcrypt (`$2y$…`) y argon2 (`$argon2id$…`). Todo lo
+     * demás —el MD5 sin sal que usaba osTicket antes de 1.7, el DES de
+     * `crypt()`— se considera heredado. `needsRehash()` ya lo reescribe en el
+     * primer acceso correcto (OST-105); esto sirve para **contar** cuántos
+     * quedan y saber cuándo la migración está terminada.
+     *
+     * Es una lectura, no un juicio de seguridad: un hash heredado sigue
+     * funcionando, y mientras no se reescriba es más fácil de romper por
+     * fuerza bruta.
+     */
+    static function isLegacy($hash) {
+        if (!$hash || !is_string($hash))
+            return false;
+
+        return !preg_match('/^\$(2[abxy]|argon2(i|id|d))\$/', $hash);
+    }
 }
 ?>

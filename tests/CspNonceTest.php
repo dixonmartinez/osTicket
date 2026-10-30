@@ -78,11 +78,32 @@ class CspNonceTest extends UnitTestCase {
         $this->assertFalse(strpos($script, "'nonce-") !== false);
     }
 
-    public function testElPanelConservaEval(): void {
+    public function testElPanelYaNoUsaEval(): void {
+        // OST-102, fase 3: el único eval() del panel era el del selector de
+        // fecha y hora (`js/jquery-ui-timepicker-addon.js`), ya sustituido
+        // por JSON.parse. La directiva no se emite ni aunque se pida.
         $script = $this->scriptDirective(Http::csp(null, ['unsafe-eval' => true]));
 
-        $this->assertStringContainsString("'unsafe-eval'", $script);
+        $this->assertFalse(strpos($script, 'unsafe-eval') !== false);
         $this->assertStringContainsString("'nonce-", $script);
+    }
+
+    public function testElJavaScriptDelProyectoNoTieneEval(): void {
+        // Si alguien vuelve a meter eval(), esto lo dice antes de que la CSP
+        // lo bloquee en producción (y sin avisar en el navegador)
+        $encontrados = array();
+        foreach (array('js', 'scp/js') as $dir) {
+            $path = dirname(__DIR__) . '/' . $dir;
+            foreach (glob($path . '/*.js') as $file) {
+                $code = file_get_contents($file);
+                // eval( suelto, sin contar el texto de los comentarios
+                if (preg_match('/(?<![\w$.])eval\s*\(/', $code))
+                    $encontrados[] = basename($file);
+            }
+        }
+
+        $this->assertSame(array(), $encontrados,
+            'eval() en: ' . implode(', ', $encontrados));
     }
 
     public function testNonceScriptsAñadeElAtributo(): void {

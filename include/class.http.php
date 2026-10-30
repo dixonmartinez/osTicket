@@ -189,7 +189,7 @@ class Http {
      * Content-Security-Policy is composed by each interface (client vs
      * staff) because the allowed script sources differ.
      */
-    static function security_headers($cfg = null, array $options = []) {
+    static function security_headers(?Config $cfg = null, array $options = []) {
         if (headers_sent())
             return;
 
@@ -315,8 +315,13 @@ class Http {
 
     /**
      * Build a well formed Content-Security-Policy header value.
+     *
+     * @param Config|null $cfg         sólo se usa para `frame-ancestors`
+     * @param array       $directives  directivas extra o ajustadas; `nonce`
+     *                                 y `unsafe-eval` se tratan aparte (el
+     *                                 segundo se ignora siempre)
      */
-    static function csp($cfg = null, array $directives = []) {
+    static function csp(?Config $cfg = null, array $directives = []) {
         // Deliberately conservative: only directives that cannot break
         // existing customizations (remote images, plugin endpoints and
         // embedded chat widgets) are enforced by default. Use the
@@ -326,8 +331,6 @@ class Http {
             'base-uri'    => "'self'",
             'style-src'   => "'self' 'unsafe-inline'",
         ];
-        // The agent panel relies on eval() for a few legacy widgets
-        //
         // `script-src` va con nonce y **sin** `'unsafe-inline'`: los bloques
         // `<script>` de las plantillas llevan el atributo que emite
         // `nonceAttr()`. Un nonce desactiva `'unsafe-inline'` de todos modos,
@@ -342,9 +345,20 @@ class Http {
             // Salida de emergencia documentada: instalaciones con plantillas
             // propias que aún insertan scripts sin nonce
             $script .= " 'unsafe-inline'";
-        if (!empty($directives['unsafe-eval']))
-            $script .= " 'unsafe-eval'";
-        unset($directives['unsafe-eval']);
+        // `'unsafe-eval'` no se emite nunca, ni aunque se pida: el panel ya
+        // no tiene ningún `eval()` (OST-102, fase 3) y dejarlo como opción
+        // sólo servía para reabrir el agujero sin querer. Quien lo pida en
+        // `$directives` recibe un aviso en el registro en vez de la directiva.
+        if (!empty($directives['unsafe-eval'])) {
+            unset($directives['unsafe-eval']);
+            // Se avisa en el registro del sistema: es un error de quien
+            // llama, y callarlo lo dejaría sin explicación
+            global $ost;
+            if ($ost && method_exists($ost, 'logWarning'))
+                $ost->logWarning(_S('Security'), sprintf(
+                    'CSP: se ignoró «unsafe-eval» pedido por %s',
+                    $_SERVER['SCRIPT_NAME'] ?? 'desconocido'), false);
+        }
         $base['script-src'] = $script;
 
         $base['frame-ancestors'] = ($cfg && $cfg->getAllowIframes())

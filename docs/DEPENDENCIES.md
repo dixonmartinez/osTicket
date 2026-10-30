@@ -5,7 +5,18 @@ tiempo de ejecución). Este documento centraliza **qué versión hay instalada**
 para poder evaluar avisos de seguridad (ver OST-106 en
 [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md)).
 
-Última revisión: 2026-10-21.
+Última revisión: 2026-10-30.
+
+**Esta tabla ya no se mantiene a mano.** `make operations` (o
+`php tools/security/operations-check.php --json`) genera el inventario leyendo
+lo que hay: los `composer.lock` empaquetados, la constante `VERSION` de mPDF,
+la cabecera de htmLawed y phpass, y el `$Id:` de PEAR Mail, que no declara
+versión. Del lock de cada librería sólo cuentan los paquetes que existen de
+verdad en su `vendor/`: el lock de laminas-mail lista también psalm, phpunit y
+los estándares de código que usa su desarrollo y que **no** se despliegan.
+Hoy salen 27 entradas: 19 del `vendor/` de mPDF y laminas-mail, htmLawed y
+phpass con su versión, las tres de `composer.json` y las que no declaran
+versión (`laminas/laminas-mail` «no fijada», `spyc`).
 
 ## Dependencia número uno: el intérprete PHP
 
