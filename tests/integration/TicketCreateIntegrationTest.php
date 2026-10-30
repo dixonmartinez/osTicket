@@ -174,6 +174,53 @@ class TicketCreateIntegrationTest extends IntegrationTestCase {
     }
 
     /* ------------------------------------------------------------------ */
+    /* Correo entrante                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Un correo que no pertenece a ningún hilo abre un ticket nuevo.
+     *
+     * Es la tercera pata de `Ticket::create()`: `processEmail()` analiza el
+     * mensaje, no lo reconoce como parte de un hilo y llama a
+     * `createTicket(…, 'Email')`. El departamento lo decide **la cuenta de
+     * correo** que lo recibe, no el tema ni el cliente; el origen queda como
+     * «Email» y el cuerpo del mensaje entra en el hilo.
+     *
+     * Se comprueba aquí, contra MariaDB, porque lo que no se puede probar sin
+     * base es justo lo que importa: que el cliente se cree a partir del `From`,
+     * que el mensaje quede como entrada del hilo y que el ticket apunte a la
+     * dirección que lo recibió.
+     */
+    public function testElCorreoAbreElTicketEnElDepartamentoDeLaCuenta(): void {
+        $r = $this->crear('email');
+
+        $this->assertTrue($r['ok'],
+            'el correo no creó el ticket: '
+            . json_encode(isset($r['err']) ? $r['err'] : $r));
+
+        $ticket = $this->ticketEnLaBase($r['id']);
+
+        $this->assertSame('Email', $ticket['source']);
+        $this->assertSame($r['number'], $ticket['number']);
+        $this->assertSame('cliente@example.test', $r['user_email']);
+        $this->assertSame('Cliente De Prueba', $r['user_name']);
+
+        // El departamento lo pone la cuenta de correo que recibe el mensaje.
+        $deptDeLaCuenta = $this->value(sprintf(
+            'SELECT dept_id FROM `%s` WHERE email_id = %d',
+            $this->table('email'), (int) $r['email_id']));
+        $this->assertSame((int) $deptDeLaCuenta, (int) $ticket['dept_id'],
+            'el departamento no es el de la cuenta de correo');
+
+        // El cuerpo del mensaje es la entrada original del hilo.
+        $this->assertSame(1, (int) $this->value(sprintf(
+            'SELECT COUNT(*) FROM `%s` WHERE thread_id = %d AND type = %s',
+            $this->table('thread_entry'), (int) $ticket['thread_id'],
+            $this->cita('M'))),
+            'el mensaje del correo no quedó en el hilo');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Panel del agente                                                    */
     /* ------------------------------------------------------------------ */
 

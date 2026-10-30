@@ -426,6 +426,50 @@ if (!$GLOBALS['cfg'])
     responder(array('ok' => false,
         'motivo' => 'la aplicación arrancó sin configuración'));
 
+/**
+ * La cuenta de correo del sistema y el mensaje que llega a ella.
+ *
+ * Se crea aquí, con la aplicación ya arrancada, porque `Email::update()`
+ * necesita `$cfg` —comprueba que la dirección no sea la del administrador— y
+ * el ruteo del correo la usa para decidir el departamento.
+ */
+function crearCuentaDeCorreo($dept_id) {
+    $errores = array();
+    $cuenta = Email::create(array('email' => 'soporte@example.test'));
+    if (!$cuenta->update(array(
+            'name' => 'Soporte',
+            'email' => 'soporte@example.test',
+            'dept_id' => $dept_id,
+            'priority_id' => 0,
+            'topic_id' => 0,
+            'noautoresp' => 0,
+            'notes' => 'Cuenta de la prueba de integración',
+        ), $errores) || $errores)
+        responder(array('ok' => false, 'motivo' => 'no se pudo crear la cuenta '
+            . 'de correo: ' . json_encode($errores, JSON_UNESCAPED_UNICODE)));
+
+    return $cuenta;
+}
+
+/** Un correo de verdad, con sus cabeceras, que el cliente envía al sistema. */
+function correoDePrueba($destino) {
+    return implode("\r\n", array(
+        'Return-Path: <cliente@example.test>',
+        'From: "Cliente De Prueba" <cliente@example.test>',
+        'To: <' . $destino . '>',
+        'Subject: No puedo entrar en mi cuenta',
+        'Date: ' . date('r'),
+        'Message-ID: <prueba-' . bin2hex(random_bytes(6)) . '@example.test>',
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=utf-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        'Desde ayer el portal me dice que mi contraseña no es válida.',
+        '',
+        'Gracias.',
+    ));
+}
+
 function permisosDeAdmin() {
     /* Todos los permisos que registra la aplicación, no una lista a mano.
      * La lista a mano ya se había quedado corta: le faltaba `ticket.create`,
@@ -495,7 +539,33 @@ $vars = array(
 $errors = array();
 $ticket = null;
 
-if ($mode === 'portal') {
+if ($mode === 'email') {
+    /* Correo entrante: se analiza con el mismo analizador que usa el buzón
+     * (`EmailDataParser`) y se pasa por `Ticket::create()` con origen
+     * «Email», que es exactamente lo que hace `processEmail()` cuando el
+     * mensaje no pertenece a ningún hilo. */
+    $cuenta = crearCuentaDeCorreo($dept_id);
+
+    // `ApiEmailDataParser` vive en `class.api.php`, que sólo cargan los
+    // puntos de entrada de la API; aquí se pide a mano.
+    require_once INCLUDE_DIR . 'class.api.php';
+    $analizador = new ApiEmailDataParser();
+    $datos_correo = $analizador->parse(
+        correoDePrueba('soporte@example.test'));
+
+    if (!is_array($datos_correo) || !$datos_correo)
+        responder(array('ok' => false,
+            'motivo' => 'no se pudo analizar el correo: '
+                . $analizador->lastError()));
+
+    $datos_correo['emailId'] = $cuenta->getId();
+    $vars = $datos_correo;
+    $vars['ip'] = '127.0.0.1';
+
+    $GLOBALS['thisstaff'] = null;
+    $ticket = Ticket::create($vars, $errors, 'Email', false, false);
+}
+elseif ($mode === 'portal') {
     /* open.php pone estos dos a cero a propósito: el portal no elige correo ni
      * departamento, salen del tema de ayuda. */
     $vars['deptId'] = $vars['emailId'] = 0;
@@ -569,6 +639,9 @@ if ($ticket) {
         // comprueba que el del ticket es el del tema, no el de por omisión.
         'topic_dept_id' => (int) $topic_dept_id,
         'default_dept_id' => (int) $dept_id,
+        // La cuenta de correo que recibió el mensaje, cuando el modo es
+        // «email»: su departamento es el que tiene que salir en el ticket.
+        'email_id' => isset($cuenta) ? (int) $cuenta->getId() : 0,
         'status_id' => (int) $ticket->getStatusId(),
         'source' => $ticket->getSource(),
         'subject' => $ticket->getSubject(),

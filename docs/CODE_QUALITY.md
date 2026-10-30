@@ -600,9 +600,8 @@ troceando sin pruebas de integración.
 Siguiente paso, por orden de riesgo:
 
 1. **Fijar `Ticket::create()` con una prueba de integración**: un ticket web,
-   uno de agente y uno por correo, con sus colaboradores y su mensaje. El web y
-   el de agente ya están (`tests/integration/TicketCreateIntegrationTest.php`);
-   falta el de correo. La
+   uno de agente y uno por correo, con sus colaboradores y su mensaje. Los tres
+   están en `tests/integration/TicketCreateIntegrationTest.php`. La
    función ya está partida en nueve fases (`include/class.ticket.create.php`),
    pero lo que queda en `class.ticket.php` son 219 líneas de orquestación con
    base de datos: hasta que esa prueba esté en verde, moverlas es a ciegas.
@@ -626,8 +625,8 @@ El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
 |---|---|
 | `tests/lib/Database.php` | Crea `<base>_test` (nunca la de la instalación), le carga `setup/inc/streams/core/install-mysql.sql` con el prefijo configurado y expone `query()`/`value()`/`rows()`. Si no puede conectar, explica por qué |
 | `tests/lib/IntegrationTestCase.php` | Base de esas pruebas: **omite con motivo** si no hay base y **falla** si se pidió `--require-db` (un verde silencioso sería peor que un error) |
-| `tests/support/create-ticket.php` | Ayudante que arranca la aplicación **en su propio proceso** (como el cron), siembra una instalación nueva por el mismo camino que `setup/inc/class.installer.php`, crea un ticket y devuelve el resultado en JSON. Tres modos: `portal`, `staff` y `staff-sin-permiso` |
-| `tests/integration/TicketCreateIntegrationTest.php` | 3 casos: el portal crea el ticket con el departamento del tema y su mensaje como entrada original; el panel lo crea en el departamento elegido y deja el evento `created`; un agente sin `ticket.create` recibe el error y no deja ni un ticket |
+| `tests/support/create-ticket.php` | Ayudante que arranca la aplicación **en su propio proceso** (como el cron), siembra una instalación nueva por el mismo camino que `setup/inc/class.installer.php`, crea un ticket y devuelve el resultado en JSON. Cuatro modos: `portal`, `staff`, `staff-sin-permiso` y `email` |
+| `tests/integration/TicketCreateIntegrationTest.php` | 4 casos: el portal crea el ticket con el departamento del tema y su mensaje como entrada original; el panel lo crea en el departamento elegido y deja el evento `created`; un agente sin `ticket.create` recibe el error y no deja ni un ticket; un correo que no es de ningún hilo abre un ticket en el departamento de la **cuenta de correo**, con el cuerpo del mensaje en el hilo |
 | `tests/integration/OrmIntegrationTest.php` | 19 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, `Q::any` con grupos anidados, `Q::not`, `contains`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, `NOW()` de la base y que el esquema del instalador se cargue entero |
 | `tests/OrmDirtyTest.php` | 10 casos sin base: qué cuenta como campo cambiado (una cadena vacía y un cero sí; un `'5'` de la base frente a un `5` asignado, no) y que el ORM tenga sus dependencias cargadas (`Signal`, `Misc`) |
 | `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
