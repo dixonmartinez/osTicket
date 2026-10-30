@@ -79,9 +79,13 @@ class MassAction {
         $ids = $post['tids'] ?? null;
         $count = is_array($ids) ? count($ids) : 0;
 
+        /* El aviso va por lo que se puede contar, no por lo que llegó: un
+         * `tids` suelto (`tids=7`) es una cadena verdadera pero no una
+         * selección, y antes el diálogo se abría con «0 seleccionados» y sin
+         * decir por qué. */
         return array(
             'count' => $count,
-            'error' => $ids ? null : self::selectionError($kind),
+            'error' => $count ? null : self::selectionError($kind),
         );
     }
 

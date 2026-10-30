@@ -1866,6 +1866,27 @@ a aparecer un `align="center"` (**265 archivos**). Las 20
 etiquetas que faltaban salieron justo de ampliar el recorrido: no estaban en
 ninguna lista de tareas.
 
+### 3.24 Los diálogos de acciones en bloque
+
+Las acciones en bloque (`claim`, `assign`, `transfer`, `delete`, `merge` y
+`link`) no cambiaron de aspecto en esta tanda: lo que cambió es lo que
+**aparece cuando la selección no sirve**. Tres defectos del controlador se
+veían en pantalla:
+
+| Lo que se veía | Cuándo | Ahora |
+|---|---|---|
+| El diálogo se abría con «0 seleccionados» y sin decir por qué, y al enviarlo salía un error genérico | llegaba un `tids` suelto en vez de una lista | el aviso es el mismo de siempre: «You must select at least one ticket.» |
+| Error 500 del panel (página en blanco en el diálogo) | `merge`/`link` con la selección vacía o con identificadores que no existen | mensaje en el propio diálogo, sin tocar la lista |
+| Sólo procesaba el primer ticket, o ninguno, según el caso | `tids` suelto en `assign`, `transfer` o `delete` | los tres recorren la selección con `MassAction::ids()` |
+
+Nada de esto se puede comprobar sin base de datos, así que la prueba es la de
+integración —`tests/integration/MassActionIntegrationTest.php`, en
+`docs/CODE_QUALITY.md`: instancia el mismo controlador con un agente real y mira
+la tabla `ticket` después. Para verlo a
+mano: marca dos tickets, **Transfer**, elige otro departamento y enviar; los dos
+cambian de departamento y el resto no. Después, abre el diálogo sin marcar
+nada: debe decir que hay que seleccionar al menos uno, no romperse.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,

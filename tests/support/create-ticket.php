@@ -504,6 +504,139 @@ $agente = crearAgente($dept_id, $role_id, 'agente', 'agente@example.test');
 $agente->updatePerms(permisosDeAdmin());
 $agente->save();
 
+/**
+ * Acciones masivas, **en proceso**: `massProcess()` con un agente real.
+ *
+ * No se levanta HTTP ni se mantiene una sesión: se instancia el mismo
+ * controlador que atiende el AJAX (`TicketsAjaxAPI`), se le pone el `$_POST`
+ * que manda el diálogo y un `$thisstaff` de verdad. Lo que se comprueba
+ * después es la base: departamento, agente asignado, estado y filas que
+ * quedan.
+ *
+ * Una acción por proceso a propósito: cuando la acción se completa,
+ * `MassAction::finish()` responde con `Http::response(201)`, que termina el
+ * script (como en la petición real). El informe se emite desde una función de
+ * apagado, que sí corre en ese caso.
+ */
+function accionesMasivas($accion, $agente, $dept_id, $vars) {
+    require_once INCLUDE_DIR . 'ajax.tickets.php';
+
+    // Tres tickets del portal, de clientes distintos, para tener con qué.
+    $ids = array();
+    foreach (array(1, 2, 3) as $i) {
+        $v = $vars;
+        $v['email'] = sprintf('cliente%d@example.test', $i);
+        $v['name'] = sprintf('Cliente %d', $i);
+        $v['subject'] = sprintf('Ticket %d de la accion masiva', $i);
+        $v['deptId'] = $v['emailId'] = 0;
+        unset($v['source']);
+
+        $GLOBALS['thisstaff'] = null;
+        $errores = array();
+        $ticket = Ticket::create($v, $errores, 'Web', false, false);
+        if (!$ticket)
+            responder(array('ok' => false,
+                'motivo' => 'no se pudo crear el ticket ' . $i,
+                'errores' => $errores));
+        $ids[] = (int) $ticket->getId();
+    }
+
+    $sql = sprintf('SELECT dept_id, staff_id, status_id, flags FROM `%s`'
+        . ' WHERE ticket_id = %d', TestDatabase::table('ticket'), $ids[0]);
+    $antes = TestDatabase::rows($sql);
+
+    /* El agente y el destino del traslado. El destino tiene que ser distinto
+     * del departamento en el que están los tickets, o `transfer()` lo rechaza
+     * con «Ticket already in the department». */
+    $origen = (int) TestDatabase::value(sprintf(
+        'SELECT dept_id FROM `%s` WHERE ticket_id = %d',
+        TestDatabase::table('ticket'), $ids[0]));
+
+    /* Para el caso sin permiso: un agente con un rol que **no** incluye
+     * `ticket.transfer`, en el mismo departamento que los tickets. */
+    if ($accion === 'sin-permiso') {
+        $errores_rol = array();
+        $rol = Role::__create(array(
+            'name' => 'Sin trasladar tickets',
+            'notes' => 'Rol de la prueba de acciones masivas',
+            'flags' => 1,
+            'permissions' => array('ticket.edit', 'ticket.postreply'),
+        ), $errores_rol);
+
+        if (!$rol || $errores_rol)
+            responder(array('ok' => false,
+                'motivo' => 'no se pudo crear el rol sin permiso de traslado'));
+
+        $agente = crearAgente($origen ?: $dept_id, $rol->getId(),
+            'sin-traslado', 'sintraslado@example.test', 0);
+    }
+    $destino = (int) TestDatabase::value(sprintf(
+        'SELECT id FROM `%s` WHERE id <> %d ORDER BY id LIMIT 1',
+        TestDatabase::table('department'), $origen));
+
+    // Lo que envía el diálogo de cada acción
+    switch ($accion) {
+    case 'transfer':
+        $_POST = array('dept' => $destino,
+            'tids' => array($ids[0], $ids[1]));
+        $ejecutar = 'transfer';
+        break;
+    case 'claim':
+        $_POST = array('assignee' => array('s' . $agente->getId()),
+            'tids' => array($ids[0]));
+        $ejecutar = 'claim';
+        break;
+    case 'delete':
+        $_POST = array('comments' => 'Borrado en bloque de la prueba',
+            'tids' => array($ids[0]));
+        $ejecutar = 'delete';
+        break;
+    case 'sin-permiso':
+        $_POST = array('dept' => $destino, 'tids' => array($ids[0]));
+        $ejecutar = 'transfer';
+        break;
+    default:
+        responder(array('ok' => false,
+            'motivo' => 'acción masiva desconocida: ' . $accion));
+    }
+    $_REQUEST = $_POST;
+    $_SERVER['PATH_INFO'] = '';
+
+    /* El informe se emite al final, salga como salga `massProcess()` (puede
+     * terminar el script con `Http::response`). Se marca la respuesta como
+     * emitida para que la red de seguridad de errores fatales no añada otra
+     * línea. */
+    $GLOBALS['respondido'] = true;
+    register_shutdown_function(function () use ($ids, $accion, $ejecutar,
+            $origen, $destino, $antes) {
+        $filas = array();
+        foreach ($ids as $id) {
+            $fila = TestDatabase::rows(sprintf(
+                'SELECT ticket_id, dept_id, staff_id, status_id, flags'
+                . ' FROM `%s` WHERE ticket_id = %d',
+                TestDatabase::table('ticket'), $id));
+            $filas[] = $fila ? $fila[0] : null;
+        }
+
+        echo json_encode(array(
+            'ok' => true,
+            'modo' => 'masiva-' . $accion,
+            'accion' => $ejecutar,
+            'ids' => $ids,
+            'origen' => $origen,
+            'destino' => $destino,
+            'antes' => $antes ? $antes[0] : null,
+            'tickets' => $filas,
+            'agente' => (int) $GLOBALS['thisstaff']->getId(),
+        ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";
+    });
+
+    $api = new TicketsAjaxAPI();
+    $api->massProcess($ejecutar);
+
+    exit(0);
+}
+
 /* 5. El ticket, por el camino que toque.
  *
  * `$vars` lleva todas las claves que lee la aplicación sin comprobar si
@@ -538,6 +671,11 @@ $vars = array(
 
 $errors = array();
 $ticket = null;
+
+/* Las acciones masivas se prueban aquí, con el agente y los tickets ya
+ * montados: no hay un ticket «propio» que crear en estos modos. */
+if (strpos($mode, 'masiva-') === 0)
+    accionesMasivas(substr($mode, strlen('masiva-')), $agente, $dept_id, $vars);
 
 if ($mode === 'email') {
     /* Correo entrante: se analiza con el mismo analizador que usa el buzón

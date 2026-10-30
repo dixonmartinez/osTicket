@@ -793,6 +793,7 @@ class TicketsAjaxAPI extends AjaxController {
                 $info['error'] = $mergeProblems['error'];
 
             //move parent ticket to top of list
+            $expr = null;
             if (count($ticketIds) > 1) {
                 $ticketIdsSorted = $ticketIds;
                 if ($parent && $parentMergeType != 'visual') {
@@ -814,12 +815,22 @@ class TicketsAjaxAPI extends AjaxController {
             // El ticket sobre el que se abre el diálogo: el padre si lo hay
             // y, si no, el primero de la lista. Antes se usaba `$ticket[0]`,
             // que era la variable del bucle y acababa siendo el **último**
-            // leído; ahora es la primera fila de la consulta.
-            $ticket = Ticket::lookup($parent
-                ? $parent['ticket_id'] : $rows[0]['ticket_id']);
+            // leído; ahora es la primera fila de la consulta. Si la selección
+            // no trajo nada (ids inventados, o ninguno), `$rows` está vacío y
+            // no hay ticket: se avisa en vez de encadenar `lookup(null)` y
+            // `getThread()` sobre `false`, que en PHP 8 es un error fatal.
+            $ticket = $rows
+                ? Ticket::lookup($parent
+                    ? $parent['ticket_id'] : $rows[0]['ticket_id'])
+                : false;
 
+            if (!$ticket) {
+                $info['error'] = $info['error']
+                    ?: ($errors['err'] ?? MassAction::selectionError('ticket'));
+            }
             // Generic permission check.
-            if (in_array(false, $hasPermission) && !$ticket->getThread()->isReferred()) {
+            elseif (in_array(false, $hasPermission)
+                    && !$ticket->getThread()->isReferred()) {
                 $info['error'] = sprintf(
                         __('You do not have permission to %1$s %2$s'),
                         __($title),
@@ -890,7 +901,7 @@ class TicketsAjaxAPI extends AjaxController {
                 // we need to clear this relation so we can create a fresh
                 // query that will get roles for all depts this agent can access
                 unset($thisstaff->ht['dept_access']);
-                foreach (Http::post('tids', array()) as $tid) {
+                foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                     if (($t=Ticket::lookup($tid))
                             // Make sure the agent is allowed to
                             // access and assign the task.
@@ -911,7 +922,7 @@ class TicketsAjaxAPI extends AjaxController {
             $form = TransferForm::instantiate($_POST);
             $form->hideDisabled();
             if ($_POST && $form->isValid()) {
-                foreach (Http::post('tids', array()) as $tid) {
+                foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                     if (($t=Ticket::lookup($tid))
                             // Make sure the agent is allowed to
                             // access and transfer the task.
@@ -937,7 +948,7 @@ class TicketsAjaxAPI extends AjaxController {
                         __('to delete tickets'));
 
             if ($_POST && !$errors) {
-                foreach (Http::post('tids', array()) as $tid) {
+                foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                     if (($t=Ticket::lookup($tid))
                             && $t->checkStaffPerm($thisstaff, Ticket::PERM_DELETE)
                             && $t->delete(Http::post('comments'), $e)
@@ -993,8 +1004,9 @@ class TicketsAjaxAPI extends AjaxController {
 
     private static function _changeSelectedTicketsStatus($state, $info=array(), $errors=array()) {
 
-        $count = $_REQUEST['count'] ?:
-            ($_REQUEST['tids'] ?  count($_REQUEST['tids']) : 0);
+        $tids = Http::request('tids', array());
+        $count = (int) Http::request('count')
+            ?: (is_array($tids) ? count($tids) : 0);
 
         $info['title'] = sprintf(__('Change Status &mdash; %1$d %2$s selected'),
                  $count,
@@ -1017,8 +1029,10 @@ class TicketsAjaxAPI extends AjaxController {
                     _N('selected ticket', 'selected tickets', $count));
         }
 
-        $info['status_id'] = $info['status_id'] ?: $_REQUEST['status_id'];
-        $info['comments'] = Format::htmlchars($_REQUEST['comments']);
+        $info['status_id'] = ($info['status_id'] ?? null)
+            ?: Http::request('status_id');
+        $info['comments'] = Format::htmlchars(
+            (string) Http::request('comments', ''));
 
         return self::_changeStatus($state, $info, $errors);
     }
@@ -1050,8 +1064,10 @@ class TicketsAjaxAPI extends AjaxController {
                         );
         }
 
-        $info['status_id'] = $info['status_id'] ?: $ticket->getStatusId();
-        $info['comments'] = Format::htmlchars($_REQUEST['comments']);
+        $info['status_id'] = ($info['status_id'] ?? null)
+            ?: $ticket->getStatusId();
+        $info['comments'] = Format::htmlchars(
+            (string) Http::request('comments', ''));
 
         // Has Children?
         $info['children'] = count($ticket->getChildren());
@@ -1064,7 +1080,7 @@ class TicketsAjaxAPI extends AjaxController {
         if ($info && isset($info['errors']))
             $errors = array_merge($errors, $info['errors']);
 
-        if (!$info['error'] && isset($errors['err']))
+        if (!($info['error'] ?? null) && isset($errors['err']))
             $info['error'] = $errors['err'];
 
         include(STAFFINC_DIR . 'templates/ticket-status.tmpl.php');

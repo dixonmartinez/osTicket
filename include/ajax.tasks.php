@@ -375,7 +375,7 @@ class TasksAjaxAPI extends AjaxController {
                 $f->configure('prompt', $prompt);
 
             if ($_POST && $form->isValid() && !$errors) {
-                foreach ($_POST['tids'] as $tid) {
+                foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                     if (($t=Task::lookup($tid))
                             // Make sure the agent is allowed to
                             // access and assign the task.
@@ -396,7 +396,7 @@ class TasksAjaxAPI extends AjaxController {
             $form = TransferForm::instantiate($_POST);
             $form->hideDisabled();
             if ($_POST && $form->isValid()) {
-                foreach ($_POST['tids'] as $tid) {
+                foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                     if (($t=Task::lookup($tid))
                             // Make sure the agent is allowed to
                             // access and transfer the task.
@@ -443,7 +443,7 @@ class TasksAjaxAPI extends AjaxController {
                         || !in_array($newStatus, array('open', 'closed')))
                     $errors['status'] = __('Status selection required');
                 else {
-                    foreach (Http::post('tids', array()) as $tid) {
+                    foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                         if (($t=Task::lookup($tid))
                                 && $t->checkStaffPerm($thisstaff, $perm ?: null)
                                 && $t->setStatus($newStatus,
@@ -462,7 +462,7 @@ class TasksAjaxAPI extends AjaxController {
             $info = array_merge($info, MassAction::confirm('task', $action, $count));
 
             if ($_POST && !$errors) {
-                foreach (Http::post('tids', array()) as $tid) {
+                foreach (MassAction::ids($_GET, $_POST, $_REQUEST) as $tid) {
                     if (($t=Task::lookup($tid))
                             && $t->getDeptId() != Http::post('dept_id')
                             && $t->checkStaffPerm($thisstaff, Task::PERM_DELETE)
@@ -730,7 +730,8 @@ class TasksAjaxAPI extends AjaxController {
                         $statuses[$status]);
 
         if ($_POST && !$errors) {
-            if ($task->setStatus($status, $_POST['comments'], $errors))
+            if ($task->setStatus($status,
+                (string) Http::post('comments', ''), $errors))
                 Http::response(201, 0);
 
             $info['error'] = $errors['err'] ?: __('Unable to change status of the task');
@@ -765,7 +766,7 @@ class TasksAjaxAPI extends AjaxController {
 
         if ($_POST) {
 
-            switch ($_POST['a']) {
+            switch (Http::post('a')) {
             case 'postnote':
                 $vars = $_POST;
                 $attachments = $note_form->getField('attachments')->getFiles();

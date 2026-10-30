@@ -48,7 +48,15 @@ class AjaxController extends ApiController {
         return $this->json_encode($what);
     }
 
+    /**
+     * Valor de un parámetro de la cadena de consulta, o `$default`.
+     *
+     * Antes era una lectura a pelo con `?:`, que llenaba el log de
+     * «Undefined array key» en cada llamada sin parámetro y tomaba un `'0'`
+     * por ausente. Ahora delega en la fachada `Http::get()`, que es la única
+     * que lee la superglobal (frente 4 de docs/CODE_QUALITY.md).
+     */
     function get($var, $default=null) {
-        return $_GET[$var] ?: $default;
+        return Http::get($var, $default);
     }
 }

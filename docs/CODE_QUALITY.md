@@ -175,7 +175,7 @@ Lo que hay ahora:
 | `tests/ClassMapTest.php` | 20 casos: lectura de clases e includes del propio código |
 | `tests/CodeMeasureTest.php` | 13 casos: el medidor de `make metrics` (cierres, heredoc, interpolación, HTML) |
 | `tests/TicketCreateTest.php` | 18 casos: campos por origen, validación por quién abre, fecha límite |
-| `tests/MassActionTest.php` | 37 casos: tabla de acciones de tickets y tareas, verbos, identificadores, mensajes, script del diálogo |
+| `tests/MassActionTest.php` | 60 casos: tabla de acciones de tickets y tareas, verbos, identificadores, mensajes, script del diálogo |
 | `tests/HttpInputTest.php` | 19 casos: lectura con valor por defecto, cadenas vacías, listas y conversión a entero sin avisos |
 | `tests/InputAuditTest.php` | 19 casos: qué cuenta y qué no, archivos saltados, comparación con la línea base |
 | `tests/MailerMessageTest.php` | 24 casos: asunto en una línea, cabeceras por tipo de aviso, envoltorio del identificador, cuerpo de texto, dominio de las imágenes |
@@ -469,7 +469,7 @@ Pasos hechos: **417 casos nuevos** sin base de datos.
 | `include/class.thread.email.php` | `ThreadEmailInfo::accepts()` (ticket cerrado que no se reabre), `varsFromMail()` (traducción del correo a variables de la entrada), `entryTypeForUserClass()` (mensaje del cliente o nota del agente), `poster()`, `receivedFrom()`, `candidates()`/`embeddedId()` (por qué message-id se prueba primero: `mid`, `in-reply-to`, `references` al revés y el `Ref-Mid:` del cuerpo) y `collaboratorType()` (un colaborador en copia escribe mensaje, no nota, y con qué usuario) | `tests/ThreadEmailTest.php`, 32 casos |
 | `include/class.thread.entry.php` | `ThreadEntryInfo::title()` y `poster()` (qué se guarda), `replyFlags()` (respuesta a todos / al usuario), `bodyFlags()` (HTML equilibrado y nota de sistema), `dropStrippedImages()` y `markInline()` (adjuntos incrustados) | `tests/ThreadEntryInfoTest.php`, 22 casos |
 | `include/class.ticket.create.php` | `TicketCreate::requiredFields()` (qué exige cada origen: web, staff, api, email), `fieldFilter()` (qué se valida según quién abre), `dueDateError()`, `source()` y `openErrors()` (al abrir desde el panel: origen conocido y, sin usuario elegido, correo con forma de correo y nombre), más las nueve fases de `create()` | `tests/TicketCreateTest.php`, 23 casos |
-| `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 37 casos |
+| `include/class.massaction.php` | `MassAction::actions()` (la tabla de acciones de tickets y de tareas, con sus verbos), `selection()`/`selectionError()` (cuántos se han marcado y el aviso si no hay ninguno), `ids()`/`splitIds()` (identificadores de `GET`, `POST` o `REQUEST`, separados por comas o en lista), `mergeAction()` (combinar o enlazar según la ruta), `moveToFront()` (el padre primero), `statusFor()` (reabrir/cerrar), `successMessage()`/`partialMessage()` y `selectedScript()` (el script que copia las casillas marcadas al diálogo) | `tests/MassActionTest.php`, 60 casos |
 | `include/class.mailer.message.php` | `MailerMessage::cleanSubject()` (asunto en una línea, sin saltos), `extraHeaders()` (boletín, respuesta automática y aviso, con el orden de siempre), `wrapMid()` (el `div` invisible con el identificador del mensaje), `textBody()` (HTML a texto y `Ref-Mid`) y `contentIdDomain()` (dominio de las imágenes incrustadas) | `tests/MailerMessageTest.php`, 24 casos |
 | `include/class.queue.sort.php` | `QueueSortPlan::reconcile()`: qué pasa con las ordenaciones de una cola guardada cuando el formulario manda otra lista —las que se quedan y en qué posición, las que se quitan y las que se añaden—, sin tocar la base de datos. La prueba incluye una copia literal del bucle anterior y compara las dos salidas con siete entradas, cadenas del POST incluidas | `tests/QueueSortTest.php`, 9 casos |
 | `include/class.orm.select.php` | `SelectSql::fields()` 148 → **57**: qué columnas pide un SELECT (`raíz.*`, `values()`, campos diferidos, relaciones con JOIN, anotaciones, `extra['select']` y `GROUP BY`), ahora en cinco tramos (`relatedFields()`, `valueFields()`, `plainFields()`, `addAnnotations()`, `extraFields()`) que devuelven sus columnas y su GROUP BY | `tests/QuerySqlTest.php`, 39 casos |
@@ -625,8 +625,9 @@ El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
 |---|---|
 | `tests/lib/Database.php` | Crea `<base>_test` (nunca la de la instalación), le carga `setup/inc/streams/core/install-mysql.sql` con el prefijo configurado y expone `query()`/`value()`/`rows()`. Si no puede conectar, explica por qué |
 | `tests/lib/IntegrationTestCase.php` | Base de esas pruebas: **omite con motivo** si no hay base y **falla** si se pidió `--require-db` (un verde silencioso sería peor que un error) |
-| `tests/support/create-ticket.php` | Ayudante que arranca la aplicación **en su propio proceso** (como el cron), siembra una instalación nueva por el mismo camino que `setup/inc/class.installer.php`, crea un ticket y devuelve el resultado en JSON. Cuatro modos: `portal`, `staff`, `staff-sin-permiso` y `email` |
+| `tests/support/create-ticket.php` | Ayudante que arranca la aplicación **en su propio proceso** (como el cron), siembra una instalación nueva por el mismo camino que `setup/inc/class.installer.php`, crea un ticket y devuelve el resultado en JSON. Cuatro modos de alta: `portal`, `staff`, `staff-sin-permiso` y `email`; y cuatro de acción masiva: `masiva-transfer`, `masiva-claim`, `masiva-delete` y `masiva-sin-permiso` |
 | `tests/integration/TicketCreateIntegrationTest.php` | 4 casos: el portal crea el ticket con el departamento del tema y su mensaje como entrada original; el panel lo crea en el departamento elegido y deja el evento `created`; un agente sin `ticket.create` recibe el error y no deja ni un ticket; un correo que no es de ningún hilo abre un ticket en el departamento de la **cuenta de correo**, con el cuerpo del mensaje en el hilo |
+| `tests/integration/MassActionIntegrationTest.php` | 4 casos de las acciones en bloque, ejecutadas **en proceso** (`TicketsAjaxAPI::massProcess()` con un agente real y el `$_POST` del diálogo): el traslado mueve la selección y deja quieto lo demás, el reclamo asigna al agente, el borrado quita el ticket, y un agente sin `ticket.transfer` no mueve **ninguno** |
 | `tests/integration/OrmIntegrationTest.php` | 19 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, `Q::any` con grupos anidados, `Q::not`, `contains`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, `NOW()` de la base y que el esquema del instalador se cargue entero |
 | `tests/OrmDirtyTest.php` | 10 casos sin base: qué cuenta como campo cambiado (una cadena vacía y un cero sí; un `'5'` de la base frente a un `5` asignado, no) y que el ORM tenga sus dependencias cargadas (`Signal`, `Misc`) |
 | `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
@@ -703,6 +704,43 @@ son **133 sentencias** y todas empiezan por `CREATE`, `DROP`, `ALTER`,
 `INSERT`, `REPLACE`, `SET`, `UPDATE` o `DELETE`. Si alguien añade una tabla y
 el separador se come la sentencia, `make unit` lo dice —sin necesidad de base
 de datos—.
+
+#### Acciones masivas, en proceso
+
+`include/ajax.tickets.php` no se puede cargar en una prueba tal cual: empieza
+con `if (!defined('INCLUDE_DIR')) die('403')`, la clase extiende
+`AjaxController`, usa `Http::response()` —que hace `exit`— e incluye plantillas
+con `echo`. Por eso `massProcess()` se probaba sólo por sus piezas puras
+(`tests/MassActionTest.php`). Lo que faltaba era el camino con base de datos, y
+se recorre **sin HTTP**: el ayudante instancia el mismo controlador que atiende
+el AJAX, le pone el `$_POST` que manda el diálogo y un `$thisstaff` de verdad
+(con su rol y su departamento), y llama a `massProcess('transfer'|'claim'|
+'delete')`. Lo que se comprueba después es la tabla `ticket`: departamento,
+agente asignado y fila borrada.
+
+Una acción por proceso, a propósito: al completarse, `MassAction::finish()`
+responde `Http::response(201)`, que **termina el script**, igual que en la
+petición real. El informe se emite desde una función de apagado, que sí corre
+en ese caso.
+
+De ahí salieron seis arreglos, todos en el código de la aplicación:
+
+| Defecto | Arreglo |
+|---|---|
+| `foreach (Http::post('tids', array()) …)` en asignar, trasladar y borrar: un `tids` suelto (`tids=7`) hacía avisar al `foreach` y **no procesaba nada** | los tres bucles usan `MassAction::ids($_GET, $_POST, $_REQUEST)`, como ya hacía la combinación; acepta lista o cadena separada por comas |
+| `selection()` daba `error => null` con un `tids` escalar, así que el diálogo se abría con «0 seleccionados» y sin decir por qué | el aviso depende de lo que se puede **contar** (`$count ? null : selectionError()`) |
+| Con la selección vacía (o con identificadores inventados) la combinación hacía `$rows[0]` sobre un array vacío y `$ticket->getThread()` sobre `false`: error fatal en PHP 8 | si no hay filas se informa con el aviso de selección y no se toca el ticket |
+| `$expr` sólo se definía con más de un id: con uno solo, `order_by($expr ?: 'sort')` leía una variable inexistente | `$expr = null` antes del `if` |
+| `_changeSelectedTicketsStatus()` y `_changeTicketStatus()` leían `$_REQUEST['count']`, `['tids']`, `['status_id']` y `['comments']` a pelo: aviso por cada clave ausente (y es la ruta normal del diálogo de estado) | `Http::request()` con valor por omisión |
+| `AjaxController::get()` era `$_GET[$var] ?: $default`: aviso cuando el parámetro no venía y un `'0'` se tomaba por ausente | delega en `Http::get()`, la única que lee la superglobal |
+
+Los accesos directos bajan en los tres archivos tocados:
+`include/ajax.tickets.php` de **28 a 22**, `include/ajax.tasks.php` de **4 a 0**
+(los dos bucles que faltaban y dos lecturas del estado) y
+`include/class.ajax.php` de **1 a 0**. La línea base de
+`tools/quality/input-audit.php` queda en **1216 accesos en 140 archivos**. Dos casos nuevos en
+`tests/MassActionTest.php` fijan lo del `tids` suelto (el archivo pasa de 58 a
+60 casos).
 
 Las pruebas de integración quedan **fuera de `make unit` y de `make ci`** a
 propósito: `ci` tiene que seguir corriendo en cualquier sitio sin Docker.

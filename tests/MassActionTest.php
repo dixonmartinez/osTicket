@@ -146,6 +146,33 @@ class MassActionTest extends UnitTestCase {
             MassAction::splitIds(array('4', '', null)));
     }
 
+    /**
+     * Un `tids` suelto, sin los corchetes (`tids=7`), sigue siendo válido.
+     *
+     * El diálogo manda una lista, pero un `POST` a mano puede mandar un solo
+     * valor. `massProcess()` recorría `Http::post('tids', array())` tal cual:
+     * con una cadena el `foreach` avisaba y **no se procesaba nada**. Ahora
+     * usa esta misma función para los tres bucles (asignar, trasladar y
+     * borrar), como ya hacía la combinación.
+     */
+    public function testUnTidsSueltoTambienVale(): void {
+        $this->assertSame(array('7'),
+            MassAction::ids(array(), array('tids' => '7'), array()));
+    }
+
+    /**
+     * Y `selection()` no cuenta un `tids` suelto: el número de seleccionados
+     * es el de la lista. Con el aviso delante, el diálogo no intenta procesar
+     * y no se queda a medias.
+     */
+    public function testUnTidsSueltoNoSeCuentaComoSeleccion(): void {
+        $selection = MassAction::selection(array('tids' => '7'), array(),
+            'ticket');
+
+        $this->assertSame(0, $selection['count']);
+        $this->assertNotNull($selection['error']);
+    }
+
     /* ------------------------------------------------------------------ */
     /* Combinar o enlazar                                                  */
     /* ------------------------------------------------------------------ */
