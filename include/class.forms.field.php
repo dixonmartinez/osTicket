@@ -156,9 +156,13 @@ class FormField {
     }
 
     function addError($message, $index=false) {
+        // Un campo puede validarse más de una vez en la misma petición (el
+        // formulario del cliente se pide desde el ticket y otra vez al
+        // crearlo). Sin esto, el mismo aviso salía dos y tres veces debajo
+        // del campo, como si fueran tres problemas distintos.
         if ($index)
             $this->_errors[$index] = $message;
-        else
+        elseif (!in_array($message, $this->_errors, true))
             $this->_errors[] = $message;
 
         // Update parent form errors for the field

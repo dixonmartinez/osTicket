@@ -33,6 +33,22 @@ class ValidatorTest extends UnitTestCase {
         $this->assertFalse(Validator::is_email('root@localhost'));
     }
 
+    /**
+     * `is_email()` responde sí o no, nunca un número.
+     *
+     * Con la comprobación DNS activada la rama del registro MX devolvía
+     * `count(...)`, así que quien comparaba con `=== true` o guardaba el
+     * resultado en un campo booleano recibía un entero. Un dominio que no
+     * existe se comprueba sin red.
+     */
+    public function testLaVerificacionDnsRespondeBooleano(): void {
+        $resultado = Validator::is_email(
+            'nadie@dominio-que-no-existe.invalid', false, true);
+
+        $this->assertSame(false, $resultado,
+            'un dominio sin MX ni A tiene que devolver false, no un contador');
+    }
+
     public function testModoListaAceptaVariosSeparadosPorComa(): void {
         $this->assertTrue(Validator::is_email('a@example.com, b@example.com', true));
         // Sin el modo lista, dos direcciones no son un correo

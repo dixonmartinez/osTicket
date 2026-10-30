@@ -117,8 +117,18 @@ class Validator {
         // MX if no MX records exist for the domain. Also, include a
         // full-stop trailing char so that the default domain of the server
         // is not added automatically
-        if ($verify and !dns_get_record($m->host.'.', DNS_MX))
-            return (count(dns_get_record($m->host.'.', DNS_A|DNS_AAAA) ?: []));
+        if ($verify) {
+            // Sin la extensión de red no hay forma de verificar el dominio, y
+            // llamar a `dns_get_record()` a secas lanzaba un `Error` fatal en
+            // mitad del alta de un ticket. Rechazar el correo es lo honesto.
+            if (!function_exists('dns_get_record'))
+                return false;
+
+            if (!dns_get_record($m->host.'.', DNS_MX))
+                // `is_email()` responde sí o no: devolver un contador dejaba
+                // al que llama con un entero donde espera un booleano.
+                return count(dns_get_record($m->host.'.', DNS_A|DNS_AAAA) ?: []) > 0;
+        }
 
         return true;
     }

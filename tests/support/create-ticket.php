@@ -325,6 +325,13 @@ function configurarInstalacion($dept_id) {
             . TestDatabase::table('email_template_group')
             . '` ORDER BY `tpl_id` LIMIT 1'),
         'default_timezone' => 'UTC',
+        // Sin comprobación DNS del correo del cliente. Una instalación nueva
+        // la trae activada (`Config::$defaults['verify_email_addrs'] => 1`) y
+        // entonces el campo del cliente pregunta por el registro MX de
+        // `example.test`, que no existe: el alta fallaba con «Enter a valid
+        // email address» por un motivo que no tiene nada que ver con el
+        // ticket, y dependía de si el contenedor tenía red.
+        'verify_email_addrs' => 0,
         'admin_email' => ADMIN_EMAIL,
         'schema_signature' => isset($streams['core']) ? $streams['core'] : '',
         'helpdesk_url' => 'http://osticket.test/',

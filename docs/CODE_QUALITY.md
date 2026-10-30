@@ -664,6 +664,21 @@ tabla vacía. Por eso, si una tabla clave queda sin filas, la respuesta añade:
 El resumen también sale por `stderr`, antes del JSON, para que se lea en la
 consola de `make integration` sin descifrar una línea.
 
+**El correo del cliente no se verifica por DNS en las pruebas.** Una
+instalación nueva trae `verify_email_addrs` en 1 (`Config::$defaults`), así que
+el campo del cliente pregunta por el registro MX de su dominio. Con
+`ejemplo.test` —o en un contenedor sin red— eso falla, y el alta se detiene en
+«Enter a valid email address» por un motivo ajeno al ticket. El ayudante lo
+desactiva al configurar la instalación.
+
+De esa salida salieron dos arreglos de la aplicación:
+
+1. `Validator::is_email()` devolvía `count(...)` —un entero— en la rama del
+   registro DNS, donde el resto devuelve booleanos.
+2. Sin la extensión de red, `dns_get_record()` no existe y la llamada lanzaba
+   un `Error` fatal en mitad del alta. Ahora se comprueba y se rechaza el
+   correo, que es lo honesto cuando no se puede verificar.
+
 **La marca de «ya sembrado» no puede ser `ost_config`.** El esquema del
 instalador la llena en su sentencia 109 (`INSERT INTO %TABLE_PREFIX%config …`),
 así que el guardia que preguntaba por ella se cumplía siempre y la siembra no
