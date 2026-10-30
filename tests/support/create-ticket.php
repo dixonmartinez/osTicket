@@ -127,8 +127,81 @@ function sembrar() {
     $i18n = new Internationalization('en_US');
     $i18n->loadDefaultData();
 
+    // El último error de SQL de la siembra de verdad: `loadModels()` descarta
+    // los errores de cada YAML, pero el ORM guarda el del motor.
+    $GLOBALS['siembra_sql'] = VerySimpleModel::getLastError();
+
     return (bool) TestDatabase::value('SELECT COUNT(*) FROM `'
         . TestDatabase::table('help_topic') . '`');
+}
+
+/** Cuántas filas dejó la siembra en cada tabla que importa. */
+function filasSembradas() {
+    $filas = array();
+    foreach (array('sla', 'department', 'help_topic', 'form', 'list', 'team',
+            'filter', 'role', 'ticket_status', 'ticket_priority',
+            'email_template_group', 'queue', 'schedule') as $tabla)
+        $filas[$tabla] = (int) TestDatabase::value(
+            'SELECT COUNT(*) FROM `' . TestDatabase::table($tabla) . '`');
+
+    return $filas;
+}
+
+/**
+ * Por qué una tabla clave quedó vacía.
+ *
+ * `Internationalization::loadModels()` llama a cada creador con `@` y borra el
+ * array de errores en cada vuelta, así que un YAML que falle no deja rastro:
+ * lo único que se ve es la tabla vacía. Esto repite el primer objeto de ese
+ * YAML con los errores a la vista y con el último error de SQL del ORM
+ * (`VerySimpleModel::$lastError`), que es donde aparece un «Field 'x' doesn't
+ * have a default value», una columna desconocida o una clave repetida.
+ */
+function diagnostico($tabla) {
+    $mapa = array(
+        'sla' => array('sla.yaml', 'SLA::__create'),
+        'department' => array('department.yaml', 'Dept::__create'),
+        'help_topic' => array('help_topic.yaml', 'Topic::__create'),
+        'role' => array('role.yaml', 'Role::__create'),
+    );
+
+    if (!isset($mapa[$tabla]))
+        return array();
+
+    list($yaml, $creador) = $mapa[$tabla];
+
+    $i18n = new Internationalization('en_US');
+    $datos = $i18n->getTemplate($yaml)->getData();
+    $info = array(
+        'yaml' => $yaml,
+        'objetos' => count((array) $datos),
+        'sql_siembra' => isset($GLOBALS['siembra_sql'])
+            ? $GLOBALS['siembra_sql'] : null,
+    );
+
+    foreach (array_slice((array) $datos, 0, 2) as $i => $objeto) {
+        $errores = array();
+        $creado = false;
+        VerySimpleModel::$lastError = null;
+
+        try {
+            $creado = (bool) call_user_func_array($creador,
+                array($objeto, &$errores));
+        }
+        catch (Throwable $e) {
+            $errores['excepcion'] = get_class($e) . ': ' . $e->getMessage();
+        }
+
+        $info['intento' . $i] = array(
+            'clave' => isset($objeto['name']) ? $objeto['name']
+                : (isset($objeto['topic']) ? $objeto['topic'] : '?'),
+            'creado' => $creado,
+            'errores' => $errores,
+            'sql' => VerySimpleModel::getLastError(),
+        );
+    }
+
+    return $info;
 }
 
 /**
@@ -210,8 +283,12 @@ $ids = array(
 );
 foreach ($ids as $tabla => $id) {
     if (!$id)
-        responder(array('ok' => false,
-            'motivo' => 'la siembra no dejó filas en ' . $tabla));
+        responder(array_merge(array(
+                'ok' => false,
+                'motivo' => 'la siembra no dejó filas en ' . $tabla,
+                'filas' => filasSembradas(),
+            ),
+            diagnostico($tabla)));
 }
 
 $dept_id = $ids['department'];
