@@ -103,10 +103,9 @@ if ($info['topicId'] && ($topic=Topic::lookup($info['topicId']))) {
     <tr><td colspan=2>&nbsp;</td></tr>
     </tbody>
   </table>
-<hr/>
-  <p class="buttons" style="text-align:center;">
-        <input type="submit" value="<?php echo __('Create Ticket');?>">
-        <input type="reset" name="reset" value="<?php echo __('Reset');?>">
-        <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-discard-draft="index.php">
-  </p>
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel'); ?>" data-discard-draft="index.php">
+    <input type="reset" name="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" value="<?php echo __('Create Ticket');?>">
+</p>
 </form>

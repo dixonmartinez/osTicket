@@ -90,10 +90,9 @@ $info = Format::htmlchars(($errors && $_POST)?$_POST:$info);
 <?php } ?>
 </tbody>
 </table>
-<hr>
-<p style="text-align: center;">
-    <input type="submit" value="<?php echo __('Register'); ?>"/>
+<p class="form-actions">
     <input type="button" value="<?php echo __('Cancel'); ?>" data-href="index.php"/>
+    <input type="submit" value="<?php echo __('Register'); ?>"/>
 </p>
 </form>
 <?php if (!isset($info['timezone'])) { ?>

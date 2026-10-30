@@ -90,10 +90,9 @@ $selected = ($info['lang'] == $l['code']) ? 'selected="selected"' : ''; ?>
 <?php } ?>
 <?php } ?>
 </table>
-<hr>
-<p style="text-align: center;">
-    <input type="submit" value="<?php echo __('Update'); ?>"/>
-    <input type="reset" value="<?php echo __('Reset'); ?>"/>
+<p class="form-actions">
     <input type="button" value="<?php echo __('Cancel'); ?>" data-href="index.php"/>
+    <input type="reset" value="<?php echo __('Reset'); ?>"/>
+    <input type="submit" value="<?php echo __('Update'); ?>"/>
 </p>
 </form>

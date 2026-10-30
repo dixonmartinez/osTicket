@@ -1125,10 +1125,10 @@ if ($errors['err'] && isset($_POST['a'])) {
             </tr>
          </tbody>
         </table>
-        <p  style="text-align:center;">
-            <input class="save pending" type="submit" value="<?php echo __('Post Reply');?>">
-            <input class="" type="reset" value="<?php echo __('Reset');?>">
-        </p>
+<p class="form-actions">
+    <input class="" type="reset" value="<?php echo __('Reset');?>">
+    <input class="save pending" type="submit" value="<?php echo __('Post Reply');?>">
+</p>
     </form>
     <?php
     }
@@ -1215,10 +1215,10 @@ if ($errors['err'] && isset($_POST['a'])) {
             </tr>
         </table>
 
-       <p style="text-align:center;">
-           <input class="save pending" type="submit" value="<?php echo __('Post Note');?>">
-           <input class="" type="reset" value="<?php echo __('Reset');?>">
-       </p>
+<p class="form-actions">
+    <input class="" type="reset" value="<?php echo __('Reset');?>">
+    <input class="save pending" type="submit" value="<?php echo __('Post Note');?>">
+</p>
    </form>
    <?php } ?>
  </div>

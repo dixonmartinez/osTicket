@@ -1692,8 +1692,48 @@ pantalla con botón de cancelar, que es lo que distingue una ficha de una lista.
 
 **Cómo se comprueba.** `tests/AdminLayoutTest.php` → **7 pruebas**, 164
 controles etiquetados y 125 comprobaciones del pie de acciones; `php
-tests/run.php` → **1.036** pruebas; `theme-check` → **218**. `sw.js` sube a
-**`ost-v44`**.
+tests/run.php` → **1.040** pruebas; `theme-check` → **218**. `sw.js` sube a
+**`ost-v45`**.
+
+### 3.20 El agente y el cliente
+
+Las tres caras del producto tenían el mismo defecto en el pie de los
+formularios y sólo se había arreglado una. Faltaban la ficha del ticket en el
+panel del agente y el portal del cliente.
+
+| Plantilla | Antes | Ahora |
+|---|---|---|
+| `include/staff/ticket-view.inc.php` | dos `<p style="text-align:center;">` («Post Reply» y «Post Note») con el envío delante del reset | dos `p.form-actions`, reset y luego envío |
+| `include/client/open.inc.php` | `<p class="buttons" style="text-align:center;">`: la clase `buttons` **no existía en ninguna hoja**, así que la única alineación venía del estilo en línea | `p.form-actions` con cancelar, reset y «Create Ticket» |
+| `include/client/view.inc.php` | ídem con «Post Reply», reset y cancelar (`data-go-back`) | ídem, cancelar primero |
+| `include/client/edit.inc.php`, `profile.inc.php`, `register.inc.php` | `<p style="text-align: center;">` (con espacio tras los dos puntos, que es por lo que el conversor anterior no las veía) | `p.form-actions` |
+
+Dos detalles que sólo se ven al mirar el marcado:
+
+1. **El `<hr>` de delante sobraba.** El portal separaba los botones con un
+   `<hr>`; `p.form-actions` ya dibuja su borde superior, así que quedaban dos
+   rayas seguidas. Se quitaron los cuatro.
+2. **Los botones de cancelar siguen funcionando.** `data-href`, `data-go-back`
+   y `data-discard-draft` se leen en `js/actions.js`, que el portal del cliente
+   carga en `include/client/footer.inc.php`. Reordenar el pie no cambia el
+   `data-*` de cada botón.
+
+Las casillas del portal (las del formulario de apertura, que genera
+`DynamicForm`) ya salían envueltas en su etiqueta; lo que se comprueba ahora es
+que no vuelvan a quedarse sueltas.
+
+**Cómo se comprueba.** `tests/AgentClientLayoutTest.php` (nuevo, 4 pruebas)
+descubre las plantillas con `<form>` de `include/staff/` y de `include/client/`
+—**81** revisadas— y falla si:
+
+- un `<p>` vuelve a centrar los botones con un estilo en línea;
+- los cinco pies del portal dejan de ser `p.form-actions`, pierden el envío o
+  cambian el orden (cancelar → reset → enviar);
+- vuelve el contenedor `class="buttons"` o un `<hr>` pegado al pie;
+- la ficha del ticket pierde uno de sus dos pies;
+- una casilla o un radio de esas pantallas se queda fuera de su etiqueta
+  (**129** controles; las casillas `ckb`/`mass` de las listas se marcan desde
+  la fila y quedan fuera a propósito).
 
 ## 4. Reglas para no romper nada
 
@@ -1903,6 +1943,7 @@ queda en §6.2.
 | 50 | **Tercera tanda (Tickets → Alerts, Tasks, Agents y el diálogo de plantilla)**: dos defectos de código que las comprobaciones anteriores no veían. (a) Las pestañas inactivas seguían rellenas: una regla vieja de `css/dark.css` (`ul.tabs li`, especificidad 0,2,3) ganaba a la nueva por peso y por orden, y `make theme` daba el arreglo por bueno porque la regla transparente *existía*; además, el `padding-left` de 20 px de la tira se leía como una pestaña vacía. (b) El editor de plantillas del diálogo escribía con el texto del tema (#e6ebf0) sobre el papel claro: `.dialog *` fija el color en cada descendiente y el contenido del editor son párrafos, así que heredar no bastaba (§3.17) | ✅ Hecho | `css/dark.css`, `tools/ui/theme-check.php`, `tests/AdminSettingsTest.php`, `sw.js` |
 | 51 | **«Reorganiza todas las interfaces en un estándar»**: seis pantallas de administración seguían con el marcado original. **106** casillas y botones de opción sólo se podían marcar en el cuadradito de 13 px (ninguna llevaba `<label>`); las bandas de sección se quedaban en la columna de las etiquetas (sin `colspan`); los avisos de tickets y tareas eran una fila por destinatario (7 y 5 grupos, más de dos pantallas de scroll); y los avisos de tareas se ocultaban con `style="display:none"`. Ahora: etiqueta en cada control (envolvente o `for`/`id`), bandas a dos columnas, destinatarios en `.ost-check-grid`, pestañas `clean` y el mismo pie en todas. `tests/AdminLayoutTest.php` recorre por `glob()` todas las pantallas y lo impide (§3.18) | ✅ Hecho | `include/staff/settings-{agents,users,emails,kb,autoresp,alerts,tasks,tickets}.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
 | 52 | **«Sigue con los demás módulos»**: las cinco reglas de las pantallas de ajustes no llegaban a *Manage*. **18** fichas (más `role`, `plugin`, `plugin-instance`, `schedule`, `dynamic-form` y `dynamic-list`) tenían el pie centrado con `style="text-align:center"`, con el envío primero y «Cancelar» al final; ahora es `p.form-actions` con cancelar→reset→guardar, y la separación la hace la hoja (`margin-right: auto`), no `order`, para no romper el orden del teclado. Tres casillas se quedaban sin nombre: el campo dinámico de un tema de ayuda (ahora `for`/`id`), y las de borrar de `dynamic-list` y `dynamic-form` (etiqueta con `title` y `.sr-only`). El escáner de la prueba cortaba las etiquetas en el `?>` de un `echo`, así que las casillas con PHP en los atributos contaban como anónimas: ahora **164** controles revisados y **125** comprobaciones del pie (§3.19) | ✅ Hecho | 24 `include/staff/*.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
+| 53 | **Agente y cliente**: el pie de los formularios sólo se había arreglado en la administración. La ficha del ticket del agente tenía dos `<p style="text-align:center;">` («Post Reply» y «Post Note») con el envío delante del reset, y el portal del cliente usaba un `<p class="buttons">` que **ninguna hoja pinta**: la alineación dependía del estilo en línea. Ahora las siete plantillas usan `p.form-actions` (cancelar → reset → enviar), se quitaron los cuatro `<hr>` que dejaban dos rayas y se añadió `tests/AgentClientLayoutTest.php` sobre 81 plantillas y 129 controles (§3.20) | ✅ Hecho | `include/staff/ticket-view.inc.php`, `include/client/{open,view,edit,profile,register}.inc.php`, `tests/AgentClientLayoutTest.php`, `sw.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

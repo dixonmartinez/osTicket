@@ -190,11 +190,11 @@ echo $attrs; ?>><?php echo $draft ?: $info['message'];
         <?php echo __('Ticket will be reopened on message post'); ?>
     </div>
 <?php } ?>
-    <p style="text-align:center">
-        <input type="submit" value="<?php echo __('Post Reply');?>">
-        <input type="reset" value="<?php echo __('Reset');?>">
-        <input type="button" value="<?php echo __('Cancel');?>" data-go-back>
-    </p>
+<p class="form-actions">
+    <input type="button" value="<?php echo __('Cancel');?>" data-go-back>
+    <input type="reset" value="<?php echo __('Reset');?>">
+    <input type="submit" value="<?php echo __('Post Reply');?>">
+</p>
 </form>
 <?php
 } ?>
