@@ -600,7 +600,9 @@ troceando sin pruebas de integración.
 Siguiente paso, por orden de riesgo:
 
 1. **Fijar `Ticket::create()` con una prueba de integración**: un ticket web,
-   uno de agente y uno por correo, con sus colaboradores y su mensaje. La
+   uno de agente y uno por correo, con sus colaboradores y su mensaje. El web y
+   el de agente ya están (`tests/integration/TicketCreateIntegrationTest.php`);
+   falta el de correo. La
    función ya está partida en nueve fases (`include/class.ticket.create.php`),
    pero lo que queda en `class.ticket.php` son 219 líneas de orquestación con
    base de datos: hasta que esa prueba esté en verde, moverlas es a ciegas.
@@ -624,12 +626,28 @@ El banco vive en `tests/integration/` y su infraestructura en `tests/lib/`:
 |---|---|
 | `tests/lib/Database.php` | Crea `<base>_test` (nunca la de la instalación), le carga `setup/inc/streams/core/install-mysql.sql` con el prefijo configurado y expone `query()`/`value()`/`rows()`. Si no puede conectar, explica por qué |
 | `tests/lib/IntegrationTestCase.php` | Base de esas pruebas: **omite con motivo** si no hay base y **falla** si se pidió `--require-db` (un verde silencioso sería peor que un error) |
+| `tests/support/create-ticket.php` | Ayudante que arranca la aplicación **en su propio proceso** (como el cron), siembra una instalación nueva por el mismo camino que `setup/inc/class.installer.php`, crea un ticket y devuelve el resultado en JSON. Tres modos: `portal`, `staff` y `staff-sin-permiso` |
+| `tests/integration/TicketCreateIntegrationTest.php` | 3 casos: el portal crea el ticket con el departamento del tema y su mensaje como entrada original; el panel lo crea en el departamento elegido y deja el evento `created`; un agente sin `ticket.create` recibe el error y no deja ni un ticket |
 | `tests/integration/OrmIntegrationTest.php` | 19 casos: guardar y releer, valores vacíos y nulos, vaciar y borrar campos, `count()` contra el `COUNT(*)` de siempre, `IN`, `exclude`, `Q::any` con grupos anidados, `Q::not`, `contains`, orden y límite, `update()` y `delete()` en bloque con sus filas afectadas, `NOW()` de la base y que el esquema del instalador se cargue entero |
 | `tests/OrmDirtyTest.php` | 10 casos sin base: qué cuenta como campo cambiado (una cadena vacía y un cero sí; un `'5'` de la base frente a un `5` asignado, no) y que el ORM tenga sus dependencias cargadas (`Signal`, `Misc`) |
 | `tests/DatabaseHelperTest.php` | 14 casos sin base: cómo se parte un volcado (punto y coma dentro de cadenas, comillas escapadas, comentarios `--` y `#`) y que el nombre de la base de pruebas no pueda ser el de la instalación |
 | `tests/OrmPropertiesTest.php` | 3 casos sin base: recorre `class.orm.php`, `class.orm.select.php` y `class.util.php` y comprueba con `property_exists()` que cada `$this->propiedad = …` esté declarada. Detecta la propiedad **y la línea** |
 | `make integration` | `tests/run.php --integration --require-db`, o PHPUnit (`--testsuite integration`) si está instalado |
 | `make docker-integration` | Levanta `db` y ejecuta lo anterior dentro del contenedor `tools` |
+
+**Por qué el alta de un ticket corre en otro proceso.** `Ticket::create()`
+necesita el entorno completo —constantes de tabla, configuración en la base,
+`$ost`, `$cfg`, `$thisstaff` y la sesión—. Montarlo dentro de `tests/run.php`
+obligaría a redefinir constantes que `tests/bootstrap.php` ya fijó y dejaría el
+traductor, la sesión y el manejador de errores de osTicket activos para el resto
+de la suite (donde cualquier aviso de PHP es un fallo). El ayudante arranca con
+`bootstrap.php` de la aplicación, igual que `api/cron.php`, y devuelve una línea
+JSON; la prueba lee esa línea y comprueba el resultado **en la base**. Se puede
+lanzar a mano para depurar:
+
+```bash
+docker compose run --rm tools php tests/support/create-ticket.php staff
+```
 
 El separador de sentencias se prueba contra el archivo real del instalador:
 son **133 sentencias** y todas empiezan por `CREATE`, `DROP`, `ALTER`,
