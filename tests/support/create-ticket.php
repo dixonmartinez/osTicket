@@ -220,6 +220,23 @@ $role_id = $ids['role'];
 
 configurarInstalacion($dept_id);
 
+/* 4. La aplicación en marcha: `Ticket::create()` y `Ticket::open()` usan los
+ *    globales `$ost`, `$cfg` y `$thisstaff`, y `osTicket::start()` es quien
+ *    define las funciones de traducción de sistema (`_S`, `_N`). Se arranca
+ *    antes de crear el agente para que el modelo las tenga si las necesita. */
+try {
+    $GLOBALS['ost'] = osTicket::start();
+    $GLOBALS['cfg'] = $GLOBALS['ost']->getConfig();
+}
+catch (Throwable $e) {
+    responder(array('ok' => false,
+        'motivo' => 'no arrancó la aplicación: ' . $e->getMessage()));
+}
+
+if (!$GLOBALS['cfg'])
+    responder(array('ok' => false,
+        'motivo' => 'la aplicación arrancó sin configuración'));
+
 function permisosDeAdmin() {
     return array(
         User::PERM_CREATE, User::PERM_EDIT, User::PERM_DELETE,
@@ -254,7 +271,7 @@ $agente = crearAgente($dept_id, $role_id, 'agente', 'agente@example.test');
 $agente->updatePerms(permisosDeAdmin());
 $agente->save();
 
-/* 4. El ticket, por el camino que toque.
+/* 5. El ticket, por el camino que toque.
  *
  * `$vars` lleva todas las claves que lee la aplicación sin comprobar si
  * existen (es el POST real del formulario), para no disparar avisos que en una
@@ -298,15 +315,6 @@ if ($mode === 'portal') {
     /* Sin $thisstaff: el portal no tiene agente en sesión. */
     $GLOBALS['thisstaff'] = null;
 
-    try {
-        $GLOBALS['ost'] = osTicket::start();
-        $GLOBALS['cfg'] = $GLOBALS['ost']->getConfig();
-    }
-    catch (Throwable $e) {
-        responder(array('ok' => false,
-            'motivo' => 'no arrancó la aplicación: ' . $e->getMessage()));
-    }
-
     $ticket = Ticket::create($vars, $errors, 'Web', false, false);
 }
 else {
@@ -336,19 +344,10 @@ else {
 
     $GLOBALS['thisstaff'] = $agente;
 
-    try {
-        $GLOBALS['ost'] = osTicket::start();
-        $GLOBALS['cfg'] = $GLOBALS['ost']->getConfig();
-    }
-    catch (Throwable $e) {
-        responder(array('ok' => false,
-            'motivo' => 'no arrancó la aplicación: ' . $e->getMessage()));
-    }
-
     $ticket = Ticket::open($vars, $errors);
 }
 
-/* 5. Lo que la prueba necesita comprobar. */
+/* 6. Lo que la prueba necesita comprobar. */
 $datos = array(
     'ok' => (bool) $ticket,
     'modo' => $mode,
