@@ -123,7 +123,9 @@ class AdminLayoutTest extends UnitTestCase {
      * (lo que se escribe en la etiqueta gana) y ensucia el HTML de todas las
      * listas —26 pantallas lo llevaban en la columna de las casillas o de los
      * iconos—. `.centered` ya estaba en `scp/css/scp.css`, así que la
-     * conversión no necesita una regla nueva.
+     * conversión no necesita una regla nueva. Lo mismo vale para el centrado
+     * escrito en un `style=""` de una celda o de un `div` que envuelve un
+     * botón: es lo que quedaba del avatar y de dos cabeceras de *Filters*.
      */
     public function testLasCeldasNoCentranConElAtributoAlign(): void {
         $quedan = array();
@@ -138,7 +140,9 @@ class AdminLayoutTest extends UnitTestCase {
                 $revisadas++;
                 $php = (string) file_get_contents($ruta);
                 if (preg_match('/<(?:td|th|p|div)\b[^>]*\balign="center"/i',
-                        $php))
+                            $php)
+                        || preg_match('/<(?:td|th|div)\b[^>]*style="[^"]*'
+                            . 'text-align\s*:\s*center/i', $php))
                     $quedan[] = substr($ruta, strlen(ROOT_DIR) + 1);
             }
         }

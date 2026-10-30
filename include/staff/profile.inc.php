@@ -21,7 +21,7 @@ if(!defined('OSTSTAFFINC') || !$staff || !$thisstaff) die('Access Denied');
 <?php       $avatar = $staff->getAvatar();
             echo $avatar;
 if ($avatar->isChangeable()) { ?>
-          <div style="text-align: center">
+          <div class="centered">
             <a class="button no-pjax"
                 href="#ajax.php/staff/<?php echo $staff->getId(); ?>/avatar/change"
                 data-call="ostChangeAvatar"><i class="icon-retweet"></i></a>
