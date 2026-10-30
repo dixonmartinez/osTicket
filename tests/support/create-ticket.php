@@ -392,14 +392,14 @@ if (!$GLOBALS['cfg'])
         'motivo' => 'la aplicación arrancó sin configuración'));
 
 function permisosDeAdmin() {
-    return array(
-        User::PERM_CREATE, User::PERM_EDIT, User::PERM_DELETE,
-        User::PERM_MANAGE, User::PERM_DIRECTORY,
-        Organization::PERM_CREATE, Organization::PERM_EDIT,
-        Organization::PERM_DELETE,
-        FAQ::PERM_MANAGE, Email::PERM_BANLIST, Dept::PERM_DEPT,
-        Staff::PERM_STAFF,
-    );
+    /* Todos los permisos que registra la aplicación, no una lista a mano.
+     * La lista a mano ya se había quedado corta: le faltaba `ticket.create`,
+     * que es justo el que `Ticket::open()` comprueba en el departamento. */
+    $todos = array();
+    foreach (RolePermission::allPermissions() as $grupo => $permisos)
+        $todos = array_merge($todos, array_keys($permisos));
+
+    return $todos;
 }
 
 /** Un agente con todos los permisos, como el que crea el instalador. */
@@ -533,8 +533,11 @@ if ($ticket) {
         'status_id' => (int) $ticket->getStatusId(),
         'source' => $ticket->getSource(),
         'subject' => $ticket->getSubject(),
-        'user_email' => $ticket->getEmail(),
-        'user_name' => $ticket->getName(),
+        // `getEmail()` devuelve el modelo de la dirección y `getName()` el
+        // objeto de nombre: al JSON tienen que ir como texto, que es lo que
+        // compara la prueba (y lo que se ve en el ticket).
+        'user_email' => (string) $ticket->getEmail(),
+        'user_name' => (string) $ticket->getName(),
         'entradas' => (int) TestDatabase::value(
             'SELECT COUNT(*) FROM `' . TestDatabase::table('thread_entry')
             . '` WHERE `thread_id` = ' . (int) $ticket->getThreadId()),
