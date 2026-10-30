@@ -86,30 +86,30 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
         <tr>
             <td width="180" class="required"><?php echo __("Verify Email Addresses");?>:</td>
             <td>
-                <input type="checkbox" name="verify_email_addrs" <?php
+                <label><input type="checkbox" name="verify_email_addrs" <?php
                     if ($config['verify_email_addrs']) echo 'checked="checked"'; ?>>
-                <?php echo __('Verify email address domain'); ?>
+                <?php echo __('Verify email address domain'); ?></label>
                 <i class="help-tip icon-question-sign" href="#verify_email_addrs"></i>
             </td>
         </tr>
-        <tr><th colspan=2><em><strong><?php echo __('Incoming Emails'); ?>:</strong>&nbsp;
-            </em></th>
+        <tr><th colspan="2"><em><strong><?php echo __('Incoming Emails'); ?>:</strong>&nbsp;
+            </em></th></tr>
         <tr>
             <td width="180"><?php echo __('Email Fetching'); ?>:</td>
-            <td><input type="checkbox" name="enable_mail_polling" value=1 <?php echo $config['enable_mail_polling']? 'checked="checked"': ''; ?>>
-                <?php echo __('Enable'); ?>
+            <td><label><input type="checkbox" name="enable_mail_polling" value=1 <?php echo $config['enable_mail_polling']? 'checked="checked"': ''; ?>>
+                <?php echo __('Enable'); ?></label>
                 <i class="help-tip icon-question-sign" href="#email_fetching"></i>
                 &nbsp;
-                 <input type="checkbox" name="enable_auto_cron" <?php echo $config['enable_auto_cron']?'checked="checked"':''; ?>>
-                <?php echo __('Fetch on auto-cron'); ?>&nbsp;
+                 <label><input type="checkbox" name="enable_auto_cron" <?php echo $config['enable_auto_cron']?'checked="checked"':''; ?>>
+                <?php echo __('Fetch on auto-cron'); ?></label>&nbsp;
                 <i class="help-tip icon-question-sign" href="#enable_autocron_fetch"></i>
             </td>
         </tr>
         <tr>
             <td width="180"><?php echo __('Strip Quoted Reply');?>:</td>
             <td>
-                <input type="checkbox" name="strip_quoted_reply" <?php echo $config['strip_quoted_reply'] ? 'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>
+                <label><input type="checkbox" name="strip_quoted_reply" <?php echo $config['strip_quoted_reply'] ? 'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>
                 <i class="help-tip icon-question-sign" href="#strip_quoted_reply"></i>
                 &nbsp;<font class="error">&nbsp;<?php echo $errors['strip_quoted_reply']; ?></font>
             </td>
@@ -123,27 +123,27 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
         <tr>
             <td width="180"><?php echo __('Emailed Tickets Priority'); ?>:</td>
             <td>
-                <input type="checkbox" name="use_email_priority" value="1" <?php echo $config['use_email_priority'] ?'checked="checked"':''; ?>>
-                &nbsp;<?php echo __('Enable'); ?>&nbsp;
+                <label><input type="checkbox" name="use_email_priority" value="1" <?php echo $config['use_email_priority'] ?'checked="checked"':''; ?>>
+                &nbsp;<?php echo __('Enable'); ?></label>&nbsp;
                 <i class="help-tip icon-question-sign" href="#emailed_tickets_priority"></i>
             </td>
         </tr>
         <tr>
             <td width="180"><?php echo __('Accept All Emails'); ?>:</td>
-            <td><input type="checkbox" name="accept_unregistered_email" <?php
+            <td><label><input type="checkbox" name="accept_unregistered_email" <?php
                 echo $config['accept_unregistered_email'] ? 'checked="checked"' : ''; ?>/>
-                <?php echo __('Accept email from unknown Users'); ?>
+                <?php echo __('Accept email from unknown Users'); ?></label>
                 <i class="help-tip icon-question-sign" href="#accept_all_emails"></i>
             </td>
         </tr>
         <tr>
             <td width="180"><?php echo __('Accept Email Collaborators'); ?>:</td>
-            <td><input type="checkbox" name="add_email_collabs" <?php
+            <td><label><input type="checkbox" name="add_email_collabs" <?php
             echo $config['add_email_collabs'] ? 'checked="checked"' : ''; ?>/>
-            <?php echo __('Automatically add collaborators from email fields'); ?>&nbsp;
+            <?php echo __('Automatically add collaborators from email fields'); ?></label>&nbsp;
             <i class="help-tip icon-question-sign" href="#accept_email_collaborators"></i>
         </tr>
-        <tr><th colspan=2><em><strong><?php echo __('Outgoing Email');?></strong>: <?php echo __('Default email only applies to outgoing emails without SMTP setting.');?></em></th></tr>
+        <tr><th colspan="2"><em><strong><?php echo __('Outgoing Email');?></strong>: <?php echo __('Default email only applies to outgoing emails without SMTP setting.');?></em></th></tr>
         <tr><td width="180"><?php echo __('Default MTA'); ?>:</td>
             <td>
                 <select name="default_smtp_id">
@@ -172,8 +172,8 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
         <tr>
             <td width="180"><?php echo __('Attachments');?>:</td>
             <td>
-                <input type="checkbox" name="email_attachments" <?php echo $config['email_attachments']?'checked="checked"':''; ?>>
-                <?php echo __('Email attachments to the user'); ?>
+                <label><input type="checkbox" name="email_attachments" <?php echo $config['email_attachments']?'checked="checked"':''; ?>>
+                <?php echo __('Email attachments to the user'); ?></label>
                 <i class="help-tip icon-question-sign" href="#ticket_response_files"></i>
             </td>
         </tr>

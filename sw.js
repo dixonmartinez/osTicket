@@ -95,7 +95,10 @@
 // v42: las pestanas inactivas dejan de salir rellenas (la regla vieja ganaba
 //     por especificidad) y el editor de plantillas escribe en tinta sobre el
 //     papel. Sin subir la version, dark.css llega de la cache y no se ve.
-const VERSION = 'ost-v42';
+// v43: el estandar de las pantallas de administracion: etiqueta en cada
+//     casilla, bandas a dos columnas y los avisos en rejilla. Sin subir la
+//     version se sirven el modern.css y las plantillas de la cache.
+const VERSION = 'ost-v43';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

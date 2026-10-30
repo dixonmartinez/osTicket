@@ -67,10 +67,10 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
             </th>
         </tr>
         <tr><td><?php echo __('Registration Required'); ?>:</td>
-            <td><input type="checkbox" name="clients_only" <?php
+            <td><label><input type="checkbox" name="clients_only" <?php
                 if ($config['clients_only'])
                     echo 'checked="checked"'; ?>/> <?php echo __(
-                    'Require registration and login to create tickets'); ?>
+                    'Require registration and login to create tickets'); ?></label>
             <i class="help-tip icon-question-sign" href="#registration_method"></i>
             </td>
         <tr><td><?php echo __('Registration Method'); ?>:</td>
@@ -137,18 +137,18 @@ if(!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config)
             </td>
         </tr>
         <tr><td><?php echo __('Authentication Token'); ?>:</td>
-            <td><input type="checkbox" name="allow_auth_tokens" <?php
+            <td><label><input type="checkbox" name="allow_auth_tokens" <?php
                 if ($config['allow_auth_tokens'])
                     echo 'checked="checked"'; ?>/> <?php
-                    echo __('Enable use of authentication tokens to auto-login users'); ?>
+                    echo __('Enable use of authentication tokens to auto-login users'); ?></label>
             <i class="help-tip icon-question-sign" href="#allow_auth_tokens"></i>
             </td>
         </tr>
         <tr><td><?php echo __('Client Quick Access'); ?>:</td>
-            <td><input type="checkbox" name="client_verify_email" <?php
+            <td><label><input type="checkbox" name="client_verify_email" <?php
                 if ($config['client_verify_email'])
                     echo 'checked="checked"'; ?>/> <?php echo __(
-                'Require email verification on "Check Ticket Status" page'); ?>
+                'Require email verification on "Check Ticket Status" page'); ?></label>
             <i class="help-tip icon-question-sign" href="#client_verify_email"></i>
             </td>
         </tr>

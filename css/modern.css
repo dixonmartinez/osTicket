@@ -1687,6 +1687,51 @@ p.form-actions button {
     margin: 0;
 }
 
+/* --- Casillas y botones de opción ------------------------------------ */
+/* Una casilla de 13 px no es un control: la etiqueta tiene que pulsarse
+   entera. En las pantallas de administración cada casilla va dentro de su
+   `<label>` (o la etiqueta de la fila lleva `for`), así que aquí sólo queda
+   que se note que se puede pulsar y que el texto no se pegue al cuadro. */
+.form_table label,
+.ost-check-grid label {
+    cursor: pointer;
+}
+
+.form_table td > label {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.form_table td > label > input {
+    margin-top: 4px;
+}
+
+/* Avisos y notificaciones: una fila por destinatario daba siete bloques
+   seguidos y más de dos pantallas de scroll. En rejilla caben dos o tres por
+   fila y se leen como una lista de opciones. */
+.ost-check-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px 28px;
+    margin: 2px 0;
+}
+
+.ost-check-grid label {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.ost-check-grid label > input {
+    margin-top: 4px;
+}
+
+/* Los dos botones de «Status: Enable / Disable» de los avisos. */
+.form_table td > label + label {
+    margin-left: 14px;
+}
+
 /* --- Galería de imágenes (logos y fondos de acceso) ------------------ */
 /* Era una tabla anidada con los radios en dos columnas («Client», «Staff»)
    separadas de la imagen: al bajar por la lista había que volver a la

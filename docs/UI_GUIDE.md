@@ -1564,6 +1564,72 @@ comprobaciones (antes 217) y `php tests/run.php` → **1.029** pruebas (21 en
 devolviendo la regla vieja a `css/dark.css`, falla. `sw.js` sube a **`ost-v42`**
 para que el navegador no siga sirviendo el `dark.css` de la caché.
 
+### 3.18 El estándar de las pantallas de administración
+
+Las tandas anteriores arreglaron pantalla por pantalla. Faltaba lo de en medio:
+`settings-kb`, `settings-emails`, `settings-users`, `settings-agents`,
+`settings-autoresp`, `settings-alerts` y los avisos de tareas seguían con el
+marcado original. Aquí queda escrito —y comprobado— lo que comparten todas.
+
+#### 3.18.1 Las cinco reglas
+
+1. **Cada control se pulsa desde su texto.** Toda casilla y todo botón de
+   opción va dentro de su `<label>`; cuando el control no tiene texto al lado
+   (las filas «Allow Password Resets» o «Bind Agent Session to IP»), la
+   etiqueta de la fila lleva `for` y el campo su `id`. Antes eran **106**
+   controles que sólo se podían marcar en el cuadradito de 13 px.
+2. **Las bandas de sección ocupan las dos columnas.** `<th colspan="2">` en
+   todas: sin el `colspan`, el título se queda en la columna de las etiquetas.
+3. **Los destinatarios de un aviso van en rejilla.** Una fila por destinatario
+   daba siete bloques seguidos y más de dos pantallas de scroll para leer una
+   lista de casillas; ahora es `.ost-check-grid` (`auto-fill`,
+   `minmax(260px, 1fr)`), dos o tres por fila.
+4. **Las pantallas largas se reparten en pestañas**, con `ul.clean.tabs` y
+   `div.tab_content`, la primera visible y el resto con `hidden` (el
+   `style="display:none"` de los avisos de tareas también se fue).
+5. **El pie es el mismo en todas**: `p.form-actions`, `Reset` y luego `Save`,
+   con la acción principal en el acento del tema.
+
+#### 3.18.2 Lo que se tocó
+
+| Pantalla | Antes | Ahora |
+|---|---|---|
+| KB | 3 casillas sin etiqueta, banda sin `colspan` | Etiquetas + banda |
+| Emails | 8 casillas sin etiqueta, `<th colspan=2>` sin comillas y una fila sin `</tr>` | Etiquetas + banda + marcado cerrado |
+| Usuarios | 3 casillas sin etiqueta | Etiquetas |
+| Agentes | 5 casillas, dos de ellas sin texto al lado | 3 etiquetas envolventes + 2 `for`/`id`; pestañas con `clean` |
+| Autoresponder | 5 casillas sin etiqueta | Etiquetas |
+| Avisos de tickets | 23 casillas y 12 radios en filas sueltas | 7 rejillas, radios etiquetados, bandas y celdas a dos columnas |
+| Avisos de tareas | 15 casillas y 10 radios, tab oculto con estilo en línea | 5 rejillas, etiquetas, `hidden` |
+| Tickets / Sistema / Perfil | ya en pestañas | sin cambios de estructura |
+
+Las etiquetas se pusieron con un recorrido del marcado, no a mano: se busca
+cada `<input type="checkbox|radio">`, se localiza el texto que lo acompaña
+hasta el siguiente elemento de bloque (sin salir del PHP) y se envuelve el
+conjunto. Así no se perdió ninguno y los `<?php echo … ?>` intermedios
+sobreviven tal cual.
+
+#### 3.18.3 Cómo se impide que vuelva el desorden
+
+`tests/AdminLayoutTest.php` (nuevo, 6 pruebas) recorre **todas** las pantallas
+de `scp/settings.php` —no una lista escrita a mano: `glob()` sobre
+`include/staff/settings-*.inc.php`— y falla si:
+
+- una casilla o un radio se queda fuera de su etiqueta (106 revisados; las
+  casillas `class="mass"` de las listas quedan fuera a propósito, porque su
+  etiqueta es la fila);
+- una banda de sección pierde el `colspan="2"` (32 comprobadas);
+- un grupo de avisos deja de estar en rejilla (7 en tickets, 5 en tareas);
+- una pantalla larga pierde sus pestañas o su número de enlaces;
+- la hoja deja de decir que la etiqueta se pulsa o que el cuadro va separado
+  del texto.
+
+Se verificó al revés: quitando una etiqueta de `settings-kb`, la prueba falla.
+
+**Cómo se comprueba.** `php tests/run.php` → **1.035** pruebas y
+`php tools/ui/theme-check.php` → **218** comprobaciones. `sw.js` sube a
+**`ost-v43`**.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -1727,7 +1793,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 218 verificaciones (195 antes de las filas 42-50) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 218 verificaciones (195 antes de las filas 42-51) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1770,6 +1836,7 @@ queda en §6.2.
 | 48 | **Parte de administración (capturas de `settings.php`)**: seis defectos, dos de ellos de datos. (a) La banda de aviso salía como «⚠The setup directory…»: el icono que dibuja `css/ui.css` caía encima del texto porque la banda no reservaba su hueco. (b) `Save Changes` y `Reset Changes` eran dos botones idénticos, centrados y lejos de la tabla; en oscuro el principal perdía el acento porque la regla de botones del tema gana a la de «primario». (c) En *Logos* y *Login Backdrop* el borrado **no pedía confirmación**: el manejador estaba enganchado a `#save`, un formulario que no existe en esa pantalla. (d) `Never Purge Logs` y `Small` llevaban `selected` fijo, así que había dos opciones marcadas a la vez. (e) Las tablas de ajustes pedían `width="940"` y dejaban una franja muerta a la derecha de la pestaña; las casillas no tenían `<label for>`. (f) La galería de imágenes era una tabla anidada con los radios en columnas separadas de la imagen. Ahora hay barra de acciones con el acento en los dos temas, galería en filas con la opción marcada visible y el borrado confirmado en fase de captura (§3.15) | ✅ Hecho | `include/staff/settings-*.inc.php`, `include/staff/template.inc.php`, `include/staff/templates/dynamic-form.tmpl.php`, `css/modern.css`, `css/dark.css`, `tests/AdminSettingsTest.php`, `make theme` |
 | 49 | **Segunda tanda de `settings.php`**: tres avisos. (a) Se veía «un texto en blanco» dentro de los logos: la fila *Default* lleva dos imágenes y, con `flex`, cada una pedía la columna entera; la segunda se salía encima del nombre y el logo transparente dejaba ver el texto. (b) El selector de archivos ofrecía «All Files (*.*)» y el servidor sólo comprobaba que fuera imagen **si el PHP tenía GD**: sin esa extensión se guardaba como logo cualquier cosa. (c) *Sistema* pedía bajar más de dos pantallas y *Tickets* mezclaba numeración y casillas en una sola pestaña. Ahora la vista previa es una rejilla (una pista por imagen), los dos selectores llevan `accept` y el servidor valida el contenido con `getimagesize`/`finfo`/extensión, y los dos formularios se reparten en pestañas —Sistema: General, Fecha y hora, Idiomas, Adjuntos; Tickets: Settings y Options— conservando la pestaña al guardar (§3.16) | ✅ Hecho | `css/modern.css`, `include/staff/settings-{pages,system,tickets}.inc.php`, `include/class.file.php`, `include/class.file.input.php`, `scp/js/scp.js`, `tests/FileInputTest.php`, `tests/AdminSettingsTest.php`, `make theme` |
 | 50 | **Tercera tanda (Tickets → Alerts, Tasks, Agents y el diálogo de plantilla)**: dos defectos de código que las comprobaciones anteriores no veían. (a) Las pestañas inactivas seguían rellenas: una regla vieja de `css/dark.css` (`ul.tabs li`, especificidad 0,2,3) ganaba a la nueva por peso y por orden, y `make theme` daba el arreglo por bueno porque la regla transparente *existía*; además, el `padding-left` de 20 px de la tira se leía como una pestaña vacía. (b) El editor de plantillas del diálogo escribía con el texto del tema (#e6ebf0) sobre el papel claro: `.dialog *` fija el color en cada descendiente y el contenido del editor son párrafos, así que heredar no bastaba (§3.17) | ✅ Hecho | `css/dark.css`, `tools/ui/theme-check.php`, `tests/AdminSettingsTest.php`, `sw.js` |
+| 51 | **«Reorganiza todas las interfaces en un estándar»**: seis pantallas de administración seguían con el marcado original. **106** casillas y botones de opción sólo se podían marcar en el cuadradito de 13 px (ninguna llevaba `<label>`); las bandas de sección se quedaban en la columna de las etiquetas (sin `colspan`); los avisos de tickets y tareas eran una fila por destinatario (7 y 5 grupos, más de dos pantallas de scroll); y los avisos de tareas se ocultaban con `style="display:none"`. Ahora: etiqueta en cada control (envolvente o `for`/`id`), bandas a dos columnas, destinatarios en `.ost-check-grid`, pestañas `clean` y el mismo pie en todas. `tests/AdminLayoutTest.php` recorre por `glob()` todas las pantallas y lo impide (§3.18) | ✅ Hecho | `include/staff/settings-{agents,users,emails,kb,autoresp,alerts,tasks,tickets}.inc.php`, `css/modern.css`, `tests/AdminLayoutTest.php`, `sw.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

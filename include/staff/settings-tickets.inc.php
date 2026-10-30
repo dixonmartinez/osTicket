@@ -66,8 +66,8 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
         </tr>
         <tr><td width="220"><?php echo __('Top-Level Ticket Counts'); ?>:</td>
             <td>
-                <input type="checkbox" name="queue_bucket_counts" <?php echo $config['queue_bucket_counts']?'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>&nbsp;<i class="help-tip icon-question-sign" href="#queue_bucket_counts"></i>
+                <label><input type="checkbox" name="queue_bucket_counts" <?php echo $config['queue_bucket_counts']?'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip icon-question-sign" href="#queue_bucket_counts"></i>
             </td>
         </tr>
         <tr>
@@ -208,8 +208,8 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
         <tr>
             <td><?php echo __('Human Verification');?>:</td>
             <td>
-                <input type="checkbox" name="enable_captcha" <?php echo $config['enable_captcha']?'checked="checked"':''; ?>>
-                <?php echo __('Enable CAPTCHA on new web tickets.');?>
+                <label><input type="checkbox" name="enable_captcha" <?php echo $config['enable_captcha']?'checked="checked"':''; ?>>
+                <?php echo __('Enable CAPTCHA on new web tickets.');?></label>
                 &nbsp;<font class="error"><?php echo $errors['enable_captcha']; ?></font>
                 &nbsp;<i class="help-tip icon-question-sign" href="#human_verification"></i>
             </td>
@@ -217,37 +217,37 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
         <tr>
             <td><?php echo __('Collaborator Tickets Visibility'); ?>:</td>
             <td>
-                <input type="checkbox" name="collaborator_ticket_visibility" <?php echo $config['collaborator_ticket_visibility']?'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>&nbsp;<i class="help-tip icon-question-sign" href="#collaborator_ticket_visibility"></i>
+                <label><input type="checkbox" name="collaborator_ticket_visibility" <?php echo $config['collaborator_ticket_visibility']?'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip icon-question-sign" href="#collaborator_ticket_visibility"></i>
             </td>
         </tr>
         <tr>
             <td><?php echo __('Claim on Response'); ?>:</td>
             <td>
-                <input type="checkbox" name="auto_claim_tickets" <?php echo $config['auto_claim_tickets']?'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>&nbsp;<i class="help-tip icon-question-sign" href="#claim_tickets"></i>
+                <label><input type="checkbox" name="auto_claim_tickets" <?php echo $config['auto_claim_tickets']?'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip icon-question-sign" href="#claim_tickets"></i>
             </td>
         </tr>
         <tr>
             <td><?php echo __('Auto-refer on Close'); ?>:</td>
             <td>
-                <input type="checkbox" name="auto_refer_closed" <?php echo $config['auto_refer_closed']?'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>&nbsp;<i class="help-tip
+                <label><input type="checkbox" name="auto_refer_closed" <?php echo $config['auto_refer_closed']?'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip
                 icon-question-sign" href="#auto_refer"></i>
             </td>
         </tr>
         <tr>
             <td><?php echo __('Require Help Topic to Close'); ?>:</td>
             <td>
-                <input type="checkbox" name="require_topic_to_close" <?php echo $config['require_topic_to_close']?'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>&nbsp;<i class="help-tip icon-question-sign" href="#require_topic_to_close"></i>
+                <label><input type="checkbox" name="require_topic_to_close" <?php echo $config['require_topic_to_close']?'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip icon-question-sign" href="#require_topic_to_close"></i>
             </td>
         </tr>
         <tr>
             <td><?php echo __('Allow External Images'); ?>:</td>
             <td>
-                <input type="checkbox" name="allow_external_images" <?php echo $config['allow_external_images']?'checked="checked"':''; ?>>
-                <?php echo __('Enable'); ?>&nbsp;<i class="help-tip icon-question-sign" href="#allow_external_images"></i>
+                <label><input type="checkbox" name="allow_external_images" <?php echo $config['allow_external_images']?'checked="checked"':''; ?>>
+                <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip icon-question-sign" href="#allow_external_images"></i>
             </td>
         </tr>
         <tr>

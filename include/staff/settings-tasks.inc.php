@@ -8,7 +8,7 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
 <?php csrf_token(); ?>
 <input type="hidden" name="t" value="tasks" >
 
-<ul class="tabs" id="tasks-tabs">
+<ul class="clean tabs" id="tasks-tabs">
     <li class="active"><a href="#settings">
         <i class="icon-asterisk"></i> <?php echo __('Settings'); ?></a></li>
     <li><a href="#alerts">
@@ -100,183 +100,123 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
         </tbody>
     </table>
    </div>
-   <div id="alerts" class="tab_content" style="display:none;">
+   <div id="alerts" class="tab_content hidden">
     <table class="form_table settings_table" width="940" border="0" cellspacing="0" cellpadding="2">
         <tbody>
-            <tr><th><em><b><?php echo __('New Task Alert'); ?></b>:
+            <tr><th colspan="2"><em><b><?php echo __('New Task Alert'); ?></b>:
                 <i class="help-tip icon-question-sign" href="#task_alert"></i>
                 </em></th></tr>
             <tr>
-                <td><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
-                    <input type="radio" name="task_alert_active"  value="1"
+                <td colspan="2"><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
+                    <label><input type="radio" name="task_alert_active"  value="1"
                     <?php echo $config['task_alert_active'] ? 'checked="checked"' : ''; ?>
-                    /> <?php echo __('Enable'); ?>
-                    <input type="radio" name="task_alert_active"  value="0"
+                    /> <?php echo __('Enable'); ?></label>
+                    <label><input type="radio" name="task_alert_active"  value="0"
                     <?php echo !$config['task_alert_active'] ? 'checked="checked"' : ''; ?> />
-                    <?php echo __('Disable'); ?>
+                    <?php echo __('Disable'); ?></label>
                     &nbsp;&nbsp;<font class="error"><?php echo $errors['task_alert_active']; ?></font></em>
                  </td>
             </tr>
             <tr>
-                <td>
-                    <input type="checkbox" name="task_alert_admin" <?php
-                        echo $config['task_alert_admin'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Admin Email'); ?> <em>(<?php echo $cfg->getAdminEmail(); ?>)</em>
+                <td colspan="2">
+                    <div class="ost-check-grid">
+                        <label><input type="checkbox" name="task_alert_admin" <?php echo $config['task_alert_admin'] ? 'checked="checked"' : ''; ?>> <?php echo __('Admin Email'); ?> <em>(<?php echo $cfg->getAdminEmail(); ?>)</em></label>
+                        <label><input type="checkbox" name="task_alert_dept_manager" <?php echo $config['task_alert_dept_manager'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Manager'); ?></label>
+                        <label><input type="checkbox" name="task_alert_dept_members" <?php echo $config['task_alert_dept_members'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Members'); ?></label>
+                    </div>
                 </td>
             </tr>
-            <tr>
-                <td>
-                    <input type="checkbox" name="task_alert_dept_manager"
-                    <?php echo $config['task_alert_dept_manager'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Manager'); ?>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <input type="checkbox" name="task_alert_dept_members"
-                    <?php echo $config['task_alert_dept_members'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Members'); ?>
-                </td>
-            </tr>
-            <tr><th><em><b><?php echo __('New Activity Alert'); ?></b>:
+            <tr><th colspan="2"><em><b><?php echo __('New Activity Alert'); ?></b>:
                 <i class="help-tip icon-question-sign" href="#activity_alert"></i>
                 </em></th></tr>
             <tr>
-                <td><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
-                  <input type="radio" name="task_activity_alert_active" value="1"
+                <td colspan="2"><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
+                  <label><input type="radio" name="task_activity_alert_active" value="1"
                   <?php echo $config['task_activity_alert_active'] ? 'checked="checked"' : ''; ?> />
-                    <?php echo __('Enable'); ?>
+                    <?php echo __('Enable'); ?></label>
                   &nbsp;&nbsp;
-                  <input type="radio" name="task_activity_alert_active"  value="0"
+                  <label><input type="radio" name="task_activity_alert_active"  value="0"
                   <?php echo !$config['task_activity_alert_active'] ? 'checked="checked"' : ''; ?> />
-                    <?php echo __('Disable'); ?>
+                    <?php echo __('Disable'); ?></label>
                   &nbsp;&nbsp;&nbsp;<font class="error"><?php echo $errors['task_activity_alert_active']; ?></font>
                 </td>
             </tr>
             <tr>
-                <td>
-                  <input type="checkbox" name="task_activity_alert_laststaff" <?php
-                  echo $config['task_activity_alert_laststaff'] ? 'checked="checked"' : ''; ?>>
-                  <?php echo __('Last Respondent'); ?>
+                <td colspan="2">
+                    <div class="ost-check-grid">
+                        <label><input type="checkbox" name="task_activity_alert_laststaff" <?php echo $config['task_activity_alert_laststaff'] ? 'checked="checked"' : ''; ?>> <?php echo __('Last Respondent'); ?></label>
+                        <label><input type="checkbox" name="task_activity_alert_assigned" <?php echo $config['task_activity_alert_assigned'] ? 'checked="checked"' : ''; ?>> <?php echo __('Assigned Agent / Team'); ?></label>
+                        <label><input type="checkbox" name="task_activity_alert_dept_manager" <?php echo $config['task_activity_alert_dept_manager'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Manager'); ?></label>
+                    </div>
                 </td>
             </tr>
-            <tr>
-                <td>
-                  <input type="checkbox" name="task_activity_alert_assigned"
-                  <?php echo $config['task_activity_alert_assigned'] ? 'checked="checked"' : ''; ?>>
-                  <?php echo __('Assigned Agent / Team'); ?>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                  <input type="checkbox" name="task_activity_alert_dept_manager"
-                  <?php echo $config['task_activity_alert_dept_manager'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Manager'); ?>
-                </td>
-            </tr>
-            <tr><th><em><b><?php echo __('Task Assignment Alert'); ?></b>:
+            <tr><th colspan="2"><em><b><?php echo __('Task Assignment Alert'); ?></b>:
                 <i class="help-tip icon-question-sign" href="#assignment_alert"></i>
                 </em></th></tr>
             <tr>
-                <td><em><b><?php echo __('Status'); ?>: </b></em> &nbsp;
-                  <input name="task_assignment_alert_active" value="1" type="radio"
+                <td colspan="2"><em><b><?php echo __('Status'); ?>: </b></em> &nbsp;
+                  <label><input name="task_assignment_alert_active" value="1" type="radio"
                     <?php echo $config['task_assignment_alert_active'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Enable'); ?>
+                    <?php echo __('Enable'); ?></label>
                     &nbsp;&nbsp;
-                  <input name="task_assignment_alert_active" value="0" type="radio"
+                  <label><input name="task_assignment_alert_active" value="0" type="radio"
                     <?php echo !$config['task_assignment_alert_active'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Disable'); ?>
+                    <?php echo __('Disable'); ?></label>
                    &nbsp;&nbsp;&nbsp;<font class="error"><?php echo $errors['task_assignment_alert_active']; ?></font>
                 </td>
             </tr>
             <tr>
-                <td>
-                  <input type="checkbox" name="task_assignment_alert_staff" <?php echo
-                  $config['task_assignment_alert_staff'] ? 'checked="checked"' : ''; ?>>
-                  <?php echo __('Assigned Agent / Team'); ?>
+                <td colspan="2">
+                    <div class="ost-check-grid">
+                        <label><input type="checkbox" name="task_assignment_alert_staff" <?php echo $config['task_assignment_alert_staff'] ? 'checked="checked"' : ''; ?>> <?php echo __('Assigned Agent / Team'); ?></label>
+                        <label><input type="checkbox"name="task_assignment_alert_team_lead" <?php echo $config['task_assignment_alert_team_lead'] ? 'checked="checked"' : ''; ?>> <?php echo __('Team Lead'); ?></label>
+                        <label><input type="checkbox"name="task_assignment_alert_team_members" <?php echo $config['task_assignment_alert_team_members'] ? 'checked="checked"' : ''; ?>> <?php echo __('Team Members'); ?></label>
+                    </div>
                 </td>
             </tr>
-            <tr>
-                <td>
-                  <input type="checkbox"name="task_assignment_alert_team_lead" <?php
-                  echo $config['task_assignment_alert_team_lead'] ? 'checked="checked"' : ''; ?>>
-                  <?php echo __('Team Lead'); ?>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                  <input type="checkbox"name="task_assignment_alert_team_members"
-                  <?php echo $config['task_assignment_alert_team_members'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Team Members'); ?>
-                </td>
-            </tr>
-            <tr><th><em><b><?php echo __('Task Transfer Alert'); ?></b>:
+            <tr><th colspan="2"><em><b><?php echo __('Task Transfer Alert'); ?></b>:
                 <i class="help-tip icon-question-sign" href="#transfer_alert"></i>
                 </em></th></tr>
             <tr>
-                <td><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
-                <input type="radio" name="task_transfer_alert_active"  value="1"
+                <td colspan="2"><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
+                <label><input type="radio" name="task_transfer_alert_active"  value="1"
                 <?php echo $config['task_transfer_alert_active'] ? 'checked="checked"' : ''; ?> />
-                    <?php echo __('Enable'); ?>
-                <input type="radio" name="task_transfer_alert_active"  value="0"
+                    <?php echo __('Enable'); ?></label>
+                <label><input type="radio" name="task_transfer_alert_active"  value="0"
                 <?php echo !$config['task_transfer_alert_active'] ? 'checked="checked"' : ''; ?> />
-                    <?php echo __('Disable'); ?>
+                    <?php echo __('Disable'); ?></label>
                   &nbsp;&nbsp;&nbsp;<font class="error"><?php
                   echo $errors['task_transfer_alert_active']; ?></font>
                 </td>
             </tr>
             <tr>
-                <td>
-                  <input type="checkbox" name="task_transfer_alert_assigned"
-                  <?php echo $config['task_transfer_alert_assigned']?'checked="checked"':''; ?>>
-                    <?php echo __('Assigned Agent / Team'); ?>
+                <td colspan="2">
+                    <div class="ost-check-grid">
+                        <label><input type="checkbox" name="task_transfer_alert_assigned" <?php echo $config['task_transfer_alert_assigned']?'checked="checked"':''; ?>> <?php echo __('Assigned Agent / Team'); ?></label>
+                        <label><input type="checkbox" name="task_transfer_alert_dept_manager" <?php echo $config['task_transfer_alert_dept_manager'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Manager'); ?></label>
+                        <label><input type="checkbox" name="task_transfer_alert_dept_members" <?php echo $config['task_transfer_alert_dept_members'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Members'); ?></label>
+                    </div>
                 </td>
             </tr>
-            <tr>
-                <td>
-                  <input type="checkbox" name="task_transfer_alert_dept_manager"
-                  <?php echo $config['task_transfer_alert_dept_manager'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Manager'); ?>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                  <input type="checkbox" name="task_transfer_alert_dept_members"
-                  <?php echo $config['task_transfer_alert_dept_members'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Members'); ?>
-                </td>
-            </tr>
-            <tr><th><em><b><?php echo __('Overdue Task Alert'); ?></b>:
+            <tr><th colspan="2"><em><b><?php echo __('Overdue Task Alert'); ?></b>:
                 <i class="help-tip icon-question-sign" href="#overdue_alert"></i>
                 </em></th></tr>
             <tr>
-                <td><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
-                  <input type="radio" name="task_overdue_alert_active"  value="1"
-                    <?php echo $config['task_overdue_alert_active'] ? 'checked="checked"' : ''; ?> /> <?php echo __('Enable'); ?>
-                  <input type="radio" name="task_overdue_alert_active"  value="0"
-                    <?php echo !$config['task_overdue_alert_active'] ? 'checked="checked"' : ''; ?> /> <?php echo __('Disable'); ?>
+                <td colspan="2"><em><b><?php echo __('Status'); ?>:</b></em> &nbsp;
+                  <label><input type="radio" name="task_overdue_alert_active"  value="1"
+                    <?php echo $config['task_overdue_alert_active'] ? 'checked="checked"' : ''; ?> /> <?php echo __('Enable'); ?></label>
+                  <label><input type="radio" name="task_overdue_alert_active"  value="0"
+                    <?php echo !$config['task_overdue_alert_active'] ? 'checked="checked"' : ''; ?> /> <?php echo __('Disable'); ?></label>
                   &nbsp;&nbsp;<font class="error"><?php echo $errors['task_overdue_alert_active']; ?></font>
                 </td>
             </tr>
             <tr>
-                <td>
-                  <input type="checkbox" name="task_overdue_alert_assigned" <?php
-                    echo $config['task_overdue_alert_assigned'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Assigned Agent / Team'); ?>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                  <input type="checkbox" name="task_overdue_alert_dept_manager" <?php
-                    echo $config['task_overdue_alert_dept_manager'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Manager'); ?>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                  <input type="checkbox" name="task_overdue_alert_dept_members" <?php
-                    echo $config['task_overdue_alert_dept_members'] ? 'checked="checked"' : ''; ?>>
-                    <?php echo __('Department Members'); ?>
+                <td colspan="2">
+                    <div class="ost-check-grid">
+                        <label><input type="checkbox" name="task_overdue_alert_assigned" <?php echo $config['task_overdue_alert_assigned'] ? 'checked="checked"' : ''; ?>> <?php echo __('Assigned Agent / Team'); ?></label>
+                        <label><input type="checkbox" name="task_overdue_alert_dept_manager" <?php echo $config['task_overdue_alert_dept_manager'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Manager'); ?></label>
+                        <label><input type="checkbox" name="task_overdue_alert_dept_members" <?php echo $config['task_overdue_alert_dept_members'] ? 'checked="checked"' : ''; ?>> <?php echo __('Department Members'); ?></label>
+                    </div>
                 </td>
             </tr>
         </tbody>

@@ -6,7 +6,7 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
 <form action="settings.php?t=agents" method="post" class="save">
     <?php csrf_token(); ?>
     <input type="hidden" name="t" value="agents" >
-    <ul class="tabs" id="agents-tabs">
+    <ul class="clean tabs" id="agents-tabs">
         <li class="active"><a href="#settings">
             <i class="icon-asterisk"></i> <?php echo __('Settings'); ?></a></li>
         <li><a href="#templates">
@@ -38,8 +38,8 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
                     <tr>
                         <td><?php echo __('Agent Identity Masking'); ?>:</td>
                         <td>
-                            <input type="checkbox" name="hide_staff_name" <?php echo $config['hide_staff_name']?'checked="checked"':''; ?>>
-                            <?php echo __("Hide agent's name on responses."); ?>
+                            <label><input type="checkbox" name="hide_staff_name" <?php echo $config['hide_staff_name']?'checked="checked"':''; ?>>
+                            <?php echo __("Hide agent's name on responses."); ?></label>
                             <i class="help-tip icon-question-sign" href="#staff_identity_masking"></i>
                         </td>
                     </tr>
@@ -71,9 +71,9 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
                     <tr>
                         <td><?php echo __('Disable Agent Collaborators'); ?>:</td>
                         <td>
-                            <input type="checkbox" name="disable_agent_collabs"
+                            <label><input type="checkbox" name="disable_agent_collabs"
                                 <?php echo $config['disable_agent_collabs']?'checked="checked"':''; ?>>
-                            <?php echo __('Enable'); ?>&nbsp;<i class="help-tip icon-question-sign"
+                            <?php echo __('Enable'); ?></label>&nbsp;<i class="help-tip icon-question-sign"
                                 href="#disable_agent_collabs"></i>
                         </td>
                     </tr>
@@ -104,9 +104,11 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
                         </td>
                     </tr>
                     <tr>
-                        <td><?php echo __('Allow Password Resets'); ?>:</td>
+                        <td><label for="allow_pw_reset"><?php
+                            echo __('Allow Password Resets'); ?>:</label></td>
                         <td>
-                            <input type="checkbox" name="allow_pw_reset" <?php echo $config['allow_pw_reset']?'checked="checked"':''; ?>>
+                            <input type="checkbox" id="allow_pw_reset"
+                                name="allow_pw_reset" <?php echo $config['allow_pw_reset']?'checked="checked"':''; ?>>
                             &nbsp;<i class="help-tip icon-question-sign" href="#allow_password_resets"></i>
                         </td>
                     </tr>
@@ -123,12 +125,12 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
                     <tr>
                         <td><?php echo __('Multifactor Authentication'); ?>:</td>
                         <td>
-                            <input type="checkbox" name="require_agent_2fa" <?php
+                            <label><input type="checkbox" name="require_agent_2fa" <?php
                             echo $config['require_agent_2fa'] ? 'checked="checked"' : ''; ?>>
                             &nbsp;
                             <?php
                             echo __('Require agents to turn on 2FA');
-                            ?>
+                            ?></label>
                             &nbsp;<i class="help-tip icon-question-sign"
                             href="#require_agent_2fa"></i>
                         </td>
@@ -162,9 +164,11 @@ if (!defined('OSTADMININC') || !$thisstaff || !$thisstaff->isAdmin() || !$config
                         </td>
                     </tr>
                     <tr>
-                        <td><?php echo __('Bind Agent Session to IP'); ?>:</td>
+                        <td><label for="staff_ip_binding"><?php
+                            echo __('Bind Agent Session to IP'); ?>:</label></td>
                         <td>
-                            <input type="checkbox" name="staff_ip_binding" <?php echo $config['staff_ip_binding']?'checked="checked"':''; ?>>
+                            <input type="checkbox" id="staff_ip_binding"
+                                name="staff_ip_binding" <?php echo $config['staff_ip_binding']?'checked="checked"':''; ?>>
                             <i class="help-tip icon-question-sign" href="#bind_staff_session_to_ip"></i>
                         </td>
                     </tr>
