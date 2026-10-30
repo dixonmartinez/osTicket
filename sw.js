@@ -92,7 +92,10 @@
 //     admitido se explica junto al selector y los ajustes largos van en
 //     pestanas. Sin subir la version se sirven el modern.css y el scp.js de
 //     la cache, y la barra de acciones nueva no aparece.
-const VERSION = 'ost-v41';
+// v42: las pestanas inactivas dejan de salir rellenas (la regla vieja ganaba
+//     por especificidad) y el editor de plantillas escribe en tinta sobre el
+//     papel. Sin subir la version, dark.css llega de la cache y no se ve.
+const VERSION = 'ost-v42';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

@@ -1088,6 +1088,31 @@ check(preg_match('/\.media-upload \.hint\s*\{[^}]*color:\s*var\(--ui-text-muted\
     'el formato admitido se explica junto al selector de archivos',
     'la pista de formatos se queda sin estilo propio y se pierde en el pie');
 
+// Una regla de pestanas puede existir y no servir de nada: la vieja
+// `ul.tabs li` de la seccion 12 volvia a rellenar las inactivas —ganaba por
+// especificidad (0,2,3) y por orden— y el hueco de la izquierda de la tira se
+// leia como una pestana vacia. Se recorren todas las reglas que tocan una
+// ficha: si pintan fondo, tiene que ser `transparent` (la activa aparte).
+preg_match_all('/([^{}]+)\{([^}]*)\}/', $darkSinComentarios, $reglasPestanas,
+    PREG_SET_ORDER);
+$rellenos = 0;
+foreach ($reglasPestanas as $reglaPestana) {
+    if (!preg_match('/\.tabs\b[^{]*\bli\b/', $reglaPestana[1])
+            || strpos($reglaPestana[1], '.active') !== false)
+        continue;
+    if (!preg_match('/background[^;]*:\s*([^;!]+)/', $reglaPestana[2], $relleno))
+        continue;
+    $rellenos++;
+    if (trim($relleno[1]) !== 'transparent') {
+        check(false, 'las pestanas inactivas no se rellenan',
+            'una regla posterior devuelve el relleno a las pestanas inactivas '
+            . '(se leen como botones apagados)');
+        break;
+    }
+}
+check($rellenos > 0, 'las pestanas inactivas no se rellenan',
+    'ninguna regla dice que las fichas inactivas sean transparentes');
+
 /* Verdades que la pantalla no puede contradecir ------------------------- */
 $plantillaCola = read("$root/include/staff/templates/queue-tickets.tmpl.php");
 check(strpos($plantillaCola, '$rendered++') !== false

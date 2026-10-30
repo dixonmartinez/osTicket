@@ -1500,6 +1500,70 @@ del servidor sin GD y la rejilla de la galería) y **22** en
 `tests/FileInputTest.php` (qué tipos pasan, la normalización y la extensión
 como último recurso). `sw.js` sube a **`ost-v41`**.
 
+### 3.17 Administración, cuarta pasada: dos correcciones que no se veían
+
+Estas dos salieron de una tanda de capturas de *Tickets → Alerts and Notices*,
+*Tasks* y *Agents*, y de un diálogo de plantilla. Las dos son de código: una
+regla que gana donde no debe y un color que se hereda donde no debe.
+
+#### 3.17.1 Las pestañas inactivas seguían rellenas (y el hueco de la izquierda)
+
+En §3.15 se dio por arreglado: `.tabs li` transparente en oscuro. En la captura
+seguían como botones apagados, y en el extremo izquierdo de la tira aparecía un
+recuadro vacío que parecía una pestaña más.
+
+Lo primero era una regla **vieja** de `css/dark.css`, en la sección 12:
+
+```css
+html[data-theme="dark"] ul.tabs li {      /* (0,2,3) */
+    background: var(--dk-surface-3);
+    border-color: var(--dk-border);
+}
+```
+
+Contra la nueva, `html[data-theme="dark"] .tabs li` —(0,2,2)—, gana por
+especificidad *y* por orden: la comprobación de `make theme` buscaba la regla
+transparente y la encontraba, así que daba por bueno un arreglo que el navegador
+no aplicaba. Ahora sólo queda la tira (`ul.tabs`) y el relleno lo decide la
+sección 5; la comprobación recorre **todas** las reglas que tocan una ficha y
+falla si alguna pinta un fondo que no sea `transparent` (la activa aparte).
+
+Lo segundo era consecuencia de lo primero: `ul.tabs` tiene `padding-left: 20px`
+y la tira se pinta con `--dk-surface-2`. Con las fichas rellenas, ese hueco de
+20 px es lo único que se ve de la tira en el extremo izquierdo y parece una
+ficha vacía. Sin relleno, la tira es una banda uniforme y el hueco desaparece.
+
+#### 3.17.2 El editor de plantillas escribía casi blanco sobre blanco
+
+En el diálogo *Manage Content* (`content-manage.tmpl.php`), el texto de la
+plantilla salía casi invisible. El papel era correcto (`--dk-editor-paper`,
+#eef1f5 — el editor de correos se queda en papel claro a propósito), y el color
+era exactamente `--dk-text`, #e6ebf0, que es lo que mide una captura de píxeles.
+
+La causa es un comodín de la sección 7:
+
+```css
+html[data-theme="dark"] .dialog,
+html[data-theme="dark"] .dialog * {
+    color: var(--dk-text);
+}
+```
+
+`*` fija el color en **cada** descendiente, y el contenido del editor no es
+texto suelto que herede de `.redactor-in`: son párrafos. Por eso el
+`color: #1a1f24` de la regla del papel no llegaba. Ahora hay una regla explícita
+para los dos niveles (`.redactor-in` y `.redactor-in *`) con un token nuevo,
+`--dk-ink`, y los enlaces sobre papel usan un azul oscuro (`#1f5c99`) en vez del
+del tema, que está pensado para fondo oscuro. Los **editores de nota**, que sí
+siguen la superficie del tema, quedan exceptuados con una segunda regla
+(`.ost-note-editor`) más específica y posterior.
+
+**Cómo se comprueba.** `php tools/ui/theme-check.php` → **218**
+comprobaciones (antes 217) y `php tests/run.php` → **1.029** pruebas (21 en
+`tests/AdminSettingsTest.php`). La prueba de las pestañas se verificó al revés:
+devolviendo la regla vieja a `css/dark.css`, falla. `sw.js` sube a **`ost-v42`**
+para que el navegador no siga sirviendo el `dark.css` de la caché.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -1663,7 +1727,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 217 verificaciones (195 antes de las filas 42-49) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 218 verificaciones (195 antes de las filas 42-50) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1705,6 +1769,7 @@ queda en §6.2.
 | 47 | **«El editor de nota no está enriquecido»**: dos capturas, el *Internal Notes* del diálogo *Add New Organization* y la nota rápida de la ficha de una organización. En el diálogo el campo llegaba marcado `richtext no-bar`, y `no-bar` monta la barra **flotante** (`air`): no había ni un botón a la vista hasta seleccionar texto, así que el campo se leía como un textarea plano. La nota rápida sí tenía barra, pero de **siete botones**: se montaba con `T.redactor({focusEnd: true})` a pelo y salía la barra de fábrica de Redactor, sin los botones ni los plugins de osTicket. Y las dos cajas se quedaban en el «papel» claro del tema (`--dk-editor-paper`), un bloque blanco en mitad de una pantalla oscura. Ahora los campos memo salen con barra visible y la nota rápida la monta el mismo `redact()` que el resto de la aplicación, con la barra completa (ocupa el ancho de la página) mientras los campos memo usan la barra corta, que es la que cabe en la celda de un formulario; las dos cajas llevan la marca `ost-note-editor` y el tema oscuro las pinta sobre su superficie, que es donde después se lee la nota (§3.12.7) | ✅ Hecho | `include/class.forms.widget.php`, `js/redactor-osticket.js`, `scp/js/scp.js`, `css/dark.css`, `tests/NoteEditorTest.php`, `tests/EditorToolbarTest.php`, `make theme` |
 | 48 | **Parte de administración (capturas de `settings.php`)**: seis defectos, dos de ellos de datos. (a) La banda de aviso salía como «⚠The setup directory…»: el icono que dibuja `css/ui.css` caía encima del texto porque la banda no reservaba su hueco. (b) `Save Changes` y `Reset Changes` eran dos botones idénticos, centrados y lejos de la tabla; en oscuro el principal perdía el acento porque la regla de botones del tema gana a la de «primario». (c) En *Logos* y *Login Backdrop* el borrado **no pedía confirmación**: el manejador estaba enganchado a `#save`, un formulario que no existe en esa pantalla. (d) `Never Purge Logs` y `Small` llevaban `selected` fijo, así que había dos opciones marcadas a la vez. (e) Las tablas de ajustes pedían `width="940"` y dejaban una franja muerta a la derecha de la pestaña; las casillas no tenían `<label for>`. (f) La galería de imágenes era una tabla anidada con los radios en columnas separadas de la imagen. Ahora hay barra de acciones con el acento en los dos temas, galería en filas con la opción marcada visible y el borrado confirmado en fase de captura (§3.15) | ✅ Hecho | `include/staff/settings-*.inc.php`, `include/staff/template.inc.php`, `include/staff/templates/dynamic-form.tmpl.php`, `css/modern.css`, `css/dark.css`, `tests/AdminSettingsTest.php`, `make theme` |
 | 49 | **Segunda tanda de `settings.php`**: tres avisos. (a) Se veía «un texto en blanco» dentro de los logos: la fila *Default* lleva dos imágenes y, con `flex`, cada una pedía la columna entera; la segunda se salía encima del nombre y el logo transparente dejaba ver el texto. (b) El selector de archivos ofrecía «All Files (*.*)» y el servidor sólo comprobaba que fuera imagen **si el PHP tenía GD**: sin esa extensión se guardaba como logo cualquier cosa. (c) *Sistema* pedía bajar más de dos pantallas y *Tickets* mezclaba numeración y casillas en una sola pestaña. Ahora la vista previa es una rejilla (una pista por imagen), los dos selectores llevan `accept` y el servidor valida el contenido con `getimagesize`/`finfo`/extensión, y los dos formularios se reparten en pestañas —Sistema: General, Fecha y hora, Idiomas, Adjuntos; Tickets: Settings y Options— conservando la pestaña al guardar (§3.16) | ✅ Hecho | `css/modern.css`, `include/staff/settings-{pages,system,tickets}.inc.php`, `include/class.file.php`, `include/class.file.input.php`, `scp/js/scp.js`, `tests/FileInputTest.php`, `tests/AdminSettingsTest.php`, `make theme` |
+| 50 | **Tercera tanda (Tickets → Alerts, Tasks, Agents y el diálogo de plantilla)**: dos defectos de código que las comprobaciones anteriores no veían. (a) Las pestañas inactivas seguían rellenas: una regla vieja de `css/dark.css` (`ul.tabs li`, especificidad 0,2,3) ganaba a la nueva por peso y por orden, y `make theme` daba el arreglo por bueno porque la regla transparente *existía*; además, el `padding-left` de 20 px de la tira se leía como una pestaña vacía. (b) El editor de plantillas del diálogo escribía con el texto del tema (#e6ebf0) sobre el papel claro: `.dialog *` fija el color en cada descendiente y el contenido del editor son párrafos, así que heredar no bastaba (§3.17) | ✅ Hecho | `css/dark.css`, `tools/ui/theme-check.php`, `tests/AdminSettingsTest.php`, `sw.js` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

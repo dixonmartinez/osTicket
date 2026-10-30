@@ -36,6 +36,7 @@ html[data-theme="dark"] {
     --dk-surface-4: #2b3641;
     --dk-paper: #e8ecf0;          /* “papel” de correos y notas */
     --dk-editor-paper: #eef1f5;   /* papel del editor: blanco puro deslumbra */
+    --dk-ink: #1a1f24;            /* tinta sobre ese papel */
     --dk-border: #333e4a;
     --dk-border-strong: #46525f;
 
@@ -1014,7 +1015,7 @@ html[data-theme="dark"] .thread-body,
 html[data-theme="dark"] .thread-entry .thread-body,
 html[data-theme="dark"] .preview-body {
     background: var(--dk-paper);
-    color: #1a1f24;
+    color: var(--dk-ink);
     border-color: var(--dk-border);
 }
 
@@ -1051,7 +1052,7 @@ html[data-theme="dark"] .thread-body th {
 html[data-theme="dark"] .thread-body blockquote {
     background: #dee5ec;
     border-left: 3px solid #97a5b3;
-    color: #1a1f24;
+    color: var(--dk-ink);
     margin: 8px 0;
     padding: 6px 10px;
 }
@@ -1106,7 +1107,7 @@ html[data-theme="dark"] .redactor-box iframe {
        siendo papel claro, pero no blanco puro: dentro de un marco oscuro,
        #fff deslumbra y hace que el editor parezca una ventana ajena. */
     background-color: var(--dk-editor-paper) !important;
-    color: #1a1f24;
+    color: var(--dk-ink);
     border-color: var(--dk-border);
     color-scheme: light;
 }
@@ -1118,7 +1119,7 @@ html[data-theme="dark"] .redactor-box iframe {
    quedaba oscuro sobre oscuro y parecía que la descripción estaba vacía. */
 html[data-theme="dark"] .redactor-box > textarea {
     background-color: var(--dk-editor-paper);
-    color: #1a1f24;
+    color: var(--dk-ink);
     border-color: var(--dk-border);
 }
 
@@ -1131,7 +1132,29 @@ html[data-theme="dark"] .redactor-in[placeholder]::before {
 
 html[data-theme="dark"] .redactor-in,
 html[data-theme="dark"] .redactor-box .redactor-in {
-    caret-color: #1a1f24;
+    caret-color: var(--dk-ink);
+}
+
+/* …y dentro de un diálogo el color hay que ponerlo en **cada** descendiente.
+   `html[data-theme="dark"] .dialog *` (sección 7) fija el texto claro del tema
+   en todos los nodos del diálogo, así que el contenido del editor —que son
+   párrafos, no texto suelto que herede— salía casi blanco sobre el papel:
+   el cuerpo de la plantilla, ilegible. */
+html[data-theme="dark"] .dialog .redactor-in,
+html[data-theme="dark"] .dialog .redactor-in * {
+    color: var(--dk-ink);
+}
+
+/* Los enlaces sobre papel piden un azul oscuro: el del tema (#83b7ee) está
+   pensado para fondo oscuro y sobre #eef1f5 apenas se separa. */
+html[data-theme="dark"] .dialog .redactor-in a {
+    color: #1f5c99;
+}
+
+/* Salvo los editores de nota, que siguen la superficie del tema. */
+html[data-theme="dark"] .dialog .redactor-box.ost-note-editor .redactor-in,
+html[data-theme="dark"] .dialog .redactor-box.ost-note-editor .redactor-in * {
+    color: var(--dk-text);
 }
 
 /* --- Editores de nota ------------------------------------------------ */
@@ -1241,7 +1264,7 @@ html[data-theme="dark"] .thread-event .description {
 html[data-theme="dark"] .thread-entry.response .thread-body,
 html[data-theme="dark"] .thread-entry.message .thread-body {
     background: var(--dk-paper);
-    color: #1a1f24;
+    color: var(--dk-ink);
 }
 
 /* ================================================================== */
@@ -2391,28 +2414,15 @@ html[data-theme="dark"] #basic_search {
     box-shadow: inset 0 4px 12px -10px #000;
 }
 
-/* Pestañas */
+/* Pestañas. Sólo la tira: el relleno de las fichas lo decide la sección 5
+   (`.tabs li` transparente). Aquí vivía un `ul.tabs li` con la superficie del
+   tema que ganaba por especificidad —(0,2,3) contra (0,2,2)— y por orden, así
+   que las inactivas volvían a salir como botones apagados y el hueco de
+   `padding-left` de la tira parecía una pestaña vacía. */
 html[data-theme="dark"] ul.tabs {
     background: var(--dk-surface-2);
     border-bottom-color: var(--dk-border);
     box-shadow: inset 0 -5px 10px -9px #000;
-}
-
-html[data-theme="dark"] ul.tabs li {
-    background: var(--dk-surface-3);
-    border-color: var(--dk-border);
-    color: var(--dk-text-muted);
-}
-
-html[data-theme="dark"] ul.tabs li a {
-    color: inherit;
-}
-
-html[data-theme="dark"] ul.tabs li.active {
-    background-color: var(--dk-surface);
-    border-color: var(--dk-border);
-    border-top-color: var(--dk-link);
-    color: var(--dk-text);
 }
 
 /* Título dentro de la cabecera de un formulario. scp.css lo pinta sobre
@@ -2467,7 +2477,7 @@ html[data-theme="dark"] .preview-body th,
 html[data-theme="dark"] .preview-body td {
     background-color: transparent;
     border-color: #c2ccd4;
-    color: #1a1f24;
+    color: var(--dk-ink);
 }
 
 /* thread.css declara este color con !important (para que el HTML del correo

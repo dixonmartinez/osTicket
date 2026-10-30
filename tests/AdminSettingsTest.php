@@ -448,6 +448,66 @@ class AdminSettingsTest extends UnitTestCase {
             'se perdió el aviso de tipo de imagen no válido');
     }
 
+    /* ------------------------------------------------------------------ */
+    /* 9. Pestañas y papel                                                */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Las inactivas volvían a salir rellenas: una regla vieja de `css/dark.css`
+     * (`ul.tabs li`, especificidad (0,2,3)) ganaba por orden y por peso a la
+     * nueva y les devolvía la superficie del tema. En la tira, además, el
+     * hueco de `padding-left` se leía como una pestaña vacía.
+     */
+    public function testLasPestanasInactivasNoVuelvenARellenarse(): void {
+        $dark = $this->sinComentarios($this->fichero('css/dark.css'));
+
+        // Todas las reglas que tocan una ficha de la tira: si alguna pinta
+        // fondo, tiene que ser `transparent`.
+        preg_match_all('/([^{}]+)\{([^}]*)\}/', $dark, $reglas, PREG_SET_ORDER);
+        $rellenos = 0;
+        foreach ($reglas as $regla) {
+            // La ficha activa sí lleva cuerpo; las demás, no.
+            if (!preg_match('/\.tabs\b[^{]*\bli\b/', $regla[1])
+                    || strpos($regla[1], '.active') !== false)
+                continue;
+            if (!preg_match('/background[^;]*:\s*([^;!]+)/', $regla[2], $valor))
+                continue;
+
+            $rellenos++;
+            $this->assertSame('transparent', trim($valor[1]),
+                'una regla de las pestañas vuelve a rellenar las fichas: en una '
+                . 'tira de cinco se leen como cinco botones apagados (y el '
+                . 'hueco de la izquierda parece una pestaña vacía)');
+        }
+
+        $this->assertTrue($rellenos > 0,
+            'ninguna regla dice que las pestañas inactivas sean transparentes');
+    }
+
+    /**
+     * El editor de plantillas del diálogo «Manage Content» escribía en el color
+     * del tema sobre el papel claro: casi blanco sobre blanco. `css/dark.css`
+     * pinta `.dialog *` entero, y el contenido del editor son párrafos, así
+     * que heredar no bastaba.
+     */
+    public function testElEditorDePlantillasEscribeEnTinta(): void {
+        $dark = $this->sinComentarios($this->fichero('css/dark.css'));
+
+        $this->assertStringContainsString('--dk-ink:', $dark,
+            'falta el token de tinta para el papel del editor');
+        $this->assertMatchesRegularExpression(
+            '/\.dialog \.redactor-in,\s*'
+            . 'html\[data-theme="dark"\] \.dialog \.redactor-in \*\s*'
+            . '\{[^}]*color:\s*var\(--dk-ink\)/s', $dark,
+            'el contenido de la plantilla hereda otra vez el texto claro del '
+            . 'tema sobre el papel');
+
+        // La excepción: los editores de nota siguen la superficie del tema.
+        $this->assertStringContainsString(
+            '.dialog .redactor-box.ost-note-editor .redactor-in', $dark,
+            'la corrección del papel se lleva por delante los editores de nota');
+    }
+
     /**
      * La fila «Default» de la galería lleva dos imágenes: con `flex` cada una
      * pedía el ancho entero de la columna y la segunda se salía encima del
