@@ -12,7 +12,10 @@ if (isset($options['entry']) && $options['mode'] == 'edit'
 if (isset($options['entry']) && $options['mode'] == 'edit') { ?>
 <tbody>
 <?php } ?>
-    <tr><td style="width:<?php echo $options['width'] ?: 150;?>px;"></td><td></td></tr>
+    <?php /* Fila vacia para dar ancho a la columna de etiquetas. Se marca para
+             que la hoja la pueda quitar: dentro de una tabla con estilos deja
+             una banda en blanco encima del primer bloque del formulario. */ ?>
+    <tr class="ost-form-spacer"><td style="width:<?php echo $options['width'] ?: 150;?>px;"></td><td></td></tr>
 <?php
 // Keep up with the entry id in a hidden field to decide what to add and
 // delete when the parent form is submitted

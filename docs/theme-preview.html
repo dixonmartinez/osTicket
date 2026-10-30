@@ -343,6 +343,85 @@
         </div>
 
         <div class="demo-sec">
+            <h2>Ajustes: barra de acciones y galeria de imagenes</h2>
+
+            <!-- Barra de acciones de un formulario de ajustes
+                 (include/staff/settings-*.inc.php): el reset primero y la
+                 accion principal al final, sobre una linea que cierra el
+                 formulario. En oscuro el submit lleva el acento. -->
+            <table class="form_table settings_table" width="100%">
+                <tbody>
+                    <tr><th colspan="2"><em><b>General Settings</b></em></th></tr>
+                    <tr>
+                        <td width="220">Force HTTPS:</td>
+                        <td><label for="demo-force-https"><input type="checkbox" id="demo-force-https" checked>
+                            Forzar todas las peticiones por HTTPS.</label>
+                            <i class="help-tip icon-question-sign" title="Redirige http:// a https://"></i></td>
+                    </tr>
+                    <tr>
+                        <td width="220">Enable Rich Text:</td>
+                        <td><label for="demo-richtext"><input type="checkbox" id="demo-richtext">
+                            Habilitar HTML en las entradas del hilo.</label></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="form-actions">
+                <input class="button" type="reset" value="Reset Changes">
+                <input class="button" type="submit" value="Save Changes">
+            </p>
+
+            <!-- Galeria de logos y fondos (settings.php?t=pages): cada imagen
+                 es una fila con su vista previa, su nombre y los dos botones
+                 de seleccion etiquetados. La marcada lleva `is-active`. -->
+            <div class="media-picker">
+                <div class="media-picker-head">
+                    <h3>System Default Logo <i class="help-tip icon-question-sign" title="Logo del portal y del panel"></i></h3>
+                    <p class="faded">Elige el logo del portal del cliente y del panel.</p>
+                </div>
+                <ul class="media-list">
+                    <li class="media-item">
+                        <div class="media-thumb">
+                            <img src="../assets/default/images/logo.png" alt="Logo por omision">
+                        </div>
+                        <div class="media-info">
+                            <strong>Default</strong>
+                            <span class="faded">Incluido en osTicket</span>
+                        </div>
+                        <div class="media-choices">
+                            <label class="media-choice is-active"><input type="radio" name="demo-logo" checked>
+                                <span>Client</span></label>
+                            <label class="media-choice"><input type="radio" name="demo-logo-scp">
+                                <span>Staff</span></label>
+                        </div>
+                        <div class="media-actions"><span class="media-inuse">In use</span></div>
+                    </li>
+                    <li class="media-item is-doomed">
+                        <div class="media-thumb">
+                            <img src="../scp/images/ost-logo.png" alt="Logo propio">
+                        </div>
+                        <div class="media-info">
+                            <strong>logo-2026.png</strong>
+                            <span class="faded">12 KB</span>
+                        </div>
+                        <div class="media-choices">
+                            <label class="media-choice"><input type="radio" name="demo-logo">
+                                <span>Client</span></label>
+                            <label class="media-choice"><input type="radio" name="demo-logo-scp">
+                                <span>Staff</span></label>
+                        </div>
+                        <div class="media-actions">
+                            <label class="media-danger"><input type="checkbox" checked> Delete</label>
+                        </div>
+                    </li>
+                </ul>
+                <div class="media-upload">
+                    <label for="demo-logo-file"><i class="icon-upload"></i> Upload a new logo</label>
+                    <input type="file" id="demo-logo-file">
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-sec">
             <h2>Pestanas y avisos</h2>
             <ul class="tabs">
                 <li class="active"><a href="#">General</a></li>

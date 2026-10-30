@@ -283,9 +283,9 @@ if(!($maxfileuploads=ini_get('max_file_uploads')))
     </table>
    </div>
 </div>
-<p style="text-align:center;">
-    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes');?>">
+<p class="form-actions">
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes');?>">
+    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes');?>">
 </p>
 </form>
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">

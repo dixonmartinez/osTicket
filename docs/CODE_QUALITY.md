@@ -961,6 +961,30 @@ colas: **una marca con nombre engañoso es una trampa para el siguiente**. Aquí
 montaba por el camino común. `tests/NoteEditorTest.php` fija las tres piezas y
 `make theme` las cinco reglas del tema oscuro.
 
+**Administración: dos fallos que borraban o marcaban lo que no era.**
+
+- **El aviso de borrado estaba enganchado a un formulario que no existe.**
+  `include/staff/settings-pages.inc.php` abría el diálogo de confirmación desde
+  `$('#save input:submit.button')`, pero el formulario de esa pantalla no tiene
+  `id="save"`. El manejador no se ejecutaba nunca: marcar *Delete* sobre un
+  logo y pulsar *Save Changes* borraba el fichero sin preguntar. Ahora se
+  escucha el envío del formulario y se pregunta sólo si hay algo marcado.
+  Dos detalles que costaron: la escucha va **en fase de captura** (el manejador
+  genérico de `form.save` deshabilita los botones al enviar, y cancelar después
+  dejaría la pantalla sin botón de guardar), y el envío confirmado usa
+  `HTMLFormElement.prototype.submit.call()` porque el formulario tiene campos
+  llamados `submit` / `submit-button` que **tapan el método** del mismo nombre.
+- **Dos opciones marcadas en el mismo desplegable.** `Never Purge Logs` y
+  `Small` (tamaño máximo de adjunto) llevaban `selected` escrito a mano además
+  del que pone el valor guardado. Con una purga configurada, cuál de las dos
+  ganaba dependía del orden del documento: el usuario veía «Never Purge Logs»
+  y el sistema purgaba a los 12 meses. Ahora las dos dependen del ajuste.
+
+La lección es la misma en los dos casos: **un selector que no existe no falla,
+simplemente no hace nada**, y un `selected` de más tampoco. `make theme` no
+puede verlo (es comportamiento), así que lo fijan
+`tests/AdminSettingsTest.php` y `tests/AdminSettingsTest::testNingunaOpcionQuedaMarcadaDosVeces`.
+
 ### Frente 3 — Terminar la migración al ORM ✅ Objetivo cumplido
 
 - Qué hacer: los `db_query()` restantes son SQL escrito a mano que evita el

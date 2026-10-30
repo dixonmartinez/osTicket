@@ -1300,6 +1300,119 @@ resalte de fila y la pantalla de ajustes en la vista previa. Se verificó que
 la comprobación del filtro falla de verdad cambiando `:nth-last-child(2)` por
 `:first-child`.
 
+### 3.15 Administración, segunda pasada: ajustes y perfil de la empresa
+
+La tanda de capturas de `scp/settings.php` (Sistema y Perfil de la empresa, con
+sus cuatro pestañas) traía tres cosas de aspecto y tres de comportamiento. Las
+de comportamiento iban delante: dos de ellas borraban datos sin preguntar.
+
+#### 3.15.1 El aviso del sistema se comía su propio icono
+
+`css/ui.css` dibuja el icono de cada banda de aviso con un `::before`
+absoluto en `left: 10px` y 16 px de ancho. La capa moderna daba a la banda
+`padding: 12px 14px`, así que el texto arrancaba **en x = 14 px**, justo
+debajo del triángulo: la captura se lee «⚠The setup directory is reachable…».
+
+Ahora la banda reserva 36 px a la izquierda (10 de posición + 16 de icono + 10
+de aire). `make theme` comprueba las dos mitades: el relleno en `modern.css` y
+las medidas del icono en `ui.css`, porque si cambia una y no la otra vuelve el
+solape.
+
+#### 3.15.2 Dos botones iguales al final del formulario
+
+| Lo que había | Lo que hay |
+|---|---|
+| `Save Changes` y `Reset Changes` centrados en un `<p style="text-align:center">`, separados de la tabla | Una barra de acciones pegada al formulario: línea superior, alineada a la derecha, `Reset` primero y `Save` al final |
+| En oscuro los dos salían con la superficie del tema y el mismo borde: idénticos | El principal lleva el acento (`--dk-accent`, blanco encima: 5,4:1) |
+| `class="button"` pero `type="submit"`: en claro el acento de `css/modern.css` llegaba, pero `css/dark.css` pinta *todos* los botones con `background: var(--dk-surface-3)` y ganaba por especificidad | La regla del tema apunta a `p.form-actions input[type=submit]`, que sí gana |
+| `.save.pending` (cambios sin guardar) se quedaba en el amarillo de `scp.css`, tapado por la misma regla | Ámbar del tema para pendiente y verde para guardado |
+
+El marcado es el mismo en las diez pantallas: `include/staff/settings-*.inc.php`
+y `include/staff/template.inc.php`. `tests/AdminSettingsTest.php` recorre las
+diez y falla si vuelve un `<p style="text-align:center">` o si el `submit` va
+antes del `reset` (el orden del documento es el orden en pantalla).
+
+#### 3.15.3 La galería de logos y fondos
+
+Era una tabla anidada con dos columnas de radios (`Client`, `Staff`) y la
+imagen en una tercera: al bajar por la lista había que volver a la cabecera
+para saber qué columna se estaba marcando, y el «Delete» de cada fila era una
+casilla sin relación visual con la imagen. Ahora cada imagen es una fila con su
+vista previa, su nombre y tamaño, dos botones de selección **etiquetados**
+(`Client` / `Staff`) y el borrado apartado a la derecha:
+
+```
+[logo]  Default            ( Client )  ( Staff )   IN USE
+[logo]  logo-2026.png      ( Client )  ( Staff )   ☐ Delete
+       12 KB
+```
+
+Detalles que no son adorno:
+
+- **La opción marcada se ve sin abrir nada.** El resaltado lo pone el servidor
+  (`is-active`) y el JS lo mueve al cambiar de radio: con varias imágenes y dos
+  destinos, un radio suelto no dice cuál está elegida.
+- **Lo que se va a borrar se apaga antes de guardar.** Marcar `Delete` pone la
+  fila en `is-doomed` (imagen al 45 %, nombre tachado). El aviso llega después;
+  esto dice qué se va a perder mientras se decide.
+- **En oscuro la vista previa se aclara** (`#f2f5f8`): los logos del producto
+  son PNG con partes oscuras que sobre la superficie del tema se comen el
+  dibujo. En claro usa `--ui-surface`, que es blanco.
+- **El selector de ficheros del navegador** se viste con
+  `::file-selector-button` para que no sea el único control gris del sistema.
+
+#### 3.15.4 Borrar una imagen no pedía confirmación
+
+El diálogo `#confirm-action` existía, pero el manejador que lo abría estaba
+enganchado a `$('#save input:submit.button')`… y **el formulario de esta
+pantalla no tiene `id="save"`**. El manejador no llegaba a ejecutarse nunca:
+marcar `Delete` y pulsar `Save Changes` borraba el logo en el acto.
+
+Tres cosas se arreglaron a la vez al reescribirlo:
+
+1. Se escucha el **envío del formulario** (`submit`) y se pregunta sólo si hay
+   algo marcado (`input[name^="delete-"]:checked`), en vez de mirar cualquier
+   casilla del formulario.
+2. La escucha va en **fase de captura**, para adelantarse al manejador genérico
+   de `form.save` (`scp/js/scp.js`), que al enviar deshabilita los botones: si
+   el aviso se cancelara después, la pantalla quedaría con el botón de guardar
+   deshabilitado y sin envío.
+3. El envío confirmado usa **`HTMLFormElement.prototype.submit.call(form)`**.
+   No sirve `form.submit()`: esta pantalla tiene un campo
+   `name="submit-button"`… y el resto de formularios de osTicket un campo
+   `name="submit"`, que **tapa el método** con el mismo nombre.
+
+#### 3.15.5 El resto de la pantalla
+
+- **Ancho.** Las tablas de ajustes piden `width="940"` desde el marcado y la
+  tira de pestañas ocupa todo el ancho: quedaba una franja muerta de ~300 px a
+  la derecha. Ahora `table.settings_table` es `width: 100%`, como `table.list`.
+- **Casillas.** Cuatro casillas de *Sistema* (`Force HTTPS`, `Show Avatars`,
+  `Enable Rich Text`, `Login required`) no tenían `<label for>`: sólo se podían
+  marcar en el cuadradito de 13 px. Ahora el texto es la etiqueta y el control
+  usa `accent-color` del tema.
+- **Dos opciones marcadas.** `Never Purge Logs` y `Small` llevaban `selected`
+  fijo en el HTML: con una purga configurada había dos opciones marcadas a la
+  vez y ganaba la que estuviera después en el documento. Ahora dependen del
+  valor guardado.
+- **Pestañas.** En oscuro las inactivas iban rellenas y con borde: una tira de
+  cuatro se leía como cuatro botones apagados. Ahora son transparentes, como en
+  claro, y sólo la activa tiene cuerpo (con su trazo de acento arriba).
+- **Banda en blanco en los formularios.** `templates/dynamic-form.tmpl.php`
+  abre con una fila vacía para dar ancho a la columna de etiquetas; dentro de
+  una tabla con bordes y radios dejaba una franja en blanco encima del primer
+  bloque. Se marca (`ost-form-spacer`) y la hoja la oculta.
+- Un `<script></script>` vacío en medio de la tabla de *Sistema* y los dos
+  puntos pegados al icono de ayuda de *Attachments* también se fueron.
+
+**Cómo se comprueba.** `php tools/ui/theme-check.php` → **215**
+comprobaciones (antes 208): el hueco del icono, la barra de acciones, el acento
+en oscuro, el ancho de la tabla, la galería, la vista previa en oscuro y la
+fila espaciadora. `php tests/run.php` → **1.016** pruebas (13 nuevas en
+`tests/AdminSettingsTest.php`): las diez pantallas con la barra, el orden de los
+botones, las cuatro casillas, las dos opciones que ahora no se duplican, la
+galería con sus etiquetas y la confirmación del borrado.
+
 ## 4. Reglas para no romper nada
 
 1. **No cambies el marcado estructural** (`#container`, `#content`,
@@ -1463,7 +1576,7 @@ queda en §6.2.
 | 8 | **HTML de terceros en oscuro**: citas, código, tablas, visor de PDF y editor enriquecido legibles (§3.7) | ✅ Hecho | `css/dark.css` §«8bis» |
 | 9 | **Iconos de todos los menús del panel** en los dos temas: se retiran los PNG de `#sub_nav` (Emails, Templates, Filters, Users, Teams, Help Topics, Departments, Preferences, Logs, SLA, API, Pages, Forms, Lists, Premade…) y se sustituyen por máscaras SVG con color heredado | ✅ Hecho | `css/ui.css` (§3.5.1) |
 | 10 | **Respaldo de `PATH_INFO`**: si el servidor no rellena `PATH_INFO` (servidor embebido de PHP, proxys o FastCGI sin `fastcgi_split_path_info`) se deduce la ruta de `REQUEST_URI` restando el script, y se normaliza la barra inicial. Deja de haber 400 en `scp/ajax.php/...` (§7) | ✅ Hecho | `include/class.osticket.php` (`get_path_info()`) |
-| 11 | **Comprobación automática del tema** con 208 verificaciones (195 antes de las filas 42-47) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
+| 11 | **Comprobación automática del tema** con 215 verificaciones (195 antes de las filas 42-48) y auditoría de contraste a 0 hallazgos sobre la vista previa, en claro y en oscuro | ✅ Hecho | `tools/ui/theme-check.php`, `tools/ui/contrast-audit.js` |
 | 12 | **Iconos de `#nav` y `#sub_nav` con máscaras SVG**: se retiran los PNG/GIF de fondo (varios con fondo blanco) y los glifos de Font Awesome, y el icono pasa a heredar el color del texto en los dos temas (§3.5.1) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 13 | **Avisos con máscara SVG**: `error_bar`, `warning_bar`, `notice_bar`, `msg_*` y los `*-banner` dejan de usar `error.png`/`alert.png`/`ok.png` (PNG con fondo blanco) y toman color propio en cada tema (§3.5.2) | ✅ Hecho | `css/ui.css`, `css/dark.css` |
 | 14 | **Acciones declarativas** `data-href`, `data-go-back`, `data-submit-on-change`, `data-dialog`, `data-confirm`, `data-remove-closest`, `data-toggle-target`, `data-inherit-toggle`, `data-save-draft` y `data-discard-draft`: dos tandas de la migración de `onclick` inline (§3.9, §6.2-1) | ✅ Hecho | `js/actions.js`, ambos `footer.inc.php` |
@@ -1503,6 +1616,7 @@ queda en §6.2.
 | 45 | **El desplegable de colas desaparecía antes de poder hacer clic**: se abre con `li.item:hover` y scp.css lo coloca a **31 px** del borde de la pestaña, la altura de su pestaña original; con la pastilla de la capa moderna quedaban varios píxeles de aire entre la pestaña y el panel, así que al bajar el ratón se salía de la pestaña, el `:hover` dejaba de cumplirse y el panel se cerraba antes del clic. Ahora se ancla al borde inferior (`top: 100%`), lleva un puente invisible de 8 px y se abre también con el teclado (`:focus-within`) (§3.5.3) | ✅ Hecho | `css/modern.css`, `make theme` |
 | 46 | **El icono de comentarios de las colas no se veía en oscuro**: el recuento de entradas del hilo va dentro de `.faded-more`, que scp.css pinta con **negro al 35 %** —un gris pensado para papel—. Se veía el número y no el icono. Ahora usa el gris atenuado del tema | ✅ Hecho | `css/dark.css`, `make theme` |
 | 47 | **«El editor de nota no está enriquecido»**: dos capturas, el *Internal Notes* del diálogo *Add New Organization* y la nota rápida de la ficha de una organización. En el diálogo el campo llegaba marcado `richtext no-bar`, y `no-bar` monta la barra **flotante** (`air`): no había ni un botón a la vista hasta seleccionar texto, así que el campo se leía como un textarea plano. La nota rápida sí tenía barra, pero de **siete botones**: se montaba con `T.redactor({focusEnd: true})` a pelo y salía la barra de fábrica de Redactor, sin los botones ni los plugins de osTicket. Y las dos cajas se quedaban en el «papel» claro del tema (`--dk-editor-paper`), un bloque blanco en mitad de una pantalla oscura. Ahora los campos memo salen con barra visible y la nota rápida la monta el mismo `redact()` que el resto de la aplicación, con la barra completa (ocupa el ancho de la página) mientras los campos memo usan la barra corta, que es la que cabe en la celda de un formulario; las dos cajas llevan la marca `ost-note-editor` y el tema oscuro las pinta sobre su superficie, que es donde después se lee la nota (§3.12.7) | ✅ Hecho | `include/class.forms.widget.php`, `js/redactor-osticket.js`, `scp/js/scp.js`, `css/dark.css`, `tests/NoteEditorTest.php`, `tests/EditorToolbarTest.php`, `make theme` |
+| 48 | **Parte de administración (capturas de `settings.php`)**: seis defectos, dos de ellos de datos. (a) La banda de aviso salía como «⚠The setup directory…»: el icono que dibuja `css/ui.css` caía encima del texto porque la banda no reservaba su hueco. (b) `Save Changes` y `Reset Changes` eran dos botones idénticos, centrados y lejos de la tabla; en oscuro el principal perdía el acento porque la regla de botones del tema gana a la de «primario». (c) En *Logos* y *Login Backdrop* el borrado **no pedía confirmación**: el manejador estaba enganchado a `#save`, un formulario que no existe en esa pantalla. (d) `Never Purge Logs` y `Small` llevaban `selected` fijo, así que había dos opciones marcadas a la vez. (e) Las tablas de ajustes pedían `width="940"` y dejaban una franja muerta a la derecha de la pestaña; las casillas no tenían `<label for>`. (f) La galería de imágenes era una tabla anidada con los radios en columnas separadas de la imagen. Ahora hay barra de acciones con el acento en los dos temas, galería en filas con la opción marcada visible y el borrado confirmado en fase de captura (§3.15) | ✅ Hecho | `include/staff/settings-*.inc.php`, `include/staff/template.inc.php`, `include/staff/templates/dynamic-form.tmpl.php`, `css/modern.css`, `css/dark.css`, `tests/AdminSettingsTest.php`, `make theme` |
 
 Cobertura medida con `tools/ui/contrast-audit.js` sobre la vista previa
 (reproduce el marcado real de las plantillas): panel (cabecera, colas,

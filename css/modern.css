@@ -987,6 +987,22 @@ span.state {
     line-height: 1.45;
 }
 
+/* El icono del aviso lo dibuja css/ui.css con un `::before` en `left: 10px`
+   (16 px de ancho). Con el relleno corto de la regla de arriba el icono caía
+   *encima* del texto —«⚠The setup directory…»—, así que la banda reserva su
+   hueco. */
+#error_bar,
+#warning_bar,
+#notice_bar,
+#msg_error,
+#msg_warning,
+#msg_notice,
+.error-banner,
+.warning-banner,
+.notice-banner {
+    padding-left: 36px;
+}
+
 #error_bar,
 #msg_error,
 .error-banner { border-left-color: var(--ui-danger); }
@@ -1613,6 +1629,270 @@ table.form_table tr:hover i.help-tip {
 div.tab_content > table.form_table:first-child,
 div.tab_content > table.settings_table:first-child {
     margin-top: 2px;
+}
+
+/* ================================================================== */
+/* 10ter. Ajustes y administracion                                    */
+/* ================================================================== */
+/* Las tablas de ajustes piden `width="940"` y la tira de pestañas ocupa todo
+   el ancho: quedaba una franja muerta de unos 300 px a la derecha del
+   formulario, justo debajo de una pestaña que sí llegaba al borde. Con el
+   ancho del contenedor las dos piezas empiezan y acaban en el mismo sitio.
+   `table.list` ya lo hacía; esto pone a los formularios en la misma línea. */
+table.settings_table {
+    width: 100%;
+}
+
+/* La fila vacia que abre los formularios dinamicos
+   (`templates/dynamic-form.tmpl.php`) solo servia para dar ancho a la columna
+   de etiquetas: dentro de una tabla con bordes y radios deja una banda en
+   blanco entre el borde y el primer titulo. El ancho ya lo da la primera celda
+   de cada fila, asi que se quita. */
+table.form_table tr.ost-form-spacer,
+table.settings_table tr.ost-form-spacer {
+    display: none;
+}
+
+/* Los titulos de seccion de un formulario son `<th><em><b>…</b></em></th>`.
+   En cursiva y con el mismo peso que una etiqueta se leian como un campo mas;
+   en versalitas y sin cursiva se leen como lo que son: el titulo del bloque. */
+table.form_table th b,
+table.settings_table th b {
+    font-style: normal;
+    font-weight: 700;
+    font-size: var(--mod-text-xs);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ui-text-muted);
+}
+
+/* --- Barra de acciones de un formulario ------------------------------ */
+/* scp.css centra los botones de guardar en un `<p>` sin clase, debajo de la
+   tabla y lejos de ella. Aquí van a la derecha, sobre una línea que cierra el
+   formulario, y en el orden en que se usan: primero lo que deshace, al final
+   la acción principal. */
+p.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 14px 2px 0;
+    border-top: 1px solid var(--ui-border);
+}
+
+p.form-actions input,
+p.form-actions button {
+    margin: 0;
+}
+
+/* --- Galería de imágenes (logos y fondos de acceso) ------------------ */
+/* Era una tabla anidada con los radios en dos columnas («Client», «Staff»)
+   separadas de la imagen: al bajar por la lista había que volver a la
+   cabecera para saber qué columna se estaba marcando. Ahora cada imagen es
+   una fila con su vista previa, su nombre y dos botones de selección
+   etiquetados, y el borrado se aparta a la derecha. */
+.media-picker {
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius);
+    background: var(--ui-surface);
+    overflow: hidden;
+}
+
+.media-picker-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ui-border);
+    background: var(--ui-surface-alt);
+}
+
+.media-picker-head h3 {
+    margin: 0 0 2px;
+    font-size: var(--mod-text);
+    font-weight: 600;
+    color: var(--ui-text);
+}
+
+.media-picker-head p {
+    margin: 0;
+    font-size: var(--mod-text-sm);
+}
+
+.media-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.media-item {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(120px, 1fr) auto auto;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.media-item:last-child {
+    border-bottom: 0;
+}
+
+/* La vista previa lleva el fondo de superficie del tema. En oscuro se aclara
+   (css/dark.css): los logos del producto son PNG con partes oscuras que sobre
+   una superficie oscura se comen el dibujo. */
+.media-thumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.media-thumb img {
+    max-width: 100%;
+    max-height: 58px;
+    height: auto;
+    padding: 6px;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+}
+
+.media-item.is-wide .media-thumb img {
+    max-height: 88px;
+}
+
+.media-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.media-info strong {
+    font-weight: 600;
+    color: var(--ui-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-info .faded {
+    font-size: var(--mod-text-sm);
+}
+
+.media-choices {
+    display: flex;
+    gap: 8px;
+}
+
+.media-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-pill);
+    background: var(--ui-surface);
+    color: var(--ui-text-muted);
+    font-size: var(--mod-text-sm);
+    cursor: pointer;
+    transition: border-color .15s var(--mod-ease), background .15s var(--mod-ease),
+        color .15s var(--mod-ease);
+}
+
+.media-choice:hover {
+    border-color: var(--ui-accent);
+    color: var(--ui-text);
+}
+
+/* La opción marcada se ve sin abrir el panel: el radio solo no basta cuando
+   hay varias imágenes y dos destinos posibles. */
+.media-choice.is-active {
+    border-color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    color: var(--ui-text);
+    font-weight: 600;
+}
+
+.media-actions {
+    min-width: 92px;
+    text-align: right;
+}
+
+.media-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ui-danger);
+    font-size: var(--mod-text-sm);
+    cursor: pointer;
+}
+
+.media-inuse {
+    color: var(--ui-success);
+    font-size: var(--mod-text-xs);
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+/* Imagen marcada para borrar: se apaga antes de guardar, para que se vea qué
+   se va a perder (la confirmación llega después). */
+.media-item.is-doomed .media-thumb img {
+    opacity: .45;
+}
+
+.media-item.is-doomed .media-info strong {
+    color: var(--ui-danger);
+    text-decoration: line-through;
+}
+
+.media-upload {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface-alt);
+}
+
+.media-upload label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .media-item {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .media-actions {
+        text-align: left;
+    }
+}
+
+/* El selector nativo de ficheros es del sistema, con su propio botón gris.
+   Se le da el mismo lenguaje que a los botones de al lado. */
+input[type="file"]::file-selector-button {
+    margin-right: 10px;
+    padding: 6px 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--mod-radius-sm);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover {
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
 }
 
 /* ================================================================== */

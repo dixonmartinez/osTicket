@@ -465,6 +465,13 @@ html[data-theme="dark"] #content .settings_table th h4 a {
     color: var(--dk-text);
 }
 
+/* Los títulos de sección van en versalitas (css/modern.css). Sobre la banda
+   del tema, el gris de apoyo es el que se lee sin competir con el texto. */
+html[data-theme="dark"] .form_table th b,
+html[data-theme="dark"] .settings_table th b {
+    color: var(--dk-text-muted);
+}
+
 html[data-theme="dark"] .search input[type=text] {
     background: #0e1318;
     border-color: var(--dk-border-strong);
@@ -505,23 +512,91 @@ html[data-theme="dark"] .btn_sm {
     color: var(--dk-text);
 }
 
+/* La acción principal de un formulario de ajustes.
+   Esta hoja pinta *todos* los botones con la superficie del tema, con más
+   especificidad que la regla de «primario» de css/modern.css: en oscuro
+   «Save Changes» y «Reset Changes» salían idénticos y no había forma de ver
+   cuál guarda. Se devuelve el acento, con el azul del tema y texto blanco
+   (5,4:1), que es el mismo par que usan las pestañas activas. */
+html[data-theme="dark"] p.form-actions input[type=submit],
+html[data-theme="dark"] p.form-actions button[type=submit] {
+    background: var(--dk-accent);
+    border-color: var(--dk-accent);
+    color: #fff;
+}
+
+html[data-theme="dark"] p.form-actions input[type=submit]:hover,
+html[data-theme="dark"] p.form-actions button[type=submit]:hover {
+    background: #3a7fc4;
+    border-color: #3a7fc4;
+    color: #fff;
+}
+
+/* Cambios sin guardar: scp.css marca el botón con `.save.pending` en amarillo,
+   pero la regla de los botones de esta hoja la tapaba y en oscuro no se veía
+   que hubiera algo pendiente. */
+html[data-theme="dark"] p.form-actions input[type=submit].save.pending,
+html[data-theme="dark"] p.form-actions input[type=submit].save.success {
+    background: var(--dk-warning-bg);
+    border-color: var(--dk-warning);
+    color: var(--dk-warning);
+}
+
+html[data-theme="dark"] p.form-actions input[type=submit].save.success {
+    background: var(--dk-success-bg);
+    border-color: var(--dk-success);
+    color: var(--dk-success);
+}
+
+/* Galería de logos y fondos: la vista previa se aclara para que el dibujo se
+   vea entero (sobre la superficie del tema, las partes oscuras del logo
+   desaparecen). El resto de la fila sigue el tema. */
+html[data-theme="dark"] .media-thumb img {
+    background: #f2f5f8;
+    border-color: var(--dk-border-strong);
+}
+
+html[data-theme="dark"] .media-picker-head,
+html[data-theme="dark"] .media-upload {
+    background: var(--dk-surface-2);
+}
+
+html[data-theme="dark"] .media-picker {
+    background: var(--dk-surface);
+    border-color: var(--dk-border);
+}
+
 /* Pestañas */
 html[data-theme="dark"] .tabs,
 html[data-theme="dark"] ul.tabs {
     border-bottom-color: var(--dk-border);
 }
 
+/* Las pestañas inactivas iban rellenas y con borde: en una tira de cuatro o
+   cinco se leían como cinco botones apagados, y en claro no es así (allí son
+   transparentes). Ahora los dos temas usan el mismo criterio: sólo la activa
+   tiene cuerpo; el resto es texto que se ilumina al pasar. */
 html[data-theme="dark"] .tabs li,
 html[data-theme="dark"] .tabs a {
-    background: var(--dk-surface-2);
-    border-color: var(--dk-border);
+    background: transparent;
+    border-color: transparent;
     color: var(--dk-text-muted);
 }
 
+html[data-theme="dark"] .tabs li:hover a,
+html[data-theme="dark"] .tabs a:hover {
+    color: var(--dk-text);
+}
+
+/* `border-color` a secas pintaría también el borde superior, que es el trazo
+   de acento de la pestaña activa (css/modern.css): se dan los tres lados y se
+   deja el de arriba al acento. */
 html[data-theme="dark"] .tabs li.active,
 html[data-theme="dark"] .tabs li.active a,
 html[data-theme="dark"] .tabs a.active {
     background: var(--dk-surface);
+    border-left-color: var(--dk-border);
+    border-right-color: var(--dk-border);
     border-bottom-color: var(--dk-surface);
     color: var(--dk-text);
 }

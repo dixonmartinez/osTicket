@@ -205,9 +205,9 @@ $manage_content = function($title, $content) use ($contents) {
 </tbody>
 </table>
 </div>
-<p style="text-align:center">
-    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
+<p class="form-actions">
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes'); ?>">
+    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes'); ?>">
 </p>
 </div>
 </form>

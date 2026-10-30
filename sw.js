@@ -82,7 +82,12 @@
 //     salen con la barra a la vista, la nota rapida la monta el editor comun
 //     (no la barra de fabrica de Redactor) y en oscuro la superficie del
 //     editor de nota sigue el tema en vez del papel claro de los correos.
-const VERSION = 'ost-v39';
+// v40: la parte de administracion: barra de acciones en los formularios de
+//     ajustes (con la accion principal en acento), galeria de logos y fondos
+//     en filas, pestanas inactivas sin relleno y la banda de aviso con su
+//     icono al lado del texto. Sin subir la version se sirve el modern.css
+//     de la cache.
+const VERSION = 'ost-v40';
 const STATIC_CACHE = `${VERSION}-static`;
 
 // Recursos que hacen que la interfaz arranque rápido sin conexión.

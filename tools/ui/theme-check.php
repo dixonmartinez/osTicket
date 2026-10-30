@@ -968,6 +968,54 @@ check(strpos($preview, 'class="form_table settings_table"') !== false
     'la vista previa trae la pantalla de ajustes completa',
     'docs/theme-preview.html no muestra la pantalla de ajustes: no se puede revisar sin Docker');
 
+/* Administracion: avisos, barra de acciones y galeria --------------------- */
+// El icono del aviso lo dibuja css/ui.css con un `::before` en `left: 10px` y
+// 16 px de ancho. Sin hueco reservado, el texto arrancaba debajo del icono
+// («⚠The setup directory…» en las capturas del usuario).
+check(preg_match('/#warning_bar,[^{]*\{[^}]*padding-left:\s*36px/s',
+        $sinComentarios) === 1,
+    'la banda de aviso reserva el hueco de su icono',
+    'la banda de aviso no reserva el hueco del icono: el texto sale pegado al triangulo');
+
+// Las pantallas de ajustes cierran con una barra de acciones: reset primero y
+// la accion principal al final, sobre una linea. Antes eran dos botones
+// centrados, lejos de la tabla, e identicos entre si.
+$settingsSystem = read("$root/include/staff/settings-system.inc.php");
+check(strpos($settingsSystem, '<p class="form-actions">') !== false
+    && preg_match('/p\.form-actions\s*\{[^}]*justify-content:\s*flex-end/s',
+        $sinComentarios) === 1,
+    'los formularios de ajustes cierran con una barra de acciones',
+    'los botones de guardar siguen centrados en un `<p>` con estilo en linea');
+
+check(preg_match('/html\[data-theme="dark"\] p\.form-actions input\[type=submit\][^{]*\{[^}]*'
+        . 'background:\s*var\(--dk-accent\)/s', $darkSinComentarios) === 1,
+    'en oscuro la accion principal se distingue del reset',
+    'en oscuro «Save Changes» y «Reset Changes» son el mismo boton gris');
+
+// La tabla de ajustes pedia `width="940"` y dejaba una franja muerta a la
+// derecha de una tira de pestanas que si ocupa todo el ancho.
+check(preg_match('/table\.settings_table\s*\{[^}]*width:\s*100%/s',
+        $sinComentarios) === 1,
+    'la tabla de ajustes ocupa el ancho de la pestana',
+    'table.settings_table conserva el ancho fijo del marcado');
+
+// La galeria de logos y fondos: filas con vista previa y botones de seleccion
+// en vez de una tabla anidada con los radios en columnas separadas.
+check(strpos($sinComentarios, '.media-picker {') !== false
+    && strpos($sinComentarios, '.media-choice.is-active') !== false,
+    'la galeria de logos tiene filas y una opcion marcada visible',
+    'la galeria de logos se queda en la tabla anidada con los radios sin etiqueta');
+
+check(strpos($darkSinComentarios, '.media-thumb img') !== false,
+    'en oscuro la vista previa del logo se aclara',
+    'en oscuro la vista previa se queda sobre la superficie del tema');
+
+// La fila vacia que abre los formularios dinamicos deja una banda en blanco
+// dentro de una tabla con bordes y radios.
+check(strpos($sinComentarios, 'tr.ost-form-spacer') !== false,
+    'la fila espaciadora de los formularios no se pinta',
+    'la fila espaciadora deja una banda en blanco encima del primer bloque');
+
 /* Estados vacios -------------------------------------------------------- */
 $kb = read("$root/include/staff/faq-categories.inc.php");
 check(strpos($kb, "placeholder=\"<?php echo __('Search the knowledge base'); ?>\"") !== false,

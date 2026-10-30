@@ -64,9 +64,10 @@ $gmtime = Misc::gmtime();
         <tr>
             <td><?php echo __('Force HTTPS'); ?>:</td>
             <td>
-                <input type="checkbox" name="force_https" <?php
-                echo ($config['force_https'] == "on") ? 'checked="checked"' : ''; ?>>
-                <?php echo __('Force all requests through HTTPS.'); ?>
+                <label for="force_https"><input type="checkbox" id="force_https"
+                    name="force_https" <?php
+                    echo ($config['force_https'] == "on") ? 'checked="checked"' : ''; ?>>
+                <?php echo __('Force all requests through HTTPS.'); ?></label>
                 <font class="error"><?php echo $errors['force_https']; ?></font>
                 <i class="help-tip icon-question-sign" href="#force_https"></i>
             </td>
@@ -110,7 +111,8 @@ $gmtime = Misc::gmtime();
             <td><?php echo __('Purge Logs');?>:</td>
             <td>
                 <select name="log_graceperiod">
-                    <option value=0 selected><?php echo __('Never Purge Logs');?></option>
+                    <option value=0 <?php echo !$config['log_graceperiod']
+                        ? 'selected="selected"' : ''; ?>><?php echo __('Never Purge Logs');?></option>
                     <?php
                     for ($i = 1; $i <=12; $i++) {
                         ?>
@@ -126,18 +128,20 @@ $gmtime = Misc::gmtime();
         <tr>
             <td><?php echo __('Show Avatars'); ?>:</td>
             <td>
-                <input type="checkbox" name="enable_avatars" <?php
-                echo $config['enable_avatars'] ? 'checked="checked"' : ''; ?>>
-                <?php echo __('Show Avatars on thread view.'); ?>
+                <label for="enable_avatars"><input type="checkbox" id="enable_avatars"
+                    name="enable_avatars" <?php
+                    echo $config['enable_avatars'] ? 'checked="checked"' : ''; ?>>
+                <?php echo __('Show Avatars on thread view.'); ?></label>
                 <i class="help-tip icon-question-sign" href="#enable_avatars"></i>
             </td>
         </tr>
         <tr>
             <td><?php echo __('Enable Rich Text'); ?>:</td>
             <td>
-                <input type="checkbox" name="enable_richtext" <?php
-                echo $config['enable_richtext'] ? 'checked="checked"' : ''; ?>>
-                <?php echo __('Enable html in thread entries and email correspondence.'); ?>
+                <label for="enable_richtext"><input type="checkbox" id="enable_richtext"
+                    name="enable_richtext" <?php
+                    echo $config['enable_richtext'] ? 'checked="checked"' : ''; ?>>
+                <?php echo __('Enable html in thread entries and email correspondence.'); ?></label>
                 <i class="help-tip icon-question-sign" href="#enable_richtext"></i>
             </td>
         </tr>
@@ -342,8 +346,6 @@ $gmtime = Misc::gmtime();
             </div>
             </div>
 <?php   } ?>
-            <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">
-            </script>
             </div>
             <i class="icon-plus-sign"></i>&nbsp;
             <select name="add_secondary_language">
@@ -363,8 +365,8 @@ $gmtime = Misc::gmtime();
         </td></tr>
         <tr>
             <th colspan="2">
-                <em><b><?php echo __('Attachments Storage and Settings');?></b>:<i
-                class="help-tip icon-question-sign" href="#attachments"></i></em>
+                <em><b><?php echo __('Attachments Storage and Settings');?></b>
+                <i class="help-tip icon-question-sign" href="#attachments"></i></em>
             </th>
         </tr>
         <tr>
@@ -394,7 +396,8 @@ $gmtime = Misc::gmtime();
                 'Agent Maximum File Size');?>:</td>
             <td>
                 <select name="max_file_size">
-                    <option value="262144">&mdash; <?php echo __('Small'); ?> &mdash;</option>
+                    <option value="262144" <?php echo ($config['max_file_size'] == 262144)
+                        ? 'selected="selected"' : ''; ?>>&mdash; <?php echo __('Small'); ?> &mdash;</option>
                     <?php $next = 512 << 10;
                     $max = strtoupper(ini_get('upload_max_filesize'));
                     $limit = (int) $max;
@@ -431,18 +434,19 @@ $gmtime = Misc::gmtime();
         <tr>
             <td width="180"><?php echo __('Login required');?>:</td>
             <td>
-                <input type="checkbox" name="files_req_auth" <?php
+                <label for="files_req_auth"><input type="checkbox" id="files_req_auth"
+                    name="files_req_auth" <?php
                     if ($config['files_req_auth']) echo 'checked="checked"';
                     ?> />
-                <?php echo __('Require login to view any attachments'); ?>
+                <?php echo __('Require login to view any attachments'); ?></label>
                 <i class="help-tip icon-question-sign" href="#files_req_auth"></i>
             </td>
         </tr>
     </tbody>
 </table>
-<p style="text-align:center;">
-    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes');?>">
+<p class="form-actions">
     <input class="button" type="reset" name="reset" value="<?php echo __('Reset Changes');?>">
+    <input class="button" type="submit" name="submit" value="<?php echo __('Save Changes');?>">
 </p>
 </form>
 <script nonce="<?php echo Http::nonce(); ?>" type="text/javascript">

@@ -163,9 +163,9 @@ $info=Format::htmlchars(($errors && $_POST)?$_POST:$info, true);
         </tr>
     </tbody>
 </table>
-<p style="text-align:center">
+<p class="form-actions">
+    <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="templates.php" class="button">
+    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>" class="button">
     <input type="submit" name="submit" value="<?php echo $submit_text; ?>">
-    <input type="reset"  name="reset"  value="<?php echo __('Reset');?>">
-    <input type="button" name="cancel" value="<?php echo __('Cancel');?>" data-href="templates.php">
 </p>
 </form>
