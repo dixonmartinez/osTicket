@@ -7,6 +7,33 @@ correo real. Lo levanta `docker compose` con el resto del entorno.
 
 - Interfaz web: **http://localhost:8025** (`MAILPIT_UI_PORT` en `.env`)
 - SMTP para osTicket: **host `mailpit`, puerto `1025`**, sin TLS y sin usuario
+- Retiene hasta 5000 mensajes en memoria (`MP_MAX_MESSAGES`); al reiniciar el
+  contenedor la bandeja empieza vacía
+
+### Dónde vive el servicio
+
+Está en **`compose.override.yaml`**, no en `compose.yaml`:
+
+```yaml
+services:
+  mail:                        # el servicio se llama `mail`
+    image: axllent/mailpit:v1.20
+    networks:
+      osticket:
+        aliases: [mailpit]     # y en la red responde como `mailpit`
+```
+
+Docker Compose carga ese archivo solo (sin `-f`) cuando existe, así que en
+desarrollo no hay que hacer nada: `make docker-up` ya levanta el buzón. Tiene
+dos consecuencias que conviene tener presentes:
+
+* En un despliegue con `-f compose.prod.yaml` el servicio **no existe**; allí la
+  cuenta de correo debe apuntar a un SMTP real. Es a propósito: el override
+  también publica los puertos 8025/1025 y activa Xdebug.
+* El nombre de la imagen no es un nombre de red. Por eso el servicio lleva el
+  alias **`mailpit`**: sin él, `tcp://mailpit:1025` falla con `getaddrinfo for
+  mailpit failed`. `mail` y `mailpit` resuelven a lo mismo desde `php`, `cron` y
+  `tools`; lo que no existe es `localhost:1025` dentro de un contenedor.
 
 ```bash
 make mail        # recuerda estas URLs y los datos SMTP

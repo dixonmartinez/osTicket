@@ -29,6 +29,10 @@ Xdebug). Después:
 | Mailpit | <http://localhost:8025> | Ver los correos que envía osTicket |
 | MariaDB | `127.0.0.1:3307` | Cliente SQL desde el host (opcional) |
 
+Mailpit no está en `compose.yaml`: vive en `compose.override.yaml`, que Compose
+carga solo si existe (desarrollo). En un despliegue con `-f compose.prod.yaml`
+no aparece, y por eso ahí hay que apuntar la cuenta de correo a un SMTP real.
+
 Las URLs salen de `HTTP_PORT` en `.env` (8080 por defecto). Si **el 8080 está
 ocupado**, cambia el valor allí, recrea el contenedor de nginx y consulta las
 URLs reales:
@@ -258,7 +262,7 @@ docker compose down -v       # borra datos
 ## 6. Estructura de los archivos de Docker y del entorno de VS Code
 
 ```
-compose.yaml                 entorno de desarrollo (nginx + php + db + mailpit)
+compose.yaml                 entorno de desarrollo (nginx + php + db)
 compose.override.yaml        se carga solo en desarrollo (Mailpit, nombre de servidor Xdebug)
 compose.prod.yaml            overlay de producción
 .env.example                 plantilla de variables (copiar a .env)
@@ -658,7 +662,8 @@ aparezca *“Listen for Xdebug”*.
 
 **Los correos no salen.**
 En desarrollo todo va a Mailpit (<http://localhost:8025>). Configura en
-*Admin → Emails → SMTP* el host `mail` y el puerto `1025`, sin autenticación.
+*Admin → Emails → SMTP* el host `mailpit` (o `mail`, que es el nombre del
+servicio) y el puerto `1025`, sin autenticación. Detalle: `docs/MAIL.md`.
 
 **Perdí la contraseña de administrador.**
 ```bash
