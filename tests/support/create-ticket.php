@@ -142,8 +142,15 @@ catch (RuntimeException $e) {
 /* 3. Los datos con los que arranca una instalación nueva, por el mismo camino
  *    que usa el instalador (`setup/inc/class.installer.php`). */
 function sembrar() {
+    /* La marca de «ya sembrado» **no** puede ser `config`: el propio esquema
+     * del instalador la llena (`INSERT INTO %TABLE_PREFIX%config …, línea 109
+     * de install-mysql.sql`), así que el guardia se cumplía siempre y el
+     * sembrador no llegaba a ejecutarse. De ahí que la tabla de departamentos
+     * estuviera vacía y, con ella, todo lo demás: los temas de ayuda se crean
+     * con `dept_id = 0` y sin queja. Lo que sólo existe si se sembró son los
+     * temas de ayuda. */
     if ((int) TestDatabase::value('SELECT COUNT(*) FROM `'
-            . TestDatabase::table('config') . '`'))
+            . TestDatabase::table('help_topic') . '`'))
         return true;
 
     $i18n = new Internationalization('en_US');
@@ -275,18 +282,16 @@ $ids = array(
     'help_topic' => primerId('help_topic', 'topic_id'),
     'role' => primerId('role', 'id'),
 );
-foreach ($ids as $tabla => $id) {
-    if (!$id)
-        responder(array_merge(array(
-                'ok' => false,
-                'motivo' => 'la siembra no dejó filas en ' . $tabla,
-                'filas' => filasSembradas(),
-                'siembra' => isset($GLOBALS['siembra'])
-                    ? $GLOBALS['siembra'] : array(),
-                'estado' => estadoSiembra(),
-                'sql_ultimo' => VerySimpleModel::getLastError(),
-            )));
-}
+$vacios = array_keys(array_filter($ids, function ($id) { return !$id; }));
+if ($vacios)
+    responder(array(
+        'ok' => false,
+        'motivo' => 'la siembra no dejó filas en ' . implode(', ', $vacios),
+        'filas' => filasSembradas(),
+        'siembra' => isset($GLOBALS['siembra']) ? $GLOBALS['siembra'] : array(),
+        'estado' => estadoSiembra(),
+        'sql_ultimo' => VerySimpleModel::getLastError(),
+    ));
 
 $dept_id = $ids['department'];
 $topic_id = $ids['help_topic'];

@@ -656,12 +656,20 @@ tabla vacía. Por eso, si una tabla clave queda sin filas, la respuesta añade:
 
 | Campo | Qué trae |
 |---|---|
-| `filas` | cuántas filas dejó la siembra en cada tabla que importa |
-| `sql_siembra` | el último error del motor (`VerySimpleModel::getLastError()`), que `loadModels()` descarta |
-| `diagnostico` | el primer objeto (y el segundo) del YAML de esa tabla creado **otra vez** sin `@`, con sus `$errors` y el error de SQL a la vista |
+| `filas` | cuántas filas dejó la siembra en cada tabla que importa (las trece, no sólo la que falló) |
+| `siembra` | los errores que recogió el sembrador, por archivo y por registro, con el error del motor al lado |
+| `estado` | cuántos objetos trae cada YAML y si su creador está disponible (los dos fallos mudos de `loadModels()`) |
+| `sql_ultimo` | el último error del motor que guarda el ORM |
 
-`diagnostico` escribe de verdad: si el fallo era de unicidad, la segunda
-llamada dirá «nombre repetido». Es lo esperado y hay que leerlo con esa cautela.
+El resumen también sale por `stderr`, antes del JSON, para que se lea en la
+consola de `make integration` sin descifrar una línea.
+
+**La marca de «ya sembrado» no puede ser `ost_config`.** El esquema del
+instalador la llena en su sentencia 109 (`INSERT INTO %TABLE_PREFIX%config …`),
+así que el guardia que preguntaba por ella se cumplía siempre y la siembra no
+llegaba a ejecutarse: la tabla de departamentos quedaba vacía y los temas de
+ayuda se creaban con `dept_id = 0` sin queja. Lo que sólo existe si de verdad
+se sembró son los **temas de ayuda**, y por eso se pregunta por ellos.
 
 El separador de sentencias se prueba contra el archivo real del instalador:
 son **133 sentencias** y todas empiezan por `CREATE`, `DROP`, `ALTER`,
