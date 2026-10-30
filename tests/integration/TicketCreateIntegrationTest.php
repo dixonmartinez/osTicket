@@ -84,9 +84,13 @@ class TicketCreateIntegrationTest extends IntegrationTestCase {
             sprintf("respuesta inesperada del ayudante «%s»:\n%s", $modo,
                 $salida));
 
+        /* Un fallo del ayudante trae su propio diagnóstico —`filas`,
+         * `siembra`, `estado`, `sql_ultimo`—. Se enseña **la salida entera**:
+         * quedarse con `motivo` fue lo que hizo que tres ejecuciones seguidas
+         * dijeran «la siembra no dejó filas en department» sin decir por qué. */
         if (isset($datos['motivo']))
-            $this->assertTrue(false, sprintf('el ayudante «%s» no arrancó: %s',
-                $modo, $datos['motivo']));
+            $this->assertTrue(false, sprintf(
+                "el ayudante «%s» no arrancó\n%s", $modo, $salida));
 
         return $datos;
     }

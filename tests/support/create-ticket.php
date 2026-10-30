@@ -47,9 +47,37 @@ $respondido = false;
 function responder(array $datos) {
     global $respondido;
     $respondido = true;
+
+    // Lo mismo que va en el JSON, pero legible: la prueba enseña la salida
+    // entera y así el diagnóstico se lee sin descifrar una línea JSON.
+    if (isset($datos['filas']) || isset($datos['siembra'])
+            || isset($datos['estado']))
+        informeSiembra($datos);
+
     echo json_encode($datos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         "\n";
     exit(0);
+}
+
+/** Resumen de la siembra para la consola (va a stderr, antes del JSON). */
+function informeSiembra(array $datos) {
+    $partes = array('--- siembra ---');
+
+    foreach (array('filas' => 'filas', 'estado' => 'yaml',
+            'siembra' => 'errores', 'sql_ultimo' => 'sql') as $clave => $titulo) {
+        if (empty($datos[$clave]))
+            continue;
+        $valor = is_array($datos[$clave])
+            ? json_encode($datos[$clave], JSON_UNESCAPED_UNICODE
+                | JSON_UNESCAPED_SLASHES)
+            : (string) $datos[$clave];
+        $partes[] = $titulo . ': ' . $valor;
+    }
+
+    if (defined('STDERR'))
+        fwrite(STDERR, implode("\n", $partes) . "\n");
+    else
+        error_log(implode("\n", $partes));
 }
 
 /* Red de seguridad: la aplicación apaga `display_errors`, así que un error
