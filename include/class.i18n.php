@@ -23,6 +23,21 @@ class Internationalization {
     // fallback
     var $langs = array('en_US');
 
+    /**
+     * Lo que no entró al sembrar, por archivo y por registro.
+     *
+     * `loadModels()` crea cada registro con `@` y vacía el array de errores en
+     * cada vuelta: cuando un YAML no entra, el instalador termina igual y no
+     * queda rastro de por qué. Se guarda aquí para que quien siembra (el
+     * instalador, una prueba, `tools/`) pueda decir cuál falló y qué dijo.
+     */
+    var $seed_errors = array();
+
+    /** Errores de la siembra: `archivo.yaml` => `registro` => errores. */
+    function getSeedErrors() {
+        return $this->seed_errors;
+    }
+
     function __construct($language=false) {
         global $cfg;
 
@@ -98,18 +113,41 @@ class Internationalization {
             'schedule.yaml' =>      'Schedule::__create',
         );
 
-        $errors = array();
+        $this->seed_errors = array();
         foreach ($models as $yaml=>$m) {
-            if ($objects = $this->getTemplate($yaml)->getData()) {
-                foreach ($objects as $o) {
-                    if ($m && is_callable($m))
-                        @call_user_func_array($m, array($o, &$errors));
-                    // TODO: Add a warning to the success page for errors
-                    //       found here
-                    $errors = array();
+            if (!$objects = $this->getTemplate($yaml)->getData())
+                continue;
+
+            // Un creador que no existe (clase sin cargar) se saltaba en
+            // silencio: se anota como fallo del archivo entero.
+            if (!$m || !is_callable($m)) {
+                $this->seed_errors[$yaml]['*'] = array(
+                    sprintf('no hay creador para %s', $yaml));
+                continue;
+            }
+
+            foreach ($objects as $o) {
+                // `@` porque el instalador no quiere avisos de PHP en la
+                // pantalla; los errores de validación sí se recogen.
+                $errors = array();
+                $created = @call_user_func_array($m, array($o, &$errors));
+                if ($errors || $created === false) {
+                    $name = isset($o['name']) ? $o['name']
+                        : (isset($o['id']) ? $o['id'] : '?');
+                    $this->seed_errors[$yaml][$name] = $errors
+                        ? $errors
+                        : array('no se creó (el creador devolvió false)');
+                    // El motor dice lo que la validación no ve (columna
+                    // desconocida, valor obligatorio sin omisión…).
+                    if (class_exists('VerySimpleModel')
+                            && ($sql = VerySimpleModel::getLastError()))
+                        $this->seed_errors[$yaml][$name]['sql'] = $sql;
                 }
             }
         }
+        if ($this->seed_errors)
+            error_log('osTicket: la siembra dejó registros sin crear — '
+                . json_encode($this->seed_errors));
     }
 
     /**

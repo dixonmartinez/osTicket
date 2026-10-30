@@ -89,17 +89,11 @@ if (!defined('SESSION_TTL'))
 Bootstrap::defineTables(TABLE_PREFIX);
 Bootstrap::loadCode();
 
-/* Las clases que usan los YAML del instalador y el alta del ticket. `loadCode()`
- * no las carga todas (en la aplicación las piden las páginas que las usan) y un
- * «class not found» a mitad de la siembra sería un error a ciegas. */
-foreach (array('class.list.php', 'class.sequence.php', 'class.queue.php',
-        'class.thread.php', 'class.thread.event.php', 'class.filter.php',
-        'class.organization.php', 'class.team.php', 'class.topic.php',
-        'class.sla.php', 'class.schedule.php', 'class.role.php',
-        'class.dept.php', 'class.dynamic_forms.php', 'class.file.php',
-        'class.template.php', 'class.page.php', 'class.canned.php',
-        'class.priority.php', 'class.ticket.php') as $clase)
-    require_once INCLUDE_DIR . $clase;
+/* `Bootstrap::loadCode()` basta: `class.search.php` arrastra las formas
+ * dinámicas, `class.user.php` la organización y `class.queue.php` el resto, así
+ * que ya están `Dept`, `SLA`, `Topic`, `Role`, `Ticket`, `Staff`… (Comprobado
+ * con un listado de clases; antes se cargaban veinte archivos a mano con el
+ * riesgo de olvidar el que hiciera falta.) */
 
 /* `Internationalization` lee `$cfg` en el constructor. */
 $GLOBALS['cfg'] = null;
@@ -127,9 +121,10 @@ function sembrar() {
     $i18n = new Internationalization('en_US');
     $i18n->loadDefaultData();
 
-    // El último error de SQL de la siembra de verdad: `loadModels()` descarta
-    // los errores de cada YAML, pero el ORM guarda el del motor.
-    $GLOBALS['siembra_sql'] = VerySimpleModel::getLastError();
+    // Lo que el sembrador recogió: `loadModels()` ya no se queda los errores
+    // de cada registro (incluido el del motor, que es donde se ve una columna
+    // desconocida o un valor obligatorio sin omisión).
+    $GLOBALS['siembra'] = $i18n->getSeedErrors();
 
     return (bool) TestDatabase::value('SELECT COUNT(*) FROM `'
         . TestDatabase::table('help_topic') . '`');
@@ -148,60 +143,31 @@ function filasSembradas() {
 }
 
 /**
- * Por qué una tabla clave quedó vacía.
+ * Qué YAML de la siembra se leería y con qué creador.
  *
- * `Internationalization::loadModels()` llama a cada creador con `@` y borra el
- * array de errores en cada vuelta, así que un YAML que falle no deja rastro:
- * lo único que se ve es la tabla vacía. Esto repite el primer objeto de ese
- * YAML con los errores a la vista y con el último error de SQL del ORM
- * (`VerySimpleModel::$lastError`), que es donde aparece un «Field 'x' doesn't
- * have a default value», una columna desconocida o una clave repetida.
+ * Para cuando la tabla está vacía y `siembra` no trae nada: distingue «el YAML
+ * no trae objetos» y «el creador no está disponible» —los dos fallos mudos de
+ * `loadModels()`— de un error de validación o de SQL, que sí sale en `siembra`.
  */
-function diagnostico($tabla) {
+function estadoSiembra() {
     $mapa = array(
-        'sla' => array('sla.yaml', 'SLA::__create'),
-        'department' => array('department.yaml', 'Dept::__create'),
-        'help_topic' => array('help_topic.yaml', 'Topic::__create'),
-        'role' => array('role.yaml', 'Role::__create'),
+        'sla.yaml' => 'SLA::__create',
+        'department.yaml' => 'Dept::__create',
+        'help_topic.yaml' => 'Topic::__create',
+        'role.yaml' => 'Role::__create',
     );
-
-    if (!isset($mapa[$tabla]))
-        return array();
-
-    list($yaml, $creador) = $mapa[$tabla];
 
     $i18n = new Internationalization('en_US');
-    $datos = $i18n->getTemplate($yaml)->getData();
-    $info = array(
-        'yaml' => $yaml,
-        'objetos' => count((array) $datos),
-        'sql_siembra' => isset($GLOBALS['siembra_sql'])
-            ? $GLOBALS['siembra_sql'] : null,
-    );
-
-    foreach (array_slice((array) $datos, 0, 2) as $i => $objeto) {
-        $errores = array();
-        $creado = false;
-        VerySimpleModel::$lastError = null;
-
-        try {
-            $creado = (bool) call_user_func_array($creador,
-                array($objeto, &$errores));
-        }
-        catch (Throwable $e) {
-            $errores['excepcion'] = get_class($e) . ': ' . $e->getMessage();
-        }
-
-        $info['intento' . $i] = array(
-            'clave' => isset($objeto['name']) ? $objeto['name']
-                : (isset($objeto['topic']) ? $objeto['topic'] : '?'),
-            'creado' => $creado,
-            'errores' => $errores,
-            'sql' => VerySimpleModel::getLastError(),
+    $estado = array();
+    foreach ($mapa as $yaml => $creador) {
+        $estado[$yaml] = array(
+            'objetos' => count((array) $i18n->getTemplate($yaml)->getData()),
+            'creador' => $creador . ' ' . (is_callable($creador)
+                ? 'disponible' : 'NO disponible'),
         );
     }
 
-    return $info;
+    return $estado;
 }
 
 /**
@@ -287,8 +253,11 @@ foreach ($ids as $tabla => $id) {
                 'ok' => false,
                 'motivo' => 'la siembra no dejó filas en ' . $tabla,
                 'filas' => filasSembradas(),
-            ),
-            diagnostico($tabla)));
+                'siembra' => isset($GLOBALS['siembra'])
+                    ? $GLOBALS['siembra'] : array(),
+                'estado' => estadoSiembra(),
+                'sql_ultimo' => VerySimpleModel::getLastError(),
+            )));
 }
 
 $dept_id = $ids['department'];

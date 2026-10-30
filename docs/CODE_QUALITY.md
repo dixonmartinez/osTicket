@@ -649,6 +649,20 @@ lanzar a mano para depurar:
 docker compose run --rm tools php tests/support/create-ticket.php staff
 ```
 
+**Cuando la siembra falla, el ayudante dice por qué.** `Internationalization::
+loadModels()` llama a cada creador con `@` y vacía el array de errores en cada
+vuelta, así que un YAML que no entra no deja rastro y desde fuera sólo se ve una
+tabla vacía. Por eso, si una tabla clave queda sin filas, la respuesta añade:
+
+| Campo | Qué trae |
+|---|---|
+| `filas` | cuántas filas dejó la siembra en cada tabla que importa |
+| `sql_siembra` | el último error del motor (`VerySimpleModel::getLastError()`), que `loadModels()` descarta |
+| `diagnostico` | el primer objeto (y el segundo) del YAML de esa tabla creado **otra vez** sin `@`, con sus `$errors` y el error de SQL a la vista |
+
+`diagnostico` escribe de verdad: si el fallo era de unicidad, la segunda
+llamada dirá «nombre repetido». Es lo esperado y hay que leerlo con esa cautela.
+
 El separador de sentencias se prueba contra el archivo real del instalador:
 son **133 sentencias** y todas empiezan por `CREATE`, `DROP`, `ALTER`,
 `INSERT`, `REPLACE`, `SET`, `UPDATE` o `DELETE`. Si alguien añade una tabla y
